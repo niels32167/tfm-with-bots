@@ -36,6 +36,7 @@ The GUI draws the board as clickable Areas (simple styling for now, polished in 
 - **Area names:** Areas are named A1–J5, as the open-source game labels Tharsis: rows A to J from the top (there is no row I), numbered from the left. Noctis City is E3. The Areas off Mars go by name: `phobos_space_haven` and `ganymede_colony`.
 - **Oceans in a Scenario:** a Scenario lists its Tiles (`{"area", "tile", "owner"}`), and the number of Oceans is the number of Ocean Tiles. Oxygen has its own field.
 - **Card bonuses:** until there is a deck (ticket 08), a card placement bonus gives nothing. The game log says what it would give.
+- **Tile colours:** "in their owner's colour" means a Tile coloured by its type (blue Ocean, olive Greenery, grey City) with a marker in the owner's colour, as on the physical board. The user confirmed this after seeing it (2026-10-22).
 - **Aquifer at 9 Oceans** follows the Asteroid call: it is still offered, costs 18 MegaCredits and does nothing else. The open-source game agrees. The criterion above is reworded to match, and `docs/rules-notes.md` has the details.
 
 **Design notes:**
@@ -72,4 +73,3 @@ The GUI draws the board as clickable Areas (simple styling for now, polished in 
 - **Ticket 18:** a Scenario still refuses Tiles on Noctis City and the two Areas off Mars ("reserved for the … card"). Once those cards exist, it must accept their own Tiles there, or a position after Noctis City is played can't be set up.
 - **Ticket 04:** the Game still ends on Temperature alone. Track bonuses, Oxygen and Ocean tracks, and the end on all three Global Parameters are ticket 04's.
 - **Ticket 06:** legal Areas are worked out afresh for every Decision. Adjacency is computed on the fly, so the benchmark will show whether a precomputed neighbour table is worth it.
-- **Tile colours:** the ticket says Tiles are shown "in their owner's colour". Here the owner shows as a coloured marker on a Tile coloured by type, as on the physical board. Say if you'd rather have whole Tiles in the owner's colour.
