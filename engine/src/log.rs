@@ -7,7 +7,7 @@ use crate::game::StandardProject;
 #[derive(Clone, Copy, Debug)]
 pub enum LogEvent {
     GenerationBegins { generation: u32 },
-    UsedStandardProject { player: usize, project: StandardProject, cost: i32 },
+    UsedStandardProject { player: usize, project: StandardProject },
     TemperatureRaised { player: usize, temperature: i32 },
     TemperatureAlreadyAtMaximum,
     EndedTurn { player: usize },
@@ -22,10 +22,11 @@ impl LogEvent {
     pub fn text(&self) -> String {
         match *self {
             LogEvent::GenerationBegins { generation } => format!("Generation {generation} begins."),
-            LogEvent::UsedStandardProject { player, project, cost } => format!(
-                "{} uses the {} Standard Project for {cost} MegaCredits.",
+            LogEvent::UsedStandardProject { player, project } => format!(
+                "{} uses the {} Standard Project for {} MegaCredits.",
                 player_name(player),
-                standard_project_name(project)
+                project.name(),
+                project.cost()
             ),
             LogEvent::TemperatureRaised { player, temperature } => format!(
                 "{} raises Temperature to {temperature} °C and gains 1 Terraform Rating.",
@@ -53,10 +54,4 @@ impl LogEvent {
 /// Players are numbered from 1 for people, but indexed from 0 everywhere else.
 pub fn player_name(index: usize) -> String {
     format!("Player {}", index + 1)
-}
-
-pub fn standard_project_name(project: StandardProject) -> &'static str {
-    match project {
-        StandardProject::Asteroid => "Asteroid",
-    }
 }

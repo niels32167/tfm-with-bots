@@ -2,12 +2,13 @@ import { useCallback, useEffect, useRef, useState } from "react";
 
 import type { ClientMessage, Controller, Update, ServerMessage } from "./types";
 
-export type GameState = Omit<Update, "type" | "log_start" | "log">;
+/** The server's latest update: Controllers, Player View and Decision (the log is kept apart). */
+export type GameUpdate = Omit<Update, "type" | "log_start" | "log">;
 
 /** The connection to the local server, and the latest Game state it sent. */
 export function useGameServer() {
   const [connected, setConnected] = useState(false);
-  const [game, setGame] = useState<GameState | null>(null);
+  const [game, setGame] = useState<GameUpdate | null>(null);
   const [log, setLog] = useState<string[]>([]);
   const [error, setError] = useState<string | null>(null);
   // The Decision a pick was sent for, so its buttons stay disabled until the server answers.
@@ -25,7 +26,16 @@ export function useGameServer() {
       // Events from a socket that has since been replaced (say, by React's dev-mode
       // double mount) must not touch the state.
       const isCurrent = () => socket.current === ws;
-      ws.onopen = () => isCurrent() && setConnected(true);
+      ws.onopen = () => {
+        if (!isCurrent()) return;
+        // The server sends the current Game straight away, if it has one. Whatever
+        // was shown before belongs to a connection (maybe a server) that is gone.
+        setGame(null);
+        setLog([]);
+        setError(null);
+        setPickedSequence(null);
+        setConnected(true);
+      };
       ws.onclose = () => {
         if (!isCurrent()) return;
         setConnected(false);

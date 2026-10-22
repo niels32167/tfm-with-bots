@@ -3,7 +3,7 @@
 import pytest
 import tm_engine
 
-from tests.helpers import offered, pick, player, player_board, scenario
+from tests.helpers import end_the_generation, offered, pick, player, player_board, scenario
 
 
 def test_a_new_game_waits_on_player_1_to_choose_an_action():
@@ -70,8 +70,7 @@ def test_picking_an_option_that_is_not_offered_is_rejected():
 
 def test_nothing_can_be_picked_once_the_game_is_over():
     game = scenario(player(), player(), temperature=8)
-    pick(game, "Pass")
-    pick(game, "Pass")
+    end_the_generation(game)
 
     with pytest.raises(ValueError, match="over"):
         game.pick(0)

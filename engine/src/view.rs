@@ -4,7 +4,7 @@
 
 use serde::Serialize;
 
-use crate::game::{ASTEROID_COST, Decision, DecisionKind, DecisionOption, Game, Phase, StandardProject};
+use crate::game::{Decision, DecisionKind, DecisionOption, Game, Phase, Score};
 use crate::log::player_name;
 
 #[derive(Serialize)]
@@ -25,7 +25,7 @@ pub struct OptionView {
 #[derive(Serialize)]
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum OptionDetails {
-    StandardProject { project: &'static str, cost: i32 },
+    StandardProject { project: String, cost: i32 },
     EndTurn,
     Pass,
 }
@@ -43,7 +43,7 @@ pub struct PlayerView {
     pub actions_this_turn: u32,
     pub players: Vec<PlayerBoard>,
     /// Each Player's final score once the Game is over, otherwise None.
-    pub scores: Option<Vec<ScoreView>>,
+    pub scores: Option<Vec<Score>>,
 }
 
 /// What everyone can see of a Player.
@@ -59,26 +59,6 @@ pub struct PlayerBoard {
 #[derive(Serialize)]
 pub struct Production {
     pub megacredits: i32,
-}
-
-#[derive(Serialize)]
-pub struct ScoreView {
-    pub player: usize,
-    pub terraform_rating: i32,
-    pub total: i32,
-}
-
-pub fn scores(game: &Game) -> Option<Vec<ScoreView>> {
-    let scores = game.scores()?;
-    let views = scores
-        .iter()
-        .map(|score| ScoreView {
-            player: score.player,
-            terraform_rating: score.terraform_rating,
-            total: score.total,
-        })
-        .collect();
-    Some(views)
 }
 
 pub fn player_view(game: &Game, viewer: usize) -> PlayerView {
@@ -104,7 +84,7 @@ pub fn player_view(game: &Game, viewer: usize) -> PlayerView {
                 passed: player.passed,
             })
             .collect(),
-        scores: scores(game),
+        scores: game.scores(),
     }
 }
 
@@ -130,8 +110,8 @@ fn decision_view(decision: &Decision) -> DecisionView {
 
 fn label(option: &DecisionOption) -> String {
     match option {
-        DecisionOption::UseStandardProject(StandardProject::Asteroid) => {
-            format!("Asteroid ({ASTEROID_COST} MegaCredits)")
+        DecisionOption::UseStandardProject(project) => {
+            format!("{} ({} MegaCredits)", project.name(), project.cost())
         }
         DecisionOption::EndTurn => "End Turn".to_string(),
         DecisionOption::Pass => "Pass".to_string(),
@@ -140,8 +120,8 @@ fn label(option: &DecisionOption) -> String {
 
 fn details(option: &DecisionOption) -> OptionDetails {
     match option {
-        DecisionOption::UseStandardProject(StandardProject::Asteroid) => {
-            OptionDetails::StandardProject { project: "asteroid", cost: ASTEROID_COST }
+        DecisionOption::UseStandardProject(project) => {
+            OptionDetails::StandardProject { project: project.name().to_lowercase(), cost: project.cost() }
         }
         DecisionOption::EndTurn => OptionDetails::EndTurn,
         DecisionOption::Pass => OptionDetails::Pass,

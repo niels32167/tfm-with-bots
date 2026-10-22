@@ -1,4 +1,4 @@
-import { formatTemperature } from "../players";
+import { formatTemperature, signed } from "../format";
 
 const MIN_TEMPERATURE = -30;
 const MAX_TEMPERATURE = 8;
@@ -23,7 +23,7 @@ export function TemperatureTrack({ temperature }: { temperature: number }) {
               celsius === temperature ? "current" : "",
             ].join(" ")}
           >
-            {celsius > 0 ? `+${celsius}` : celsius < 0 ? `−${-celsius}` : "0"}
+            {signed(celsius)}
           </li>
         ))}
       </ol>

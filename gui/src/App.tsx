@@ -79,6 +79,7 @@ export function App() {
         <FinalScores
           game={game}
           scores={scores}
+          onClose={() => setShowScores(false)}
           onNewGame={startNewGame}
         />
       )}

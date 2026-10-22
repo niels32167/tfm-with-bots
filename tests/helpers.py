@@ -14,13 +14,13 @@ from typing import Any
 import tm_engine
 
 
-def scenario(*players: dict[str, Any], **game: Any) -> tm_engine.Game:
+def scenario(*players: dict[str, Any], **fields: Any) -> tm_engine.Game:
     """Start a Game from a Scenario. Anything left out takes the normal defaults.
 
     Give one `player(...)` per Player; with none, the Game has two default Players.
     Keyword arguments describe the rest, e.g. `generation=3, temperature=-10`.
     """
-    description = dict(game)
+    description = dict(fields)
     if players:
         description["players"] = list(players)
     return tm_engine.Game.from_scenario(description)
@@ -68,6 +68,13 @@ def pick(game: tm_engine.Game, label: str | None = None, **details: Any) -> None
             f"expected exactly one Option matching {wanted}, found {len(found)}; offered: {labels(game)}"
         )
     game.pick(found[0]["index"])
+
+
+def end_the_generation(game: tm_engine.Game) -> None:
+    """Every Player who is still in passes, which ends the Generation (and maybe the Game)."""
+    generation = game.player_view(0)["generation"]
+    while not game.is_over and game.player_view(0)["generation"] == generation:
+        pick(game, "Pass")
 
 
 def player_board(game: tm_engine.Game, player: int) -> dict[str, Any]:

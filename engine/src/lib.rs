@@ -66,7 +66,7 @@ impl PyGame {
     /// Each Player's final score once the Game is over, otherwise None.
     #[getter]
     fn scores<'py>(&self, py: Python<'py>) -> PyResult<Bound<'py, PyAny>> {
-        to_python(py, &view::scores(&self.game))
+        to_python(py, &self.game.scores())
     }
 
     /// The seed this Game was created with.

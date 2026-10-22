@@ -1,15 +1,16 @@
-import { PLAYER_COLOURS, playerTitle } from "../players";
+import { isYou, PLAYER_COLOURS } from "../players";
 import type { Score } from "../types";
-import type { GameState } from "../useGameServer";
+import type { GameUpdate } from "../useGameServer";
 
 interface Props {
-  game: GameState;
+  game: GameUpdate;
   scores: Score[];
+  onClose: () => void;
   onNewGame: () => void;
 }
 
 /** The final score screen. For now a score is just Terraform Rating. */
-export function FinalScores({ game, scores, onNewGame }: Props) {
+export function FinalScores({ game, scores, onClose, onNewGame }: Props) {
   const ranked = [...scores].sort((a, b) => b.total - a.total);
   return (
     <div className="overlay" role="dialog" aria-labelledby="final-scores-title">
@@ -32,7 +33,7 @@ export function FinalScores({ game, scores, onNewGame }: Props) {
                 <td>
                   <span className="player-dot" style={{ background: PLAYER_COLOURS[score.player] }} />{" "}
                   {game.view.players[score.player].name}
-                  {playerTitle(game, score.player) === "You" && " (you)"}
+                  {isYou(game, score.player) && " (you)"}
                 </td>
                 <td>{score.terraform_rating}</td>
                 <td className="total">{score.total}</td>
@@ -40,9 +41,14 @@ export function FinalScores({ game, scores, onNewGame }: Props) {
             ))}
           </tbody>
         </table>
-        <button className="option" onClick={onNewGame}>
-          New Game
-        </button>
+        <div className="final-scores-buttons">
+          <button className="link-button" onClick={onClose}>
+            Back to the board
+          </button>
+          <button className="option" onClick={onNewGame}>
+            New Game
+          </button>
+        </div>
       </div>
     </div>
   );

@@ -2,7 +2,7 @@
 
 import tm_engine
 
-from tests.helpers import pick, player, scenario
+from tests.helpers import end_the_generation, pick, player, scenario
 
 
 def test_a_new_game_log_starts_with_generation_1():
@@ -11,7 +11,7 @@ def test_a_new_game_log_starts_with_generation_1():
     assert game.log == ["Generation 1 begins."]
 
 
-def test_the_log_describes_each_action_in_plain_language():
+def test_the_log_describes_what_each_player_does_in_plain_language():
     game = scenario(player(megacredits=20), player(), temperature=-30)
 
     pick(game, "Asteroid")
@@ -38,8 +38,7 @@ def test_the_log_says_when_temperature_is_already_at_its_maximum():
 def test_the_log_shows_the_production_phase_and_the_next_generation():
     game = scenario(player(terraform_rating=25, production={"megacredits": 2}), player(), generation=2)
 
-    pick(game, "Pass")
-    pick(game, "Pass")
+    end_the_generation(game)
 
     assert game.log[-4:] == [
         "Production phase.",
@@ -52,8 +51,7 @@ def test_the_log_shows_the_production_phase_and_the_next_generation():
 def test_the_log_ends_with_the_final_scores():
     game = scenario(player(terraform_rating=31), player(terraform_rating=27), temperature=8)
 
-    pick(game, "Pass")
-    pick(game, "Pass")
+    end_the_generation(game)
 
     assert game.log[-3:] == [
         "The Game is over.",

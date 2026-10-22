@@ -26,20 +26,19 @@ from server.session import GameSession
 DEFAULT_BOT_DELAY = 0.8
 
 
-class Table:
-    """The current Game, the open connections, and the task playing Random Bot moves."""
+class GameHost:
+    """Hosts the current Game for every open connection, and plays the Random Bots' picks."""
 
     def __init__(self) -> None:
         self.session: GameSession | None = None
         self.connections: set[WebSocket] = set()
-        self.bots: asyncio.Task | None = None
+        self.random_bot_task: asyncio.Task | None = None
 
     async def join(self, websocket: WebSocket) -> None:
         self.connections.add(websocket)
         if self.session is not None:
-            await websocket.send_json(self.session.update(log_start=0))
-            if self.session.game.is_over:
-                await websocket.send_json(self.session.game_over())
+            for message in self.session.catch_up():
+                await websocket.send_json(message)
 
     def leave(self, websocket: WebSocket) -> None:
         self.connections.discard(websocket)
@@ -65,34 +64,36 @@ class Table:
             seed=int(seed),
             bot_delay=float(message.get("bot_delay", DEFAULT_BOT_DELAY)),
         )
-        if self.bots is not None:
-            self.bots.cancel()
+        if self.random_bot_task is not None:
+            # A cancelled task only reports done once it next runs, so forget it now
+            # rather than wait for it.
+            self.random_bot_task.cancel()
+            self.random_bot_task = None
         self.session = session
-        await self.broadcast_progress()
+        await self.share_news()
 
     async def pick(self, message: dict[str, Any]) -> None:
         if self.session is None:
             raise ValueError("there is no Game yet; start a new Game first")
         self.session.pick_for_human(sequence=int(message["sequence"]), index=int(message["index"]))
-        await self.broadcast_progress()
+        await self.share_news()
 
-    async def broadcast_progress(self) -> None:
-        """Sends what changed, then lets the Random Bots move if it's their turn."""
+    async def share_news(self) -> None:
+        """Sends what changed, then lets the Random Bots pick if the Decision is theirs."""
         session = self.session
-        await self.broadcast(session.next_update())
-        if session.game.is_over:
-            await self.broadcast(session.game_over())
-        elif session.bot_to_move() and (self.bots is None or self.bots.done()):
-            self.bots = asyncio.create_task(self.play_bots(session))
+        for message in session.news():
+            await self.broadcast(message)
+        bots_idle = self.random_bot_task is None or self.random_bot_task.done()
+        if session.waiting_on_random_bot() and bots_idle:
+            self.random_bot_task = asyncio.create_task(self.play_random_bots(session))
 
-    async def play_bots(self, session: GameSession) -> None:
-        """Plays Random Bot moves one at a time, at a pace a person can follow."""
-        while session is self.session and session.bot_to_move():
+    async def play_random_bots(self, session: GameSession) -> None:
+        """Answers Random Bot Decisions one at a time, at a pace a person can follow."""
+        while session.waiting_on_random_bot():
             await asyncio.sleep(session.bot_delay)
-            session.pick_for_bot()
-            await self.broadcast(session.next_update())
-        if session is self.session and session.game.is_over:
-            await self.broadcast(session.game_over())
+            session.pick_for_random_bot()
+            for message in session.news():
+                await self.broadcast(message)
 
     async def broadcast(self, message: dict[str, Any]) -> None:
         for websocket in list(self.connections):
@@ -102,16 +103,16 @@ class Table:
 
 def create_app() -> FastAPI:
     app = FastAPI(title="Terraforming Mars")
-    table = Table()
+    host = GameHost()
 
     @app.websocket("/ws")
     async def play(websocket: WebSocket) -> None:
         await websocket.accept()
-        await table.join(websocket)
+        await host.join(websocket)
         try:
             while True:
-                await table.handle(websocket, await websocket.receive_json())
+                await host.handle(websocket, await websocket.receive_json())
         except WebSocketDisconnect:
-            table.leave(websocket)
+            host.leave(websocket)
 
     return app

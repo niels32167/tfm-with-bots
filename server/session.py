@@ -13,7 +13,7 @@ class GameSession:
     """One Game plus who answers each Player's Decisions.
 
     A human answers through the GUI; a Random Bot picks one of the offered Options
-    at random. The bots' own random numbers come from the Game's seed, so the same
+    at random. The Random Bots' random numbers come from the Game's seed, so the same
     seed and the same human picks give the same Game.
     """
 
@@ -24,7 +24,7 @@ class GameSession:
         self.game = tm_engine.Game(seed=seed, players=len(controllers))
         self.controllers = list(controllers)
         self.bot_delay = bot_delay
-        self.random_bot = random.Random(seed)
+        self.random_numbers = random.Random(seed)
         self.log_lines_sent = 0
 
     @property
@@ -32,44 +32,46 @@ class GameSession:
         """The Player whose Player View the GUI shows: the first human, else Player 1."""
         return self.controllers.index("human") if "human" in self.controllers else 0
 
-    def bot_to_move(self) -> bool:
+    def deciding_controller(self) -> Controller | None:
+        """Who answers the Decision the Game is waiting on, or None once it is over."""
         decision = self.game.decision
-        return decision is not None and self.controllers[decision["player"]] == "random_bot"
+        return None if decision is None else self.controllers[decision["player"]]
 
-    def pick_for_bot(self) -> None:
+    def waiting_on_random_bot(self) -> bool:
+        return self.deciding_controller() == "random_bot"
+
+    def pick_for_random_bot(self) -> None:
         options = self.game.decision["options"]
-        self.game.pick(self.random_bot.randrange(len(options)))
+        self.game.pick(self.random_numbers.randrange(len(options)))
 
     def pick_for_human(self, sequence: int, index: int) -> None:
         """Applies a human's pick. Raises ValueError if it isn't theirs to make or is stale."""
-        decision = self.game.decision
-        if decision is not None and self.controllers[decision["player"]] != "human":
-            raise ValueError("it is not a human Player's Decision")
+        if self.waiting_on_random_bot():
+            raise ValueError("this Decision belongs to a Random Bot, not a human")
         self.game.pick(index, sequence)
 
-    def update(self, log_start: int) -> dict[str, Any]:
-        """The message telling the GUI the current state, with game log lines from `log_start` on.
+    def catch_up(self) -> list[dict[str, Any]]:
+        """Everything a newly connected GUI needs, with the whole game log."""
+        return self._messages(log_start=0)
 
-        The current Decision is included only when a human must answer it.
-        """
-        decision = self.game.decision
-        if decision is not None and self.controllers[decision["player"]] != "human":
-            decision = None
-        return {
+    def news(self) -> list[dict[str, Any]]:
+        """What changed since the last news: an update with only the new game log lines,
+        followed by a game over message once the Game has ended."""
+        messages = self._messages(log_start=self.log_lines_sent)
+        self.log_lines_sent += len(messages[0]["log"])
+        return messages
+
+    def _messages(self, log_start: int) -> list[dict[str, Any]]:
+        update = {
             "type": "update",
             "controllers": self.controllers,
             "viewer": self.viewer,
             "view": self.game.player_view(self.viewer),
-            "decision": decision,
+            # The Decision goes to the GUI only when a human must answer it.
+            "decision": self.game.decision if self.deciding_controller() == "human" else None,
             "log_start": log_start,
             "log": self.game.log[log_start:],
         }
-
-    def next_update(self) -> dict[str, Any]:
-        """The update carrying only the game log lines not yet sent."""
-        message = self.update(self.log_lines_sent)
-        self.log_lines_sent += len(message["log"])
-        return message
-
-    def game_over(self) -> dict[str, Any]:
-        return {"type": "game_over", "scores": self.game.scores}
+        if self.game.is_over:
+            return [update, {"type": "game_over", "scores": self.game.scores}]
+        return [update]

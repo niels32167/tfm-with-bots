@@ -1,8 +1,8 @@
 import { playerTitle } from "../players";
-import type { GameState } from "../useGameServer";
+import type { GameUpdate } from "../useGameServer";
 
 interface Props {
-  game: GameState;
+  game: GameUpdate;
   error: string | null;
   pickedSequence: number | null;
   onPick: (sequence: number, index: number) => void;
@@ -33,7 +33,7 @@ export function StatusBar({ game, error, pickedSequence, onPick }: Props) {
   );
 }
 
-function statusText(game: GameState): string {
+function statusText(game: GameUpdate): string {
   const { view, decision } = game;
   if (view.phase === "over" || view.current_player === null) return "The Game is over.";
   const who = playerTitle(game, view.current_player);

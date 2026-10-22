@@ -464,6 +464,8 @@ code {
   font-size: 1.15rem;
 }
 
-.final-scores .option {
-  align-self: center;
+.final-scores-buttons {
+  display: flex;
+  justify-content: center;
+  gap: 12px;
 }

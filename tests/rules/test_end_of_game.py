@@ -1,13 +1,6 @@
 """The end of the Game: after the Generation in which Temperature reaches its maximum."""
 
-from tests.helpers import pick, player, player_board, scenario
-
-
-def end_the_generation(game):
-    """Every Player who is still in passes, which ends the Generation."""
-    generation = game.player_view(0)["generation"]
-    while not game.is_over and game.player_view(0)["generation"] == generation:
-        pick(game, "Pass")
+from tests.helpers import end_the_generation, pick, player, player_board, scenario
 
 
 def test_the_generation_carries_on_after_temperature_reaches_its_maximum():

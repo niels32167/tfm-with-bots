@@ -1,14 +1,14 @@
-import { controllerLabel, PLAYER_COLOURS, playerTitle } from "../players";
-import type { GameState } from "../useGameServer";
+import { signed } from "../format";
+import { controllerLabel, isYou, PLAYER_COLOURS } from "../players";
+import type { GameUpdate } from "../useGameServer";
 
 /** One board per Player: MegaCredits and their Production, Terraform Rating, and Turn state. */
-export function PlayerBoards({ game }: { game: GameState }) {
+export function PlayerBoards({ game }: { game: GameUpdate }) {
   const { view } = game;
   return (
     <section className="player-boards" aria-label="Player boards">
       {view.players.map((board, index) => {
         const isCurrent = view.current_player === index;
-        const production = board.production.megacredits;
         return (
           <article
             key={index}
@@ -19,7 +19,7 @@ export function PlayerBoards({ game }: { game: GameState }) {
               <span className="player-dot" style={{ background: PLAYER_COLOURS[index] }} />
               <span className="player-name">{board.name}</span>
               <span className="player-controller">
-                {playerTitle(game, index) === "You" ? "You" : controllerLabel(game, index)}
+                {isYou(game, index) ? "You" : controllerLabel(game, index)}
               </span>
               {board.passed && <span className="badge passed">Passed</span>}
               {isCurrent && (
@@ -33,9 +33,7 @@ export function PlayerBoards({ game }: { game: GameState }) {
                 <dt>MegaCredits</dt>
                 <dd>
                   <span className="stat-value">{board.megacredits}</span>
-                  <span className="stat-production">
-                    {production >= 0 ? `+${production}` : `−${-production}`}
-                  </span>
+                  <span className="stat-production">{signed(board.production.megacredits)}</span>
                 </dd>
               </div>
               <div className="stat terraform-rating" title="Terraform Rating">

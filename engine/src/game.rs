@@ -7,6 +7,8 @@
 
 use std::fmt;
 
+use serde::Serialize;
+
 use crate::log::LogEvent;
 
 pub const MIN_PLAYERS: usize = 2;
@@ -24,8 +26,6 @@ pub const STARTING_TERRAFORM_RATING: i32 = 20;
 pub const STARTING_MEGACREDITS: i32 = 42;
 
 pub const ACTIONS_PER_TURN: u32 = 2;
-
-pub const ASTEROID_COST: i32 = 14;
 
 #[derive(Clone, Debug)]
 pub struct Settings {
@@ -64,6 +64,21 @@ pub enum StandardProject {
     Asteroid,
 }
 
+impl StandardProject {
+    pub fn name(self) -> &'static str {
+        match self {
+            StandardProject::Asteroid => "Asteroid",
+        }
+    }
+
+    /// The printed price in MegaCredits.
+    pub fn cost(self) -> i32 {
+        match self {
+            StandardProject::Asteroid => 14,
+        }
+    }
+}
+
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum DecisionKind {
     /// Choose an Action, end the Turn, or Pass.
@@ -88,7 +103,7 @@ pub struct Decision {
     pub options: Vec<DecisionOption>,
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Serialize)]
 pub struct Score {
     pub player: usize,
     pub terraform_rating: i32,
@@ -212,9 +227,10 @@ impl Game {
     fn action_options(&self) -> Vec<DecisionOption> {
         let player = &self.players[self.current_player];
         let mut options = Vec::new();
-        // Still offered at maximum Temperature, where it does nothing (see docs/rules-notes.md).
-        if player.megacredits >= ASTEROID_COST {
-            options.push(DecisionOption::UseStandardProject(StandardProject::Asteroid));
+        // Asteroid is still offered at maximum Temperature, where it does nothing (see docs/rules-notes.md).
+        let asteroid = StandardProject::Asteroid;
+        if player.megacredits >= asteroid.cost() {
+            options.push(DecisionOption::UseStandardProject(asteroid));
         }
         // Once everyone else has passed, ending the Turn would only start another one.
         if self.actions_this_turn > 0 && self.another_player_still_in() {
@@ -227,14 +243,12 @@ impl Game {
     fn resolve(&mut self, option: DecisionOption) {
         let player = self.current_player;
         match option {
-            DecisionOption::UseStandardProject(StandardProject::Asteroid) => {
-                self.players[player].megacredits -= ASTEROID_COST;
-                self.log.push(LogEvent::UsedStandardProject {
-                    player,
-                    project: StandardProject::Asteroid,
-                    cost: ASTEROID_COST,
-                });
-                self.raise_temperature(player);
+            DecisionOption::UseStandardProject(project) => {
+                self.players[player].megacredits -= project.cost();
+                self.log.push(LogEvent::UsedStandardProject { player, project });
+                match project {
+                    StandardProject::Asteroid => self.raise_temperature(player),
+                }
                 self.finish_action();
             }
             DecisionOption::EndTurn => {
