@@ -19,7 +19,7 @@ def test_a_new_game_waits_on_the_first_player_to_choose_an_action():
 
 
 def test_every_option_has_an_index_a_label_and_structured_details():
-    game = tm_engine.Game(seed=1)
+    game = scenario(player(megacredits=14), player())
 
     assert game.decision["options"] == [
         {
@@ -62,7 +62,7 @@ def test_a_pick_carrying_a_stale_sequence_number_is_rejected():
 
 
 def test_picking_an_option_that_is_not_offered_is_rejected():
-    game = tm_engine.Game(seed=1)
+    game = scenario(player(megacredits=14), player())  # Asteroid or Pass
 
     with pytest.raises(ValueError, match="no Option 2"):
         game.pick(2)

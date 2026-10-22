@@ -1,3 +1,7 @@
+import type { TileType } from "./types";
+
+export const TILE_NAMES: Record<TileType, string> = { ocean: "Ocean", greenery: "Greenery", city: "City" };
+
 /** A number with an explicit sign and a real minus sign: "+8", "0", "−30". */
 export function signed(value: number): string {
   if (value > 0) return `+${value}`;

@@ -24,9 +24,12 @@ class Game:
         """A Game started from a Scenario. Anything left out takes the normal defaults.
 
         Fields: seed, generation, first_player (default 0, who also takes the first Turn),
-        temperature, and players: a list of
-        {megacredits, production: {megacredits}, terraform_rating}.
-        Raises ValueError for unknown fields or impossible values.
+        temperature, oxygen, tiles, and players: a list of
+        {megacredits, steel, titanium, plants, production: {megacredits}, terraform_rating}.
+        Each Tile is {"area": "C3", "tile": "ocean" | "greenery" | "city", "owner": 0};
+        Oceans have no owner, and the number of Oceans is the number of Ocean Tiles.
+        Raises ValueError for unknown fields or impossible values, such as a City on an
+        Area reserved for Oceans or more than 9 Oceans.
         """
 
     @staticmethod
@@ -55,6 +58,9 @@ class Game:
 
         {"player": int, "kind": str, "sequence": int,
          "options": [{"index": int, "label": str, "details": {"type": str, ...}}]}
+
+        Kinds: "action" (an Action, End Turn or Pass) and "area" (where to place a Tile,
+        with details {"type": "area", "area": "C3", "tile": "city"}).
         """
 
     def pick(self, index: int, sequence: int | None = None) -> None:
@@ -73,7 +79,15 @@ class Game:
         """
 
     def player_view(self, player: int) -> dict[str, Any]:
-        """Everything `player` is allowed to know. Its "viewer" is `player`."""
+        """Everything `player` is allowed to know. Its "viewer" is `player`.
+
+        Besides the Generation, phase, Global Parameters (temperature, oxygen, oceans) and
+        each Player's board, it has the "board": every Area, on Mars row by row from the
+        top (A to J, skipping I) and each row from the left, then the two Areas off Mars:
+        {"area": "E3", "name": "Noctis City" | None, "row": 5, "position": 3,
+         "reserved": "ocean" | "noctis_city" | ... | None, "bonus": ["plant", "plant"],
+         "tile": {"type": "city", "owner": 0} | None}
+        """
 
     def full_view(self) -> dict[str, Any]:
         """Everything about the Game, including what Players hide from each other.

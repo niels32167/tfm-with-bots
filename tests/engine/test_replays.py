@@ -6,7 +6,7 @@ import json
 import pytest
 import tm_engine
 
-from tests.helpers import MAX_PICKS, everything_about, pick, play_randomly, player, scenario
+from tests.helpers import MAX_PICKS, city, everything_about, ocean, pick, play_randomly, player, scenario
 
 
 def test_a_replay_holds_the_settings_and_seed_and_the_options_picked():
@@ -16,7 +16,9 @@ def test_a_replay_holds_the_settings_and_seed_and_the_options_picked():
     pick(game, "End Turn")
     pick(game, "Pass")
 
-    assert game.replay == {"start": {"settings": {"players": 3, "seed": 7}}, "picks": [0, 1, 1]}
+    # With 28 MegaCredits left: Asteroid, Aquifer, Greenery, City, End Turn, Pass.
+    # Then with 42: Asteroid, Aquifer, Greenery, City, Pass.
+    assert game.replay == {"start": {"settings": {"players": 3, "seed": 7}}, "picks": [0, 4, 4]}
 
 
 def test_loading_an_exported_replay_gives_back_the_same_game():
@@ -43,11 +45,13 @@ def test_a_finished_game_loads_from_its_replay_with_its_final_scores():
 
 def test_a_game_started_from_a_scenario_loads_from_its_replay():
     game = scenario(
-        player(megacredits=60, production={"megacredits": 3}),
-        player(terraform_rating=25),
+        player(megacredits=60, plants=12, production={"megacredits": 3}),
+        player(terraform_rating=25, steel=4),
         player(megacredits=0),
         generation=3,
         temperature=-10,
+        oxygen=6,
+        tiles=[ocean("A2"), city("C3", owner=1)],
         first_player=1,
         seed=11,
     )
@@ -56,6 +60,10 @@ def test_a_game_started_from_a_scenario_loads_from_its_replay():
     loaded = tm_engine.Game.from_replay(game.replay)
 
     assert game.replay["start"]["scenario"]["temperature"] == -10
+    assert game.replay["start"]["scenario"]["tiles"] == [
+        {"area": "A2", "tile": "ocean", "owner": None},
+        {"area": "C3", "tile": "city", "owner": 1},
+    ]
     assert everything_about(loaded) == everything_about(game)
     assert loaded.replay == game.replay
 

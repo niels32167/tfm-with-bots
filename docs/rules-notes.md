@@ -26,10 +26,42 @@ The Player pays 14 MegaCredits; Temperature and Terraform Rating stay as they ar
   a "max temperature" warning.
 
 Ticket 01 first said Asteroid would not be offered; the user chose to follow the
-authority order instead (2026-10-22). The same reasoning will apply to Aquifer once all
-nine Oceans are placed.
+authority order instead (2026-10-22). Aquifer follows the same call (below).
 
 **Tests:** `tests/rules/test_asteroid.py::test_asteroid_at_maximum_temperature_costs_14_megacredits_and_does_nothing_else`
+
+### Aquifer once 9 Oceans are placed
+
+**Call:** The Aquifer Standard Project is still offered once all 9 Oceans are placed.
+The Player pays 18 MegaCredits and places no Ocean, so they get no Terraform Rating,
+no placement bonus and no MegaCredits for adjacent Oceans.
+
+**Why:**
+- The rulebook quote under Asteroid covers every Global Parameter, Oceans included.
+- The community *Comprehensive FAQ* (v1.7) answers Aquifer with no Oceans left the same
+  way: you may pay, and get nothing.
+- The open-source game agrees: its Aquifer Standard Project stays usable and only shows
+  a "max oceans" warning.
+
+Ticket 03 said the Standard Projects are offered only when "a legal Area exists". The
+user had already chosen the authority order for Asteroid, and confirmed it for Aquifer
+when ticket 03 started (2026-10-22).
+
+**Tests:** `tests/rules/test_oceans.py::test_once_9_oceans_are_placed_aquifer_costs_18_megacredits_and_does_nothing_else`
+
+## Tiles
+
+### Card-draw placement bonuses before there is a deck (temporary)
+
+**Call:** Until the deck exists (ticket 08), a Tile placed on an Area with a card bonus
+gives nothing. The game log says what it would give, for example "Player 1 would draw
+2 cards from the placement bonus, but there is no deck yet."
+
+**Why:** Not a rules question but a gap in the engine, recorded so that play-testing
+doesn't mistake it for a bug. Chosen by the user (2026-10-22). Ticket 08 replaces it
+with the real draw.
+
+**Tests:** `tests/rules/test_placement_bonuses.py::test_until_there_is_a_deck_a_card_bonus_only_says_what_it_would_give`
 
 ## Turns
 

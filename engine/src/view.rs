@@ -4,7 +4,8 @@
 
 use serde::Serialize;
 
-use crate::game::{Decision, DecisionKind, DecisionOption, Game, Phase, Score};
+use crate::board::{AREA_COUNT, Board, TileKind, area_id, area_label, printed, row_and_position};
+use crate::game::{Decision, DecisionKind, DecisionOption, Game, PLANTS_PER_GREENERY, Phase, Score};
 use crate::log::player_name;
 
 #[derive(Serialize)]
@@ -25,9 +26,20 @@ pub struct OptionView {
 #[derive(Serialize)]
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum OptionDetails {
-    StandardProject { project: String, cost: i32 },
+    StandardProject {
+        project: String,
+        cost: i32,
+    },
+    ConvertPlants {
+        plants: i32,
+    },
     EndTurn,
     Pass,
+    /// An Area for the Tile being placed.
+    Area {
+        area: String,
+        tile: TileKind,
+    },
 }
 
 /// What one Player is allowed to know (their Player View), or everything (the full
@@ -39,6 +51,12 @@ pub struct View {
     pub generation: u32,
     pub phase: &'static str,
     pub temperature: i32,
+    /// In percent.
+    pub oxygen: i32,
+    /// How many Ocean Tiles have been placed.
+    pub oceans: usize,
+    /// Every Area, on Mars row by row from the top and each row from the left, then off Mars.
+    pub board: Vec<AreaView>,
     /// Who holds the first-player marker.
     pub first_player: usize,
     /// Whose Turn it is, or None once the Game is over.
@@ -50,11 +68,40 @@ pub struct View {
     pub scores: Option<Vec<Score>>,
 }
 
+/// One Area: what is printed on it, and its Tile if it has one.
+#[derive(Serialize)]
+pub struct AreaView {
+    /// Its name: "E3" on Mars, or "phobos_space_haven" off Mars.
+    pub area: String,
+    /// The name printed on it, such as "Noctis City", if any.
+    pub name: Option<&'static str>,
+    /// Its row from the top and position from the left on Mars, both counted from 1,
+    /// matching its name. None off Mars.
+    pub row: Option<usize>,
+    pub position: Option<usize>,
+    /// What the Area is kept for: "ocean", or a card's Tile such as "noctis_city".
+    pub reserved: Option<&'static str>,
+    /// The placement bonus, one entry per item: "steel", "titanium", "plant" or "card".
+    pub bonus: Vec<&'static str>,
+    pub tile: Option<TileView>,
+}
+
+#[derive(Serialize)]
+pub struct TileView {
+    #[serde(rename = "type")]
+    pub kind: TileKind,
+    /// The owning Player, or None for an Ocean.
+    pub owner: Option<usize>,
+}
+
 /// What everyone can see of a Player.
 #[derive(Serialize)]
 pub struct PlayerBoard {
     pub name: String,
     pub megacredits: i32,
+    pub steel: i32,
+    pub titanium: i32,
+    pub plants: i32,
     pub production: Production,
     pub terraform_rating: i32,
     pub passed: bool,
@@ -84,6 +131,9 @@ fn view(game: &Game, viewer: Option<usize>) -> View {
             Phase::Over => "over",
         },
         temperature: game.temperature,
+        oxygen: game.oxygen,
+        oceans: game.board.oceans(),
+        board: board_view(&game.board),
         first_player: game.first_player,
         current_player: if game.is_over() { None } else { Some(game.current_player) },
         actions_this_turn: game.actions_this_turn,
@@ -94,6 +144,9 @@ fn view(game: &Game, viewer: Option<usize>) -> View {
             .map(|(index, player)| PlayerBoard {
                 name: player_name(index),
                 megacredits: player.megacredits,
+                steel: player.steel,
+                titanium: player.titanium,
+                plants: player.plants,
                 production: Production { megacredits: player.megacredit_production },
                 terraform_rating: player.terraform_rating,
                 passed: player.passed,
@@ -101,6 +154,24 @@ fn view(game: &Game, viewer: Option<usize>) -> View {
             .collect(),
         scores: game.scores(),
     }
+}
+
+fn board_view(board: &Board) -> Vec<AreaView> {
+    (0..AREA_COUNT)
+        .map(|area| {
+            let printed = printed(area);
+            let row_and_position = row_and_position(area);
+            AreaView {
+                area: area_id(area),
+                name: printed.name,
+                row: row_and_position.map(|(row, _)| row + 1),
+                position: row_and_position.map(|(_, position)| position + 1),
+                reserved: printed.reserved.map(|reservation| reservation.name()),
+                bonus: printed.bonus.iter().map(|item| item.name()).collect(),
+                tile: board.tile(area).map(|tile| TileView { kind: tile.kind, owner: tile.owner }),
+            }
+        })
+        .collect()
 }
 
 pub fn decision(game: &Game) -> Option<DecisionView> {
@@ -112,6 +183,7 @@ fn decision_view(decision: &Decision) -> DecisionView {
         player: decision.player,
         kind: match decision.kind {
             DecisionKind::Action => "action",
+            DecisionKind::Area => "area",
         },
         sequence: decision.sequence,
         options: decision
@@ -128,8 +200,12 @@ fn label(option: &DecisionOption) -> String {
         DecisionOption::UseStandardProject(project) => {
             format!("{} ({} MegaCredits)", project.name(), project.cost())
         }
+        DecisionOption::ConvertPlants => format!("Convert {PLANTS_PER_GREENERY} plants into a Greenery"),
         DecisionOption::EndTurn => "End Turn".to_string(),
         DecisionOption::Pass => "Pass".to_string(),
+        DecisionOption::PlaceTile { tile, area } => {
+            format!("Place the {} on {}", tile.name(), area_label(*area))
+        }
     }
 }
 
@@ -138,7 +214,9 @@ fn details(option: &DecisionOption) -> OptionDetails {
         DecisionOption::UseStandardProject(project) => {
             OptionDetails::StandardProject { project: project.name().to_lowercase(), cost: project.cost() }
         }
+        DecisionOption::ConvertPlants => OptionDetails::ConvertPlants { plants: PLANTS_PER_GREENERY },
         DecisionOption::EndTurn => OptionDetails::EndTurn,
         DecisionOption::Pass => OptionDetails::Pass,
+        DecisionOption::PlaceTile { tile, area } => OptionDetails::Area { area: area_id(*area), tile: *tile },
     }
 }

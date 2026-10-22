@@ -2,6 +2,7 @@
 //! the server and (later) the AI. Everything it returns is plain, JSON-serializable
 //! Python data: dicts, lists, strings, numbers and None.
 
+mod board;
 mod game;
 mod log;
 mod random;

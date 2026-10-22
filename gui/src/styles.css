@@ -337,29 +337,141 @@ input[aria-invalid="true"] {
 
 .board-area {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: center;
   gap: 40px;
   padding: 16px;
   min-height: 560px;
 }
 
-.mars {
-  width: min(56vh, 520px);
-  aspect-ratio: 1;
-  border-radius: 50%;
-  background:
-    radial-gradient(circle at 34% 30%, #f0a070 0%, #d0643a 22%, #a8422a 48%, #5c1d12 78%, #2a0c08 100%);
-  box-shadow:
-    0 0 60px rgba(220, 100, 60, 0.35),
-    inset -30px -30px 80px rgba(0, 0, 0, 0.55);
-  flex-shrink: 1;
+/* Mars: the Tharsis board drawn as SVG (simple styling until ticket 23). */
+.mars-column {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  flex: 1 1 0;
+  min-width: 0;
 }
 
-@media (max-width: 700px) {
-  .mars {
-    display: none;
-  }
+.global-parameters {
+  margin: 0;
+  font-weight: 600;
+  color: var(--text-dim);
+  font-variant-numeric: tabular-nums;
+}
+
+.mars-board {
+  width: 100%;
+  max-width: min(80vh, 680px);
+  aspect-ratio: 1;
+  filter: drop-shadow(0 0 40px rgba(220, 100, 60, 0.3));
+}
+
+.mars-board text {
+  text-anchor: middle;
+  dominant-baseline: central;
+  pointer-events: none;
+  user-select: none;
+}
+
+.area .area-shape {
+  fill: rgba(255, 240, 220, 0.1);
+  stroke: rgba(255, 240, 220, 0.4);
+  stroke-width: 1;
+}
+
+.area.reserved-ocean .area-shape {
+  fill: rgba(70, 140, 220, 0.35);
+}
+
+.area.reserved-card .area-shape {
+  stroke: #f0d48a;
+  stroke-dasharray: 4 3;
+}
+
+.area.off-mars .area-shape {
+  fill: rgba(20, 20, 30, 0.8);
+}
+
+.area.tile-ocean .area-shape {
+  fill: #2f6fb4;
+}
+
+/* Olive, so that a green Player's owner marker still stands out. */
+.area.tile-greenery .area-shape {
+  fill: #5d7f2a;
+}
+
+.area.tile-city .area-shape {
+  fill: #7a7d84;
+}
+
+.area-id {
+  font-size: 7px;
+  fill: rgba(255, 245, 230, 0.55);
+}
+
+.area-name {
+  font-size: 6.5px;
+  font-weight: 700;
+  fill: #f6e7c4;
+}
+
+.bonus-letter {
+  font-size: 8px;
+  font-weight: 800;
+  fill: #fff;
+}
+
+.bonus-steel {
+  fill: #9a6234;
+  stroke: #3a2210;
+}
+
+.bonus-titanium {
+  fill: #3b3b44;
+  stroke: #f0d060;
+}
+
+.bonus-plant {
+  fill: #59b043;
+  stroke: #1d4a14;
+}
+
+.bonus-card {
+  fill: #f4efe2;
+  stroke: #6d5d40;
+}
+
+.city-skyline {
+  fill: #3b3d43;
+}
+
+.owner-marker {
+  stroke: #fff;
+  stroke-width: 1.5;
+}
+
+/* While a human chooses an Area, the legal ones stand out and the rest step back. */
+.mars-board.choosing .area:not(.choosable) {
+  opacity: 0.45;
+}
+
+.area.choosable {
+  cursor: pointer;
+  outline: none;
+}
+
+.area.choosable .area-shape {
+  stroke: #ffd54a;
+  stroke-width: 2.5;
+}
+
+.area.choosable:hover .area-shape,
+.area.choosable:focus-visible .area-shape {
+  fill: rgba(255, 213, 74, 0.45);
+  stroke-width: 3.5;
 }
 
 /* The thermometer. */
@@ -509,7 +621,7 @@ input[aria-invalid="true"] {
 
 .player-stats {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: repeat(3, 1fr);
   gap: 8px;
   margin: 10px 0 0;
 }

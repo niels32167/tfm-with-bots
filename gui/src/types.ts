@@ -25,6 +25,9 @@ export interface Decision {
 export interface PlayerBoard {
   name: string;
   megacredits: number;
+  steel: number;
+  titanium: number;
+  plants: number;
   production: { megacredits: number };
   terraform_rating: number;
   passed: boolean;
@@ -36,6 +39,31 @@ export interface Score {
   total: number;
 }
 
+export type TileType = "ocean" | "greenery" | "city";
+
+export interface Tile {
+  type: TileType;
+  /** The owning Player, or null for an Ocean. */
+  owner: number | null;
+}
+
+export type BonusItem = "steel" | "titanium" | "plant" | "card";
+
+/** One Area of the board: what is printed on it, and its Tile if it has one. */
+export interface Area {
+  /** Its name: "E3" on Mars, or "phobos_space_haven" off Mars. */
+  area: string;
+  /** The name printed on it, such as "Noctis City". */
+  name: string | null;
+  /** Row from the top and position from the left on Mars, counted from 1; null off Mars. */
+  row: number | null;
+  position: number | null;
+  /** What the Area is kept for: "ocean", or a card's Tile such as "noctis_city". */
+  reserved: string | null;
+  bonus: BonusItem[];
+  tile: Tile | null;
+}
+
 /** One Player's Player View, or the full view. */
 export interface View {
   /** The Player whose Player View this is, or null for the full view. */
@@ -43,6 +71,12 @@ export interface View {
   generation: number;
   phase: "action" | "over";
   temperature: number;
+  /** In percent. */
+  oxygen: number;
+  /** How many Ocean Tiles have been placed. */
+  oceans: number;
+  /** Every Area: on Mars row by row from the top, then off Mars. */
+  board: Area[];
   first_player: number;
   current_player: number | null;
   actions_this_turn: number;

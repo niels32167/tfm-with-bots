@@ -17,6 +17,18 @@ import tm_engine
 # A generous guard so a Game that never ends fails the test instead of hanging it.
 MAX_PICKS = 10_000
 
+# The Areas on Mars as printed on the Tharsis board: rows A to J (there is no row I) with
+# 5 to 9 Areas each, 12 of them reserved for Oceans and E3 for the Noctis City card.
+ROW_LENGTHS = {"A": 5, "B": 6, "C": 7, "D": 8, "E": 9, "F": 8, "G": 7, "H": 6, "J": 5}
+OCEAN_AREAS = ["A2", "A4", "A5", "B6", "D8", "E4", "E5", "E6", "F6", "F7", "F8", "J5"]
+NOCTIS_CITY = "E3"
+# Every Area on Mars that is reserved for nothing, in board order.
+LAND_AREAS = [
+    name
+    for name in (f"{row}{position}" for row, length in ROW_LENGTHS.items() for position in range(1, length + 1))
+    if name not in OCEAN_AREAS and name != NOCTIS_CITY
+]
+
 
 def scenario(*players: dict[str, Any], **fields: Any) -> tm_engine.Game:
     """Start a Game from a Scenario. Anything left out takes the normal defaults.
@@ -33,9 +45,24 @@ def scenario(*players: dict[str, Any], **fields: Any) -> tm_engine.Game:
 def player(**fields: Any) -> dict[str, Any]:
     """One Player's part of a Scenario.
 
-    For example `player(megacredits=30, terraform_rating=25, production={"megacredits": 2})`.
+    For example `player(megacredits=30, plants=8, terraform_rating=25, production={"megacredits": 2})`.
     """
     return fields
+
+
+def ocean(area: str) -> dict[str, Any]:
+    """An Ocean Tile for a Scenario's `tiles`, e.g. `scenario(tiles=[ocean("A2")])`. Oceans belong to nobody."""
+    return {"area": area, "tile": "ocean"}
+
+
+def greenery(area: str, owner: int) -> dict[str, Any]:
+    """A Greenery Tile owned by Player `owner` (indexed from 0), for a Scenario's `tiles`."""
+    return {"area": area, "tile": "greenery", "owner": owner}
+
+
+def city(area: str, owner: int) -> dict[str, Any]:
+    """A City Tile owned by Player `owner` (indexed from 0), for a Scenario's `tiles`."""
+    return {"area": area, "tile": "city", "owner": owner}
 
 
 def options(game: tm_engine.Game) -> list[dict[str, Any]]:
@@ -103,6 +130,24 @@ def everything_about(game: tm_engine.Game) -> dict[str, Any]:
 def player_board(game: tm_engine.Game, player: int) -> dict[str, Any]:
     """What everyone can see of a Player: Resources, Production, Terraform Rating, whether they passed."""
     return game.player_view(player)["players"][player]
+
+
+def area(game: tm_engine.Game, area_id: str) -> dict[str, Any]:
+    """One Area of the board as everyone sees it: "E3", or "phobos_space_haven" off Mars."""
+    found = [entry for entry in game.full_view()["board"] if entry["area"] == area_id]
+    assert len(found) == 1, f"there is no Area {area_id!r} on the board"
+    return found[0]
+
+
+def areas_on_mars(game: tm_engine.Game) -> list[dict[str, Any]]:
+    """Every Area on Mars, row by row from the top and each row from the left."""
+    return [entry for entry in game.full_view()["board"] if entry["row"] is not None]
+
+
+def areas_offered(game: tm_engine.Game) -> list[str]:
+    """The Areas the current choose-an-Area Decision offers, in board order."""
+    return [option["details"]["area"] for option in options(game)]
+
 
 
 def matching_options(offered: list[dict[str, Any]], label: str | None = None, **details: Any) -> list[dict[str, Any]]:

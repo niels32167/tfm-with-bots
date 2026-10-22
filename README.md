@@ -4,10 +4,13 @@ A digital Terraforming Mars with a fast rules engine, built so an AI opponent ca
 be trained against it by self-play. Phase 1 is a playable, well-tested game; see
 `.scratch/phase-1-playable-game/spec.md`.
 
-So far (tickets 01–02) it plays an Asteroid-only Game: 2–5 Players raise Temperature
-with the Asteroid Standard Project until it is maxed, and the highest Terraform Rating
-wins. Each Player is a human or a Random Bot, every Game comes from a seed, and any
-Game can be undone, saved as a Replay file and loaded again.
+So far (tickets 01–03), 2–5 Players use the Asteroid, Aquifer, Greenery and City
+Standard Projects and convert plants into Greeneries on the Tharsis board. They place
+Oceans, Greeneries and Cities by clicking a highlighted Area, and collect placement
+bonuses and 2 MegaCredits per adjacent Ocean. The Game ends after the Generation in
+which Temperature is maxed, and the highest Terraform Rating wins. Each Player is a
+human or a Random Bot, every Game comes from a seed, and any Game can be undone, saved
+as a Replay file and loaded again.
 
 ## How it fits together
 
@@ -76,6 +79,7 @@ reloading the page picks it up again.
 | Path | What |
 | --- | --- |
 | `engine/src/game.rs` | The rules: Game state, Decisions and Options |
+| `engine/src/board.rs` | The Tharsis board: Areas, adjacency, and where each Tile may go |
 | `engine/src/scenario.rs` | Starting a Game from a Scenario |
 | `engine/src/replay.rs` | Replays: rebuilding a Game from its start and picks |
 | `engine/src/random.rs` | The Game's seeded random numbers |
@@ -86,9 +90,9 @@ reloading the page picks it up again.
 | `tests/rules/` | Scenario tests of the rules, through `tm_engine` |
 | `tests/engine/` | Tests of the engine module itself: views, copies, Replays, reproducibility |
 | `tests/server/` | Tests of the local server over its WebSocket |
-| `tests/helpers.py` | `scenario()`, `player()`, `pick()`, `offered()`: helpers that make tests read like play |
+| `tests/helpers.py` | `scenario()`, `player()`, `ocean()`, `city()`, `pick()`, `offered()`, `area()`: helpers that make tests read like play |
 | `server/` | The local server and the Random Bot |
-| `gui/src/` | The browser GUI |
+| `gui/src/` | The browser GUI; the board is `gui/src/components/MarsBoard.tsx` |
 | `CONTEXT.md` | The glossary; code, tests and messages use its terms |
 | `docs/adr/` | Architecture decisions |
 | `docs/rules-notes.md` | Every rules judgment call |

@@ -1,4 +1,6 @@
+import { TILE_NAMES } from "../format";
 import { playerTitle } from "../players";
+import type { TileType } from "../types";
 import type { GameUpdate } from "../useGameServer";
 
 interface Props {
@@ -14,7 +16,7 @@ export function StatusBar({ game, error, pickedSequence, onPick }: Props) {
   return (
     <div className="status-bar" role="status">
       <span className="status-text">{statusText(game)}</span>
-      {decision && (
+      {decision && decision.kind !== "area" && (
         <span className="status-options">
           {decision.options.map((option) => (
             <button
@@ -37,6 +39,10 @@ function statusText(game: GameUpdate): string {
   const { view, decision } = game;
   if (view.phase === "over" || view.current_player === null) return "The Game is over.";
   const who = playerTitle(game, view.current_player);
+  if (decision?.kind === "area") {
+    const tile = decision.options[0]?.details.tile as TileType;
+    return `${who} must choose where to place the ${TILE_NAMES[tile]}: click a highlighted Area on Mars.`;
+  }
   if (decision) {
     if (view.actions_this_turn === 0) return `${who} must take an Action or Pass:`;
     const canEndTurn = decision.options.some((option) => option.details.type === "end_turn");

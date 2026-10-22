@@ -1,6 +1,6 @@
 """The game log: a plain-language line for everything that happens."""
 
-from tests.helpers import end_the_generation, pick, player, scenario
+from tests.helpers import end_the_generation, ocean, pick, player, scenario
 
 
 def test_a_new_game_log_starts_with_generation_1_and_its_first_player():
@@ -22,6 +22,32 @@ def test_the_log_describes_what_each_player_does_in_plain_language():
         "Player 1 raises Temperature to -28 °C and gains 1 Terraform Rating.",
         "Player 1 ends their Turn.",
         "Player 2 passes.",
+    ]
+
+
+def test_the_log_describes_placing_a_tile_and_everything_it_gives():
+    game = scenario(player(megacredits=20), player(), tiles=[ocean("A4")])
+
+    pick(game, project="aquifer")
+    pick(game, area="A5")
+
+    assert game.log[-4:] == [
+        "Player 1 uses the Aquifer Standard Project for 18 MegaCredits.",
+        "Player 1 places an Ocean on A5.",
+        "Player 1 raises Oceans to 2 of 9 and gains 1 Terraform Rating.",
+        "Player 1 gains 2 MegaCredits for 1 adjacent Ocean.",
+    ]
+
+
+def test_the_log_names_an_area_by_its_printed_name_too():
+    game = scenario(player(megacredits=25), player())
+
+    pick(game, project="city")
+    pick(game, area="B2")
+
+    assert game.log[-2:] == [
+        "Player 1 places a City on B2 (Tharsis Tholus).",
+        "Player 1 gains 1 steel from the placement bonus.",
     ]
 
 

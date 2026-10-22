@@ -2,7 +2,7 @@ import { signed } from "../format";
 import { controllerLabel, isYou, PLAYER_COLOURS } from "../players";
 import type { GameUpdate } from "../useGameServer";
 
-/** One board per Player: MegaCredits and their Production, Terraform Rating, Turn state and the first-player marker. */
+/** One board per Player: Resources, MegaCredit Production, Terraform Rating, Turn state and the first-player marker. */
 export function PlayerBoards({ game }: { game: GameUpdate }) {
   const { view } = game;
   return (
@@ -39,6 +39,24 @@ export function PlayerBoards({ game }: { game: GameUpdate }) {
                 <dd>
                   <span className="stat-value">{board.megacredits}</span>
                   <span className="stat-production">{signed(board.production.megacredits)}</span>
+                </dd>
+              </div>
+              <div className="stat steel" title="Steel">
+                <dt>Steel</dt>
+                <dd>
+                  <span className="stat-value">{board.steel}</span>
+                </dd>
+              </div>
+              <div className="stat titanium" title="Titanium">
+                <dt>Titanium</dt>
+                <dd>
+                  <span className="stat-value">{board.titanium}</span>
+                </dd>
+              </div>
+              <div className="stat plants" title="Plants">
+                <dt>Plants</dt>
+                <dd>
+                  <span className="stat-value">{board.plants}</span>
                 </dd>
               </div>
               <div className="stat terraform-rating" title="Terraform Rating">
