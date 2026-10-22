@@ -1,0 +1,83 @@
+import { useCallback, useEffect, useRef, useState } from "react";
+
+import type { ClientMessage, Controller, Update, ServerMessage } from "./types";
+
+export type GameState = Omit<Update, "type" | "log_start" | "log">;
+
+/** The connection to the local server, and the latest Game state it sent. */
+export function useGameServer() {
+  const [connected, setConnected] = useState(false);
+  const [game, setGame] = useState<GameState | null>(null);
+  const [log, setLog] = useState<string[]>([]);
+  const [error, setError] = useState<string | null>(null);
+  // The Decision a pick was sent for, so its buttons stay disabled until the server answers.
+  const [pickedSequence, setPickedSequence] = useState<number | null>(null);
+  const socket = useRef<WebSocket | null>(null);
+
+  useEffect(() => {
+    let stopped = false;
+    let retry: number | undefined;
+
+    function connect() {
+      const protocol = window.location.protocol === "https:" ? "wss" : "ws";
+      const ws = new WebSocket(`${protocol}://${window.location.host}/ws`);
+      socket.current = ws;
+      // Events from a socket that has since been replaced (say, by React's dev-mode
+      // double mount) must not touch the state.
+      const isCurrent = () => socket.current === ws;
+      ws.onopen = () => isCurrent() && setConnected(true);
+      ws.onclose = () => {
+        if (!isCurrent()) return;
+        setConnected(false);
+        if (!stopped) retry = window.setTimeout(connect, 1000);
+      };
+      ws.onmessage = (event) => isCurrent() && receive(JSON.parse(event.data) as ServerMessage);
+    }
+
+    function receive(message: ServerMessage) {
+      switch (message.type) {
+        case "update": {
+          const { type: _type, log_start, log: lines, ...state } = message;
+          setGame(state);
+          setLog((previous) => [...previous.slice(0, log_start), ...lines]);
+          setError(null);
+          setPickedSequence(null);
+          break;
+        }
+        case "game_over":
+          // The final scores also arrive in the view; nothing more to do.
+          break;
+        case "error":
+          setError(message.message);
+          setPickedSequence(null);
+          break;
+      }
+    }
+
+    connect();
+    return () => {
+      stopped = true;
+      window.clearTimeout(retry);
+      socket.current?.close();
+    };
+  }, []);
+
+  const send = useCallback((message: ClientMessage) => {
+    socket.current?.send(JSON.stringify(message));
+  }, []);
+
+  const newGame = useCallback(
+    (controllers: Controller[]) => send({ type: "new_game", controllers }),
+    [send],
+  );
+
+  const pick = useCallback(
+    (sequence: number, index: number) => {
+      setPickedSequence(sequence);
+      send({ type: "pick", sequence, index });
+    },
+    [send],
+  );
+
+  return { connected, game, log, error, pickedSequence, newGame, pick };
+}

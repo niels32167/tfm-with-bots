@@ -1,0 +1,17 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "server",
+      "runtimeExecutable": "bash",
+      "runtimeArgs": ["-lc", "uv run python -m server"],
+      "port": 8000
+    },
+    {
+      "name": "gui",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["--prefix", "gui", "run", "dev"],
+      "port": 5173
+    }
+  ]
+}

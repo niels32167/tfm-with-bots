@@ -1,0 +1,469 @@
+:root {
+  --background: #0e0f15;
+  --panel: rgba(255, 255, 255, 0.06);
+  --panel-border: rgba(255, 255, 255, 0.12);
+  --text: #ece9e4;
+  --text-dim: #a9a49c;
+  --status-background: #f3eee4;
+  --status-text: #1f1d1a;
+  --button: #4871b6;
+  --button-hover: #355a98;
+  --mercury: #e2452c;
+  --accent: #f0b54a;
+  color-scheme: dark;
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  color: var(--text);
+  background: var(--background);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  background:
+    radial-gradient(ellipse at 70% 20%, rgba(180, 70, 40, 0.18), transparent 60%),
+    radial-gradient(ellipse at 10% 90%, rgba(60, 80, 160, 0.12), transparent 55%),
+    var(--background);
+}
+
+h1,
+h2 {
+  margin: 0;
+  font-weight: 650;
+}
+
+button {
+  font: inherit;
+  cursor: pointer;
+}
+
+code {
+  background: var(--panel);
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+
+/* Buttons for Options, in Board Game Arena's blue. */
+.option {
+  background: var(--button);
+  color: white;
+  border: none;
+  border-radius: 6px;
+  padding: 7px 16px;
+  font-weight: 600;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+}
+
+.option:hover:not(:disabled) {
+  background: var(--button-hover);
+}
+
+.option:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.option.big {
+  font-size: 1.15rem;
+  padding: 12px 28px;
+}
+
+.link-button {
+  background: transparent;
+  color: var(--text-dim);
+  border: 1px solid var(--panel-border);
+  border-radius: 6px;
+  padding: 5px 12px;
+}
+
+.link-button:hover {
+  color: var(--text);
+  border-color: var(--text-dim);
+}
+
+/* Start and connection screens. */
+.splash {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  text-align: center;
+  padding: 16px;
+}
+
+.splash h1 {
+  font-size: 2.4rem;
+  letter-spacing: 0.04em;
+}
+
+.splash .hint {
+  color: var(--text-dim);
+}
+
+/* Top bar and status bar. */
+.top-bar {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 10px 16px;
+  border-bottom: 1px solid var(--panel-border);
+}
+
+.top-bar h1 {
+  font-size: 1.15rem;
+  letter-spacing: 0.04em;
+  margin-right: auto;
+}
+
+.generation {
+  background: var(--accent);
+  color: #241a05;
+  font-weight: 700;
+  border-radius: 999px;
+  padding: 4px 14px;
+}
+
+.status-bar {
+  position: sticky;
+  top: 0;
+  z-index: 5;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px 14px;
+  min-height: 54px;
+  padding: 8px 16px;
+  background: var(--status-background);
+  color: var(--status-text);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
+}
+
+.status-text {
+  font-weight: 600;
+}
+
+.status-options {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.status-error {
+  color: #b3261e;
+  font-weight: 600;
+}
+
+/* The table: board area and side panel. */
+.table {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 360px;
+  gap: 16px;
+  padding: 16px;
+}
+
+@media (max-width: 900px) {
+  .table {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+.board-area {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 40px;
+  padding: 16px;
+  min-height: 560px;
+}
+
+.mars {
+  width: min(56vh, 520px);
+  aspect-ratio: 1;
+  border-radius: 50%;
+  background:
+    radial-gradient(circle at 34% 30%, #f0a070 0%, #d0643a 22%, #a8422a 48%, #5c1d12 78%, #2a0c08 100%);
+  box-shadow:
+    0 0 60px rgba(220, 100, 60, 0.35),
+    inset -30px -30px 80px rgba(0, 0, 0, 0.55);
+  flex-shrink: 1;
+}
+
+@media (max-width: 700px) {
+  .mars {
+    display: none;
+  }
+}
+
+/* The thermometer. */
+.thermometer {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+}
+
+.thermometer-title {
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--text-dim);
+}
+
+.thermometer-steps {
+  list-style: none;
+  margin: 0;
+  padding: 4px;
+  width: 64px;
+  border: 2px solid var(--panel-border);
+  border-radius: 32px 32px 8px 8px;
+  background: rgba(0, 0, 0, 0.35);
+}
+
+.thermometer-step {
+  height: 23px;
+  margin: 1px 0;
+  border-radius: 4px;
+  text-align: center;
+  font-size: 0.78rem;
+  line-height: 23px;
+  color: var(--text-dim);
+  font-variant-numeric: tabular-nums;
+}
+
+.thermometer-step.filled {
+  background: linear-gradient(90deg, #b92d18, var(--mercury), #b92d18);
+  color: #ffe9e2;
+}
+
+.thermometer-step.current {
+  outline: 2px solid white;
+  font-weight: 800;
+  color: white;
+}
+
+.thermometer-bulb {
+  width: 44px;
+  height: 44px;
+  margin-top: -12px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 40% 35%, #ff7a5c, var(--mercury) 50%, #8f1f0e);
+}
+
+.thermometer-reading {
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.thermometer-reading .maxed {
+  color: var(--accent);
+  font-weight: 600;
+}
+
+/* Side panel: player boards and game log. */
+.side-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  min-width: 0;
+}
+
+.player-boards {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.player-board {
+  background: var(--panel);
+  border: 1px solid var(--panel-border);
+  border-left: 6px solid;
+  border-radius: 8px;
+  padding: 10px 12px;
+}
+
+.player-board.current {
+  box-shadow: 0 0 0 2px var(--accent);
+}
+
+.player-board-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.player-dot {
+  display: inline-block;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  border: 1px solid rgba(255, 255, 255, 0.5);
+  vertical-align: middle;
+}
+
+.player-name {
+  font-weight: 700;
+}
+
+.player-controller {
+  color: var(--text-dim);
+  font-size: 0.85rem;
+}
+
+.badge {
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  border-radius: 999px;
+  padding: 2px 8px;
+}
+
+.badge.turn {
+  background: var(--accent);
+  color: #241a05;
+}
+
+.badge.passed {
+  background: rgba(255, 255, 255, 0.14);
+  color: var(--text-dim);
+}
+
+.player-stats {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin: 10px 0 0;
+}
+
+.stat {
+  background: rgba(0, 0, 0, 0.25);
+  border-radius: 6px;
+  padding: 6px 10px;
+}
+
+.stat dt {
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-dim);
+}
+
+.stat dd {
+  margin: 2px 0 0;
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+}
+
+.stat-value {
+  font-size: 1.5rem;
+  font-weight: 750;
+  font-variant-numeric: tabular-nums;
+}
+
+.stat.megacredits .stat-value {
+  color: #f6cf57;
+}
+
+.stat-production {
+  font-size: 0.85rem;
+  color: var(--text-dim);
+}
+
+.game-log {
+  background: var(--panel);
+  border: 1px solid var(--panel-border);
+  border-radius: 8px;
+  padding: 10px 12px;
+}
+
+.game-log h2 {
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--text-dim);
+  margin-bottom: 6px;
+}
+
+.game-log-lines {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  max-height: 46vh;
+  overflow-y: auto;
+  font-size: 0.86rem;
+  line-height: 1.45;
+}
+
+.game-log-lines li {
+  padding: 3px 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.game-log-lines li.generation-line {
+  color: var(--accent);
+  font-weight: 700;
+}
+
+/* Final score screen. */
+.overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  background: rgba(5, 5, 10, 0.72);
+}
+
+.final-scores {
+  width: min(520px, 100%);
+  background: #1b1c24;
+  border: 1px solid var(--panel-border);
+  border-radius: 12px;
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  align-items: stretch;
+}
+
+.final-scores-generation {
+  margin: 0;
+  color: var(--text-dim);
+}
+
+.final-scores table {
+  border-collapse: collapse;
+  width: 100%;
+}
+
+.final-scores th,
+.final-scores td {
+  text-align: left;
+  padding: 8px 6px;
+  border-bottom: 1px solid var(--panel-border);
+}
+
+.final-scores th {
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-dim);
+}
+
+.final-scores td.total {
+  font-weight: 800;
+  font-size: 1.15rem;
+}
+
+.final-scores .option {
+  align-self: center;
+}
