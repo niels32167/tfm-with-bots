@@ -89,5 +89,5 @@ Installing the Rust toolchain (rustup) and the Python and npm packages needs the
   - the log view highlights lines starting with "Generation" by their text.
 
 **Open points:**
-- Starlette 1.9 warns that using `httpx` with its TestClient is deprecated in favour of `httpx2`. Switching means a new package, so it waits for the user's OK.
+- ~~Starlette 1.9 warns that using `httpx` with its TestClient is deprecated in favour of `httpx2`.~~ Resolved: with the user's OK, the dev dependency is now `httpx2` 2.13.1, and the suite runs without warnings.
 - The Status line is still `ready-for-agent`, because `docs/agents/triage-labels.md` has no "done" label.
