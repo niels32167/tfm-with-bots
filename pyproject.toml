@@ -1,0 +1,27 @@
+[project]
+name = "terraforming-mars"
+version = "0.1.0"
+description = "A digital Terraforming Mars: Rust engine, Python server, browser GUI"
+requires-python = ">=3.14"
+dependencies = [
+    "tm-engine",
+    "fastapi>=0.159",
+    "uvicorn>=0.54",
+    "websockets>=17.3",
+]
+
+[dependency-groups]
+dev = [
+    "pytest>=9.1",
+    "httpx>=0.28",
+]
+
+[tool.uv]
+package = false
+
+[tool.uv.sources]
+tm-engine = { path = "engine" }
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-ra"

@@ -1,0 +1,15 @@
+[package]
+name = "tm-engine"
+version = "0.1.0"
+edition = "2024"
+description = "Terraforming Mars rules engine, used from Python as the tm_engine module"
+publish = false
+
+[lib]
+name = "tm_engine"
+crate-type = ["cdylib"]
+
+[dependencies]
+pyo3 = "0.29.3"
+pythonize = "0.29.0"
+serde = { version = "1", features = ["derive"] }

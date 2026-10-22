@@ -1,0 +1,11 @@
+# Python
+.venv/
+__pycache__/
+.pytest_cache/
+
+# Rust
+engine/target/
+
+# GUI
+gui/node_modules/
+gui/dist/
