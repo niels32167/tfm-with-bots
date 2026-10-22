@@ -7,12 +7,18 @@
 
 use std::fmt;
 
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 
 use crate::log::LogEvent;
+use crate::random::RandomNumbers;
+use crate::replay::{Replay, Start};
 
 pub const MIN_PLAYERS: usize = 2;
 pub const MAX_PLAYERS: usize = 5;
+
+/// The largest seed. Replays travel as JSON, and some JSON readers (the browser's among
+/// them) hold numbers as doubles, which are exact only up to 2^53 - 1.
+pub const MAX_SEED: u64 = (1 << 53) - 1;
 
 /// Temperature is in °C. It starts at -30 and rises in steps of 2 up to +8.
 pub const MIN_TEMPERATURE: i32 = -30;
@@ -27,7 +33,8 @@ pub const STARTING_MEGACREDITS: i32 = 42;
 
 pub const ACTIONS_PER_TURN: u32 = 2;
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct Settings {
     pub players: usize,
     pub seed: u64,
@@ -139,38 +146,47 @@ pub struct Game {
     pub phase: Phase,
     pub temperature: i32,
     pub players: Vec<Player>,
+    /// Who holds the first-player marker, and so takes the first Turn of this Generation.
+    pub first_player: usize,
     /// Whose Turn it is during the Action phase.
     pub current_player: usize,
     /// How many Actions the current Player has taken in this Turn.
     pub actions_this_turn: u32,
-    /// How many Options have been picked so far in this Game.
-    pub sequence: u64,
     pub log: Vec<LogEvent>,
+    /// Seeded from the settings; every random event in the Game draws from it.
+    pub random_numbers: RandomNumbers,
+    /// Where this Game started and every Option picked since.
+    pub replay: Replay,
 }
 
 impl Game {
     /// A new Game from its settings, at the start of Generation 1.
     pub fn new(settings: Settings) -> Result<Game, String> {
         check_player_count(settings.players)?;
+        check_seed(settings.seed)?;
         let players = vec![Player::new(); settings.players];
-        Ok(Game::starting_at(settings, 1, MIN_TEMPERATURE, players))
+        let mut game = Game::prepare(Start::Settings(settings), MIN_TEMPERATURE, players);
+        let first_player = game.random_numbers.below(game.players.len());
+        game.begin(1, first_player);
+        Ok(game)
     }
 
-    /// A Game at the start of the Action phase of `generation`, with Player 1 to act.
-    pub fn starting_at(settings: Settings, generation: u32, temperature: i32, players: Vec<Player>) -> Game {
-        let mut game = Game {
+    /// A Game with everything in place, waiting for `begin` to start its first Generation.
+    pub fn prepare(start: Start, temperature: i32, players: Vec<Player>) -> Game {
+        let settings = start.settings();
+        Game {
+            random_numbers: RandomNumbers::new(settings.seed),
+            replay: Replay { start, picks: Vec::new() },
             settings,
-            generation,
+            generation: 0,
             phase: Phase::Action,
             temperature,
             players,
+            first_player: 0,
             current_player: 0,
             actions_this_turn: 0,
-            sequence: 0,
             log: Vec::new(),
-        };
-        game.log.push(LogEvent::GenerationBegins { generation });
-        game
+        }
     }
 
     pub fn is_over(&self) -> bool {
@@ -184,7 +200,7 @@ impl Game {
             Phase::Action => Some(Decision {
                 player: self.current_player,
                 kind: DecisionKind::Action,
-                sequence: self.sequence,
+                sequence: self.replay.picks.len() as u64,
                 options: self.action_options(),
             }),
         }
@@ -201,7 +217,7 @@ impl Game {
         }
         let count = decision.options.len();
         let option = *decision.options.get(index).ok_or(PickError::NoSuchOption { index, count })?;
-        self.sequence += 1;
+        self.replay.picks.push(index);
         self.resolve(option);
         Ok(())
     }
@@ -305,18 +321,27 @@ impl Game {
         if self.temperature >= MAX_TEMPERATURE {
             self.end_game();
         } else {
+            // The first-player marker passes clockwise, to the next Player.
+            self.first_player = (self.first_player + 1) % self.players.len();
             self.begin_generation(self.generation + 1);
         }
     }
 
+    /// Hands the first-player marker to `first_player` and begins `generation`.
+    pub fn begin(&mut self, generation: u32, first_player: usize) {
+        self.first_player = first_player;
+        self.begin_generation(generation);
+    }
+
+    /// The first Player takes the first Turn, and everyone is back in the Action phase.
     fn begin_generation(&mut self, generation: u32) {
         self.generation = generation;
         for player in &mut self.players {
             player.passed = false;
         }
-        self.current_player = 0;
+        self.current_player = self.first_player;
         self.actions_this_turn = 0;
-        self.log.push(LogEvent::GenerationBegins { generation });
+        self.log.push(LogEvent::GenerationBegins { generation, first_player: self.first_player });
     }
 
     fn end_game(&mut self) {
@@ -337,6 +362,14 @@ impl Game {
         self.temperature += TEMPERATURE_STEP;
         self.players[player].terraform_rating += 1;
         self.log.push(LogEvent::TemperatureRaised { player, temperature: self.temperature });
+    }
+}
+
+pub fn check_seed(seed: u64) -> Result<(), String> {
+    if seed <= MAX_SEED {
+        Ok(())
+    } else {
+        Err(format!("the seed must be a whole number from 0 to {MAX_SEED}, not {seed}"))
     }
 }
 

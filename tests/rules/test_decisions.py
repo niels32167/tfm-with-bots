@@ -6,12 +6,12 @@ import tm_engine
 from tests.helpers import end_the_generation, offered, pick, player, player_board, scenario
 
 
-def test_a_new_game_waits_on_player_1_to_choose_an_action():
+def test_a_new_game_waits_on_the_first_player_to_choose_an_action():
     game = tm_engine.Game(seed=1)
 
     decision = game.decision
 
-    assert decision["player"] == 0
+    assert decision["player"] == game.player_view(0)["first_player"]
     assert decision["kind"] == "action"
     assert offered(game, "Asteroid")
     assert offered(game, "Pass")
@@ -50,7 +50,7 @@ def test_a_pick_naming_the_current_sequence_number_is_accepted():
 
 
 def test_a_pick_carrying_a_stale_sequence_number_is_rejected():
-    game = tm_engine.Game(seed=1)
+    game = scenario(player(megacredits=42), player(), first_player=0)
     stale = game.decision["sequence"]
     pick(game, "Asteroid")
 

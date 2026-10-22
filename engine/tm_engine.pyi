@@ -6,20 +6,44 @@ and None. Players are indexed from 0; their names ("Player 1", ...) count from 1
 
 from typing import Any
 
+MAX_SEED: int
+"""The largest seed, 2**53 - 1: Replays travel as JSON, and some JSON readers (the
+browser's among them) keep whole numbers exact only up to there."""
+
 class Game:
     """A Game of Terraforming Mars, always either over or waiting on one Decision."""
 
     def __init__(self, *, seed: int, players: int = 2) -> None:
-        """A new Game from its settings. Raises ValueError for an unsupported Player count."""
+        """A new Game from its settings; the first player is drawn from the seed.
+
+        Raises ValueError for an unsupported Player count or a seed above MAX_SEED.
+        """
 
     @staticmethod
     def from_scenario(scenario: dict[str, Any]) -> Game:
         """A Game started from a Scenario. Anything left out takes the normal defaults.
 
-        Fields: seed, generation, temperature, and players: a list of
+        Fields: seed, generation, first_player (default 0, who also takes the first Turn),
+        temperature, and players: a list of
         {megacredits, production: {megacredits}, terraform_rating}.
         Raises ValueError for unknown fields or impossible values.
         """
+
+    @staticmethod
+    def from_replay(replay: dict[str, Any], step: int | None = None) -> Game:
+        """The Game a Replay describes, rebuilt by replaying its picks from the start.
+
+        With `step`, only the first `step` picks are replayed (step 0 is the Game before
+        any pick). Raises ValueError for a Replay that isn't one, a pick the Game doesn't
+        offer, or a step beyond the end.
+        """
+
+    def copy(self) -> Game:
+        """An independent copy: changing either Game never changes the other."""
+
+    @property
+    def players(self) -> int:
+        """How many Players the Game has."""
 
     @property
     def seed(self) -> int:
@@ -40,8 +64,23 @@ class Game:
         for a stale pick, an index that isn't offered, or a Game that is over.
         """
 
+    @property
+    def replay(self) -> dict[str, Any]:
+        """The Replay so far: where this Game started and the index of every Option picked.
+
+        {"start": {"settings": {"players": int, "seed": int}} or {"scenario": {...}},
+         "picks": [int, ...]}
+        """
+
     def player_view(self, player: int) -> dict[str, Any]:
-        """Everything `player` is allowed to know."""
+        """Everything `player` is allowed to know. Its "viewer" is `player`."""
+
+    def full_view(self) -> dict[str, Any]:
+        """Everything about the Game, including what Players hide from each other.
+
+        For Hotseat and the dev panel, never for an AI Controller. It has the Player
+        View's shape, with "viewer" None.
+        """
 
     @property
     def log(self) -> list[str]:

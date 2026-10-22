@@ -4,8 +4,10 @@ A digital Terraforming Mars with a fast rules engine, built so an AI opponent ca
 be trained against it by self-play. Phase 1 is a playable, well-tested game; see
 `.scratch/phase-1-playable-game/spec.md`.
 
-So far (ticket 01) it plays an Asteroid-only Game: two Players raise Temperature with
-the Asteroid Standard Project until it is maxed, and the higher Terraform Rating wins.
+So far (tickets 01–02) it plays an Asteroid-only Game: 2–5 Players raise Temperature
+with the Asteroid Standard Project until it is maxed, and the highest Terraform Rating
+wins. Each Player is a human or a Random Bot, every Game comes from a seed, and any
+Game can be undone, saved as a Replay file and loaded again.
 
 ## How it fits together
 
@@ -54,8 +56,15 @@ and the GUI in another:
 npm --prefix gui run dev
 ```
 
-Then open http://localhost:5173 and click **New Game** to play against a Random Bot.
-The server keeps the Game in memory, so reloading the page picks it up again.
+Then open http://localhost:5173. The setup screen asks for the number of Players, each
+Player's Controller (human or Random Bot), a seed (empty for a random one) and how fast
+Random Bots pick. With two or more humans (Hotseat), or only Random Bots, the screen shows
+the full view; with one human, only that Player's Player View.
+
+During a Game, the top bar shows the seed (click to copy) and has **Undo** (back to the
+last Decision a human answered, skipping Random Bot picks), **Save Replay**,
+**Load Replay…** and the Random Bot speed. The server keeps the Game in memory, so
+reloading the page picks it up again.
 
 ## Other checks
 
@@ -68,11 +77,15 @@ The server keeps the Game in memory, so reloading the page picks it up again.
 | --- | --- |
 | `engine/src/game.rs` | The rules: Game state, Decisions and Options |
 | `engine/src/scenario.rs` | Starting a Game from a Scenario |
+| `engine/src/replay.rs` | Replays: rebuilding a Game from its start and picks |
+| `engine/src/random.rs` | The Game's seeded random numbers |
 | `engine/src/view.rs` | The Player View and Decisions as plain data for Python |
 | `engine/src/log.rs` | The game log |
 | `engine/src/lib.rs` | The Python bindings (`tm_engine`) |
 | `engine/tm_engine.pyi` | The Python API, for your editor |
 | `tests/rules/` | Scenario tests of the rules, through `tm_engine` |
+| `tests/engine/` | Tests of the engine module itself: views, copies, Replays, reproducibility |
+| `tests/server/` | Tests of the local server over its WebSocket |
 | `tests/helpers.py` | `scenario()`, `player()`, `pick()`, `offered()`: helpers that make tests read like play |
 | `server/` | The local server and the Random Bot |
 | `gui/src/` | The browser GUI |

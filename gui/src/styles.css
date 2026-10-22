@@ -79,9 +79,53 @@ code {
   padding: 5px 12px;
 }
 
-.link-button:hover {
+.link-button:hover:not(:disabled) {
   color: var(--text);
   border-color: var(--text-dim);
+}
+
+.link-button:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+select,
+input[type="text"] {
+  font: inherit;
+  color: var(--text);
+  background: rgba(0, 0, 0, 0.35);
+  border: 1px solid var(--panel-border);
+  border-radius: 6px;
+  padding: 5px 8px;
+}
+
+input[aria-invalid="true"] {
+  border-color: #e0574b;
+}
+
+/* Two to five buttons side by side, one of them selected. */
+.segmented {
+  display: inline-flex;
+  border: 1px solid var(--panel-border);
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+.segmented button {
+  background: transparent;
+  color: var(--text-dim);
+  border: none;
+  padding: 6px 14px;
+}
+
+.segmented button + button {
+  border-left: 1px solid var(--panel-border);
+}
+
+.segmented button.selected {
+  background: var(--button);
+  color: white;
+  font-weight: 600;
 }
 
 /* Start and connection screens. */
@@ -105,11 +149,101 @@ code {
   color: var(--text-dim);
 }
 
+/* The new-Game setup screen. */
+.setup {
+  width: min(520px, 100%);
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  text-align: left;
+  background: var(--panel);
+  border: 1px solid var(--panel-border);
+  border-radius: 12px;
+  padding: 24px;
+}
+
+.setup h1 {
+  font-size: 1.6rem;
+}
+
+.setup-section {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.setup-section > .segmented {
+  align-self: flex-start;
+}
+
+.setup-section h2 {
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--text-dim);
+}
+
+.setup-players {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.setup-player {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.setup-player-name {
+  font-weight: 600;
+  margin-right: auto;
+}
+
+.setup-hint {
+  margin: 0;
+  color: var(--text-dim);
+  font-size: 0.9rem;
+}
+
+.setup-row {
+  flex-direction: row;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.setup-seed input {
+  width: 14ch;
+}
+
+.setup-error {
+  margin: 0;
+  color: #ff8a7a;
+}
+
+.setup-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+.bot-speed {
+  color: var(--text-dim);
+  font-size: 0.9rem;
+}
+
 /* Top bar and status bar. */
 .top-bar {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
-  gap: 16px;
+  gap: 10px 16px;
   padding: 10px 16px;
   border-bottom: 1px solid var(--panel-border);
 }
@@ -117,7 +251,36 @@ code {
 .top-bar h1 {
   font-size: 1.15rem;
   letter-spacing: 0.04em;
-  margin-right: auto;
+}
+
+.top-bar-tools {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-left: auto;
+}
+
+.seed {
+  background: transparent;
+  color: var(--text-dim);
+  border: none;
+  padding: 4px 0;
+}
+
+.seed-value {
+  user-select: all;
+  color: var(--text);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.seed:hover .seed-value {
+  text-decoration: underline;
+}
+
+.seed-copied {
+  color: var(--accent);
 }
 
 .generation {
@@ -332,6 +495,16 @@ code {
 .badge.passed {
   background: rgba(255, 255, 255, 0.14);
   color: var(--text-dim);
+}
+
+.badge.first-player {
+  background: #e8e2d4;
+  color: #241a05;
+}
+
+.badge.full-view {
+  background: rgba(72, 113, 182, 0.35);
+  color: var(--text);
 }
 
 .player-stats {

@@ -1,14 +1,12 @@
 """The game log: a plain-language line for everything that happens."""
 
-import tm_engine
-
 from tests.helpers import end_the_generation, pick, player, scenario
 
 
-def test_a_new_game_log_starts_with_generation_1():
-    game = tm_engine.Game(seed=1)
+def test_a_new_game_log_starts_with_generation_1_and_its_first_player():
+    game = scenario(player(), player(), player(), first_player=2)
 
-    assert game.log == ["Generation 1 begins."]
+    assert game.log == ["Generation 1 begins, with Player 3 as first player."]
 
 
 def test_the_log_describes_what_each_player_does_in_plain_language():
@@ -19,7 +17,7 @@ def test_the_log_describes_what_each_player_does_in_plain_language():
     pick(game, "Pass")
 
     assert game.log == [
-        "Generation 1 begins.",
+        "Generation 1 begins, with Player 1 as first player.",
         "Player 1 uses the Asteroid Standard Project for 14 MegaCredits.",
         "Player 1 raises Temperature to -28 °C and gains 1 Terraform Rating.",
         "Player 1 ends their Turn.",
@@ -44,7 +42,7 @@ def test_the_log_shows_the_production_phase_and_the_next_generation():
         "Production phase.",
         "Player 1 gains 27 MegaCredits (Terraform Rating 25 + MegaCredit Production 2).",
         "Player 2 gains 20 MegaCredits (Terraform Rating 20 + MegaCredit Production 0).",
-        "Generation 3 begins.",
+        "Generation 3 begins, with Player 2 as first player.",
     ]
 
 

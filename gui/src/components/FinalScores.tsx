@@ -6,11 +6,13 @@ interface Props {
   game: GameUpdate;
   scores: Score[];
   onClose: () => void;
+  /** Goes back to the last human Decision; absent when there is none. */
+  onUndo?: () => void;
   onNewGame: () => void;
 }
 
 /** The final score screen. For now a score is just Terraform Rating. */
-export function FinalScores({ game, scores, onClose, onNewGame }: Props) {
+export function FinalScores({ game, scores, onClose, onUndo, onNewGame }: Props) {
   const ranked = [...scores].sort((a, b) => b.total - a.total);
   return (
     <div className="overlay" role="dialog" aria-labelledby="final-scores-title">
@@ -45,6 +47,11 @@ export function FinalScores({ game, scores, onClose, onNewGame }: Props) {
           <button className="link-button" onClick={onClose}>
             Back to the board
           </button>
+          {onUndo && (
+            <button className="link-button" onClick={onUndo}>
+              Undo
+            </button>
+          )}
           <button className="option" onClick={onNewGame}>
             New Game
           </button>

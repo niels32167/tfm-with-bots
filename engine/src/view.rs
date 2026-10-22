@@ -30,13 +30,17 @@ pub enum OptionDetails {
     Pass,
 }
 
-/// Everything one Player is allowed to know.
+/// What one Player is allowed to know (their Player View), or everything (the full
+/// view, which has no viewer).
 #[derive(Serialize)]
-pub struct PlayerView {
-    pub viewer: usize,
+pub struct View {
+    /// The Player whose view this is, or None for the full view.
+    pub viewer: Option<usize>,
     pub generation: u32,
     pub phase: &'static str,
     pub temperature: i32,
+    /// Who holds the first-player marker.
+    pub first_player: usize,
     /// Whose Turn it is, or None once the Game is over.
     pub current_player: Option<usize>,
     /// How many Actions the current Player has taken in this Turn.
@@ -61,8 +65,18 @@ pub struct Production {
     pub megacredits: i32,
 }
 
-pub fn player_view(game: &Game, viewer: usize) -> PlayerView {
-    PlayerView {
+pub fn player_view(game: &Game, viewer: usize) -> View {
+    view(game, Some(viewer))
+}
+
+/// Everything about the Game, for Hotseat and the dev panel. Until there is hidden
+/// information (hands, the deck), it shows the same as every Player View.
+pub fn full_view(game: &Game) -> View {
+    view(game, None)
+}
+
+fn view(game: &Game, viewer: Option<usize>) -> View {
+    View {
         viewer,
         generation: game.generation,
         phase: match game.phase {
@@ -70,6 +84,7 @@ pub fn player_view(game: &Game, viewer: usize) -> PlayerView {
             Phase::Over => "over",
         },
         temperature: game.temperature,
+        first_player: game.first_player,
         current_player: if game.is_over() { None } else { Some(game.current_player) },
         actions_this_turn: game.actions_this_turn,
         players: game

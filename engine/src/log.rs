@@ -6,7 +6,7 @@ use crate::game::StandardProject;
 
 #[derive(Clone, Copy, Debug)]
 pub enum LogEvent {
-    GenerationBegins { generation: u32 },
+    GenerationBegins { generation: u32, first_player: usize },
     UsedStandardProject { player: usize, project: StandardProject },
     TemperatureRaised { player: usize, temperature: i32 },
     TemperatureAlreadyAtMaximum,
@@ -21,7 +21,9 @@ pub enum LogEvent {
 impl LogEvent {
     pub fn text(&self) -> String {
         match *self {
-            LogEvent::GenerationBegins { generation } => format!("Generation {generation} begins."),
+            LogEvent::GenerationBegins { generation, first_player } => {
+                format!("Generation {generation} begins, with {} as first player.", player_name(first_player))
+            }
             LogEvent::UsedStandardProject { player, project } => format!(
                 "{} uses the {} Standard Project for {} MegaCredits.",
                 player_name(player),

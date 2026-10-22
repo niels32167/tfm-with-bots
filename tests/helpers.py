@@ -9,9 +9,13 @@ game log and the scores. Tests never look inside the engine.
     assert player_board(game, 0)["terraform_rating"] == 21
 """
 
+import random
 from typing import Any
 
 import tm_engine
+
+# A generous guard so a Game that never ends fails the test instead of hanging it.
+MAX_PICKS = 10_000
 
 
 def scenario(*players: dict[str, Any], **fields: Any) -> tm_engine.Game:
@@ -77,15 +81,39 @@ def end_the_generation(game: tm_engine.Game) -> None:
         pick(game, "Pass")
 
 
+def play_randomly(game: tm_engine.Game, seed: int, picks: int | None = None) -> None:
+    """Pick random Options the way a Random Bot would: `picks` of them, or until the Game is over.
+
+    The same `seed` always picks the same way from the same position.
+    """
+    random_numbers = random.Random(seed)
+    for _ in range(MAX_PICKS if picks is None else picks):
+        if game.is_over:
+            return
+        game.pick(random_numbers.randrange(len(options(game))))
+    if picks is None:
+        raise AssertionError(f"the Game was not over after {MAX_PICKS} picks")
+
+
+def everything_about(game: tm_engine.Game) -> dict[str, Any]:
+    """All an outsider can see of a Game, for checking that two Games are identical."""
+    return {"full_view": game.full_view(), "decision": game.decision, "log": game.log}
+
+
 def player_board(game: tm_engine.Game, player: int) -> dict[str, Any]:
     """What everyone can see of a Player: Resources, Production, Terraform Rating, whether they passed."""
     return game.player_view(player)["players"][player]
 
 
-def _matching(game: tm_engine.Game, label: str | None, details: dict[str, Any]) -> list[dict[str, Any]]:
+def matching_options(offered: list[dict[str, Any]], label: str | None = None, **details: Any) -> list[dict[str, Any]]:
+    """The Options in `offered` whose label contains `label` (ignoring case) and whose details include `details`."""
     return [
         option
-        for option in options(game)
+        for option in offered
         if (label is None or label.lower() in option["label"].lower())
         and all(option["details"].get(key) == value for key, value in details.items())
     ]
+
+
+def _matching(game: tm_engine.Game, label: str | None, details: dict[str, Any]) -> list[dict[str, Any]]:
+    return matching_options(options(game), label, **details)

@@ -1,23 +1,40 @@
 import { useState } from "react";
 
+import { DEFAULT_BOT_DELAY } from "./components/BotSpeedSelect";
 import { FinalScores } from "./components/FinalScores";
 import { GameLog } from "./components/GameLog";
+import { NewGameSetup } from "./components/NewGameSetup";
 import { PlayerBoards } from "./components/PlayerBoards";
 import { StatusBar } from "./components/StatusBar";
 import { TemperatureTrack } from "./components/TemperatureTrack";
-import type { Controller } from "./types";
+import { TopBar } from "./components/TopBar";
+import type { Controller, NewGameSettings } from "./types";
 import { useGameServer } from "./useGameServer";
 
-// Until the setup screen exists, a new Game is you against one Random Bot.
+// The setup screen's first suggestion: you against one Random Bot.
 const HUMAN_AGAINST_RANDOM_BOT: Controller[] = ["human", "random_bot"];
 
 export function App() {
-  const { connected, game, log, error, pickedSequence, newGame, pick } = useGameServer();
+  const server = useGameServer();
+  const { connected, game, log, error, pickedSequence } = server;
+  const [settingUp, setSettingUp] = useState(false);
   const [showScores, setShowScores] = useState(true);
 
-  const startNewGame = () => {
+  // An error shown so far belongs to the Game screen, not to the setup.
+  const openSetup = () => {
+    server.clearError();
+    setSettingUp(true);
+  };
+  // Starting or loading a Game leaves the setup screen and shows the next final scores.
+  const startNewGame = (settings: NewGameSettings) => {
+    setSettingUp(false);
     setShowScores(true);
-    newGame(HUMAN_AGAINST_RANDOM_BOT);
+    server.newGame(settings);
+  };
+  const loadReplay = (file: File, botDelay: number) => {
+    setSettingUp(false);
+    setShowScores(true);
+    void server.loadReplay(file, botDelay);
   };
 
   if (!connected) {
@@ -32,39 +49,32 @@ export function App() {
     );
   }
 
-  if (!game) {
+  if (!game || settingUp) {
     return (
-      <main className="splash">
-        <h1>Terraforming Mars</h1>
-        <p>Play an Asteroid-only Game against a Random Bot.</p>
-        <button className="option big" onClick={startNewGame}>
-          New Game
-        </button>
-      </main>
+      <NewGameSetup
+        initialControllers={game?.controllers ?? HUMAN_AGAINST_RANDOM_BOT}
+        initialBotDelay={game?.bot_delay ?? DEFAULT_BOT_DELAY}
+        error={error}
+        onStart={startNewGame}
+        onLoad={loadReplay}
+        onCancel={game ? () => setSettingUp(false) : undefined}
+      />
     );
   }
 
   const scores = game.view.scores;
   return (
     <div className="game">
-      <header className="top-bar">
-        <h1>Terraforming Mars</h1>
-        <span className="generation">Generation {game.view.generation}</span>
-        {scores && !showScores && (
-          <button className="link-button" onClick={() => setShowScores(true)}>
-            Show final scores
-          </button>
-        )}
-        <button
-          className="link-button"
-          onClick={() => {
-            if (scores || window.confirm("Abandon this Game and start a new one?")) startNewGame();
-          }}
-        >
-          New Game
-        </button>
-      </header>
-      <StatusBar game={game} error={error} pickedSequence={pickedSequence} onPick={pick} />
+      <TopBar
+        game={game}
+        onShowScores={scores && !showScores ? () => setShowScores(true) : undefined}
+        onNewGame={openSetup}
+        onUndo={server.undo}
+        onSaveReplay={server.saveReplay}
+        onLoadReplay={(file) => loadReplay(file, game.bot_delay)}
+        onBotDelay={server.setBotDelay}
+      />
+      <StatusBar game={game} error={error} pickedSequence={pickedSequence} onPick={server.pick} />
       <div className="table">
         <main className="board-area">
           <TemperatureTrack temperature={game.view.temperature} />
@@ -80,7 +90,8 @@ export function App() {
           game={game}
           scores={scores}
           onClose={() => setShowScores(false)}
-          onNewGame={startNewGame}
+          onUndo={game.can_undo ? server.undo : undefined}
+          onNewGame={openSetup}
         />
       )}
     </div>

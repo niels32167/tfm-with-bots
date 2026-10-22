@@ -1,8 +1,9 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 
-import type { ClientMessage, Controller, Update, ServerMessage } from "./types";
+import { downloadReplayFile, readReplayFile } from "./replayFiles";
+import type { ClientMessage, NewGameSettings, ServerMessage, Update } from "./types";
 
-/** The server's latest update: Controllers, Player View and Decision (the log is kept apart). */
+/** The server's latest update: Controllers, seed, Player View and Decision (the log is kept apart). */
 export type GameUpdate = Omit<Update, "type" | "log_start" | "log">;
 
 /** The connection to the local server, and the latest Game state it sent. */
@@ -57,6 +58,9 @@ export function useGameServer() {
         case "game_over":
           // The final scores also arrive in the view; nothing more to do.
           break;
+        case "replay_file":
+          downloadReplayFile(message.file);
+          break;
         case "error":
           setError(message.message);
           setPickedSequence(null);
@@ -77,7 +81,7 @@ export function useGameServer() {
   }, []);
 
   const newGame = useCallback(
-    (controllers: Controller[]) => send({ type: "new_game", controllers }),
+    (settings: NewGameSettings) => send({ type: "new_game", ...settings }),
     [send],
   );
 
@@ -89,5 +93,41 @@ export function useGameServer() {
     [send],
   );
 
-  return { connected, game, log, error, pickedSequence, newGame, pick };
+  const undo = useCallback(() => send({ type: "undo" }), [send]);
+
+  /** The server answers with the Replay file, which is then downloaded. */
+  const saveReplay = useCallback(() => send({ type: "save_replay" }), [send]);
+
+  const loadReplay = useCallback(
+    async (file: File, botDelay: number) => {
+      try {
+        send({ type: "load_replay", file: await readReplayFile(file), bot_delay: botDelay });
+      } catch (problem) {
+        setError((problem as Error).message);
+      }
+    },
+    [send],
+  );
+
+  const clearError = useCallback(() => setError(null), []);
+
+  const setBotDelay = useCallback(
+    (botDelay: number) => send({ type: "set_bot_delay", bot_delay: botDelay }),
+    [send],
+  );
+
+  return {
+    connected,
+    game,
+    log,
+    error,
+    clearError,
+    pickedSequence,
+    newGame,
+    pick,
+    undo,
+    saveReplay,
+    loadReplay,
+    setBotDelay,
+  };
 }

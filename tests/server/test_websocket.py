@@ -28,5 +28,5 @@ def test_a_random_bot_against_random_bot_game_streams_updates_until_the_game_is_
             raise AssertionError(f"no game_over after {MAX_MESSAGES} messages")
 
     assert [score["player"] for score in message["scores"]] == [0, 1]
-    assert log[0] == "Generation 1 begins."
+    assert log[0].startswith("Generation 1 begins, with Player ")
     assert log[-3] == "The Game is over."

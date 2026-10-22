@@ -2,7 +2,7 @@ import { signed } from "../format";
 import { controllerLabel, isYou, PLAYER_COLOURS } from "../players";
 import type { GameUpdate } from "../useGameServer";
 
-/** One board per Player: MegaCredits and their Production, Terraform Rating, and Turn state. */
+/** One board per Player: MegaCredits and their Production, Terraform Rating, Turn state and the first-player marker. */
 export function PlayerBoards({ game }: { game: GameUpdate }) {
   const { view } = game;
   return (
@@ -21,6 +21,11 @@ export function PlayerBoards({ game }: { game: GameUpdate }) {
               <span className="player-controller">
                 {isYou(game, index) ? "You" : controllerLabel(game, index)}
               </span>
+              {view.first_player === index && (
+                <span className="badge first-player" title="First player: takes the first Turn of this Generation">
+                  First player
+                </span>
+              )}
               {board.passed && <span className="badge passed">Passed</span>}
               {isCurrent && (
                 <span className="badge turn">
