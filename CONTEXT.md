@@ -74,6 +74,10 @@ A symbol on a card, such as building, space or science, that card costs, require
 **Requirement**:
 A condition that must hold before a card can be played, such as a minimum Oxygen level or a number of Tags.
 
+**Card catalog**:
+The printed data of every card in the Game's card set: name, number, type, cost, Tags, Requirements, Victory Points and text. It is the same in every Game; a Game refers to its cards and never holds copies of them.
+_Avoid_: card list (the fan-made website the printed data is imported from), card database
+
 **Standard Project**:
 An Action every Player can always take for a fixed price, such as building a City or an Ocean.
 

@@ -1,5 +1,6 @@
 import { useState } from "react";
 
+import { CardsButton } from "../cards/CardsButton";
 import { CONTROLLER_LABELS, PLAYER_COLOURS } from "../players";
 import { CONTROLLERS, type Controller, type NewGameSettings } from "../types";
 import { BotSpeedSelect } from "./BotSpeedSelect";
@@ -15,12 +16,21 @@ interface Props {
   error: string | null;
   onStart: (settings: NewGameSettings) => void;
   onLoad: (file: File, botDelay: number) => void;
+  onShowCards: () => void;
   /** Leaves the setup screen without starting anything; absent when there is no Game to go back to. */
   onCancel?: () => void;
 }
 
 /** The new-Game screen: Players, their Controllers, the seed and how fast Random Bots pick. */
-export function NewGameSetup({ initialControllers, initialBotDelay, error, onStart, onLoad, onCancel }: Props) {
+export function NewGameSetup({
+  initialControllers,
+  initialBotDelay,
+  error,
+  onStart,
+  onLoad,
+  onShowCards,
+  onCancel,
+}: Props) {
   const [playerCount, setPlayerCount] = useState(initialControllers.length);
   // Five Controllers are kept, so going down to fewer Players and back up loses no choices.
   const [allControllers, setAllControllers] = useState<Controller[]>(() =>
@@ -109,6 +119,7 @@ export function NewGameSetup({ initialControllers, initialBotDelay, error, onSta
               Back to the Game
             </button>
           )}
+          <CardsButton onClick={onShowCards} />
           <LoadReplayButton className="link-button" onLoad={(file) => onLoad(file, botDelay)} />
           <button className="option big" disabled={seed === "invalid"} onClick={start}>
             Start Game

@@ -14,29 +14,37 @@ MAX_MESSAGES = 10_000
 
 
 class Gui:
-    """One browser tab on the server: sends what the GUI sends, and rebuilds the game
-    log from every update it receives, as the GUI does."""
+    """One browser tab on the server: sends what the GUI sends, and keeps the card catalog
+    and rebuilds the game log from the messages it receives, as the GUI does."""
 
     def __init__(self, websocket: Any) -> None:
         self.websocket = websocket
+        self.card_catalog: list[dict[str, Any]] | None = None
         self.log: list[str] = []
 
     def send(self, message: dict[str, Any]) -> None:
         self.websocket.send_json(message)
 
     def receive(self) -> dict[str, Any]:
-        """The next message from the server; an error message fails the test."""
-        message = self.websocket.receive_json()
+        """The next message from the server after the card catalog; an error message fails the test."""
+        message = self._next_message()
         assert message["type"] != "error", message["message"]
         if message["type"] == "update":
             self.log = self.log[: message["log_start"]] + message["log"]
         return message
 
     def receive_error(self) -> str:
-        """The next message, which must be an error; returns its text."""
-        message = self.websocket.receive_json()
+        """The next message after the card catalog, which must be an error; returns its text."""
+        message = self._next_message()
         assert message["type"] == "error", message
         return message["message"]
+
+    def _next_message(self) -> dict[str, Any]:
+        message = self.websocket.receive_json()
+        if message["type"] == "card_catalog":
+            self.card_catalog = message["cards"]
+            message = self.websocket.receive_json()
+        return message
 
     def next_update(self) -> dict[str, Any]:
         """The next update, skipping any other messages."""

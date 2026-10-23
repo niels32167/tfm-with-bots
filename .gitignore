@@ -12,3 +12,6 @@ gui/dist/
 
 # Fuzzing: failing Games saved as Replay files
 fuzz-failures/
+
+# Downloads the tools keep out of git (the open-source game is GPL-3.0)
+.cache/

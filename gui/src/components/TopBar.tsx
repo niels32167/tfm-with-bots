@@ -1,5 +1,6 @@
 import { useRef, useState } from "react";
 
+import { CardsButton } from "../cards/CardsButton";
 import type { GameUpdate } from "../useGameServer";
 import { BotSpeedSelect } from "./BotSpeedSelect";
 import { LoadReplayButton } from "./LoadReplayButton";
@@ -7,6 +8,7 @@ import { LoadReplayButton } from "./LoadReplayButton";
 interface Props {
   game: GameUpdate;
   onShowScores?: () => void;
+  onShowCards: () => void;
   onNewGame: () => void;
   onUndo: () => void;
   onSaveReplay: () => void;
@@ -14,8 +16,18 @@ interface Props {
   onBotDelay: (delay: number) => void;
 }
 
-/** The bar above the status bar: the Generation, the seed, and the tools for undo and Replays. */
-export function TopBar({ game, onShowScores, onNewGame, onUndo, onSaveReplay, onLoadReplay, onBotDelay }: Props) {
+/** The bar above the status bar: the Generation, the seed, the card gallery, and the tools for
+ * undo and Replays. */
+export function TopBar({
+  game,
+  onShowScores,
+  onShowCards,
+  onNewGame,
+  onUndo,
+  onSaveReplay,
+  onLoadReplay,
+  onBotDelay,
+}: Props) {
   const hasRandomBots = game.controllers.includes("random_bot");
   return (
     <header className="top-bar">
@@ -29,6 +41,7 @@ export function TopBar({ game, onShowScores, onNewGame, onUndo, onSaveReplay, on
       )}
       <div className="top-bar-tools">
         {hasRandomBots && <BotSpeedSelect delay={game.bot_delay} onChange={onBotDelay} />}
+        <CardsButton onClick={onShowCards} />
         <button
           className="link-button"
           disabled={!game.can_undo}

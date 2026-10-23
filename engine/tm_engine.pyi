@@ -10,6 +10,14 @@ MAX_SEED: int
 """The largest seed, 2**53 - 1: Replays travel as JSON, and some JSON readers (the
 browser's among them) keep whole numbers exact only up to there."""
 
+def card_catalog() -> list[dict[str, Any]]:
+    """The card catalog: the printed data of every v1 card, the 208 Project Cards in number
+    order and then the 12 Corporations. Each card has "id" (how Scenarios, Option details and
+    Replays name it), "number" (None for Corporations), "name", "type" ("automated", "active", "event" or
+    "corporation"), "corporate_era", "cost" (None for Corporations), "tags", "requirements",
+    "victory_points", "text", and "face": the card's middle part as the card list draws it,
+    for the GUI. Each call returns a new list."""
+
 class Game:
     """A Game of Terraforming Mars, always either over or waiting on one Decision."""
 

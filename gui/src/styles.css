@@ -999,3 +999,118 @@ input[aria-invalid="true"] {
   font-size: 0.72rem;
   color: var(--text-dim);
 }
+
+/* The card gallery: every card in the catalog over the whole window, drawn by PrintedCard. */
+.card-gallery {
+  position: fixed;
+  inset: 0;
+  z-index: 20;
+  display: flex;
+  flex-direction: column;
+  background: rgba(8, 9, 14, 0.97);
+}
+
+.card-gallery-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px 16px;
+  padding: 10px 16px;
+  border-bottom: 1px solid var(--panel-border);
+}
+
+.card-gallery-bar h2 {
+  font-size: 1.15rem;
+}
+
+.card-gallery-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.card-gallery-tag {
+  width: 34px;
+  height: 34px;
+  padding: 0;
+  border: 2px solid transparent;
+  border-radius: 50%;
+  background: none;
+  opacity: 0.55;
+}
+
+.card-gallery-tag img {
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  display: block;
+}
+
+.card-gallery-tag:hover {
+  opacity: 0.85;
+}
+
+.card-gallery-tag.selected {
+  opacity: 1;
+  border-color: var(--accent);
+}
+
+.card-gallery-search {
+  width: 160px;
+}
+
+.card-gallery-count {
+  color: var(--text-dim);
+  font-size: 0.9rem;
+}
+
+.card-gallery-close {
+  margin-left: auto;
+}
+
+/* Room around the cards, so that one enlarged on hover stays in view. */
+.card-gallery-cards {
+  flex: 1;
+  overflow-y: auto;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  align-content: flex-start;
+  gap: 28px;
+  padding: 90px 70px;
+}
+
+.card-gallery-card {
+  padding: 0;
+  border: none;
+  background: none;
+  border-radius: 20px;
+  transition: transform 200ms ease-in-out;
+}
+
+.card-gallery-card:hover,
+.card-gallery-card:focus-visible {
+  position: relative;
+  z-index: 1;
+  transform: scale(1.5);
+}
+
+.card-gallery-card:focus-visible {
+  outline: 3px solid var(--accent);
+}
+
+.card-gallery-empty {
+  color: var(--text-dim);
+}
+
+/* A card shown large in the middle of the window; a click anywhere puts it back. */
+.card-enlarged {
+  position: fixed;
+  inset: 0;
+  z-index: 21;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(5, 5, 10, 0.8);
+  cursor: zoom-out;
+}

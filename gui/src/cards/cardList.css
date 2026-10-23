@@ -1,0 +1,683 @@
+/*
+ * How cards are drawn: the fan-made card list's own stylesheet (css/mystyles.css at
+ * ssimeonoff.github.io, BSD-3-Clause; a copy is in tools/card_list_snapshot/), cut down to
+ * the rules the v1 cards use (ADR 0005). Each rule is scoped under .printed-card, so it can't
+ * reach the rest of the GUI, and its images are the copies in gui/public/card-list/.
+ *
+ * Changed from the original: the card frame no longer floats, hides itself or sets its own
+ * margins (the gallery lays cards out), and the reset below undoes the GUI's own defaults.
+ */
+
+/* The card list page uses the browser's defaults, which the GUI's own styles change. */
+.printed-card,
+.printed-card * {
+  box-sizing: content-box;
+}
+
+.printed-card {
+  color: black;
+  font-weight: normal;
+  line-height: normal;
+  text-align: left;
+}
+
+@font-face {
+  font-family: Prototype;
+  src: url("/card-list/fonts/Prototype.ttf");
+}
+
+.printed-card {
+  position: relative;
+  width: 240px;
+  height: 310px;
+  font-family: Prototype;
+  font-size: 18px;
+  border-top: 4px solid rgb(221, 221, 221);
+  border-left: 4px solid rgb(221, 221, 221);
+  border-bottom: 4px solid rgb(137, 137, 137);
+  border-right: 4px solid rgb(137, 137, 137);
+  border-radius: 20px;
+  box-shadow: 0 0 2px 1px black;
+  transition: transform 200ms ease-in-out;
+  will-change: transform;
+}
+
+.printed-card.automated::before {
+  content: "";
+  background-size: 1000px;
+  background-image: url("/card-list/images/mars.png");
+  position: absolute;
+  width: 30px;
+  height: 30px;
+  width: 240px;
+  height: 310px;
+  top: 0;
+  left: 0;
+  background-position: -369px -11px;
+  border-radius: 15px;
+  filter: grayscale(1) brightness(1.9) contrast(0.6) hue-rotate(90deg);
+}
+
+.printed-card.active::before {
+  content: "";
+  background-size: 1200px;
+  background-image: url("/card-list/images/mars.png");
+  position: absolute;
+  width: 30px;
+  height: 30px;
+  width: 240px;
+  height: 310px;
+  top: 0;
+  left: 0;
+  background-position: -245px -162px;
+  border-radius: 15px;
+  filter: grayscale(1) brightness(1.9) contrast(0.6) hue-rotate(180deg);
+}
+
+.printed-card.events::before {
+  content: "";
+  background-size: 1000px;
+  background-image: url("/card-list/images/mars.png");
+  position: absolute;
+  width: 30px;
+  height: 30px;
+  width: 240px;
+  height: 310px;
+  top: 0;
+  left: 0;
+  background-position: -294px -150px;
+  border-radius: 15px;
+  filter: grayscale(1) brightness(1.9) contrast(0.6) hue-rotate(0deg);
+}
+
+.printed-card.corporation::before {
+  content: "";
+  background-size: 1000px;
+  background-image: url("/card-list/images/mars.png");
+  position: absolute;
+  width: 30px;
+  height: 30px;
+  width: 240px;
+  height: 310px;
+  top: 0;
+  left: 0;
+  background-position: -356px -34px;
+  border-radius: 15px;
+  filter: grayscale(1) brightness(1.9) contrast(0.6) hue-rotate(0deg);
+}
+
+.printed-card .price {
+  float: left;
+  font-family: Prototype;
+  font-size: 26px;
+  width: 50px;
+  height: 50px;
+  line-height: 48px;
+  border-radius: 10px;
+  text-align: center;
+  margin-top: -77px;
+  margin-left: -10px;
+  background-image: url("/card-list/images/megacredits/megacredit.png");
+  background-size: 50px;
+  filter: drop-shadow(0px 0px 1px black);
+}
+
+.printed-card .number {
+  position: relative;
+  float: left;
+  font-family: Prototype;
+  width: 36px;
+  height: 20px;
+  line-height: 20px;
+  text-align: center;
+  color: #aaa;
+  letter-spacing: 1px;
+  margin-top: -62px;
+  margin-left: 50px;
+  font-size: 12px;
+}
+
+.printed-card .corporate-icon:after {
+  position: absolute;
+  border: 1px solid black;
+  background-color: #cc3333;
+  font-size: 11px;
+  line-height: 15px;
+  width: 16px;
+  height: 16px;
+  text-align: center;
+  color: white;
+  border-radius: 50%;
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.4);
+  content: "";
+  background-image: url("/card-list/images/triangle16.png");
+  background-size: 10px 10px;
+  background-position: bottom 4px right 3px;
+  background-repeat: no-repeat;
+}
+
+.printed-card .project-icon:after {
+  margin-left: -231px;
+  margin-top: 284px;
+}
+
+.printed-card .corporation-icon:after {
+  margin-top: 47px;
+  margin-left: 214px;
+}
+
+.printed-card .tag {
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.6), 0 0 0 2px rgba(0, 0, 0, 0.3);
+  position: absolute;
+  width: 40px;
+  height: 40px;
+  background-size: 50px;
+  background-position: -5px;
+  text-align: center;
+  border-radius: 50%;
+  border-top: 2px solid rgb(221, 221, 221);
+  border-left: 2px solid rgb(221, 221, 221);
+  border-bottom: 2px solid rgb(137, 137, 137);
+  border-right: 2px solid rgb(137, 137, 137);
+  background-color: white;
+  margin-top: -6px;
+  filter: brightness(0.9);
+}
+
+.printed-card .tag1 {
+  margin-left: 200px;
+}
+
+.printed-card .tag2 {
+  margin-left: 152px;
+}
+
+.printed-card .tag3 {
+  margin-left: 104px;
+}
+
+.printed-card .title {
+  position: relative;
+  text-transform: uppercase;
+  font-family: Prototype;
+  float: left;
+  margin-top: 36px;
+  width: 100%;
+  border-top: 1px solid #888;
+  border-bottom: 1px solid #888;
+  box-shadow: 0 1px 0px 0px #888;
+  border-radius: 0 0 0px 0px;
+  line-height: 30px;
+  font-size: 16px;
+  text-align: center;
+  border-radius: 0 0 30% 30%;
+}
+
+.printed-card .background-color-automated {
+  background: linear-gradient(-60deg, #089108 10%, #08910888, #089108 90%);
+}
+
+.printed-card .background-color-active {
+  background: linear-gradient(-60deg, #208cdf 10%, #208cdf88, #208cdf 90%);
+}
+
+.printed-card .background-color-events {
+  background: linear-gradient(-60deg, #ec6a13 10%, #ec6a1388, #ec6a13 90%);
+}
+
+.printed-card .tag-building {
+  background-image: url("/card-list/images/tags/building.png");
+}
+
+.printed-card .tag-space {
+  background-image: url("/card-list/images/tags/space.png");
+}
+
+.printed-card .tag-power {
+  background-image: url("/card-list/images/tags/power.png");
+}
+
+.printed-card .tag-jovian {
+  background-image: url("/card-list/images/tags/jovian.png");
+}
+
+.printed-card .tag-earth {
+  background-image: url("/card-list/images/tags/earth.png");
+}
+
+.printed-card .tag-city {
+  background-image: url("/card-list/images/tags/city.png");
+}
+
+.printed-card .tag-microbe {
+  background-image: url("/card-list/images/tags/microbe.png");
+}
+
+.printed-card .tag-plant {
+  background-image: url("/card-list/images/tags/plant.png");
+}
+
+.printed-card .tag-animal {
+  background-image: url("/card-list/images/tags/animal.png");
+}
+
+.printed-card .tag-event {
+  background-image: url("/card-list/images/tags/event.png");
+}
+
+.printed-card .tag-science {
+  background-image: url("/card-list/images/tags/science.png");
+}
+
+.printed-card .content {
+  position: relative;
+  display: inline-block;
+  width: 220px;
+  padding: 10px;
+  font-size: 16px;
+  line-height: 20px;
+  text-align: center;
+}
+
+.printed-card .contentCorporation {
+  position: relative;
+  font-family: Prototype;
+  font-size: 18px;
+  font-weight: normal;
+  display: inline-block;
+  padding: 8px;
+}
+
+.printed-card .requirements {
+  font-family: Prototype;
+  width: 70%;
+  margin-left: 33px;
+  margin-bottom: 10px;
+  height: 25px;
+  line-height: 25px;
+  text-align: center;
+  font-weight: normal;
+  font-size: 15px;
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.6), 0 0 0 2px rgba(0, 0, 0, 0.3);
+  background: linear-gradient(to right, #fa2525, #fb7272, #fb7272, #fa2525);
+  background-image: url("/card-list/images/requisites/min_big.png");
+  background-size: 180px 38px;
+  background-position: -15px -4px;
+  height: 25px;
+  line-height: 25px;
+}
+
+.printed-card .requirements-max {
+  background: linear-gradient(to right, #fa2525, #fb7272, #fb7272, #fa2525);
+  background-image: url("/card-list/images/requisites/max_big.png");
+  background-size: 164px 34px;
+  background-position: -4px -4px;
+  filter: grayscale(0.2);
+}
+
+.printed-card .points {
+  position: absolute;
+  font-family: Prototype;
+  font-weight: normal;
+  margin-top: 183px;
+  margin-left: 143px;
+  width: 80px;
+  height: 42px;
+  line-height: 35px;
+  font-size: 28px;
+  text-align: center;
+  border-radius: 10px;
+  background-color: rgb(205, 162, 130);
+  background: linear-gradient(#cc8b00, rgb(128, 87, 0), rgb(128, 87, 0));
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.6), 0 0 0 2px rgba(0, 0, 0, 0.3);
+  background: url("/card-list/images/mars.png");
+  background-size: 90px;
+  background-position: -5px -25px;
+  text-shadow: 0 0 5px darkorange;
+}
+
+.printed-card .points-big {
+  line-height: 42px;
+  font-size: 36px;
+}
+
+.printed-card .description {
+  font-size: 11px;
+  line-height: 13px;
+  font-weight: normal;
+  font-family: Arial;
+}
+
+.printed-card .production-box {
+  font-family: Prototype;
+  font-weight: normal;
+  font-size: 18px;
+  width: 44px;
+  display: inline-block;
+  text-shadow: none;
+  border-top: 2px solid rgb(221, 221, 221);
+  border-left: 2px solid rgb(221, 221, 221);
+  border-bottom: 2px solid rgb(137, 137, 137);
+  border-right: 2px solid rgb(137, 137, 137);
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.6), 0 0 0 2px rgba(0, 0, 0, 0.3);
+  padding-top: 4px;
+  text-align: center;
+  margin-bottom: 10px;
+  margin-top: 2px;
+  padding-bottom: 4px;
+  line-height: 32px;
+  background-image: url("/card-list/images/misc/production.png");
+  background-size: cover;
+}
+
+.printed-card .production-box-size1a {
+  width: 65px;
+}
+
+.printed-card .production-box-size2 {
+  width: 80px;
+}
+
+.printed-card .production-box-size2a {
+  width: 105px;
+}
+
+.printed-card .production-box-size3 {
+  width: 115px;
+}
+
+.printed-card .production-box-size3a {
+  width: 140px;
+}
+
+.printed-card .production-box-size4 {
+  width: 155px;
+}
+
+.printed-card .production {
+  display: inline-block;
+  position: relative;
+  width: 30px;
+  height: 30px;
+  background-size: 30px;
+  line-height: 30px;
+  margin: 2px 0;
+  text-align: center;
+  vertical-align: bottom;
+}
+
+.printed-card .production-prefix {
+  display: inline-block;
+  width: 23px;
+  color: rgba(0, 0, 0, 0.8);
+}
+
+.printed-card .red-outline {
+  filter: drop-shadow(1px 0px 1px #c33) drop-shadow(-1px 0px 1px #c33)
+    drop-shadow(0px 1px 1px #c33) drop-shadow(0px -1px 1px #c33) !important;
+}
+
+.printed-card .tile {
+  position: relative;
+  vertical-align: middle;
+  display: inline-block;
+  width: 40px;
+  height: 46px;
+  background-size: 40px 46px;
+  line-height: 16px;
+  text-align: center;
+  margin-bottom: 10px;
+  margin-left: 2px;
+  margin-right: 2px;
+  margin-top: 5px;
+  filter: drop-shadow(0px 0px 1px black);
+  background-image: url("/card-list/images/tiles/empty.png");
+}
+
+.printed-card .temperature-tile {
+  background-image: url("/card-list/images/global-parameters/temperature.png");
+  width: 14px;
+  background-size: 14px 46px;
+}
+
+.printed-card .greenery-tile {
+  background-image: url("/card-list/images/tiles/greenery.png");
+  background-size: 50px 46px;
+  width: 50px;
+}
+
+.printed-card .ocean-tile {
+  background-image: url("/card-list/images/tiles/ocean.png");
+}
+
+.printed-card .ocean-resource {
+  background-image: url("/card-list/images/tiles/ocean.png");
+  width: 30px !important;
+  height: 32px !important;
+  background-size: 30px 32px !important;
+  vertical-align: middle !important;
+  box-shadow: none !important;
+  background-repeat: no-repeat;
+}
+
+.printed-card .city-tile {
+  background-image: url("/card-list/images/tiles/city.png");
+  filter: brightness(0.8) drop-shadow(0px 1px 1px rgba(0, 0, 0, 0.5));
+}
+
+.printed-card .city-tile-small {
+  background-image: url("/card-list/images/tiles/city.png");
+  filter: brightness(0.8) drop-shadow(0px 1px 1px rgba(0, 0, 0, 0.5));
+  width: 30px;
+  height: 32px;
+  background-size: 30px 32px;
+}
+
+.printed-card .special-tile {
+  background-image: url("/card-list/images/tiles/special.png");
+  color: rgb(73, 54, 40);
+  font-size: 30px;
+  font-weight: bold;
+  line-height: 44px;
+}
+
+.printed-card .oxygen-tile {
+  background-image: url("/card-list/images/global-parameters/oxygen.png");
+  width: 46px;
+  background-size: 46px;
+}
+
+.printed-card .rating {
+  background-image: url("/card-list/images/resources/TR.png");
+  width: 50px;
+  height: 40px;
+  background-size: 50px 40px;
+}
+
+.printed-card .globals-box {
+  width: 100px;
+  text-shadow: none;
+  font-size: 17px;
+  font-weight: normal;
+  line-height: 17px;
+  vertical-align: middle;
+  padding-top: 5px;
+  border-radius: 5px;
+  height: 40px;
+  background-image: url("/card-list/images/requisites/min_big.png");
+  background-size: 114px 60px;
+  background-position: -9px -9px;
+}
+
+.printed-card .resource {
+  font-family: Prototype;
+  position: relative;
+  display: inline-block;
+  margin-top: 5px;
+  margin-left: 0px;
+  margin-right: 0px;
+  margin-bottom: 10px;
+  width: 30px;
+  height: 30px;
+  font-size: 22px;
+  line-height: 30px;
+  background-size: 30px;
+  filter: drop-shadow(0px 0px 1px black);
+  vertical-align: middle;
+}
+
+.printed-card .resource-tag {
+  position: relative;
+  display: inline-block;
+  text-align: center;
+  border-radius: 50%;
+  width: 30px;
+  height: 30px;
+  background-size: 34px 34px;
+  background-position: -2px -2px;
+  line-height: 28px;
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.6), 0 0 0 2px rgba(0, 0, 0, 0.3);
+  vertical-align: middle;
+  margin-bottom: 5px;
+  filter: brightness(0.9);
+}
+
+.printed-card .production-tag {
+  margin-bottom: 2px;
+}
+
+.printed-card .money {
+  font-family: Prototype;
+  color: black;
+  background-image: url("/card-list/images/megacredits/megacredit.png");
+  font-weight: normal;
+  font-size: 18px;
+  text-align: center;
+}
+
+.printed-card .steel {
+  background-image: url("/card-list/images/resources/steel.png");
+}
+
+.printed-card .titanium {
+  background-image: url("/card-list/images/resources/titanium.png");
+}
+
+.printed-card .plant {
+  background-image: url("/card-list/images/resources/plant.png");
+}
+
+.printed-card .energy {
+  background-image: url("/card-list/images/resources/power.png");
+}
+
+.printed-card .heat {
+  background-image: url("/card-list/images/resources/heat.png");
+}
+
+.printed-card .microbe {
+  background-image: url("/card-list/images/resources/microbe.png");
+}
+
+.printed-card .animal {
+  background-image: url("/card-list/images/resources/animal.png");
+}
+
+.printed-card .science {
+  background-image: url("/card-list/images/resources/science.png");
+}
+
+.printed-card .fighter {
+  background-image: url("/card-list/images/resources/fighter.png");
+}
+
+.printed-card .card {
+  background: url("/card-list/images/resources/card.png");
+  height: 40px;
+  width: 30px;
+  background-size: 30px 40px;
+  vertical-align: middle;
+}
+
+.printed-card .red-arrow {
+  background-image: url("/card-list/images/misc/arrow.png");
+  background-size: 30px;
+  width: 30px;
+  height: 30px;
+  vertical-align: middle;
+  display: inline-block;
+  margin-bottom: 5px;
+  background-repeat: no-repeat;
+  background-position: 0px;
+}
+
+.printed-card .plus {
+  background-image: url("/card-list/images/misc/plus.png");
+  background-size: 15px;
+  width: 15px;
+  height: 15px;
+  vertical-align: middle;
+  display: inline-block;
+  margin-bottom: 5px;
+  background-repeat: no-repeat;
+}
+
+.printed-card .minus {
+  background-image: url("/card-list/images/misc/minus.png");
+  background-size: 15px;
+  width: 15px;
+  height: 15px;
+  vertical-align: middle;
+  display: inline-block;
+  margin-bottom: 4px;
+  background-repeat: no-repeat;
+}
+
+.printed-card .corporationLabel {
+  float: left;
+  position: absolute;
+  font-family: Prototype;
+  width: 115px;
+  height: 14px;
+  line-height: 15px;
+  text-align: center;
+  margin-top: -10px;
+  margin-left: 24px;
+  font-size: 13px;
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.6), 0 0 0 2px rgba(0, 0, 0, 0.3);
+  background: #cccccc;
+  background-color: rgb(255, 204, 100);
+  background: linear-gradient(
+    to right,
+    #e28c22,
+    rgb(255, 204, 100),
+    rgb(255, 204, 100),
+    #e28c22
+  );
+  border-radius: 7px 7px 2px 2px;
+}
+
+.printed-card .corporationEffectBox {
+  position: absolute;
+  width: 216px;
+  margin-top: 155px;
+  padding: 3px;
+  text-align: center;
+  border-top: 1px solid rgba(0, 0, 0, 0.5);
+}
+
+.printed-card .corporationEffectBoxLabel {
+  background-color: rgb(44, 132, 196);
+  background: linear-gradient(#6eafde, rgb(44, 132, 196), rgb(44, 132, 196));
+  margin-left: 55px;
+  margin-bottom: 10px;
+  width: 100px;
+  height: 12px;
+  margin-top: -10px;
+  line-height: 12px;
+  text-align: center;
+  font-size: 11px;
+  padding-top: 2px;
+  border-radius: 10px;
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.6), 0 0 0 2px rgba(0, 0, 0, 0.3);
+}

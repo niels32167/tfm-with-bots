@@ -3,6 +3,7 @@
 //! Python data: dicts, lists, strings, numbers and None.
 
 mod board;
+mod cards;
 mod game;
 mod log;
 mod milestones_and_awards;
@@ -136,6 +137,13 @@ impl PyGame {
     }
 }
 
+/// The card catalog: the printed data of every card, Project Cards in number order and then
+/// the Corporations. Each call returns a new list, so changing it changes nothing else.
+#[pyfunction]
+fn card_catalog(py: Python<'_>) -> PyResult<Bound<'_, PyAny>> {
+    to_python(py, &*cards::CARD_CATALOG)
+}
+
 fn to_python<'py>(py: Python<'py>, value: &impl Serialize) -> PyResult<Bound<'py, PyAny>> {
     Ok(pythonize(py, value)?)
 }
@@ -143,6 +151,7 @@ fn to_python<'py>(py: Python<'py>, value: &impl Serialize) -> PyResult<Bound<'py
 #[pymodule]
 fn tm_engine(module: &Bound<'_, PyModule>) -> PyResult<()> {
     module.add_class::<PyGame>()?;
+    module.add_function(wrap_pyfunction!(card_catalog, module)?)?;
     module.add("MAX_SEED", game::MAX_SEED)?;
     Ok(())
 }

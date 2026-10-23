@@ -132,6 +132,72 @@ export interface View {
   scores: Score[] | null;
 }
 
+export type CardType = "automated" | "active" | "event" | "corporation";
+
+/** The Tags printed on cards, in the order the gallery offers them as filters. */
+export const TAGS = [
+  "building",
+  "space",
+  "power",
+  "science",
+  "jovian",
+  "earth",
+  "plant",
+  "microbe",
+  "animal",
+  "city",
+  "event",
+] as const;
+export type Tag = (typeof TAGS)[number];
+
+/** An element of a card's face as the card list draws it, with its class names, inline style
+ * (CSS property names) and children; text is a string. */
+export interface FaceElement {
+  tag: "div" | "span" | "br";
+  class?: string;
+  style?: Record<string, string>;
+  children?: (FaceElement | string)[];
+}
+
+/** What it takes to draw a card as the card list does, beyond its printed data. */
+export interface Face {
+  /** The card's middle part. */
+  content: FaceElement;
+  /** The title's own style, where it has one (a smaller font for long names). */
+  title_style?: Record<string, string>;
+}
+
+/** A Requirement, such as {"type": "oxygen", "max": 5} or {"type": "tag", "tag": "science", "min": 3}. */
+export interface Requirement {
+  type: string;
+  [key: string]: unknown;
+}
+
+/** Fixed Victory Points, or points for something, such as 1 for every 2 microbes on the card. */
+export type VictoryPoints =
+  | number
+  | { points: number; per?: number; at_least?: number; of: Record<string, string> }
+  | null;
+
+/** One card of the card catalog, as printed. */
+export interface Card {
+  /** How Scenarios, Option details and Replays name it: "black_polar_dust". */
+  id: string;
+  /** 1 to 208 for Project Cards; null for Corporations. */
+  number: number | null;
+  name: string;
+  type: CardType;
+  corporate_era: boolean;
+  /** In MegaCredits; null for Corporations. */
+  cost: number | null;
+  /** In the order printed, from the top right corner leftwards. */
+  tags: Tag[];
+  requirements: Requirement[];
+  victory_points: VictoryPoints;
+  text: string;
+  face: Face;
+}
+
 /** Where a Game started and the index of every Option picked since. */
 export interface Replay {
   start: { settings: { players: number; seed: number } } | { scenario: { seed: number } };
@@ -163,6 +229,7 @@ export interface Update {
 }
 
 export type ServerMessage =
+  | { type: "card_catalog"; cards: Card[] }
   | Update
   | { type: "game_over"; scores: Score[] }
   | { type: "replay_file"; file: ReplayFile }

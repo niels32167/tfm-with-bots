@@ -4,7 +4,7 @@ A digital Terraforming Mars with a fast rules engine, built so an AI opponent ca
 be trained against it by self-play. Phase 1 is a playable, well-tested game; see
 `.scratch/phase-1-playable-game/spec.md`.
 
-So far (tickets 01–06), 2–5 Players hold all six Resources with their Production, use
+So far (tickets 01–07), 2–5 Players hold all six Resources with their Production, use
 the Power Plant, Asteroid, Aquifer, Greenery and City Standard Projects, and convert
 plants into Greeneries and heat into Temperature on the Tharsis board. They place
 Oceans, Greeneries and Cities by clicking a highlighted Area, and collect placement
@@ -16,7 +16,9 @@ Terraform Rating, Milestones, Awards, Greeneries and Cities, and the most Victor
 wins (MegaCredits break a tie). Each Player is a human or a Random Bot, every Game comes
 from a seed, and any Game can be undone, saved as a Replay file and loaded again. A
 fuzzer plays Random Bot Games and checks them after every Decision, and a benchmark
-measures the engine's speed.
+measures the engine's speed. The card catalog holds the printed data of all 208 Project
+Cards and 12 Corporations, and the GUI's card gallery draws every card as the fan-made card
+list does; cards are not played yet.
 
 ## How it fits together
 
@@ -76,6 +78,31 @@ It exits with status 1 if a target is missed:
 uv run python -m tools.benchmark
 ```
 
+## Cards
+
+The printed card data (ADR 0005) comes from the fan-made card list at
+ssimeonoff.github.io/cards-list. The import parses a saved copy of that page
+(`tools/card_list_snapshot/`) into the card file, `engine/cards/cards.json`, which the engine
+builds in:
+
+```bash
+uv run python -m tools.card_import
+```
+
+`--download` fetches the page, its stylesheet and the card icons again first. Running the
+import again rewrites each card's printed fields and keeps any field written by hand (effect
+data, from ticket 08 on). The engine module reads the catalog with `tm_engine.card_catalog()`.
+
+The mismatch report, `docs/card-mismatches.md`, compares the card file with the open-source
+game's card definitions (cost, Tags, Requirements, Victory Points, type and Corporate Era):
+
+```bash
+uv run python -m tools.card_mismatches --download
+```
+
+Its downloads are GPL-3.0, so they stay in `.cache/` (ignored by git); without
+`--download` the report is rebuilt from there.
+
 ## Play
 
 Start the server in one terminal:
@@ -95,9 +122,11 @@ Player's Controller (human or Random Bot), a seed (empty for a random one) and h
 Random Bots pick. With two or more humans (Hotseat), or only Random Bots, the screen shows
 the full view; with one human, only that Player's Player View.
 
-During a Game, the top bar shows the seed (click to copy) and has **Undo** (back to the
-last Decision a human answered, skipping Random Bot picks), **Save Replay**,
-**Load Replay…** and the Random Bot speed. The server keeps the Game in memory, so
+During a Game, the top bar shows the seed (click to copy) and has **Cards**, **Undo** (back
+to the last Decision a human answered, skipping Random Bot picks), **Save Replay**,
+**Load Replay…** and the Random Bot speed. **Cards** (also on the setup screen) opens the
+card gallery: every card, filtered by type, Tag, or name or number; hover over a card to
+enlarge it, or click it to see it large. The server keeps the Game in memory, so
 reloading the page picks it up again.
 
 ## Other checks
@@ -112,6 +141,7 @@ reloading the page picks it up again.
 | `engine/src/game.rs` | The rules: Game state, Decisions and Options |
 | `engine/src/board.rs` | The Tharsis board: Areas, adjacency, and where each Tile may go |
 | `engine/src/resources.rs` | The six Resources, and an amount of each (held, or Production) |
+| `engine/src/cards.rs` | The card catalog, read from the card file `engine/cards/cards.json` |
 | `engine/src/milestones_and_awards.rs` | The Tharsis Milestones and Awards, and what each one counts |
 | `engine/src/scoring.rs` | Final scoring: the breakdown, Award places, ranks and the winner |
 | `engine/src/scenario.rs` | Starting a Game from a Scenario |
@@ -127,10 +157,22 @@ reloading the page picks it up again.
 | `tests/server/` | Tests of the local server over its WebSocket |
 | `tests/fuzzing/` | The fuzzer: its invariants, the runner, and `python -m tests.fuzzing` for the full run |
 | `tools/benchmark.py` | The speed benchmark |
+| `tools/card_import.py` | The card import; `tools/card_list_snapshot/` is its saved copy of the card list page |
+| `tools/card_mismatches.py` | The mismatch report against the open-source game; the report is `docs/card-mismatches.md` |
+| `tests/cards/` | Tests of the card catalog |
 | `tests/helpers.py` | `scenario()`, `player()`, `ocean()`, `city()`, `claimed()`, `funded()`, `terraformed_mars()`, `pick()`, `offered()`, `area()`, `milestone()`, `award()`, `resources()`: helpers that make tests read like play |
 | `server/` | The local server and the Random Bot |
 | `gui/src/` | The browser GUI; the board is `gui/src/components/MarsBoard.tsx`, the Milestones and Awards bar `gui/src/components/MilestonesAwards.tsx`, and the printed tracks are in `gui/src/tracks.ts` |
+| `gui/src/cards/` | Cards drawn as the card list draws them (`PrintedCard.tsx`, `cardList.css`), and the card gallery |
+| `gui/public/card-list/` | The card list's icons and font |
 | `CONTEXT.md` | The glossary; code, tests and messages use its terms |
 | `docs/adr/` | Architecture decisions |
 | `docs/rules-notes.md` | Every rules judgment call |
 | `.scratch/phase-1-playable-game/` | The phase-1 spec and tickets |
+
+## Credits
+
+The card faces copy the fan-made Terraforming Mars card list by ssimeonoff
+(github.com/ssimeonoff/ssimeonoff.github.io, BSD-3-Clause): its layout, stylesheet and icons.
+Its title font, Prototype, is free for personal use. Terraforming Mars is a game by
+FryxGames; this is a private, personal project.

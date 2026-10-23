@@ -1,14 +1,16 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import { downloadReplayFile, readReplayFile } from "./replayFiles";
-import type { ClientMessage, NewGameSettings, ServerMessage, Update } from "./types";
+import type { Card, ClientMessage, NewGameSettings, ServerMessage, Update } from "./types";
 
 /** The server's latest update: Controllers, seed, Player View and Decision (the log is kept apart). */
 export type GameUpdate = Omit<Update, "type" | "log_start" | "log">;
 
-/** The connection to the local server, and the latest Game state it sent. */
+/** The connection to the local server, the card catalog, and the latest Game state it sent. */
 export function useGameServer() {
   const [connected, setConnected] = useState(false);
+  // Every card's printed data, which the server sends first on each connection.
+  const [cards, setCards] = useState<Card[]>([]);
   const [game, setGame] = useState<GameUpdate | null>(null);
   const [log, setLog] = useState<string[]>([]);
   const [error, setError] = useState<string | null>(null);
@@ -47,6 +49,9 @@ export function useGameServer() {
 
     function receive(message: ServerMessage) {
       switch (message.type) {
+        case "card_catalog":
+          setCards(message.cards);
+          break;
         case "update": {
           const { type: _type, log_start, log: lines, ...state } = message;
           setGame(state);
@@ -118,6 +123,7 @@ export function useGameServer() {
 
   return {
     connected,
+    cards,
     game,
     log,
     error,

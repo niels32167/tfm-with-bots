@@ -1,5 +1,6 @@
 import { useState } from "react";
 
+import { CardGallery } from "./cards/CardGallery";
 import { DEFAULT_BOT_DELAY } from "./components/BotSpeedSelect";
 import { FinalScores } from "./components/FinalScores";
 import { GameLog } from "./components/GameLog";
@@ -22,6 +23,7 @@ export function App() {
   const { connected, game, log, error, pickedSequence } = server;
   const [settingUp, setSettingUp] = useState(false);
   const [showScores, setShowScores] = useState(true);
+  const [showCards, setShowCards] = useState(false);
 
   // An error shown so far belongs to the Game screen, not to the setup.
   const openSetup = () => {
@@ -52,16 +54,22 @@ export function App() {
     );
   }
 
+  const cardGallery = showCards && <CardGallery cards={server.cards} onClose={() => setShowCards(false)} />;
+
   if (!game || settingUp) {
     return (
-      <NewGameSetup
-        initialControllers={game?.controllers ?? HUMAN_AGAINST_RANDOM_BOT}
-        initialBotDelay={game?.bot_delay ?? DEFAULT_BOT_DELAY}
-        error={error}
-        onStart={startNewGame}
-        onLoad={loadReplay}
-        onCancel={game ? () => setSettingUp(false) : undefined}
-      />
+      <>
+        <NewGameSetup
+          initialControllers={game?.controllers ?? HUMAN_AGAINST_RANDOM_BOT}
+          initialBotDelay={game?.bot_delay ?? DEFAULT_BOT_DELAY}
+          error={error}
+          onStart={startNewGame}
+          onLoad={loadReplay}
+          onShowCards={() => setShowCards(true)}
+          onCancel={game ? () => setSettingUp(false) : undefined}
+        />
+        {cardGallery}
+      </>
     );
   }
 
@@ -73,6 +81,7 @@ export function App() {
       <TopBar
         game={game}
         onShowScores={scores && !showScores ? () => setShowScores(true) : undefined}
+        onShowCards={() => setShowCards(true)}
         onNewGame={openSetup}
         onUndo={server.undo}
         onSaveReplay={server.saveReplay}
@@ -112,6 +121,7 @@ export function App() {
           onNewGame={openSetup}
         />
       )}
+      {cardGallery}
     </div>
   );
 }

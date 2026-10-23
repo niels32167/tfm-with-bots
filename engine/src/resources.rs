@@ -8,7 +8,7 @@ use serde::{Deserialize, Serialize};
 /// MegaCredit Production may go down to -5; every other Production stays at 0 or above.
 pub const MIN_MEGACREDIT_PRODUCTION: i32 = -5;
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Deserialize)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum Resource {
     #[serde(rename = "megacredits")]

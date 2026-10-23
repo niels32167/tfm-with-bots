@@ -10,6 +10,8 @@ Messages from the GUI:
     {"type": "set_bot_delay", "bot_delay": 0.3}
 
 Messages to the GUI:
+    {"type": "card_catalog", "cards": [...]}
+        (the printed data of every card, sent first to each new connection)
     {"type": "update", "controllers": [...], "viewer": 0 or null, "seed": 7, "bot_delay": 0.8,
      "can_undo": true, "view": ..., "decision": ... or null, "log_start": n, "log": [...]}
         (viewer null means the view is the full view)
@@ -42,9 +44,12 @@ class GameHost:
         self.session: GameSession | None = None
         self.connections: set[WebSocket] = set()
         self.random_bot_task: asyncio.Task | None = None
+        # The card catalog never changes, so it is read from the engine once.
+        self.card_catalog_message = {"type": "card_catalog", "cards": tm_engine.card_catalog()}
 
     async def join(self, websocket: WebSocket) -> None:
         self.connections.add(websocket)
+        await websocket.send_json(self.card_catalog_message)
         if self.session is not None:
             for message in self.session.catch_up():
                 await websocket.send_json(message)
