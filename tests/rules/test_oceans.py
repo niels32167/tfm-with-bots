@@ -1,6 +1,17 @@
 """Ocean Tiles: the Aquifer Standard Project, the Areas reserved for Oceans, and the limit of 9."""
 
-from tests.helpers import OCEAN_AREAS, area, areas_offered, ocean, options, pick, player, player_board, scenario
+from tests.helpers import (
+    OCEAN_AREAS,
+    area,
+    areas_offered,
+    ocean,
+    options,
+    pick,
+    player,
+    player_board,
+    resources,
+    scenario,
+)
 
 
 def test_aquifer_costs_18_megacredits_and_places_an_ocean_for_one_terraform_rating():
@@ -11,7 +22,7 @@ def test_aquifer_costs_18_megacredits_and_places_an_ocean_for_one_terraform_rati
 
     assert area(game, "A5")["tile"] == {"type": "ocean", "owner": None}
     assert game.player_view(0)["oceans"] == 1
-    assert player_board(game, 0)["megacredits"] == 2
+    assert resources(game, 0)["megacredits"] == 2
     assert player_board(game, 0)["terraform_rating"] == 21
 
 
@@ -48,7 +59,7 @@ def test_once_9_oceans_are_placed_aquifer_costs_18_megacredits_and_does_nothing_
     pick(game, project="aquifer")
 
     assert game.player_view(0)["oceans"] == 9
-    assert player_board(game, 0)["megacredits"] == 2
+    assert resources(game, 0)["megacredits"] == 2
     assert player_board(game, 0)["terraform_rating"] == 30
     assert game.decision["kind"] == "action"
     assert game.log[-1] == "All 9 Oceans are already placed, so no Ocean is placed."

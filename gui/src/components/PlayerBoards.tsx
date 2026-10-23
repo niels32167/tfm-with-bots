@@ -1,8 +1,28 @@
 import { signed } from "../format";
 import { controllerLabel, isYou, PLAYER_COLOURS } from "../players";
+import { RESOURCES, type Resource } from "../types";
 import type { GameUpdate } from "../useGameServer";
 
-/** One board per Player: Resources, MegaCredit Production, Terraform Rating, Turn state and the first-player marker. */
+const RESOURCE_NAMES: Record<Resource, string> = {
+  megacredits: "MegaCredits",
+  steel: "Steel",
+  titanium: "Titanium",
+  plants: "Plants",
+  energy: "Energy",
+  heat: "Heat",
+};
+
+// As the game log names each Production: "MegaCredit Production", "plant Production".
+const PRODUCTION_NAMES: Record<Resource, string> = {
+  megacredits: "MegaCredit Production",
+  steel: "steel Production",
+  titanium: "titanium Production",
+  plants: "plant Production",
+  energy: "energy Production",
+  heat: "heat Production",
+};
+
+/** One board per Player: Terraform Rating, the six Resources with their Production, Turn state and the first-player marker. */
 export function PlayerBoards({ game }: { game: GameUpdate }) {
   const { view } = game;
   return (
@@ -26,49 +46,37 @@ export function PlayerBoards({ game }: { game: GameUpdate }) {
                   First player
                 </span>
               )}
-              {board.passed && <span className="badge passed">Passed</span>}
-              {isCurrent && (
-                <span className="badge turn">
-                  Turn{view.actions_this_turn > 0 ? ` · Action ${view.actions_this_turn + 1}` : ""}
-                </span>
-              )}
+              {board.passed && view.phase === "action" && <span className="badge passed">Passed</span>}
+              {isCurrent && <span className="badge turn">{turnBadge(game)}</span>}
+              <span className="terraform-rating" title="Terraform Rating">
+                <span className="terraform-rating-label">TR</span> {board.terraform_rating}
+              </span>
             </header>
             <dl className="player-stats">
-              <div className="stat megacredits" title="MegaCredits (MegaCredit Production)">
-                <dt>MegaCredits</dt>
-                <dd>
-                  <span className="stat-value">{board.megacredits}</span>
-                  <span className="stat-production">{signed(board.production.megacredits)}</span>
-                </dd>
-              </div>
-              <div className="stat steel" title="Steel">
-                <dt>Steel</dt>
-                <dd>
-                  <span className="stat-value">{board.steel}</span>
-                </dd>
-              </div>
-              <div className="stat titanium" title="Titanium">
-                <dt>Titanium</dt>
-                <dd>
-                  <span className="stat-value">{board.titanium}</span>
-                </dd>
-              </div>
-              <div className="stat plants" title="Plants">
-                <dt>Plants</dt>
-                <dd>
-                  <span className="stat-value">{board.plants}</span>
-                </dd>
-              </div>
-              <div className="stat terraform-rating" title="Terraform Rating">
-                <dt>Terraform Rating</dt>
-                <dd>
-                  <span className="stat-value">{board.terraform_rating}</span>
-                </dd>
-              </div>
+              {RESOURCES.map((resource) => (
+                <div
+                  key={resource}
+                  className={`stat ${resource}`}
+                  title={`${RESOURCE_NAMES[resource]} (${PRODUCTION_NAMES[resource]})`}
+                >
+                  <dt>{RESOURCE_NAMES[resource]}</dt>
+                  <dd>
+                    <span className="stat-value">{board.resources[resource]}</span>
+                    <span className="stat-production">{signed(board.production[resource])}</span>
+                  </dd>
+                </div>
+              ))}
             </dl>
           </article>
         );
       })}
     </section>
   );
+}
+
+/** What the current Player is doing: their Turn (and which Action), or the final Greenery conversion. */
+function turnBadge(game: GameUpdate): string {
+  const { view } = game;
+  if (view.phase === "final_greenery") return "Final Greeneries";
+  return `Turn${view.actions_this_turn > 0 ? ` · Action ${view.actions_this_turn + 1}` : ""}`;
 }

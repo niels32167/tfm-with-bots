@@ -5,16 +5,13 @@ import { FinalScores } from "./components/FinalScores";
 import { GameLog } from "./components/GameLog";
 import { MarsBoard } from "./components/MarsBoard";
 import { NewGameSetup } from "./components/NewGameSetup";
+import { OceanTrack } from "./components/OceanTrack";
 import { PlayerBoards } from "./components/PlayerBoards";
 import { StatusBar } from "./components/StatusBar";
 import { TemperatureTrack } from "./components/TemperatureTrack";
 import { TopBar } from "./components/TopBar";
 import type { Controller, NewGameSettings } from "./types";
 import { useGameServer } from "./useGameServer";
-
-// Until ticket 04 draws their tracks, Oxygen and Oceans are shown as plain numbers.
-const MAX_OXYGEN = 14;
-const MAX_OCEANS = 9;
 
 // The setup screen's first suggestion: you against one Random Bot.
 const HUMAN_AGAINST_RANDOM_BOT: Controller[] = ["human", "random_bot"];
@@ -84,18 +81,16 @@ export function App() {
         <main className="board-area">
           <TemperatureTrack temperature={game.view.temperature} />
           <div className="mars-column">
-            <p className="global-parameters">
-              Oxygen {game.view.oxygen} %{game.view.oxygen >= MAX_OXYGEN && " (maximum)"} · Oceans {game.view.oceans}{" "}
-              of {MAX_OCEANS}
-            </p>
             <MarsBoard
               board={game.view.board}
+              oxygen={game.view.oxygen}
               playerNames={game.view.players.map((board) => board.name)}
               decision={game.decision}
               disabled={pickedSequence === game.decision?.sequence}
               onPick={server.pick}
             />
           </div>
+          <OceanTrack oceans={game.view.oceans} />
         </main>
         <aside className="side-panel">
           <PlayerBoards game={game} />

@@ -9,6 +9,7 @@
   --button: #4871b6;
   --button-hover: #355a98;
   --mercury: #e2452c;
+  --ocean: #2f6fb4;
   --accent: #f0b54a;
   color-scheme: dark;
   font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
@@ -354,13 +355,6 @@ input[aria-invalid="true"] {
   min-width: 0;
 }
 
-.global-parameters {
-  margin: 0;
-  font-weight: 600;
-  color: var(--text-dim);
-  font-variant-numeric: tabular-nums;
-}
-
 .mars-board {
   width: 100%;
   max-width: min(80vh, 680px);
@@ -395,7 +389,7 @@ input[aria-invalid="true"] {
 }
 
 .area.tile-ocean .area-shape {
-  fill: #2f6fb4;
+  fill: var(--ocean);
 }
 
 /* Olive, so that a green Player's owner marker still stands out. */
@@ -474,19 +468,30 @@ input[aria-invalid="true"] {
   stroke-width: 3.5;
 }
 
-/* The thermometer. */
-.thermometer {
+/* The tracks beside Mars: the thermometer and the Ocean counter. */
+.thermometer,
+.ocean-track {
   display: flex;
   flex-direction: column;
   align-items: center;
   gap: 6px;
 }
 
-.thermometer-title {
+.track-title {
   font-size: 0.8rem;
   text-transform: uppercase;
   letter-spacing: 0.1em;
   color: var(--text-dim);
+}
+
+.track-reading {
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.track-reading .maxed {
+  color: var(--accent);
+  font-weight: 600;
 }
 
 .thermometer-steps {
@@ -500,6 +505,7 @@ input[aria-invalid="true"] {
 }
 
 .thermometer-step {
+  position: relative;
   height: 23px;
   margin: 1px 0;
   border-radius: 4px;
@@ -529,14 +535,119 @@ input[aria-invalid="true"] {
   background: radial-gradient(circle at 40% 35%, #ff7a5c, var(--mercury) 50%, #8f1f0e);
 }
 
-.thermometer-reading {
-  font-weight: 700;
+/* Track bonuses printed beside a step. */
+.thermometer-step .track-bonus {
+  position: absolute;
+  top: 2px;
+  left: calc(100% + 10px);
+  width: 19px;
+  height: 19px;
+}
+
+.track-bonus.heat-production {
+  border: 2px solid #8a5a2b;
+  border-radius: 4px;
+  background: #3a2414;
+  color: #ff8a3d;
+  font-size: 0.68rem;
+  font-weight: 800;
+  line-height: 15px;
+}
+
+.track-bonus.ocean-bonus {
+  background: var(--ocean);
+  clip-path: polygon(50% 0, 100% 25%, 100% 75%, 50% 100%, 0 75%, 0 25%);
+}
+
+.temperature-bonus rect,
+.temperature-bonus circle {
+  fill: var(--mercury);
+  stroke: #ffe9e2;
+  stroke-width: 1;
+}
+
+/* The Ocean counter: one slot per Ocean, filled from the bottom. */
+.ocean-slots {
+  list-style: none;
+  margin: 0;
+  padding: 6px;
+  border: 2px solid var(--panel-border);
+  border-radius: 8px;
+  background: rgba(0, 0, 0, 0.35);
+}
+
+.ocean-slot {
+  width: 34px;
+  height: 38px;
+  margin: 3px 0;
+  clip-path: polygon(50% 0, 100% 25%, 100% 75%, 50% 100%, 0 75%, 0 25%);
+  background: rgba(255, 255, 255, 0.1);
+  text-align: center;
+  line-height: 38px;
+  font-size: 0.8rem;
+  color: var(--text-dim);
   font-variant-numeric: tabular-nums;
 }
 
-.thermometer-reading .maxed {
-  color: var(--accent);
+.ocean-slot.placed {
+  background: var(--ocean);
+  color: white;
+  font-weight: 700;
+}
+
+/* The Oxygen track, an arc round the top of Mars (inside the board's SVG). */
+.oxygen-band {
+  fill: none;
+  stroke: rgba(0, 0, 0, 0.45);
+  stroke-linecap: round;
+}
+
+.oxygen-step circle {
+  fill: rgba(255, 255, 255, 0.08);
+  stroke: rgba(255, 255, 255, 0.25);
+  stroke-width: 1.5;
+}
+
+.oxygen-step text {
+  font-size: 12px;
   font-weight: 600;
+  fill: var(--text-dim);
+}
+
+.oxygen-step.filled circle {
+  fill: #7fc8e8;
+  stroke: #d6f1ff;
+}
+
+.oxygen-step.filled text {
+  fill: #08303f;
+}
+
+.oxygen-step.current circle {
+  stroke: white;
+  stroke-width: 3;
+}
+
+.oxygen-step.current text {
+  font-weight: 800;
+}
+
+.oxygen-title {
+  font-size: 11px;
+  letter-spacing: 0.1em;
+  fill: var(--text-dim);
+}
+
+.oxygen-reading {
+  font-size: 15px;
+  font-weight: 700;
+  fill: var(--text);
+}
+
+.oxygen-track .maxed {
+  font-size: 12px;
+  font-weight: 600;
+  fill: var(--accent);
 }
 
 /* Side panel: player boards and game log. */
@@ -654,6 +765,19 @@ input[aria-invalid="true"] {
 
 .stat.megacredits .stat-value {
   color: #f6cf57;
+}
+
+.terraform-rating {
+  margin-left: auto;
+  font-weight: 800;
+  font-size: 1.1rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.terraform-rating-label {
+  font-size: 0.72rem;
+  letter-spacing: 0.06em;
+  color: var(--text-dim);
 }
 
 .stat-production {

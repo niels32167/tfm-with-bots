@@ -3,14 +3,18 @@
 //! Scenario leaves out takes the normal defaults; an unknown field is an error, so a
 //! typo in a test fails loudly instead of being ignored.
 
-use serde::{Deserialize, Serialize};
+use std::collections::BTreeMap;
+
+use serde::{Deserialize, Deserializer, Serialize};
 
 use crate::board::{Reservation, Tile, TileKind, find_area, printed};
 use crate::game::{
-    Game, MAX_OCEANS, MAX_OXYGEN, MAX_TEMPERATURE, MIN_TEMPERATURE, Player, STARTING_MEGACREDITS,
-    STARTING_TERRAFORM_RATING, TEMPERATURE_STEP, check_player_count, check_seed,
+    Game, MAX_OCEANS, MAX_OXYGEN, MAX_TEMPERATURE, MIN_TEMPERATURE, Player, STARTING_TERRAFORM_RATING,
+    TEMPERATURE_STEP, check_player_count, check_seed, starting_resources,
 };
+use crate::log::player_name;
 use crate::replay::Start;
+use crate::resources::{Resource, Resources};
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(default, deny_unknown_fields)]
@@ -54,31 +58,53 @@ pub struct ScenarioTile {
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(default, deny_unknown_fields)]
 pub struct ScenarioPlayer {
-    pub megacredits: i32,
-    pub steel: i32,
-    pub titanium: i32,
-    pub plants: i32,
-    pub production: ScenarioProduction,
+    /// The Resources given, such as `{"plants": 8}`; the rest are what a Player starts with.
+    #[serde(deserialize_with = "over_starting_resources")]
+    pub resources: Resources,
+    pub production: Resources,
     pub terraform_rating: i32,
 }
 
 impl Default for ScenarioPlayer {
     fn default() -> ScenarioPlayer {
         ScenarioPlayer {
-            megacredits: STARTING_MEGACREDITS,
-            steel: 0,
-            titanium: 0,
-            plants: 0,
-            production: ScenarioProduction::default(),
+            resources: starting_resources(),
+            production: Resources::default(),
             terraform_rating: STARTING_TERRAFORM_RATING,
         }
     }
 }
 
-#[derive(Clone, Debug, Default, Serialize, Deserialize)]
-#[serde(default, deny_unknown_fields)]
-pub struct ScenarioProduction {
-    pub megacredits: i32,
+impl ScenarioPlayer {
+    /// Whether the rules allow these Resources and this Production for Player `index`.
+    fn check(&self, index: usize) -> Result<(), String> {
+        let name = player_name(index);
+        for resource in Resource::ALL {
+            let amount = self.resources[resource];
+            if amount < 0 {
+                return Err(format!("{name} cannot have {}", resource.counted(amount)));
+            }
+            let (production, minimum) = (self.production[resource], resource.min_production());
+            if production < minimum {
+                return Err(format!(
+                    "{name}'s {} Production must be {minimum} or more, not {production}",
+                    resource.name()
+                ));
+            }
+        }
+        Ok(())
+    }
+}
+
+/// Reads a Scenario Player's Resources given in part, such as `{"plants": 8}`: the
+/// Resources left out keep what a Player starts with.
+fn over_starting_resources<'de, D: Deserializer<'de>>(deserializer: D) -> Result<Resources, D::Error> {
+    let given = BTreeMap::<Resource, i32>::deserialize(deserializer)?;
+    let mut resources = starting_resources();
+    for (resource, amount) in given {
+        resources[resource] = amount;
+    }
+    Ok(resources)
 }
 
 impl Scenario {
@@ -110,15 +136,15 @@ impl Scenario {
                 self.oxygen
             ));
         }
+        for (index, player) in self.players.iter().enumerate() {
+            player.check(index)?;
+        }
         let players = self
             .players
             .iter()
             .map(|player| Player {
-                megacredits: player.megacredits,
-                steel: player.steel,
-                titanium: player.titanium,
-                plants: player.plants,
-                megacredit_production: player.production.megacredits,
+                resources: player.resources,
+                production: player.production,
                 terraform_rating: player.terraform_rating,
                 passed: false,
             })

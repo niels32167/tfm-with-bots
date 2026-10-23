@@ -22,13 +22,16 @@ export interface Decision {
   options: DecisionOption[];
 }
 
+export const RESOURCES = ["megacredits", "steel", "titanium", "plants", "energy", "heat"] as const;
+export type Resource = (typeof RESOURCES)[number];
+
+/** An amount of each of the six Resources. */
+export type Resources = Record<Resource, number>;
+
 export interface PlayerBoard {
   name: string;
-  megacredits: number;
-  steel: number;
-  titanium: number;
-  plants: number;
-  production: { megacredits: number };
+  resources: Resources;
+  production: Resources;
   terraform_rating: number;
   passed: boolean;
 }
@@ -69,7 +72,8 @@ export interface View {
   /** The Player whose Player View this is, or null for the full view. */
   viewer: number | null;
   generation: number;
-  phase: "action" | "over";
+  /** "final_greenery" is the final Greenery conversion, after the final Production phase. */
+  phase: "action" | "final_greenery" | "over";
   temperature: number;
   /** In percent. */
   oxygen: number;

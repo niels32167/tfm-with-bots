@@ -2,8 +2,8 @@
 
 import time
 
-from tests.helpers import matching_options
-from tests.server.helpers import MAX_MESSAGES, connect
+from tests.helpers import player, terraformed_mars
+from tests.server.helpers import connect
 
 BOT_DELAY = 0.2
 
@@ -71,21 +71,20 @@ def test_undo_while_a_random_bot_is_taking_its_turn_stops_it():
 
 
 def test_undo_after_the_game_is_over_returns_to_the_last_human_decision():
+    # One Asteroid short of a terraformed Mars, so the Game ends after this Generation.
+    scenario = {"players": [player(megacredits=14), player(megacredits=0)], **terraformed_mars(temperature=6)}
+    file = {"controllers": ["human", "random_bot"], "replay": {"start": {"scenario": scenario}, "picks": []}}
     with connect() as gui:
-        update = gui.start(["human", "random_bot"], seed=2)
-        last_decision = None
-        for _ in range(MAX_MESSAGES):
-            if update["decision"] is None:
-                break
-            last_decision = update["decision"]
-            asteroid_offered = bool(matching_options(update["decision"]["options"], "Asteroid"))
-            gui.pick(update, "Asteroid" if asteroid_offered else "Pass")
-            update = gui.wait_for_human()
-        assert update["view"]["phase"] == "over"
+        gui.send({"type": "load_replay", "file": file, "bot_delay": 0})
+        gui.pick(gui.wait_for_human(), "Asteroid")
+        last = gui.wait_for_human()
+        gui.pick(last, "Pass")
+        over = gui.wait_for_human()
+        assert over["view"]["phase"] == "over"
 
         undone = gui.undo()
 
-    assert undone["decision"] == last_decision
+    assert undone["decision"] == last["decision"]
     assert undone["view"]["phase"] == "action"
 
 

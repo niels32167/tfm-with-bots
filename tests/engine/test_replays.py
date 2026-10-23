@@ -16,9 +16,10 @@ def test_a_replay_holds_the_settings_and_seed_and_the_options_picked():
     pick(game, "End Turn")
     pick(game, "Pass")
 
-    # With 28 MegaCredits left: Asteroid, Aquifer, Greenery, City, End Turn, Pass.
-    # Then with 42: Asteroid, Aquifer, Greenery, City, Pass.
-    assert game.replay == {"start": {"settings": {"players": 3, "seed": 7}}, "picks": [0, 4, 4]}
+    # With 42 MegaCredits: Power Plant, Asteroid, Aquifer, Greenery, City, Pass.
+    # Then with 28 left: the same five Standard Projects, End Turn, Pass.
+    # Then the next Player, with 42: the same five, Pass.
+    assert game.replay == {"start": {"settings": {"players": 3, "seed": 7}}, "picks": [1, 5, 5]}
 
 
 def test_loading_an_exported_replay_gives_back_the_same_game():

@@ -8,6 +8,8 @@
 
 use serde::{Deserialize, Serialize};
 
+use crate::resources::Resource;
+
 /// How many Areas each row of Mars has, from the top.
 const ROW_LENGTHS: [usize; 9] = [5, 6, 7, 8, 9, 8, 7, 6, 5];
 const ROW_LETTERS: [char; 9] = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'J'];
@@ -30,6 +32,16 @@ pub enum BonusItem {
 impl BonusItem {
     pub const ALL: [BonusItem; 4] =
         [BonusItem::Steel, BonusItem::Titanium, BonusItem::Plant, BonusItem::Card];
+
+    /// The Resource it gives, or None for a card.
+    pub fn resource(self) -> Option<Resource> {
+        match self {
+            BonusItem::Steel => Some(Resource::Steel),
+            BonusItem::Titanium => Some(Resource::Titanium),
+            BonusItem::Plant => Some(Resource::Plants),
+            BonusItem::Card => None,
+        }
+    }
 
     pub fn name(self) -> &'static str {
         match self {

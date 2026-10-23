@@ -3,7 +3,11 @@
 //! so the log adds little to the cost of copying a Game.
 
 use crate::board::{BonusItem, TileKind, area_label};
-use crate::game::{MAX_OCEANS, OCEAN_ADJACENCY_BONUS, PLANTS_PER_GREENERY, StandardProject};
+use crate::game::{
+    HEAT_PER_TEMPERATURE_STEP, MAX_OCEANS, OCEAN_ADJACENCY_BONUS, OCEAN_BONUS_TEMPERATURE,
+    PLANTS_PER_GREENERY, StandardProject, TEMPERATURE_BONUS_OXYGEN,
+};
+use crate::resources::{Resource, Resources};
 
 #[derive(Clone, Copy, Debug)]
 pub enum LogEvent {
@@ -11,19 +15,28 @@ pub enum LogEvent {
     UsedStandardProject { player: usize, project: StandardProject },
     TemperatureRaised { player: usize, temperature: i32 },
     ConvertedPlants { player: usize },
-    MegacreditProductionRaised { player: usize, by: i32 },
+    ConvertedHeat { player: usize },
+    ProductionRaised { player: usize, resource: Resource, by: i32 },
     TemperatureAlreadyAtMaximum,
+    HeatProductionBonus { player: usize, temperature: i32 },
+    OceanBonus { player: usize },
+    TemperatureBonus { player: usize },
     OxygenRaised { player: usize, oxygen: i32 },
     OxygenAlreadyAtMaximum,
     PlacedTile { player: usize, tile: TileKind, area: usize },
     OceansRaised { player: usize, oceans: usize },
     OceansAlreadyAtMaximum,
     PlacementBonus { player: usize, item: BonusItem, amount: i32 },
+    CollectsWaitingBonus { player: usize, area: usize },
     AdjacentOceans { player: usize, oceans: usize },
     EndedTurn { player: usize },
     Passed { player: usize },
     ProductionPhase,
-    Income { player: usize, terraform_rating: i32, megacredit_production: i32 },
+    EnergyTurnsIntoHeat { player: usize, energy: i32 },
+    Produced { player: usize, terraform_rating: i32, production: Resources },
+    MarsIsTerraformed,
+    FinalGreeneryConversion { first_player: usize },
+    DoneConvertingPlants { player: usize },
     GameOver,
     FinalScore { player: usize, victory_points: i32 },
 }
@@ -47,12 +60,29 @@ impl LogEvent {
             LogEvent::TemperatureAlreadyAtMaximum => {
                 "Temperature is already at its maximum, so it does not rise.".to_string()
             }
-            LogEvent::MegacreditProductionRaised { player, by } => {
-                format!("{} raises their MegaCredit Production by {by}.", player_name(player))
+            LogEvent::HeatProductionBonus { player, temperature } => {
+                format!("Reaching {temperature} °C raises {}'s heat Production by 1.", player_name(player))
+            }
+            LogEvent::OceanBonus { player } => {
+                format!(
+                    "Reaching {OCEAN_BONUS_TEMPERATURE} °C gives {} an Ocean to place.",
+                    player_name(player)
+                )
+            }
+            LogEvent::TemperatureBonus { player } => format!(
+                "Reaching {TEMPERATURE_BONUS_OXYGEN} % Oxygen gives {} a Temperature step.",
+                player_name(player)
+            ),
+            LogEvent::ProductionRaised { player, resource, by } => {
+                format!("{} raises their {} Production by {by}.", player_name(player), resource.name())
             }
             LogEvent::ConvertedPlants { player } => {
                 format!("{} converts {PLANTS_PER_GREENERY} plants into a Greenery.", player_name(player))
             }
+            LogEvent::ConvertedHeat { player } => format!(
+                "{} converts {HEAT_PER_TEMPERATURE_STEP} heat into a Temperature step.",
+                player_name(player)
+            ),
             LogEvent::OxygenRaised { player, oxygen } => {
                 format!("{} raises Oxygen to {oxygen} % and gains 1 Terraform Rating.", player_name(player))
             }
@@ -71,19 +101,27 @@ impl LogEvent {
             LogEvent::OceansAlreadyAtMaximum => {
                 format!("All {MAX_OCEANS} Oceans are already placed, so no Ocean is placed.")
             }
-            LogEvent::PlacementBonus { player, item: BonusItem::Card, amount } => format!(
-                "{} would draw {} from the placement bonus, but there is no deck yet.",
-                player_name(player),
-                counted(amount, "card", "cards")
-            ),
-            LogEvent::PlacementBonus { player, item, amount } => format!(
-                "{} gains {} from the placement bonus.",
-                player_name(player),
-                match item {
-                    BonusItem::Plant => counted(amount, "plant", "plants"),
-                    _ => format!("{amount} {}", item.name()),
+            LogEvent::PlacementBonus { player, item, amount } => match item.resource() {
+                Some(resource) => {
+                    format!(
+                        "{} gains {} from the placement bonus.",
+                        player_name(player),
+                        resource.counted(amount)
+                    )
                 }
-            ),
+                None => format!(
+                    "{} would draw {} from the placement bonus, but there is no deck yet.",
+                    player_name(player),
+                    counted(amount, "card", "cards")
+                ),
+            },
+            LogEvent::CollectsWaitingBonus { player, area } => {
+                format!(
+                    "{} collects the placement bonus of the Greenery on {}.",
+                    player_name(player),
+                    area_label(area)
+                )
+            }
             LogEvent::AdjacentOceans { player, oceans } => format!(
                 "{} gains {} MegaCredits for {}.",
                 player_name(player),
@@ -93,16 +131,49 @@ impl LogEvent {
             LogEvent::EndedTurn { player } => format!("{} ends their Turn.", player_name(player)),
             LogEvent::Passed { player } => format!("{} passes.", player_name(player)),
             LogEvent::ProductionPhase => "Production phase.".to_string(),
-            LogEvent::Income { player, terraform_rating, megacredit_production } => format!(
-                "{} gains {} MegaCredits (Terraform Rating {terraform_rating} + MegaCredit Production {megacredit_production}).",
-                player_name(player),
-                terraform_rating + megacredit_production
-            ),
+            LogEvent::EnergyTurnsIntoHeat { player, energy } => {
+                format!("{}'s {energy} energy turns into heat.", player_name(player))
+            }
+            LogEvent::Produced { player, terraform_rating, production } => {
+                let megacredits = format!(
+                    "{} (Terraform Rating {terraform_rating} + MegaCredit Production {})",
+                    Resource::MegaCredits.counted(terraform_rating + production.megacredits),
+                    production.megacredits
+                );
+                let others = Resource::ALL
+                    .into_iter()
+                    .filter(|&resource| resource != Resource::MegaCredits && production[resource] > 0)
+                    .map(|resource| resource.counted(production[resource]));
+                format!(
+                    "{} gains {}.",
+                    player_name(player),
+                    listed(std::iter::once(megacredits).chain(others))
+                )
+            }
+            LogEvent::MarsIsTerraformed => {
+                "Mars is terraformed: Temperature, Oxygen and Oceans are all at their maximum.".to_string()
+            }
+            LogEvent::FinalGreeneryConversion { first_player } => {
+                format!("Final Greenery conversion, in player order from {}.", player_name(first_player))
+            }
+            LogEvent::DoneConvertingPlants { player } => {
+                format!("{} is done converting plants.", player_name(player))
+            }
             LogEvent::GameOver => "The Game is over.".to_string(),
             LogEvent::FinalScore { player, victory_points } => {
                 format!("{} finishes with {victory_points} Victory Points.", player_name(player))
             }
         }
+    }
+}
+
+/// "a", "a and b", "a, b and c".
+fn listed(items: impl Iterator<Item = String>) -> String {
+    let items: Vec<String> = items.collect();
+    match items.split_last() {
+        Some((last, [])) => last.clone(),
+        Some((last, rest)) => format!("{} and {last}", rest.join(", ")),
+        None => String::new(),
     }
 }
 

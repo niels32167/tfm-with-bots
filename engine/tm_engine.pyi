@@ -25,11 +25,15 @@ class Game:
 
         Fields: seed, generation, first_player (default 0, who also takes the first Turn),
         temperature, oxygen, tiles, and players: a list of
-        {megacredits, steel, titanium, plants, production: {megacredits}, terraform_rating}.
+        {"resources": {...}, "production": {...}, "terraform_rating": int}.
+        Resources and Production name any of the six Resources (megacredits, steel,
+        titanium, plants, energy, heat); the rest keep their defaults: 42 MegaCredits and
+        nothing else to start with, and no Production.
         Each Tile is {"area": "C3", "tile": "ocean" | "greenery" | "city", "owner": 0};
         Oceans have no owner, and the number of Oceans is the number of Ocean Tiles.
-        Raises ValueError for unknown fields or impossible values, such as a City on an
-        Area reserved for Oceans or more than 9 Oceans.
+        Raises ValueError for unknown fields or impossible values, such as a negative
+        Resource, MegaCredit Production below -5 or any other Production below 0, a City on
+        an Area reserved for Oceans, or more than 9 Oceans.
         """
 
     @staticmethod
@@ -59,8 +63,10 @@ class Game:
         {"player": int, "kind": str, "sequence": int,
          "options": [{"index": int, "label": str, "details": {"type": str, ...}}]}
 
-        Kinds: "action" (an Action, End Turn or Pass) and "area" (where to place a Tile,
-        with details {"type": "area", "area": "C3", "tile": "city"}).
+        Kinds: "action" (an Action, End Turn or Pass), "area" (where to place a Tile,
+        with details {"type": "area", "area": "C3", "tile": "city"}) and "final_greenery"
+        (convert 8 plants into a Greenery once more, or be done, after the final Production
+        phase).
         """
 
     def pick(self, index: int, sequence: int | None = None) -> None:
@@ -81,8 +87,11 @@ class Game:
     def player_view(self, player: int) -> dict[str, Any]:
         """Everything `player` is allowed to know. Its "viewer" is `player`.
 
-        Besides the Generation, phase, Global Parameters (temperature, oxygen, oceans) and
-        each Player's board, it has the "board": every Area, on Mars row by row from the
+        It has the Generation, the phase ("action", "final_greenery" or "over"), the Global
+        Parameters (temperature, oxygen, oceans) and each Player's board:
+        {"name": "Player 1", "resources": {...}, "production": {...}, "terraform_rating": int,
+         "passed": bool}, where Resources and Production each hold all six Resources.
+        It also has the "board": every Area, on Mars row by row from the
         top (A to J, skipping I) and each row from the left, then the two Areas off Mars:
         {"area": "E3", "name": "Noctis City" | None, "row": 5, "position": 3,
          "reserved": "ocean" | "noctis_city" | ... | None, "bonus": ["plant", "plant"],

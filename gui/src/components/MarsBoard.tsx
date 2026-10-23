@@ -3,6 +3,7 @@ import type { KeyboardEvent, ReactNode } from "react";
 import { TILE_NAMES } from "../format";
 import { PLAYER_COLOURS } from "../players";
 import type { Area, BonusItem, Decision, DecisionOption, Tile } from "../types";
+import { OxygenTrack } from "./OxygenTrack";
 
 // Areas are hexagons with a corner at the top. SIZE is the distance from the centre of
 // an Area to its corners, in the SVG's own units.
@@ -12,7 +13,9 @@ const ROW_HEIGHT = 1.5 * SIZE;
 const WIDEST_ROW = 9;
 const MIDDLE_ROW = 5;
 const GLOBE_RADIUS = 8.2 * SIZE;
-const VIEW_RADIUS = GLOBE_RADIUS + 12;
+// The Oxygen track runs round the globe, with room for it inside the view.
+const OXYGEN_TRACK_RADIUS = GLOBE_RADIUS + 22;
+const VIEW_RADIUS = OXYGEN_TRACK_RADIUS + 20;
 
 const HEXAGON = [30, 90, 150, 210, 270, 330]
   .map((degrees) => {
@@ -24,6 +27,8 @@ const HEXAGON = [30, 90, 150, 210, 270, 330]
 
 interface Props {
   board: Area[];
+  /** In percent, for the Oxygen track. */
+  oxygen: number;
   /** Each Player's name, by index, for the tooltips. */
   playerNames: string[];
   /** The Decision a human at the screen must answer, if any. Its Areas are highlighted and clickable. */
@@ -33,8 +38,8 @@ interface Props {
   onPick: (sequence: number, index: number) => void;
 }
 
-/** Mars with every Area, its placement bonus and its Tile, as on the Tharsis board. */
-export function MarsBoard({ board, playerNames, decision, disabled, onPick }: Props) {
+/** Mars with every Area, its placement bonus and its Tile, as on the Tharsis board, and the Oxygen track round it. */
+export function MarsBoard({ board, oxygen, playerNames, decision, disabled, onPick }: Props) {
   const options = areaOptions(decision);
   const rowLengths = new Map<number, number>();
   for (const area of board) {
@@ -61,6 +66,7 @@ export function MarsBoard({ board, playerNames, decision, disabled, onPick }: Pr
         </radialGradient>
       </defs>
       <circle className="mars-globe" r={GLOBE_RADIUS} fill="url(#mars-globe)" />
+      <OxygenTrack oxygen={oxygen} radius={OXYGEN_TRACK_RADIUS} />
       {board.map((area, index) => {
         const [x, y] =
           area.row !== null && area.position !== null
@@ -98,10 +104,10 @@ function centreOnMars(row: number, position: number, rowLength: number): [number
   return [((halfColumn - (WIDEST_ROW - 1)) * WIDTH) / 2, (row - MIDDLE_ROW) * ROW_HEIGHT];
 }
 
-/** The Areas off Mars sit in the top corners, away from the globe. */
+/** The Areas off Mars sit in the bottom corners, away from the globe and the Oxygen track. */
 function centreOffMars(index: number): [number, number] {
   const corner = GLOBE_RADIUS * 0.86;
-  return [index === 0 ? -corner : corner, -corner];
+  return [index === 0 ? -corner : corner, corner];
 }
 
 interface AreaMarkProps {

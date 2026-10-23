@@ -3,7 +3,7 @@
 import pytest
 import tm_engine
 
-from tests.helpers import area, city, greenery, ocean, player, player_board, scenario
+from tests.helpers import area, city, greenery, ocean, player, player_board, production, resources, scenario
 
 
 def test_a_new_game_starts_in_generation_1_with_temperature_at_minus_30():
@@ -23,11 +23,8 @@ def test_until_corporations_exist_every_player_starts_with_42_megacredits_and_te
     for index in (0, 1):
         assert player_board(game, index) == {
             "name": f"Player {index + 1}",
-            "megacredits": 42,
-            "steel": 0,
-            "titanium": 0,
-            "plants": 0,
-            "production": {"megacredits": 0},
+            "resources": {"megacredits": 42, "steel": 0, "titanium": 0, "plants": 0, "energy": 0, "heat": 0},
+            "production": {"megacredits": 0, "steel": 0, "titanium": 0, "plants": 0, "energy": 0, "heat": 0},
             "terraform_rating": 20,
             "passed": False,
         }
@@ -58,10 +55,10 @@ def test_a_scenario_sets_the_generation_temperature_and_each_players_board():
     assert view["generation"] == 4
     assert view["temperature"] == -10
     assert game.seed == 99
-    assert player_board(game, 0)["megacredits"] == 30
-    assert player_board(game, 0)["production"] == {"megacredits": 3}
+    assert resources(game, 0)["megacredits"] == 30
+    assert production(game, 0)["megacredits"] == 3
     assert player_board(game, 0)["terraform_rating"] == 25
-    assert player_board(game, 1)["megacredits"] == 0
+    assert resources(game, 1)["megacredits"] == 0
     assert player_board(game, 1)["terraform_rating"] == 20
 
 
@@ -76,12 +73,22 @@ def test_a_scenario_places_tiles_and_sets_oxygen():
     assert area(game, "C5")["tile"] == {"type": "city", "owner": 1}
 
 
-def test_a_scenario_gives_players_steel_titanium_and_plants():
-    game = scenario(player(steel=3, titanium=2, plants=8), player())
+def test_a_scenario_gives_players_any_of_the_six_resources_and_their_production():
+    game = scenario(
+        player(steel=3, titanium=2, plants=8, energy=4, heat=5, production={"titanium": 1, "heat": 2}),
+        player(),
+    )
 
-    board = player_board(game, 0)
-    assert (board["steel"], board["titanium"], board["plants"]) == (3, 2, 8)
-    assert player_board(game, 1)["plants"] == 0
+    assert resources(game, 0) == {"megacredits": 42, "steel": 3, "titanium": 2, "plants": 8, "energy": 4, "heat": 5}
+    assert production(game, 0) == {"megacredits": 0, "steel": 0, "titanium": 1, "plants": 0, "energy": 0, "heat": 2}
+    assert resources(game, 1)["plants"] == 0
+
+
+def test_a_scenario_with_an_unknown_resource_is_rejected():
+    with pytest.raises(ValueError, match="plantz"):
+        scenario({"resources": {"plantz": 3}}, player())
+    with pytest.raises(ValueError, match="plantz"):
+        scenario(player(production={"plantz": 3}), player())
 
 
 def test_a_scenario_oxygen_must_be_on_the_track_from_0_to_14_percent():

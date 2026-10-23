@@ -2,7 +2,18 @@
 
 import pytest
 
-from tests.helpers import LAND_AREAS, area, areas_offered, city, pick, player, player_board, scenario
+from tests.helpers import (
+    LAND_AREAS,
+    area,
+    areas_offered,
+    city,
+    pick,
+    player,
+    player_board,
+    production,
+    resources,
+    scenario,
+)
 
 
 def test_city_costs_25_megacredits_raises_megacredit_production_by_1_and_places_a_city():
@@ -12,8 +23,8 @@ def test_city_costs_25_megacredits_raises_megacredit_production_by_1_and_places_
     pick(game, area="C3")  # no placement bonus
 
     assert area(game, "C3")["tile"] == {"type": "city", "owner": 0}
-    assert player_board(game, 0)["megacredits"] == 0
-    assert player_board(game, 0)["production"] == {"megacredits": 3}
+    assert resources(game, 0)["megacredits"] == 0
+    assert production(game, 0)["megacredits"] == 3
     assert player_board(game, 0)["terraform_rating"] == 20
     assert game.log[-3:] == [
         "Player 1 uses the City Standard Project for 25 MegaCredits.",

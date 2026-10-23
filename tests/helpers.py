@@ -30,6 +30,13 @@ LAND_AREAS = [
 ]
 
 
+def terraformed_mars(*, tiles: list[dict[str, Any]] = (), **fields: Any) -> dict[str, Any]:
+    """Scenario fields with all three Global Parameters at their maximum: +8 °C, 14 % Oxygen
+    and 9 Oceans (on the first 9 Ocean Areas), plus any other `tiles` and `fields`."""
+    oceans = [ocean(name) for name in OCEAN_AREAS[:9]]
+    return {"temperature": 8, "oxygen": 14, "tiles": [*oceans, *tiles], **fields}
+
+
 def scenario(*players: dict[str, Any], **fields: Any) -> tm_engine.Game:
     """Start a Game from a Scenario. Anything left out takes the normal defaults.
 
@@ -42,12 +49,18 @@ def scenario(*players: dict[str, Any], **fields: Any) -> tm_engine.Game:
     return tm_engine.Game.from_scenario(description)
 
 
+# The six Resources, as the Scenario, the Player View and Production name them.
+RESOURCES = ("megacredits", "steel", "titanium", "plants", "energy", "heat")
+
+
 def player(**fields: Any) -> dict[str, Any]:
     """One Player's part of a Scenario.
 
-    For example `player(megacredits=30, plants=8, terraform_rating=25, production={"megacredits": 2})`.
+    For example `player(megacredits=30, plants=8, terraform_rating=25, production={"heat": 2})`.
+    Resources are given by name and go into the Scenario's "resources"; the rest is passed as is.
     """
-    return fields
+    given = {name: fields.pop(name) for name in RESOURCES if name in fields}
+    return {"resources": given, **fields} if given else fields
 
 
 def ocean(area: str) -> dict[str, Any]:
@@ -102,10 +115,15 @@ def pick(game: tm_engine.Game, label: str | None = None, **details: Any) -> None
 
 
 def end_the_generation(game: tm_engine.Game) -> None:
-    """Every Player who is still in passes, which ends the Generation (and maybe the Game)."""
+    """Every Player who is still in passes, which ends the Generation: the next one begins,
+    or, once Mars is terraformed, the final Greenery conversion or the end of the Game follows."""
     generation = game.player_view(0)["generation"]
-    while not game.is_over and game.player_view(0)["generation"] == generation:
+    for _ in range(MAX_PICKS):
+        view = game.player_view(0)
+        if view["phase"] != "action" or view["generation"] != generation:
+            return
         pick(game, "Pass")
+    raise AssertionError(f"Generation {generation} had not ended after {MAX_PICKS} picks")
 
 
 def play_randomly(game: tm_engine.Game, seed: int, picks: int | None = None) -> None:
@@ -130,6 +148,16 @@ def everything_about(game: tm_engine.Game) -> dict[str, Any]:
 def player_board(game: tm_engine.Game, player: int) -> dict[str, Any]:
     """What everyone can see of a Player: Resources, Production, Terraform Rating, whether they passed."""
     return game.player_view(player)["players"][player]
+
+
+def resources(game: tm_engine.Game, player: int) -> dict[str, int]:
+    """A Player's six Resources, such as `resources(game, 0)["megacredits"]`."""
+    return player_board(game, player)["resources"]
+
+
+def production(game: tm_engine.Game, player: int) -> dict[str, int]:
+    """A Player's Production of each of the six Resources."""
+    return player_board(game, player)["production"]
 
 
 def area(game: tm_engine.Game, area_id: str) -> dict[str, Any]:

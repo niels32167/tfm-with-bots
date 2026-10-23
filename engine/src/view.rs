@@ -5,8 +5,12 @@
 use serde::Serialize;
 
 use crate::board::{AREA_COUNT, Board, TileKind, area_id, area_label, printed, row_and_position};
-use crate::game::{Decision, DecisionKind, DecisionOption, Game, PLANTS_PER_GREENERY, Phase, Score};
+use crate::game::{
+    Decision, DecisionKind, DecisionOption, Game, HEAT_PER_TEMPERATURE_STEP, PLANTS_PER_GREENERY, Phase,
+    Score,
+};
 use crate::log::player_name;
+use crate::resources::Resources;
 
 #[derive(Serialize)]
 pub struct DecisionView {
@@ -33,8 +37,12 @@ pub enum OptionDetails {
     ConvertPlants {
         plants: i32,
     },
+    ConvertHeat {
+        heat: i32,
+    },
     EndTurn,
     Pass,
+    Done,
     /// An Area for the Tile being placed.
     Area {
         area: String,
@@ -98,18 +106,10 @@ pub struct TileView {
 #[derive(Serialize)]
 pub struct PlayerBoard {
     pub name: String,
-    pub megacredits: i32,
-    pub steel: i32,
-    pub titanium: i32,
-    pub plants: i32,
-    pub production: Production,
+    pub resources: Resources,
+    pub production: Resources,
     pub terraform_rating: i32,
     pub passed: bool,
-}
-
-#[derive(Serialize)]
-pub struct Production {
-    pub megacredits: i32,
 }
 
 pub fn player_view(game: &Game, viewer: usize) -> View {
@@ -128,6 +128,7 @@ fn view(game: &Game, viewer: Option<usize>) -> View {
         generation: game.generation,
         phase: match game.phase {
             Phase::Action => "action",
+            Phase::FinalGreenery => "final_greenery",
             Phase::Over => "over",
         },
         temperature: game.temperature,
@@ -143,11 +144,8 @@ fn view(game: &Game, viewer: Option<usize>) -> View {
             .enumerate()
             .map(|(index, player)| PlayerBoard {
                 name: player_name(index),
-                megacredits: player.megacredits,
-                steel: player.steel,
-                titanium: player.titanium,
-                plants: player.plants,
-                production: Production { megacredits: player.megacredit_production },
+                resources: player.resources,
+                production: player.production,
                 terraform_rating: player.terraform_rating,
                 passed: player.passed,
             })
@@ -184,6 +182,7 @@ fn decision_view(decision: &Decision) -> DecisionView {
         kind: match decision.kind {
             DecisionKind::Action => "action",
             DecisionKind::Area => "area",
+            DecisionKind::FinalGreenery => "final_greenery",
         },
         sequence: decision.sequence,
         options: decision
@@ -201,8 +200,12 @@ fn label(option: &DecisionOption) -> String {
             format!("{} ({} MegaCredits)", project.name(), project.cost())
         }
         DecisionOption::ConvertPlants => format!("Convert {PLANTS_PER_GREENERY} plants into a Greenery"),
+        DecisionOption::ConvertHeat => {
+            format!("Convert {HEAT_PER_TEMPERATURE_STEP} heat into a Temperature step")
+        }
         DecisionOption::EndTurn => "End Turn".to_string(),
         DecisionOption::Pass => "Pass".to_string(),
+        DecisionOption::Done => "Done".to_string(),
         DecisionOption::PlaceTile { tile, area } => {
             format!("Place the {} on {}", tile.name(), area_label(*area))
         }
@@ -212,11 +215,13 @@ fn label(option: &DecisionOption) -> String {
 fn details(option: &DecisionOption) -> OptionDetails {
     match option {
         DecisionOption::UseStandardProject(project) => {
-            OptionDetails::StandardProject { project: project.name().to_lowercase(), cost: project.cost() }
+            OptionDetails::StandardProject { project: project.id(), cost: project.cost() }
         }
         DecisionOption::ConvertPlants => OptionDetails::ConvertPlants { plants: PLANTS_PER_GREENERY },
+        DecisionOption::ConvertHeat => OptionDetails::ConvertHeat { heat: HEAT_PER_TEMPERATURE_STEP },
         DecisionOption::EndTurn => OptionDetails::EndTurn,
         DecisionOption::Pass => OptionDetails::Pass,
+        DecisionOption::Done => OptionDetails::Done,
         DecisionOption::PlaceTile { tile, area } => OptionDetails::Area { area: area_id(*area), tile: *tile },
     }
 }

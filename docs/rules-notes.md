@@ -7,7 +7,7 @@ FryxGames FAQ and corrections, then the open-source game
 
 Each note gives the call, the sources behind it, and the tests that pin it down.
 
-## Standard Projects
+## Standard Projects and conversions
 
 ### Asteroid at maximum Temperature
 
@@ -48,6 +48,63 @@ user had already chosen the authority order for Asteroid, and confirmed it for A
 when ticket 03 started (2026-10-22).
 
 **Tests:** `tests/rules/test_oceans.py::test_once_9_oceans_are_placed_aquifer_costs_18_megacredits_and_does_nothing_else`
+
+### Heat conversion at maximum Temperature
+
+**Call:** Converting 8 heat into a Temperature step is still offered when Temperature is
+at +8 °C. The Player spends 8 heat; Temperature and Terraform Rating stay as they are.
+
+**Why:**
+- The rulebook quote under Asteroid covers any Action that raises a Global Parameter,
+  and converting heat is one.
+- The open-source game agrees: its heat conversion only adds a "max temperature" warning
+  and stays usable.
+
+The user chose this when ticket 04 started (2026-10-23), following the Asteroid call.
+
+**Tests:** `tests/rules/test_heat_conversion.py::test_at_maximum_temperature_converting_heat_costs_8_heat_and_does_nothing_else`
+
+## Track bonuses
+
+### The Ocean at 0 °C once 9 Oceans are placed
+
+**Call:** A Player who raises Temperature to 0 °C when all 9 Oceans are already placed
+gets no Ocean, and nothing instead. The game log says so.
+
+**Why:** It is the Aquifer call above: a Global Parameter at its maximum stops rising.
+The user placed this bonus under that call when ticket 04 was written.
+
+**Tests:** `tests/rules/test_track_bonuses.py::test_once_9_oceans_are_placed_reaching_0_degrees_places_no_ocean`
+
+### When the 0 °C Ocean is placed
+
+**Call:** When a Greenery reaches 8 % Oxygen and that Temperature step reaches 0 °C, the
+Player places the Ocean first. Only then do they collect the Greenery's placement bonus
+and its 2 MegaCredits per adjacent Ocean, which counts the new Ocean if it is next to the
+Greenery. The Action ends after that.
+
+**Why:** The rulebook doesn't order the two effects. The user ruled that the Player
+chooses which to carry out first (2026-10-23). Placing the Ocean first is never worse for
+the Player, so the engine always does that and asks nothing. The open-source game uses
+the other order: it defers the Ocean until the Greenery's bonuses are paid.
+
+**Tests:** `tests/rules/test_track_bonuses.py::test_8_percent_oxygen_can_raise_temperature_to_0_degrees_and_the_ocean_is_placed_before_the_greenerys_bonus`
+
+## End of the Game
+
+### Order of the final Greenery conversion
+
+**Call:** After the final Production phase, Players convert plants into Greeneries in
+player order, starting with the first player of the final Generation. Each Player
+converts as many times as they like (one Greenery per Decision, then "Done") before the
+next Player starts. A Player without 8 plants or a free Area for a Greenery is passed over.
+
+**Why:** The rulebook says only "in player order". The open-source game goes round the
+Players in generation order from the first player, asking each one again until they are
+done or cannot convert, and only then moves to the next.
+
+**Tests:** `tests/rules/test_final_greenery_conversion.py::test_players_go_in_player_order_from_the_first_player_and_then_the_game_is_over`
+and `test_a_player_keeps_converting_until_they_are_done`.
 
 ## Tiles
 

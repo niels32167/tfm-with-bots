@@ -7,6 +7,7 @@ mod game;
 mod log;
 mod random;
 mod replay;
+mod resources;
 mod scenario;
 mod view;
 

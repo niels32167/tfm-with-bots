@@ -1,6 +1,6 @@
 """The game log: a plain-language line for everything that happens."""
 
-from tests.helpers import end_the_generation, ocean, pick, player, scenario
+from tests.helpers import end_the_generation, ocean, pick, player, scenario, terraformed_mars
 
 
 def test_a_new_game_log_starts_with_generation_1_and_its_first_player():
@@ -73,7 +73,7 @@ def test_the_log_shows_the_production_phase_and_the_next_generation():
 
 
 def test_the_log_ends_with_the_final_scores():
-    game = scenario(player(terraform_rating=31), player(terraform_rating=27), temperature=8)
+    game = scenario(player(terraform_rating=31), player(terraform_rating=27), **terraformed_mars())
 
     end_the_generation(game)
 

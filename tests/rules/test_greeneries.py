@@ -12,6 +12,7 @@ from tests.helpers import (
     pick,
     player,
     player_board,
+    resources,
     scenario,
 )
 
@@ -24,7 +25,7 @@ def test_greenery_costs_23_megacredits_and_places_a_greenery_that_raises_oxygen_
 
     assert area(game, "C3")["tile"] == {"type": "greenery", "owner": 0}
     assert game.player_view(0)["oxygen"] == 4
-    assert player_board(game, 0)["megacredits"] == 0
+    assert resources(game, 0)["megacredits"] == 0
     assert player_board(game, 0)["terraform_rating"] == 21
     assert game.log[-2:] == [
         "Player 1 places a Greenery on C3.",
@@ -80,7 +81,7 @@ def test_a_player_may_convert_8_plants_into_a_greenery_as_an_action():
     pick(game, area="C3")
 
     assert area(game, "C3")["tile"] == {"type": "greenery", "owner": 0}
-    assert player_board(game, 0)["plants"] == 1
+    assert resources(game, 0)["plants"] == 1
     assert game.player_view(0)["oxygen"] == 4
     assert player_board(game, 0)["terraform_rating"] == 21
     assert "Player 1 converts 8 plants into a Greenery." in game.log
@@ -104,7 +105,7 @@ def test_converting_plants_at_maximum_oxygen_still_places_a_greenery_but_raises_
     pick(game, area="C3")
 
     assert area(game, "C3")["tile"] == {"type": "greenery", "owner": 0}
-    assert player_board(game, 0)["plants"] == 0
+    assert resources(game, 0)["plants"] == 0
     assert game.player_view(0)["oxygen"] == 14
     assert player_board(game, 0)["terraform_rating"] == 30
 

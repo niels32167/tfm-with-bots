@@ -1,6 +1,6 @@
 """The Asteroid Standard Project: 14 MegaCredits to raise Temperature one step."""
 
-from tests.helpers import offered, pick, player, player_board, scenario
+from tests.helpers import offered, pick, player, player_board, resources, scenario
 
 
 def test_asteroid_costs_14_megacredits_and_raises_temperature_one_step_for_one_terraform_rating():
@@ -9,7 +9,7 @@ def test_asteroid_costs_14_megacredits_and_raises_temperature_one_step_for_one_t
     pick(game, "Asteroid")
 
     assert game.player_view(0)["temperature"] == -28
-    assert player_board(game, 0)["megacredits"] == 6
+    assert resources(game, 0)["megacredits"] == 6
     assert player_board(game, 0)["terraform_rating"] == 21
 
 
@@ -34,5 +34,5 @@ def test_asteroid_at_maximum_temperature_costs_14_megacredits_and_does_nothing_e
     pick(game, "Asteroid")
 
     assert game.player_view(0)["temperature"] == 8
-    assert player_board(game, 0)["megacredits"] == 6
+    assert resources(game, 0)["megacredits"] == 6
     assert player_board(game, 0)["terraform_rating"] == 30

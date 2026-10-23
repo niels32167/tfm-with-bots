@@ -3,7 +3,7 @@
 import pytest
 import tm_engine
 
-from tests.helpers import end_the_generation, offered, pick, player, player_board, scenario
+from tests.helpers import end_the_generation, offered, pick, player, resources, scenario, terraformed_mars
 
 
 def test_a_new_game_waits_on_the_first_player_to_choose_an_action():
@@ -19,13 +19,13 @@ def test_a_new_game_waits_on_the_first_player_to_choose_an_action():
 
 
 def test_every_option_has_an_index_a_label_and_structured_details():
-    game = scenario(player(megacredits=14), player())
+    game = scenario(player(megacredits=11), player())
 
     assert game.decision["options"] == [
         {
             "index": 0,
-            "label": "Asteroid (14 MegaCredits)",
-            "details": {"type": "standard_project", "project": "asteroid", "cost": 14},
+            "label": "Power Plant (11 MegaCredits)",
+            "details": {"type": "standard_project", "project": "power_plant", "cost": 11},
         },
         {"index": 1, "label": "Pass", "details": {"type": "pass"}},
     ]
@@ -57,19 +57,19 @@ def test_a_pick_carrying_a_stale_sequence_number_is_rejected():
     with pytest.raises(ValueError, match="stale"):
         game.pick(0, sequence=stale)
 
-    assert player_board(game, 0)["megacredits"] == 42 - 14
+    assert resources(game, 0)["megacredits"] == 42 - 14
     assert game.decision["sequence"] == stale + 1
 
 
 def test_picking_an_option_that_is_not_offered_is_rejected():
-    game = scenario(player(megacredits=14), player())  # Asteroid or Pass
+    game = scenario(player(megacredits=11), player())  # Power Plant or Pass
 
     with pytest.raises(ValueError, match="no Option 2"):
         game.pick(2)
 
 
 def test_nothing_can_be_picked_once_the_game_is_over():
-    game = scenario(player(), player(), temperature=8)
+    game = scenario(player(), player(), **terraformed_mars())
     end_the_generation(game)
 
     with pytest.raises(ValueError, match="over"):

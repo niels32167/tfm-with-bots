@@ -43,6 +43,10 @@ function statusText(game: GameUpdate): string {
     const tile = decision.options[0]?.details.tile as TileType;
     return `${who} must choose where to place the ${TILE_NAMES[tile]}: click a highlighted Area on Mars.`;
   }
+  if (decision?.kind === "final_greenery") {
+    return `${who} may convert plants into a Greenery before final scoring, or be done:`;
+  }
+  if (view.phase === "final_greenery") return `${who} (Random Bot) is converting plants into Greeneries…`;
   if (decision) {
     if (view.actions_this_turn === 0) return `${who} must take an Action or Pass:`;
     const canEndTurn = decision.options.some((option) => option.details.type === "end_turn");
