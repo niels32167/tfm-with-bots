@@ -1,6 +1,7 @@
 import { useState } from "react";
 
 import { CardGallery } from "./cards/CardGallery";
+import { PlayerCards } from "./cards/PlayerCards";
 import { DEFAULT_BOT_DELAY } from "./components/BotSpeedSelect";
 import { FinalScores } from "./components/FinalScores";
 import { GameLog } from "./components/GameLog";
@@ -88,7 +89,13 @@ export function App() {
         onLoadReplay={(file) => loadReplay(file, game.bot_delay)}
         onBotDelay={server.setBotDelay}
       />
-      <StatusBar game={game} error={error} pickedSequence={pickedSequence} onPick={server.pick} />
+      <StatusBar
+        game={game}
+        cards={server.cards}
+        error={error}
+        disabled={picking}
+        onPick={server.pick}
+      />
       <div className="table">
         <main className="board-area">
           <div className="mars-and-tracks">
@@ -111,6 +118,7 @@ export function App() {
           <PlayerBoards game={game} />
           <GameLog log={log} />
         </aside>
+        <PlayerCards game={game} cards={server.cards} disabled={picking} onPick={server.pick} />
       </div>
       {scores && showScores && (
         <FinalScores

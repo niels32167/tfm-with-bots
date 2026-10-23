@@ -66,6 +66,13 @@ def scenario(*players: dict[str, Any], **fields: Any) -> tm_engine.Game:
     return tm_engine.Game.from_scenario(description)
 
 
+# Every Project Card by catalog id, in number order (#001 first).
+PROJECT_CARDS = [card["id"] for card in tm_engine.card_catalog() if card["type"] != "corporation"]
+
+# The Tags counted on a player board, in the card list's order: every Tag but the Event Tag,
+# since no Tag on a played Event counts.
+TAGS_THAT_COUNT = ("building", "space", "power", "science", "jovian", "earth", "plant", "microbe", "animal", "city")
+
 # The six Resources, as the Scenario, the Player View and Production name them.
 RESOURCES = ("megacredits", "steel", "titanium", "plants", "energy", "heat")
 
@@ -73,7 +80,8 @@ RESOURCES = ("megacredits", "steel", "titanium", "plants", "energy", "heat")
 def player(**fields: Any) -> dict[str, Any]:
     """One Player's part of a Scenario.
 
-    For example `player(megacredits=30, plants=8, terraform_rating=25, production={"heat": 2})`.
+    For example `player(megacredits=30, plants=8, terraform_rating=25, production={"heat": 2},
+    hand=["mine"], played_cards=["trees"])`, naming cards by their catalog id.
     Resources are given by name and go into the Scenario's "resources"; the rest is passed as is.
     """
     given = {name: fields.pop(name) for name in RESOURCES if name in fields}
@@ -134,13 +142,18 @@ def pick(game: tm_engine.Game, label: str | None = None, **details: Any) -> None
     matched by equality, e.g. `pick(game, type="pass")`. Fails the test unless
     exactly one Option matches.
     """
+    game.pick(index_of(game, label, **details))
+
+
+def index_of(game: tm_engine.Game, label: str | None = None, **details: Any) -> int:
+    """The index of the one Option matching `label` and `details`; see `pick` for how matching works."""
     found = _matching(game, label, details)
     if len(found) != 1:
         wanted = " ".join(filter(None, [repr(label) if label else "", str(details) if details else ""]))
         raise AssertionError(
             f"expected exactly one Option matching {wanted}, found {len(found)}; offered: {labels(game)}"
         )
-    game.pick(found[0]["index"])
+    return found[0]["index"]
 
 
 def end_the_generation(game: tm_engine.Game) -> None:
@@ -153,6 +166,17 @@ def end_the_generation(game: tm_engine.Game) -> None:
             return
         pick(game, "Pass")
     raise AssertionError(f"Generation {generation} had not ended after {MAX_PICKS} picks")
+
+
+def final_scores(game: tm_engine.Game) -> list[dict[str, Any]]:
+    """Each Player's final score, once the Generation under way ends and with it the Game,
+    as it does on a `terraformed_mars()`. Players with 8 plants convert none of them."""
+    end_the_generation(game)
+    for _ in range(MAX_PICKS):
+        if game.is_over:
+            return game.scores
+        pick(game, "Done")
+    raise AssertionError(f"the Game was not over after {MAX_PICKS} picks")
 
 
 def play_randomly(game: tm_engine.Game, seed: int, picks: int | None = None) -> None:
@@ -184,6 +208,16 @@ def resources(game: tm_engine.Game, player: int) -> dict[str, int]:
 def production(game: tm_engine.Game, player: int) -> dict[str, int]:
     """A Player's Production of each of the six Resources."""
     return player_board(game, player)["production"]
+
+
+def hand(game: tm_engine.Game, player: int) -> list[str]:
+    """The cards in a Player's hand, by catalog id, as that Player sees them."""
+    return player_board(game, player)["hand"]
+
+
+def played_cards(game: tm_engine.Game, player: int) -> list[str]:
+    """The cards a Player has played, by catalog id, as everyone sees them."""
+    return player_board(game, player)["played_cards"]
 
 
 def area(game: tm_engine.Game, area_id: str) -> dict[str, Any]:

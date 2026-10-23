@@ -17,8 +17,8 @@ If a card turns out to need machinery from another ticket, move it to that ticke
 
 **Cards in this batch (25):**
 
-- [ ] #001 Colonizer Training Camp
-- [ ] #003 Deep Well Heating
+- [x] #001 Colonizer Training Camp — done in ticket 08 (to test the central rules)
+- [x] #003 Deep Well Heating — done in ticket 08 (to test the central rules)
 - [ ] #008 Capital
 - [ ] #016 Domed Crater
 - [ ] #018 Methane from Titan
@@ -28,7 +28,7 @@ If a card turns out to need machinery from another ticket, move it to that ticke
 - [ ] #032 Underground city
 - [ ] #040 Asteroid Mining
 - [ ] #041 Food Factory
-- [ ] #042 Archaebacteria
+- [x] #042 Archaebacteria — done in ticket 08 (to test the central rules)
 - [ ] #043 Carbonate Processing
 - [x] #045 Nuclear Power — done in ticket 08 (starter set)
 - [ ] #046 Lightning Harvest

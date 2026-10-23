@@ -1,6 +1,5 @@
 """Awards: any Player may fund one as an Action, for 8 MegaCredits for the first Award
-funded, 14 for the second and 20 for the third. Each is funded once, and only three per Game.
-(Scientist counts science Tags, so its scoring tests come with ticket 08.)"""
+funded, 14 for the second and 20 for the third. Each is funded once, and only three per Game."""
 
 from tests.helpers import (
     award,
@@ -189,12 +188,20 @@ def test_a_count_of_0_can_win_an_award_or_take_second_place():
     assert award_points(one_has_heat) == [5, 2, 2]
 
 
-def test_until_there_are_tags_a_funded_scientist_gives_every_player_5_victory_points():
-    # Temporary: science Tags come with the cards (ticket 08), so everyone ties at 0.
-    game = scenario(player(), player(), player(), awards=[funded("scientist", by=0)], **terraformed_mars())
+def test_scientist_counts_science_tags_in_play_and_none_on_played_events():
+    # Development Center (Active) and Search for Life (Active) have a science Tag each,
+    # Inventors' Guild (Active) one, and the Events Technology Demonstration and Special Design
+    # one each, which no longer count once played.
+    game = scenario(
+        player(played_cards=["development_center", "search_for_life"]),
+        player(played_cards=["inventors_guild", "technology_demonstration", "special_design"]),
+        player(),
+        awards=[funded("scientist", by=0)],
+        **terraformed_mars(),
+    )
 
-    assert award(game, "scientist")["counts"] == [0, 0, 0]
-    assert award_points(game) == [5, 5, 5]
+    assert award(game, "scientist")["counts"] == [2, 1, 0]
+    assert award_points(game) == [5, 2, 0]
 
 
 def test_the_log_says_who_takes_each_place():

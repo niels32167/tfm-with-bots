@@ -1,6 +1,6 @@
 import { signed } from "../format";
 import { controllerLabel, isYou, PLAYER_COLOURS } from "../players";
-import { RESOURCES, type Resource } from "../types";
+import { RESOURCES, TAGS, type CountedTag, type Resource } from "../types";
 import type { GameUpdate } from "../useGameServer";
 
 const RESOURCE_NAMES: Record<Resource, string> = {
@@ -22,7 +22,11 @@ const PRODUCTION_NAMES: Record<Resource, string> = {
   heat: "heat Production",
 };
 
-/** One board per Player: Terraform Rating, the six Resources with their Production, Turn state and the first-player marker. */
+// The Tags a player board counts: every Tag but the Event Tag, which never counts once played.
+const COUNTED_TAGS = TAGS.filter((tag): tag is CountedTag => tag !== "event");
+
+/** One board per Player: Terraform Rating, the six Resources with their Production, Turn
+ * state, the first-player marker, cards in hand and the Tags in play. */
 export function PlayerBoards({ game }: { game: GameUpdate }) {
   const { view } = game;
   return (
@@ -67,6 +71,17 @@ export function PlayerBoards({ game }: { game: GameUpdate }) {
                 </div>
               ))}
             </dl>
+            <div className="player-cards-summary">
+              <span className="hand-size" title="Cards in hand">
+                Hand {board.hand_size}
+              </span>
+              {COUNTED_TAGS.filter((tag) => board.tags[tag] > 0).map((tag) => (
+                <span key={tag} className="tag-count" title={`${board.tags[tag]} ${tag} Tags in play`}>
+                  <img src={`/card-list/images/tags/${tag}.png`} alt={`${tag} Tags`} />
+                  {board.tags[tag]}
+                </span>
+              ))}
+            </div>
           </article>
         );
       })}

@@ -10,8 +10,11 @@ use std::fmt;
 use serde::{Deserialize, Serialize};
 
 use crate::board::{Board, BonusItem, Tile, TileKind, printed};
+use crate::card_set::CardSet;
+use crate::deck::Deck;
 use crate::log::LogEvent;
 use crate::milestones_and_awards::{AWARD_COSTS, Award, MAX_MILESTONES_CLAIMED, MILESTONE_COST, Milestone};
+use crate::playing_cards::{CardTiles, Payment};
 use crate::random::RandomNumbers;
 use crate::replay::{Replay, Start};
 use crate::resources::{Resource, Resources};
@@ -59,6 +62,10 @@ pub const STARTING_MEGACREDITS: i32 = 42;
 
 pub const ACTIONS_PER_TURN: u32 = 2;
 
+/// Temporary until Corporations and buying cards exist (ticket 09): a new Game deals out these
+/// cards, the starter set of ticket 08, by number.
+pub const STARTER_SET: [usize; 11] = [22, 45, 53, 56, 60, 87, 113, 138, 141, 144, 168];
+
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct Settings {
@@ -73,6 +80,9 @@ pub struct Player {
     pub terraform_rating: i32,
     /// Passed for the rest of this Generation's Action phase.
     pub passed: bool,
+    pub hand: CardSet,
+    /// The cards they have played, Events included.
+    pub played: CardSet,
 }
 
 impl Player {
@@ -82,6 +92,8 @@ impl Player {
             production: Resources::default(),
             terraform_rating: STARTING_TERRAFORM_RATING,
             passed: false,
+            hand: CardSet::default(),
+            played: CardSet::default(),
         }
     }
 }
@@ -161,6 +173,8 @@ pub enum DecisionKind {
     Action,
     /// Choose the Area for a Tile.
     Area,
+    /// Choose how to pay for the card being played.
+    Payment,
     /// Convert plants into a Greenery once more, or be done, in the final Greenery conversion.
     FinalGreenery,
 }
@@ -168,6 +182,13 @@ pub enum DecisionKind {
 /// One of the answers a Decision offers. (Named `DecisionOption` because Rust already has `Option`.)
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum DecisionOption {
+    /// Play this Project Card from the hand, by its index in the card catalog.
+    PlayCard(usize),
+    /// Pay for `card`, which is being played, this way.
+    Pay {
+        card: usize,
+        payment: Payment,
+    },
     UseStandardProject(StandardProject),
     ClaimMilestone(Milestone),
     /// Fund `award` for `cost`, the price of the next Award funded.
@@ -230,6 +251,7 @@ pub struct Game {
     pub temperature: i32,
     pub oxygen: i32,
     pub board: Board,
+    pub deck: Deck,
     pub players: Vec<Player>,
     /// Who holds the first-player marker, and so takes the first Turn of this Generation.
     pub first_player: usize,
@@ -239,6 +261,10 @@ pub struct Game {
     pub actions_this_turn: u32,
     /// The Tile the current Player must place next, if the Game is waiting on an Area for it.
     pub placing: Option<TileKind>,
+    /// The card the current Player is playing, while the Game waits on how they pay for it.
+    pub paying_for: Option<usize>,
+    /// The card whose Tiles the current Player is placing, while it has any left to place.
+    pub placing_for: Option<CardTiles>,
     /// The Area of a Tile whose placement bonus waits until the Tile being placed is down:
     /// a Greenery's waits for the Ocean its 0 °C step gave (see docs/rules-notes.md).
     pub waiting_bonus: Option<usize>,
@@ -261,11 +287,30 @@ impl Game {
         let players = vec![Player::new(); settings.players];
         let mut game = Game::prepare(Start::Settings(settings), players);
         let first_player = game.random_numbers.below(game.players.len());
+        game.deal_starter_set(first_player);
+        game.deck = Deck::shuffled(game.cards_outside_the_deck(), &[], &mut game.random_numbers);
         game.begin(1, first_player);
         Ok(game)
     }
 
-    /// A Game at normal setup, waiting for `begin` to start its first Generation.
+    /// Until ticket 09: the starter set, shuffled and dealt out round-robin from `first_player`.
+    fn deal_starter_set(&mut self, first_player: usize) {
+        let mut cards = STARTER_SET.map(|number| number - 1);
+        self.random_numbers.shuffle(&mut cards);
+        for (offset, card) in cards.into_iter().enumerate() {
+            let player = (first_player + offset) % self.players.len();
+            self.players[player].hand.insert(card);
+        }
+    }
+
+    /// Every card in a hand or among played cards.
+    fn cards_outside_the_deck(&self) -> CardSet {
+        self.players
+            .iter()
+            .fold(CardSet::default(), |held, player| held.union(player.hand).union(player.played))
+    }
+
+    /// A Game at normal setup, with an empty deck, waiting for `begin` to start its first Generation.
     pub fn prepare(start: Start, players: Vec<Player>) -> Game {
         let settings = start.settings();
         Game {
@@ -277,11 +322,14 @@ impl Game {
             temperature: MIN_TEMPERATURE,
             oxygen: 0,
             board: Board::new(),
+            deck: Deck::EMPTY,
             players,
             first_player: 0,
             current_player: 0,
             actions_this_turn: 0,
             placing: None,
+            paying_for: None,
+            placing_for: None,
             waiting_bonus: None,
             claimed_milestones: [None; Milestone::ALL.len()],
             funded_awards: [None; Award::ALL.len()],
@@ -298,12 +346,13 @@ impl Game {
         if self.phase == Phase::Over {
             return None;
         }
-        let (kind, options) = match (self.placing, self.phase) {
-            (Some(tile), _) => (DecisionKind::Area, self.area_options(tile)),
-            (None, Phase::FinalGreenery) => {
+        let (kind, options) = match (self.placing, self.paying_for, self.phase) {
+            (Some(tile), _, _) => (DecisionKind::Area, self.area_options(tile)),
+            (None, Some(card), _) => (DecisionKind::Payment, self.payment_options(card)),
+            (None, None, Phase::FinalGreenery) => {
                 (DecisionKind::FinalGreenery, vec![DecisionOption::ConvertPlants, DecisionOption::Done])
             }
-            (None, _) => (DecisionKind::Action, self.action_options()),
+            (None, None, _) => (DecisionKind::Action, self.action_options()),
         };
         Some(Decision {
             player: self.current_player,
@@ -344,7 +393,12 @@ impl Game {
 
     fn action_options(&self) -> Vec<DecisionOption> {
         let player = &self.players[self.current_player];
-        let mut options = Vec::new();
+        let mut options: Vec<DecisionOption> = player
+            .hand
+            .iter()
+            .filter(|&card| self.can_play(self.current_player, card))
+            .map(DecisionOption::PlayCard)
+            .collect();
         for project in StandardProject::ALL {
             if player.resources.megacredits >= project.cost() && self.can_take_action_placing(project.tile())
             {
@@ -383,7 +437,7 @@ impl Game {
     /// Whether an Action that places `tile` (or no Tile, for None) may be taken: only if the
     /// Tile has an Area to go on. Actions that raise a Global Parameter stay open once it is
     /// at its maximum, though: Aquifer once 9 Oceans are placed (see docs/rules-notes.md).
-    fn can_take_action_placing(&self, tile: Option<TileKind>) -> bool {
+    pub(crate) fn can_take_action_placing(&self, tile: Option<TileKind>) -> bool {
         match tile {
             None => true,
             Some(TileKind::Ocean) if self.board.oceans() >= MAX_OCEANS => true,
@@ -416,6 +470,12 @@ impl Game {
             && self.board.has_area_for(TileKind::Greenery)
     }
 
+    /// Every way the current Player may pay for `card`.
+    fn payment_options(&self, card: usize) -> Vec<DecisionOption> {
+        let payments = self.payments(self.current_player, card);
+        payments.into_iter().map(|payment| DecisionOption::Pay { card, payment }).collect()
+    }
+
     /// Every Area where the current Player may place `tile`.
     fn area_options(&self, tile: TileKind) -> Vec<DecisionOption> {
         let areas = self.board.areas_for(tile, self.current_player);
@@ -425,16 +485,24 @@ impl Game {
     fn resolve(&mut self, option: DecisionOption) {
         let player = self.current_player;
         match option {
+            DecisionOption::PlayCard(card) => match self.payments(player, card)[..] {
+                [only_way] => self.play_card(player, card, only_way),
+                _ => self.paying_for = Some(card),
+            },
+            DecisionOption::Pay { card, payment } => {
+                self.paying_for = None;
+                self.play_card(player, card, payment);
+            }
             DecisionOption::UseStandardProject(project) => {
                 self.players[player].resources.megacredits -= project.cost();
                 self.log.push(LogEvent::UsedStandardProject { player, project });
                 match project {
-                    StandardProject::PowerPlant => self.raise_production(player, Resource::Energy, 1),
+                    StandardProject::PowerPlant => self.change_production(player, Resource::Energy, 1),
                     StandardProject::Asteroid => self.raise_temperature(player),
                     StandardProject::Aquifer => self.place_ocean(),
                     StandardProject::Greenery => self.placing = Some(TileKind::Greenery),
                     StandardProject::City => {
-                        self.raise_production(player, Resource::MegaCredits, 1);
+                        self.change_production(player, Resource::MegaCredits, 1);
                         self.placing = Some(TileKind::City);
                     }
                 }
@@ -485,9 +553,12 @@ impl Game {
         }
     }
 
-    /// Unless a Tile is still to be placed: the current Action ends, or in the final
-    /// Greenery conversion, the current Player may convert again.
-    fn finish_unless_placing(&mut self) {
+    /// Unless a Tile is still to be placed, a card's included: the current Action ends, or in
+    /// the final Greenery conversion, the current Player may convert again.
+    pub(crate) fn finish_unless_placing(&mut self) {
+        if self.placing.is_none() {
+            self.place_next_card_tile();
+        }
         match (self.placing, self.phase) {
             (Some(_), _) => {}
             (None, Phase::FinalGreenery) => self.offer_final_greenery_from(self.index_in_player_order()),
@@ -625,7 +696,7 @@ impl Game {
     /// The current Player has an Ocean to place, unless all 9 are already placed: then the
     /// Aquifer they paid for, or the 0 °C bonus they reached, places nothing (see
     /// docs/rules-notes.md).
-    fn place_ocean(&mut self) {
+    pub(crate) fn place_ocean(&mut self) {
         if self.board.oceans() < MAX_OCEANS {
             self.placing = Some(TileKind::Ocean);
         } else {
@@ -675,11 +746,11 @@ impl Game {
             if amount == 0 {
                 continue;
             }
-            // Drawing cards waits for the deck (ticket 08); the game log says so.
-            if let Some(resource) = item.resource() {
-                self.players[player].resources[resource] += amount;
-            }
             self.log.push(LogEvent::PlacementBonus { player, item, amount });
+            match item.resource() {
+                Some(resource) => self.players[player].resources[resource] += amount,
+                None => self.draw(player, amount),
+            }
         }
         let oceans = self.board.adjacent(area, TileKind::Ocean);
         if oceans > 0 {
@@ -688,14 +759,15 @@ impl Game {
         }
     }
 
-    fn raise_production(&mut self, player: usize, resource: Resource, by: i32) {
+    /// Raises `player`'s Production of `resource` by `by` steps, or lowers it below zero.
+    pub(crate) fn change_production(&mut self, player: usize, resource: Resource, by: i32) {
         self.players[player].production[resource] += by;
-        self.log.push(LogEvent::ProductionRaised { player, resource, by });
+        self.log.push(LogEvent::ProductionChanged { player, resource, by });
     }
 
     /// Raises Oxygen one step, which gives `player` one Terraform Rating, and at 8 % a
     /// Temperature step too. At its maximum, Oxygen stays put and nobody gains anything.
-    fn raise_oxygen(&mut self, player: usize) {
+    pub(crate) fn raise_oxygen(&mut self, player: usize) {
         if self.oxygen >= MAX_OXYGEN {
             self.log.push(LogEvent::OxygenAlreadyAtMaximum);
             return;
@@ -712,7 +784,7 @@ impl Game {
     /// Raises Temperature one step, which gives `player` one Terraform Rating, plus the
     /// track bonus on that step if there is one. At its maximum, Temperature stays put and
     /// nobody gains anything.
-    fn raise_temperature(&mut self, player: usize) {
+    pub(crate) fn raise_temperature(&mut self, player: usize) {
         if self.temperature >= MAX_TEMPERATURE {
             self.log.push(LogEvent::TemperatureAlreadyAtMaximum);
             return;

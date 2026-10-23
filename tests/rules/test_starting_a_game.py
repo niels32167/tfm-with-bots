@@ -4,6 +4,7 @@ import pytest
 import tm_engine
 
 from tests.helpers import (
+    TAGS_THAT_COUNT,
     area,
     city,
     claimed,
@@ -34,12 +35,16 @@ def test_until_corporations_exist_every_player_starts_with_42_megacredits_and_te
     game = tm_engine.Game(seed=7)
 
     for index in (0, 1):
-        assert player_board(game, index) == {
+        board = player_board(game, index)
+        del board["hand"], board["hand_size"]  # the deal: see tests/rules/test_deck.py
+        assert board == {
             "name": f"Player {index + 1}",
             "resources": {"megacredits": 42, "steel": 0, "titanium": 0, "plants": 0, "energy": 0, "heat": 0},
             "production": {"megacredits": 0, "steel": 0, "titanium": 0, "plants": 0, "energy": 0, "heat": 0},
             "terraform_rating": 20,
             "passed": False,
+            "played_cards": [],
+            "tags": dict.fromkeys(TAGS_THAT_COUNT, 0),
         }
 
 
@@ -165,14 +170,27 @@ def test_a_scenario_funds_each_award_at_most_once_and_at_most_three_in_all():
         scenario(awards=[funded("miner", by=2)])
 
 
-def test_an_empty_scenario_is_a_new_two_player_game_with_player_1_as_first_player():
-    view = scenario().player_view(0)
-    new_game = tm_engine.Game(seed=0).player_view(0)
+def test_an_empty_scenario_is_a_new_two_player_game_with_player_1_as_first_player_and_no_cards_dealt():
+    view = scenario().full_view()
+    new_game = tm_engine.Game(seed=0).full_view()
 
     assert view["first_player"] == 0
     assert view["current_player"] == 0
+    assert view["deck_size"] == 208
+    assert all(board["hand"] == [] for board in view["players"])
     whose_turn = {"first_player": 0, "current_player": 0}
-    assert {**view, **whose_turn} == {**new_game, **whose_turn}
+    assert {**without_cards(view), **whose_turn} == {**without_cards(new_game), **whose_turn}
+
+
+def without_cards(view):
+    """A view without the deck, the hands and the Planner Milestone's counts of cards in hand."""
+    del view["deck"], view["deck_size"]
+    for board in view["players"]:
+        del board["hand"], board["hand_size"]
+    for entry in view["milestones"]:
+        if entry["milestone"] == "planner":
+            del entry["counts"]
+    return view
 
 
 def test_a_scenario_with_an_unknown_field_is_rejected():

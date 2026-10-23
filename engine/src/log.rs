@@ -3,24 +3,31 @@
 //! so the log adds little to the cost of copying a Game.
 
 use crate::board::{BonusItem, TileKind, area_label};
+use crate::cards::CARD_CATALOG;
 use crate::game::{
     HEAT_PER_TEMPERATURE_STEP, MAX_OCEANS, OCEAN_ADJACENCY_BONUS, OCEAN_BONUS_TEMPERATURE,
     PLANTS_PER_GREENERY, StandardProject, TEMPERATURE_BONUS_OXYGEN,
 };
 use crate::milestones_and_awards::{Award, MILESTONE_COST, Milestone};
+use crate::playing_cards::Payment;
 use crate::resources::{Resource, Resources};
 use crate::scoring::{AwardPlace, Win};
 
 #[derive(Clone, Copy, Debug)]
 pub enum LogEvent {
     GenerationBegins { generation: u32, first_player: usize },
+    PlayedCard { player: usize, card: usize, payment: Payment },
     UsedStandardProject { player: usize, project: StandardProject },
     ClaimedMilestone { player: usize, milestone: Milestone },
     FundedAward { player: usize, award: Award, cost: i32 },
     TemperatureRaised { player: usize, temperature: i32 },
     ConvertedPlants { player: usize },
     ConvertedHeat { player: usize },
-    ProductionRaised { player: usize, resource: Resource, by: i32 },
+    ProductionChanged { player: usize, resource: Resource, by: i32 },
+    ResourceChanged { player: usize, resource: Resource, by: i32 },
+    TerraformRatingRaised { player: usize, by: i32 },
+    DrewCards { player: usize, count: i32 },
+    DeckEmpty { player: usize },
     TemperatureAlreadyAtMaximum,
     HeatProductionBonus { player: usize, temperature: i32 },
     OceanBonus { player: usize },
@@ -52,6 +59,14 @@ impl LogEvent {
         match *self {
             LogEvent::GenerationBegins { generation, first_player } => {
                 format!("Generation {generation} begins, with {} as first player.", player_name(first_player))
+            }
+            LogEvent::PlayedCard { player, card, payment } => {
+                format!(
+                    "{} plays {}, paying {}.",
+                    player_name(player),
+                    CARD_CATALOG[card].name,
+                    payment.text()
+                )
             }
             LogEvent::UsedStandardProject { player, project } => format!(
                 "{} uses the {} Standard Project for {} MegaCredits.",
@@ -87,8 +102,27 @@ impl LogEvent {
                 "Reaching {TEMPERATURE_BONUS_OXYGEN} % Oxygen gives {} a Temperature step.",
                 player_name(player)
             ),
-            LogEvent::ProductionRaised { player, resource, by } => {
-                format!("{} raises their {} Production by {by}.", player_name(player), resource.name())
+            LogEvent::ProductionChanged { player, resource, by } => format!(
+                "{} {} their {} Production by {}.",
+                player_name(player),
+                if by < 0 { "lowers" } else { "raises" },
+                resource.name(),
+                by.abs()
+            ),
+            LogEvent::ResourceChanged { player, resource, by } => format!(
+                "{} {} {}.",
+                player_name(player),
+                if by < 0 { "loses" } else { "gains" },
+                resource.counted(by.abs())
+            ),
+            LogEvent::TerraformRatingRaised { player, by } => {
+                format!("{} raises their Terraform Rating by {by}.", player_name(player))
+            }
+            LogEvent::DrewCards { player, count } => {
+                format!("{} draws {}.", player_name(player), counted(count, "card", "cards"))
+            }
+            LogEvent::DeckEmpty { player } => {
+                format!("The deck is empty, so {} draws no more cards.", player_name(player))
             }
             LogEvent::ConvertedPlants { player } => {
                 format!("{} converts {PLANTS_PER_GREENERY} plants into a Greenery.", player_name(player))
@@ -124,7 +158,7 @@ impl LogEvent {
                     )
                 }
                 None => format!(
-                    "{} would draw {} from the placement bonus, but there is no deck yet.",
+                    "{} draws {} from the placement bonus.",
                     player_name(player),
                     counted(amount, "card", "cards")
                 ),
@@ -202,7 +236,7 @@ impl LogEvent {
 }
 
 /// "a", "a and b", "a, b and c".
-fn listed(items: impl Iterator<Item = String>) -> String {
+pub fn listed(items: impl Iterator<Item = String>) -> String {
     let items: Vec<String> = items.collect();
     match items.split_last() {
         Some((last, [])) => last.clone(),

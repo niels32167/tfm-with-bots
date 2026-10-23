@@ -22,6 +22,16 @@ def test_a_single_human_sees_only_their_own_player_view():
     assert update["view"]["viewer"] == 1
 
 
+def test_a_single_human_sees_their_own_hand_but_neither_the_random_bots_hand_nor_the_deck_order():
+    with connect() as gui:
+        update = gui.start(["random_bot", "human"], seed=3)
+
+    human, bot = update["view"]["players"][1], update["view"]["players"][0]
+    assert human["hand"] is not None and len(human["hand"]) == human["hand_size"]
+    assert bot["hand"] is None and bot["hand_size"] > 0
+    assert update["view"]["deck"] is None
+
+
 def test_hotseat_shows_the_full_view_and_asks_the_first_player_to_decide():
     with connect() as gui:
         update = gui.start(["human", "human", "human"], seed=3)

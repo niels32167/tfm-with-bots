@@ -1,8 +1,19 @@
 """Milestones: a Player who meets one may claim it as an Action for 8 MegaCredits. Each is
-claimed once, and only three per Game. (Builder and Planner count Tags and cards in hand,
-so their tests come with ticket 08.)"""
+claimed once, and only three per Game."""
 
-from tests.helpers import city, claimed, greenery, milestone, offered, pick, player, player_board, resources, scenario
+from tests.helpers import (
+    PROJECT_CARDS,
+    city,
+    claimed,
+    greenery,
+    milestone,
+    offered,
+    pick,
+    player,
+    player_board,
+    resources,
+    scenario,
+)
 
 
 def test_a_player_with_a_terraform_rating_of_35_may_claim_terraformer_for_8_megacredits():
@@ -43,6 +54,48 @@ def test_gardener_needs_3_greeneries_of_the_players_own():
     game = scenario(player(), player(), tiles=[*two_greeneries, greenery("J1", 0)])
     pick(game, "Claim the Gardener Milestone")
     assert milestone(game, "gardener")["claimed_by"] == 0
+
+
+# Seven cards with one building Tag each, none of them Events.
+SEVEN_BUILDING_TAGS = [
+    "mine",
+    "power_plant",
+    "nuclear_power",
+    "solar_power",
+    "strip_mine",
+    "titanium_mine",
+    "windmills",
+]
+
+
+def test_builder_needs_8_building_tags_in_play():
+    game = scenario(player(played_cards=SEVEN_BUILDING_TAGS, hand=["colonizer_training_camp"]), player())
+    assert not offered(game, "Claim the Builder Milestone")
+    assert milestone(game, "builder")["counts"] == [7, 0]
+
+    game = scenario(player(played_cards=[*SEVEN_BUILDING_TAGS, "colonizer_training_camp"]), player())
+    pick(game, "Claim the Builder Milestone")
+    assert milestone(game, "builder")["claimed_by"] == 0
+
+
+def test_planner_needs_16_cards_in_hand():
+    game = scenario(player(hand=PROJECT_CARDS[:15]), player(hand=PROJECT_CARDS[15:17]))
+    assert not offered(game, "Claim the Planner Milestone")
+    assert milestone(game, "planner")["counts"] == [15, 2]
+
+    game = scenario(player(hand=PROJECT_CARDS[:16]), player())
+    pick(game, "Claim the Planner Milestone")
+    assert milestone(game, "planner")["claimed_by"] == 0
+
+
+def test_a_claimed_planner_stays_claimed_after_the_hand_shrinks():
+    game = scenario(player(hand=[*PROJECT_CARDS[:15], "mine"]), player())
+    pick(game, "Claim the Planner Milestone")
+
+    pick(game, "Play Mine")
+
+    assert milestone(game, "planner")["counts"] == [15, 0]
+    assert milestone(game, "planner")["claimed_by"] == 0
 
 
 def test_a_milestone_is_not_offered_without_8_megacredits():

@@ -177,6 +177,40 @@ def test_a_wrong_price_for_a_milestone_or_award_breaks_an_invariant():
     ]
 
 
+def test_a_card_in_two_places_or_in_none_breaks_an_invariant():
+    view, decision = position(scenario(player(hand=["mine"]), player(played_cards=["trees"]), deck=["grass"]))
+    view["players"][1]["played_cards"].append("mine")
+    view["deck"].remove("grass")
+    view["deck_size"] -= 1
+
+    assert problems(view, decision) == [
+        "'mine' is in 2 places: Player 1's hand and Player 2's played cards",
+        "'grass' is nowhere",
+    ]
+
+
+def test_a_corporation_or_an_unknown_card_among_the_cards_breaks_an_invariant():
+    view, decision = position(scenario(player(), player()))
+    view["players"][0]["played_cards"].append("credicor")
+    view["players"][1]["played_cards"].append("minne")
+
+    assert problems(view, decision) == [
+        "'credicor' is not a Project Card, but is in Player 1's played cards",
+        "'minne' is not a Project Card, but is in Player 2's played cards",
+    ]
+
+
+def test_sizes_that_disagree_with_the_cards_break_an_invariant():
+    view, decision = position(scenario(player(hand=["mine"]), player()))
+    view["deck_size"] += 1
+    view["players"][0]["hand_size"] = 2
+
+    assert problems(view, decision) == [
+        "deck_size is 208, but the deck holds 207 cards",
+        "Player 1's hand_size is 2, but their hand holds 1 card",
+    ]
+
+
 def test_a_decision_with_no_option_breaks_an_invariant():
     view, decision = position(scenario())
     decision["options"] = []
@@ -211,7 +245,7 @@ def test_a_finished_game_whose_score_breakdown_adds_up_breaks_no_invariant():
 
 def test_a_score_breakdown_that_does_not_add_up_breaks_an_invariant():
     view, decision = position(finished_game())
-    view["scores"][0]["cards"] += 1
+    view["scores"][0]["awards"] += 1
 
     # Terraform Rating 30, 5 for sharing first place in Landlord and 1 for the City next to a Greenery.
     assert problems_at_the_end(view, decision) == ["Player 1's score adds up to 37, but its total is 36"]
@@ -229,6 +263,27 @@ def test_a_score_part_the_board_does_not_give_breaks_an_invariant():
         "Player 3's score has 5 Victory Points for Milestones, but the board gives 0",
         "Player 3's score has 1 Victory Point for Greeneries, but the board gives 0",
         "Player 3's score has 1 Victory Point for Cities, but the board gives 0",
+    ]
+
+
+def test_a_cards_score_part_the_played_cards_do_not_give_breaks_an_invariant():
+    game = scenario(
+        # Io Mining Industries: 1 Victory Point per jovian Tag, and Colonizer Training Camp
+        # (2 Victory Points) has one too; the Event Technology Demonstration has none.
+        player(played_cards=["io_mining_industries", "colonizer_training_camp", "technology_demonstration"]),
+        player(played_cards=["trees"]),
+        **terraformed_mars(),
+    )
+    end_the_generation(game)
+    view, decision = position(game)
+    assert problems_at_the_end(view, decision) == []
+    assert [score["cards"] for score in view["scores"]] == [4, 1]
+
+    view["scores"][1]["cards"] = 2
+    view["scores"][1]["total"] += 1
+
+    assert problems_at_the_end(view, decision) == [
+        "Player 2's score has 2 Victory Points for Cards, but the board gives 1"
     ]
 
 

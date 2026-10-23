@@ -4,14 +4,19 @@ end of every Game (ticket 06).
 Each check reads only what an outsider can see, the full view and the Decision the Game
 is waiting on, and yields one line for each thing that is wrong. The printed rules and
 board facts are written out here and in tests/helpers.py rather than read from the
-engine, so a mistake in the engine can't hide behind the same mistake in its checks.
-Invariants for rules that don't exist yet join these lists when their ticket lands.
+engine, so a mistake in the engine can't hide behind the same mistake in its checks. The
+card catalog's printed data is the exception: it is checked against the card list itself
+(tests/tools/). Invariants for rules that don't exist yet join these lists when their ticket
+lands.
 """
 
+from collections import Counter
 from collections.abc import Callable, Iterator
 from typing import Any
 
-from tests.helpers import ADJACENT_AREAS, LAND_AREAS, OCEAN_AREAS, RESOURCES
+import tm_engine
+
+from tests.helpers import ADJACENT_AREAS, LAND_AREAS, OCEAN_AREAS, PROJECT_CARDS, RESOURCES
 
 type View = dict[str, Any]
 type Decision = dict[str, Any]
@@ -34,6 +39,8 @@ PRODUCTION_NAMES = {name: name for name in RESOURCES} | {"megacredits": "MegaCre
 TILE_NAMES = {"ocean": "Ocean", "greenery": "Greenery", "city": "City"}
 # The six parts of a final score, which add up to its total.
 SCORE_PARTS = ("terraform_rating", "milestones", "awards", "greeneries", "cities", "cards")
+
+CARDS = {card["id"]: card for card in tm_engine.card_catalog()}
 
 
 def no_negative_resources(view: View, decision: Decision | None) -> Iterator[str]:
@@ -142,6 +149,33 @@ def at_most_three_milestones_and_awards(view: View, decision: Decision | None) -
         yield f"with {counted(funded, 'Award')} funded, award_cost is {view['award_cost']}, not {award_cost}"
 
 
+def every_card_in_exactly_one_place(view: View, decision: Decision | None) -> Iterator[str]:
+    """Every Project Card is in exactly one place: the deck, a hand, or among a Player's played
+    cards. (Ticket 09 adds the discard pile, ticket 10 the cards passed in the Draft.) The
+    sizes shown agree with the cards."""
+    places: dict[str, list[str]] = {card_id: [] for card_id in PROJECT_CARDS}
+    if view["deck_size"] != len(view["deck"]):
+        yield f"deck_size is {view['deck_size']}, but the deck holds {counted(len(view['deck']), 'card')}"
+    for card_id in view["deck"]:
+        places.setdefault(card_id, []).append("the deck")
+    for player_board in view["players"]:
+        name, hand = player_board["name"], player_board["hand"]
+        if player_board["hand_size"] != len(hand):
+            holds = counted(len(hand), "card")
+            yield f"{name}'s hand_size is {player_board['hand_size']}, but their hand holds {holds}"
+        for card_id in hand:
+            places.setdefault(card_id, []).append(f"{name}'s hand")
+        for card_id in player_board["played_cards"]:
+            places.setdefault(card_id, []).append(f"{name}'s played cards")
+    for card_id, found in places.items():
+        if card_id not in CARDS or CARDS[card_id]["type"] == "corporation":
+            yield f"'{card_id}' is not a Project Card, but is in {' and '.join(found)}"
+        elif not found:
+            yield f"'{card_id}' is nowhere"
+        elif len(found) > 1:
+            yield f"'{card_id}' is in {len(found)} places: {' and '.join(found)}"
+
+
 def every_decision_has_an_option(view: View, decision: Decision | None) -> Iterator[str]:
     """A Game is either over or waiting on one Decision, which offers at least one Option."""
     over = view["phase"] == "over"
@@ -184,9 +218,10 @@ def score_breakdown_adds_up(view: View, decision: Decision | None) -> Iterator[s
 
 
 def parts_shown_on_the_board(view: View, player: int) -> dict[str, int]:
-    """The Victory Points `player` should score for Milestones, Greeneries and Cities: 5 for
-    each Milestone they claimed, 1 for each of their Greeneries, and 1 for each Greenery next
-    to each of their Cities, whoever owns it."""
+    """The Victory Points `player` should score for Milestones, Greeneries, Cities and cards:
+    5 for each Milestone they claimed, 1 for each of their Greeneries, 1 for each Greenery next
+    to each of their Cities, whoever owns it, and the Victory Points printed on their played
+    cards."""
     tiles = tiles_on_the_board(view)
     owned = {area_id: tile["type"] for area_id, tile in tiles.items() if tile["owner"] == player}
     claimed = sum(1 for milestone in view["milestones"] if milestone["claimed_by"] == player)
@@ -201,7 +236,33 @@ def parts_shown_on_the_board(view: View, player: int) -> dict[str, int]:
         "milestones": MILESTONE_VICTORY_POINTS * claimed,
         "greeneries": sum(1 for kind in owned.values() if kind == "greenery"),
         "cities": greeneries_next_to_cities,
+        "cards": card_victory_points(view, player),
     }
+
+
+def card_victory_points(view: View, player: int) -> int:
+    """The Victory Points printed on `player`'s played cards: a fixed number, or points for
+    every so many of their Tags in play (no Tag on a played Event counts) or of the Tiles in
+    play. Card Resources (ticket 19) and Tiles of cards (ticket 18) don't exist yet, so they
+    count 0."""
+    played = [CARDS[card_id] for card_id in view["players"][player]["played_cards"]]
+    tags = Counter(tag for card in played if card["type"] != "event" for tag in card["tags"])
+    tiles = Counter(tile["type"] for tile in tiles_on_the_board(view).values())
+
+    def count(of: dict[str, str]) -> int:
+        ((kind, what),) = of.items()
+        return {"tag": tags[what], "tiles_in_play": tiles[what]}.get(kind, 0)
+
+    points = 0
+    for card in played:
+        printed = card["victory_points"]
+        if isinstance(printed, int):
+            points += printed
+        elif printed is not None and "per" in printed:
+            points += printed["points"] * (count(printed["of"]) // printed["per"])
+        elif printed is not None and count(printed["of"]) >= printed["at_least"]:
+            points += printed["points"]
+    return points
 
 
 def counted(count: int, thing: str) -> str:
@@ -221,6 +282,7 @@ AFTER_EVERY_DECISION: tuple[Check, ...] = (
     tiles_only_on_legal_areas,
     only_legal_areas_offered,
     at_most_three_milestones_and_awards,
+    every_card_in_exactly_one_place,
     every_decision_has_an_option,
 )
 

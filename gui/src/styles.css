@@ -1114,3 +1114,166 @@ input[aria-invalid="true"] {
   background: rgba(5, 5, 10, 0.8);
   cursor: zoom-out;
 }
+
+/* Under the board: the hands shown and every Player's played cards, drawn at 60 % of a
+   printed card (149 by 191 pixels) and enlarged on hover. */
+.player-cards {
+  grid-column: 1 / -1;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.card-row {
+  background: var(--panel);
+  border: 1px solid var(--panel-border);
+  border-left: 6px solid;
+  border-radius: 8px;
+  padding: 10px 14px 14px;
+}
+
+.card-row h3 {
+  margin: 0 0 10px;
+  font-size: 0.95rem;
+  font-weight: 650;
+}
+
+.card-row h4 {
+  margin: 0 0 6px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--text-dim);
+}
+
+.no-cards {
+  margin: 0;
+  color: var(--text-dim);
+  font-style: italic;
+}
+
+.small-card {
+  zoom: 0.6;
+  padding: 0;
+  border: none;
+  background: none;
+  border-radius: 20px;
+  transition: transform 150ms ease-in-out;
+}
+
+.small-card:hover,
+.small-card:focus-visible {
+  position: relative;
+  z-index: 3;
+  transform: scale(1.7);
+}
+
+.hand-cards {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.small-card.in-hand {
+  transform-origin: center bottom;
+}
+
+.small-card.playable {
+  cursor: pointer;
+  outline: 6px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.small-card.playable:disabled {
+  cursor: default;
+  opacity: 0.6;
+}
+
+.small-card.being-paid-for {
+  outline: 6px dashed var(--accent);
+  outline-offset: 2px;
+}
+
+.small-card.not-implemented {
+  opacity: 0.45;
+}
+
+.played-groups {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 18px;
+}
+
+/* Played cards of a type overlap, so that each shows its cost, title and Tags. */
+.card-stack {
+  display: flex;
+  flex-direction: column;
+}
+
+.small-card.stacked {
+  transform-origin: center top;
+}
+
+.small-card.stacked + .small-card.stacked {
+  margin-top: -250px;
+}
+
+/* On a player board: cards in hand and Tags in play. */
+.player-cards-summary {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 10px;
+  margin-top: 8px;
+  font-size: 0.85rem;
+  color: var(--text-dim);
+}
+
+.tag-count {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  color: var(--text);
+  font-weight: 600;
+}
+
+.tag-count img {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+}
+
+/* The payment picker in the status bar: steppers for steel and titanium, then Pay. */
+.payment-picker {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px 16px;
+}
+
+.payment-stepper {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.stepper-button {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  border: 1px solid #b9b1a3;
+  background: white;
+  color: var(--status-text);
+  font-weight: 700;
+  line-height: 1;
+}
+
+.stepper-button:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+
+.payment-amount {
+  font-weight: 600;
+  min-width: 4.5em;
+  text-align: center;
+}

@@ -16,13 +16,19 @@ def card_catalog() -> list[dict[str, Any]]:
     Replays name it), "number" (None for Corporations), "name", "type" ("automated", "active", "event" or
     "corporation"), "corporate_era", "cost" (None for Corporations), "tags", "requirements",
     "victory_points", "text", and "face": the card's middle part as the card list draws it,
-    for the GUI. Each call returns a new list."""
+    for the GUI. Implemented cards also have "effects": what they do when played, with any of
+    "resources" and "production" (amounts of the six Resources, below zero to lose),
+    "temperature" and "oxygen" (steps raised), "terraform_rating", "draw" (cards) and "tiles"
+    (a list such as ["ocean", "ocean"]). Cards without "effects" are never offered. Each call
+    returns a new list."""
 
 class Game:
     """A Game of Terraforming Mars, always either over or waiting on one Decision."""
 
     def __init__(self, *, seed: int, players: int = 2) -> None:
-        """A new Game from its settings; the first player is drawn from the seed.
+        """A new Game from its settings; the first player is drawn from the seed. Until
+        ticket 09, the 11 starter-set cards are shuffled and dealt round-robin from the first
+        player, and every other Project Card is shuffled into the deck.
 
         Raises ValueError for an unsupported Player count or a seed above MAX_SEED.
         """
@@ -32,8 +38,12 @@ class Game:
         """A Game started from a Scenario. Anything left out takes the normal defaults.
 
         Fields: seed, generation, first_player (default 0, who also takes the first Turn),
-        temperature, oxygen, tiles, milestones, awards, and players: a list of
-        {"resources": {...}, "production": {...}, "terraform_rating": int}.
+        temperature, oxygen, tiles, milestones, awards, deck, and players: a list of
+        {"resources": {...}, "production": {...}, "terraform_rating": int,
+         "hand": [card id, ...], "played_cards": [card id, ...]}.
+        Cards are named by their catalog id ("black_polar_dust"); only Project Cards, each in
+        one place at most. "deck" lists the cards on top of the deck, the first drawn first;
+        every other Project Card is shuffled beneath them with the seed.
         Resources and Production name any of the six Resources (megacredits, steel,
         titanium, plants, energy, heat); the rest keep their defaults: 42 MegaCredits and
         nothing else to start with, and no Production.
@@ -74,10 +84,13 @@ class Game:
         {"player": int, "kind": str, "sequence": int,
          "options": [{"index": int, "label": str, "details": {"type": str, ...}}]}
 
-        Kinds: "action" (an Action, End Turn or Pass), "area" (where to place a Tile,
-        with details {"type": "area", "area": "C3", "tile": "city"}) and "final_greenery"
-        (convert 8 plants into a Greenery once more, or be done, after the final Production
-        phase). Claiming a Milestone and funding an Award are Actions, with details
+        Kinds: "action" (an Action, End Turn or Pass), "payment" (how to pay for the card
+        being played, with details {"type": "payment", "card": "mine", "megacredits": 2,
+        "steel": 1, "titanium": 0}; it comes only when there is more than one way), "area"
+        (where to place a Tile, with details {"type": "area", "area": "C3", "tile": "city"})
+        and "final_greenery" (convert 8 plants into a Greenery once more, or be done, after
+        the final Production phase). Playing a card, claiming a Milestone and funding an Award
+        are Actions, with details {"type": "play_card", "card": "mine", "cost": 4},
         {"type": "claim_milestone", "milestone": "mayor", "cost": 8} and
         {"type": "fund_award", "award": "landlord", "cost": 14}.
         """
@@ -111,7 +124,12 @@ class Game:
         It has the Generation, the phase ("action", "final_greenery" or "over"), the Global
         Parameters (temperature, oxygen, oceans) and each Player's board:
         {"name": "Player 1", "resources": {...}, "production": {...}, "terraform_rating": int,
-         "passed": bool}, where Resources and Production each hold all six Resources.
+         "passed": bool, "hand_size": int, "hand": [card id, ...] | None,
+         "played_cards": [card id, ...], "tags": {"building": int, ...}}, where Resources and
+        Production each hold all six Resources, "hand" is None but for the viewer's own, cards
+        come in card-number order, and "tags" counts the ten Tags in play (on played Automated
+        and Active cards; no Tag on a played Event counts). "deck_size" is the number of cards
+        in the deck and "deck" is None.
         It also has the "board": every Area, on Mars row by row from the
         top (A to J, skipping I) and each row from the left, then the two Areas off Mars:
         {"area": "E3", "name": "Noctis City" | None, "row": 5, "position": 3,
@@ -130,7 +148,8 @@ class Game:
         """Everything about the Game, including what Players hide from each other.
 
         For Hotseat and the dev panel, never for an AI Controller. It has the Player
-        View's shape, with "viewer" None.
+        View's shape, with "viewer" None, every Player's "hand", and the "deck" by catalog id
+        from the top down.
         """
 
     @property

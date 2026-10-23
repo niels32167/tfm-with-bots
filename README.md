@@ -4,7 +4,7 @@ A digital Terraforming Mars with a fast rules engine, built so an AI opponent ca
 be trained against it by self-play. Phase 1 is a playable, well-tested game; see
 `.scratch/phase-1-playable-game/spec.md`.
 
-So far (tickets 01–07), 2–5 Players hold all six Resources with their Production, use
+So far (tickets 01–08), 2–5 Players hold all six Resources with their Production, use
 the Power Plant, Asteroid, Aquifer, Greenery and City Standard Projects, and convert
 plants into Greeneries and heat into Temperature on the Tharsis board. They place
 Oceans, Greeneries and Cities by clicking a highlighted Area, and collect placement
@@ -12,13 +12,16 @@ bonuses, 2 MegaCredits per adjacent Ocean, and the track bonuses for Temperature
 Oxygen. They claim the Tharsis Milestones and fund its Awards from the bar under Mars.
 The Game ends after the Generation in which Temperature, Oxygen and Oceans are all
 maxed. After a final Greenery conversion, the final score screen shows each Player's
-Terraform Rating, Milestones, Awards, Greeneries and Cities, and the most Victory Points
-wins (MegaCredits break a tie). Each Player is a human or a Random Bot, every Game comes
+Terraform Rating, Milestones, Awards, Greeneries, Cities and card Victory Points, and the
+most Victory Points wins (MegaCredits break a tie). Each Player is a human or a Random Bot, every Game comes
 from a seed, and any Game can be undone, saved as a Replay file and loaded again. A
 fuzzer plays Random Bot Games and checks them after every Decision, and a benchmark
 measures the engine's speed. The card catalog holds the printed data of all 208 Project
 Cards and 12 Corporations, and the GUI's card gallery draws every card as the fan-made card
-list does; cards are not played yet.
+list does. Players play Project Cards from their hand, paying with MegaCredits, steel and
+titanium, once the cards' Requirements are met; 23 simple cards work so far, the 11 of the
+starter set among them. Until Corporations and buying cards exist (ticket 09), a new Game deals
+out the starter set, and every other Project Card waits in the deck for card placement bonuses.
 
 ## How it fits together
 
@@ -90,8 +93,20 @@ uv run python -m tools.card_import
 ```
 
 `--download` fetches the page, its stylesheet and the card icons again first. Running the
-import again rewrites each card's printed fields and keeps any field written by hand (effect
-data, from ticket 08 on). The engine module reads the catalog with `tm_engine.card_catalog()`.
+import again rewrites each card's printed fields and keeps any field written by hand. The
+engine module reads the catalog with `tm_engine.card_catalog()`.
+
+A card is implemented once it has `"effects"` in the card file (ADR 0009), such as
+`"effects": {"production": {"megacredits": -2, "heat": 3}, "tiles": ["ocean"]}` for Black Polar
+Dust; cards without it are never offered. Effects can gain or lose Resources, change
+Production, raise Temperature and Oxygen, raise Terraform Rating, draw cards and place Tiles.
+Declare any new field in `engine/src/cards.rs` first, since the card file allows no unknown
+field. Each card's scenario tests live in `tests/cards/test_<id>.py`, and the coverage report
+lists the cards that have none yet (the test suite shows the count as a warning):
+
+```bash
+uv run python -m tools.card_coverage
+```
 
 The mismatch report, `docs/card-mismatches.md`, compares the card file with the open-source
 game's card definitions (cost, Tags, Requirements, Victory Points, type and Corporate Era):
@@ -129,6 +144,13 @@ card gallery: every card, filtered by type, Tag, or name or number; hover over a
 enlarge it, or click it to see it large. The server keeps the Game in memory, so
 reloading the page picks it up again.
 
+Below the board are your hand and every Player's played cards, grouped into Automated,
+Active and Events; hover over a card to enlarge it. A card you can play now is outlined:
+click it to play it. When steel or titanium can pay for it, the status bar shows a payment
+picker: step the steel and titanium up or down, then **Pay** for the rest in MegaCredits.
+In the full view every hand is shown. Player boards show the cards in hand and the Tags in
+play.
+
 ## Other checks
 
 - Rust lint: `cargo clippy --manifest-path engine/Cargo.toml`
@@ -141,7 +163,9 @@ reloading the page picks it up again.
 | `engine/src/game.rs` | The rules: Game state, Decisions and Options |
 | `engine/src/board.rs` | The Tharsis board: Areas, adjacency, and where each Tile may go |
 | `engine/src/resources.rs` | The six Resources, and an amount of each (held, or Production) |
-| `engine/src/cards.rs` | The card catalog, read from the card file `engine/cards/cards.json` |
+| `engine/src/cards.rs` | The card catalog, read from the card file `engine/cards/cards.json`, with each card's effect data |
+| `engine/src/playing_cards.rs` | The central card rules: Tag counting, Requirements, payment, carrying out effects, drawing, card Victory Points |
+| `engine/src/card_set.rs`, `engine/src/deck.rs` | Hands and played cards (sets of cards), and the deck |
 | `engine/src/milestones_and_awards.rs` | The Tharsis Milestones and Awards, and what each one counts |
 | `engine/src/scoring.rs` | Final scoring: the breakdown, Award places, ranks and the winner |
 | `engine/src/scenario.rs` | Starting a Game from a Scenario |
@@ -159,11 +183,12 @@ reloading the page picks it up again.
 | `tools/benchmark.py` | The speed benchmark |
 | `tools/card_import.py` | The card import; `tools/card_list_snapshot/` is its saved copy of the card list page |
 | `tools/card_mismatches.py` | The mismatch report against the open-source game; the report is `docs/card-mismatches.md` |
-| `tests/cards/` | Tests of the card catalog |
-| `tests/helpers.py` | `scenario()`, `player()`, `ocean()`, `city()`, `claimed()`, `funded()`, `terraformed_mars()`, `pick()`, `offered()`, `area()`, `milestone()`, `award()`, `resources()`: helpers that make tests read like play |
+| `tools/card_coverage.py` | The coverage report: catalog cards without a scenario test |
+| `tests/cards/` | Tests of the card catalog, and each card's scenario tests (`test_<id>.py`) |
+| `tests/helpers.py` | `scenario()`, `player()`, `ocean()`, `city()`, `claimed()`, `funded()`, `terraformed_mars()`, `pick()`, `offered()`, `area()`, `milestone()`, `award()`, `resources()`, `hand()`, `played_cards()`, `final_scores()`: helpers that make tests read like play |
 | `server/` | The local server and the Random Bot |
 | `gui/src/` | The browser GUI; the board is `gui/src/components/MarsBoard.tsx`, the Milestones and Awards bar `gui/src/components/MilestonesAwards.tsx`, and the printed tracks are in `gui/src/tracks.ts` |
-| `gui/src/cards/` | Cards drawn as the card list draws them (`PrintedCard.tsx`, `cardList.css`), and the card gallery |
+| `gui/src/cards/` | Cards drawn as the card list draws them (`PrintedCard.tsx`, `cardList.css`), the card gallery, and the hands and played cards under the board (`PlayerCards.tsx`) |
 | `gui/public/card-list/` | The card list's icons and font |
 | `CONTEXT.md` | The glossary; code, tests and messages use its terms |
 | `docs/adr/` | Architecture decisions |

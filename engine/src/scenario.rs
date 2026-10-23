@@ -8,6 +8,9 @@ use std::collections::BTreeMap;
 use serde::{Deserialize, Deserializer, Serialize};
 
 use crate::board::{Reservation, Tile, TileKind, find_area, printed};
+use crate::card_set::CardSet;
+use crate::cards::find_project_card;
+use crate::deck::Deck;
 use crate::game::{
     Game, MAX_OCEANS, MAX_OXYGEN, MAX_TEMPERATURE, MIN_TEMPERATURE, Player, STARTING_TERRAFORM_RATING,
     TEMPERATURE_STEP, check_player_count, check_seed, starting_resources,
@@ -38,6 +41,9 @@ pub struct Scenario {
     /// The Awards funded so far, and by whom.
     pub awards: Vec<FundedAward>,
     pub players: Vec<ScenarioPlayer>,
+    /// Cards on top of the deck, by catalog id, the first drawn first. Every Project Card
+    /// that is in no hand, among no played cards and not here is shuffled beneath them.
+    pub deck: Vec<String>,
 }
 
 impl Default for Scenario {
@@ -52,6 +58,7 @@ impl Default for Scenario {
             milestones: Vec::new(),
             awards: Vec::new(),
             players: vec![ScenarioPlayer::default(); 2],
+            deck: Vec::new(),
         }
     }
 }
@@ -91,6 +98,10 @@ pub struct ScenarioPlayer {
     pub resources: Resources,
     pub production: Resources,
     pub terraform_rating: i32,
+    /// The cards in their hand, by catalog id: `["mine", "trees"]`.
+    pub hand: Vec<String>,
+    /// The cards they have played, by catalog id.
+    pub played_cards: Vec<String>,
 }
 
 impl Default for ScenarioPlayer {
@@ -99,6 +110,8 @@ impl Default for ScenarioPlayer {
             resources: starting_resources(),
             production: Resources::default(),
             terraform_rating: STARTING_TERRAFORM_RATING,
+            hand: Vec::new(),
+            played_cards: Vec::new(),
         }
     }
 }
@@ -165,20 +178,22 @@ impl Scenario {
                 self.oxygen
             ));
         }
+        let mut named_cards = CardSet::default();
+        let mut players = Vec::new();
         for (index, player) in self.players.iter().enumerate() {
             player.check(index)?;
-        }
-        let players = self
-            .players
-            .iter()
-            .map(|player| Player {
+            players.push(Player {
                 resources: player.resources,
                 production: player.production,
                 terraform_rating: player.terraform_rating,
                 passed: false,
-            })
-            .collect();
+                hand: cards_named(&player.hand, &mut named_cards)?.into_iter().collect(),
+                played: cards_named(&player.played_cards, &mut named_cards)?.into_iter().collect(),
+            });
+        }
+        let top_of_deck = cards_named(&self.deck, &mut named_cards)?;
         let mut game = Game::prepare(Start::Scenario(self.clone()), players);
+        game.deck = Deck::shuffled(named_cards, &top_of_deck, &mut game.random_numbers);
         game.temperature = self.temperature;
         game.oxygen = self.oxygen;
         for tile in &self.tiles {
@@ -228,6 +243,21 @@ impl Scenario {
         game.begin(self.generation, self.first_player);
         Ok(game)
     }
+}
+
+/// The Project Cards named by `ids`, in order. Each must be named in no other place:
+/// `named_so_far` collects every card the Scenario has named.
+fn cards_named(ids: &[String], named_so_far: &mut CardSet) -> Result<Vec<usize>, String> {
+    ids.iter()
+        .map(|id| {
+            let card = find_project_card(id).ok_or_else(|| format!("there is no Project Card '{id}'"))?;
+            if named_so_far.contains(card) {
+                return Err(format!("a Scenario can have the '{id}' card in only one place"));
+            }
+            named_so_far.insert(card);
+            Ok(card)
+        })
+        .collect()
 }
 
 /// Whether `player` is one of the `players` Players; `who` names them in the error.

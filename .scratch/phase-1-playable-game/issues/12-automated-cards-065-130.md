@@ -19,7 +19,7 @@ If a card turns out to need machinery from another ticket, move it to that ticke
 
 - [ ] #065 Building Industries
 - [ ] #068 Sponsors
-- [ ] #077 Solar Wind Power
+- [x] #077 Solar Wind Power — done in ticket 08 (to test the central rules)
 - [ ] #082 Callisto Penal Mines
 - [ ] #083 Giant Space Mirror
 - [ ] #084 Trans-Neptune Probe
@@ -29,7 +29,7 @@ If a card turns out to need machinery from another ticket, move it to that ticke
 - [ ] #089 Peroxide Power
 - [ ] #090 Research
 - [ ] #091 Gene Repair
-- [ ] #092 Io Mining Industries
+- [x] #092 Io Mining Industries — done in ticket 08 (to test the central rules)
 - [ ] #093 Bushes
 - [ ] #098 Tropical Resort
 - [ ] #100 Fueled Generators
@@ -42,7 +42,7 @@ If a card turns out to need machinery from another ticket, move it to that ticke
 - [ ] #116 Artificial Lake
 - [ ] #117 Geothermal Power
 - [ ] #118 Farming
-- [ ] #119 Dust Seals
+- [x] #119 Dust Seals — done in ticket 08 (to test the central rules)
 - [ ] #120 Urbanized Area
 - [ ] #122 Moss
 - [ ] #126 GHG Factories

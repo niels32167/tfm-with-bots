@@ -4,6 +4,7 @@
 use serde::{Deserialize, Serialize};
 
 use crate::board::TileKind;
+use crate::cards::Tag;
 use crate::game::Game;
 
 /// What claiming a Milestone costs, in MegaCredits.
@@ -75,14 +76,14 @@ impl Milestone {
     }
 
     /// How far `player` is towards it: their Terraform Rating, Cities, Greeneries, building
-    /// Tags or cards in hand. Tags and hands come with the cards (ticket 08), so Builder and
-    /// Planner count 0 until then.
+    /// Tags in play or cards in hand.
     pub fn count(self, game: &Game, player: usize) -> i32 {
         match self {
             Milestone::Terraformer => game.players[player].terraform_rating,
             Milestone::Mayor => game.board.owned(player, TileKind::City) as i32,
             Milestone::Gardener => game.board.owned(player, TileKind::Greenery) as i32,
-            Milestone::Builder | Milestone::Planner => 0,
+            Milestone::Builder => game.tags(player, Tag::Building),
+            Milestone::Planner => game.players[player].hand.len() as i32,
         }
     }
 }
@@ -138,14 +139,13 @@ impl Award {
     }
 
     /// What `player` has of what it measures: the Tiles they own, their MegaCredit
-    /// Production, science Tags, heat, or steel and titanium together. Tags come with the
-    /// cards (ticket 08), so Scientist counts 0 until then.
+    /// Production, science Tags in play, heat, or steel and titanium together.
     pub fn count(self, game: &Game, player: usize) -> i32 {
         let resources = game.players[player].resources;
         match self {
             Award::Landlord => game.board.tiles_of(player).count() as i32,
             Award::Banker => game.players[player].production.megacredits,
-            Award::Scientist => 0,
+            Award::Scientist => game.tags(player, Tag::Science),
             Award::Thermalist => resources.heat,
             Award::Miner => resources.steel + resources.titanium,
         }

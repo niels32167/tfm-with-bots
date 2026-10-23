@@ -39,5 +39,5 @@ If a card turns out to need machinery from another ticket, move it to that ticke
 - [ ] #183 Biomass Combustors
 - [ ] #188 Flooding
 - [ ] #189 Energy Saving
-- [ ] #198 Immigration Shuttles
+- [x] #198 Immigration Shuttles — done in ticket 08 (to test the central rules)
 - [ ] #201 Energy Tapping

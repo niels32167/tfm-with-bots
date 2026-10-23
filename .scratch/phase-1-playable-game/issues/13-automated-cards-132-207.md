@@ -17,12 +17,12 @@ If a card turns out to need machinery from another ticket, move it to that ticke
 
 **Cards in this batch (33):**
 
-- [ ] #132 Fusion Power
+- [x] #132 Fusion Power — done in ticket 08 (to test the central rules)
 - [ ] #135 Advanced Ecosystems
 - [ ] #136 Great Dam
 - [ ] #137 Cartel
 - [x] #138 Strip Mine — done in ticket 08 (starter set)
-- [ ] #139 Wave Power
+- [x] #139 Wave Power — done in ticket 08 (to test the central rules)
 - [x] #141 Power Plant — done in ticket 08 (starter set)
 - [x] #144 Titanium Mine — done in ticket 08 (starter set)
 - [ ] #145 Tectonic Stress Power
@@ -43,10 +43,10 @@ If a card turns out to need machinery from another ticket, move it to that ticke
 - [ ] #179 Soil Factory
 - [ ] #180 Fuel Factory
 - [ ] #182 Corporate Stronghold
-- [ ] #186 Rad-Suits
+- [x] #186 Rad-Suits — done in ticket 08 (to test the central rules)
 - [ ] #193 Plantation
-- [ ] #196 Lagrange Observatory
+- [x] #196 Lagrange Observatory — done in ticket 08 (to test the central rules)
 - [ ] #197 Terraforming Ganymede
 - [ ] #203 Soletta
-- [ ] #205 Rad-Chem Factory
+- [x] #205 Rad-Chem Factory — done in ticket 08 (to test the central rules)
 - [ ] #207 Medical Lab

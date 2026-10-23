@@ -2,15 +2,20 @@
 //! JSON-shaped values. Every Option gets a readable label for people and structured
 //! details for programs (the GUI, and later the AI).
 
+use std::collections::BTreeMap;
+
 use serde::Serialize;
 
 use crate::board::{AREA_COUNT, Board, TileKind, area_id, area_label, printed, row_and_position};
+use crate::card_set::CardSet;
+use crate::cards::{CARD_CATALOG, Tag};
 use crate::game::{
     Decision, DecisionKind, DecisionOption, Game, HEAT_PER_TEMPERATURE_STEP, PLANTS_PER_GREENERY, Phase,
 };
 use crate::log::player_name;
 use crate::milestones_and_awards::{Award, MILESTONE_COST, Milestone};
-use crate::resources::Resources;
+use crate::playing_cards::Payment;
+use crate::resources::{Resource, Resources};
 use crate::scoring::Score;
 
 #[derive(Serialize)]
@@ -31,6 +36,17 @@ pub struct OptionView {
 #[derive(Serialize)]
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum OptionDetails {
+    /// Play a card from the hand, named by its catalog id.
+    PlayCard {
+        card: &'static str,
+        cost: i32,
+    },
+    /// One way to pay for the card being played: its MegaCredits, steel and titanium.
+    Payment {
+        card: &'static str,
+        #[serde(flatten)]
+        payment: Payment,
+    },
     StandardProject {
         project: String,
         cost: i32,
@@ -74,6 +90,10 @@ pub struct View {
     pub oceans: usize,
     /// Every Area, on Mars row by row from the top and each row from the left, then off Mars.
     pub board: Vec<AreaView>,
+    /// How many cards are in the deck.
+    pub deck_size: usize,
+    /// The deck by catalog id, from the top down: only in the full view, otherwise None.
+    pub deck: Option<Vec<&'static str>>,
     /// Who holds the first-player marker.
     pub first_player: usize,
     /// Whose Turn it is, or None once the Game is over.
@@ -127,6 +147,14 @@ pub struct PlayerBoard {
     pub production: Resources,
     pub terraform_rating: i32,
     pub passed: bool,
+    pub hand_size: usize,
+    /// The cards in their hand, by catalog id in card-number order: only in their own Player
+    /// View and the full view, otherwise None.
+    pub hand: Option<Vec<&'static str>>,
+    /// The cards they have played, by catalog id in card-number order.
+    pub played_cards: Vec<&'static str>,
+    /// How many of each Tag they have in play, for every Tag but the Event Tag, which never counts.
+    pub tags: BTreeMap<Tag, i32>,
 }
 
 /// One Milestone: what it asks for, who claimed it, and how far each Player is towards it.
@@ -180,6 +208,8 @@ fn view(game: &Game, viewer: Option<usize>) -> View {
         oxygen: game.oxygen,
         oceans: game.board.oceans(),
         board: board_view(&game.board),
+        deck_size: game.deck.len(),
+        deck: viewer.is_none().then(|| game.deck.iter().map(|card| CARD_CATALOG[card].id.as_str()).collect()),
         first_player: game.first_player,
         current_player: if game.is_over() { None } else { Some(game.current_player) },
         actions_this_turn: game.actions_this_turn,
@@ -193,6 +223,10 @@ fn view(game: &Game, viewer: Option<usize>) -> View {
                 production: player.production,
                 terraform_rating: player.terraform_rating,
                 passed: player.passed,
+                hand_size: player.hand.len(),
+                hand: (viewer.is_none() || viewer == Some(index)).then(|| ids(player.hand)),
+                played_cards: ids(player.played),
+                tags: Tag::COUNTED.into_iter().map(|tag| (tag, game.tags(index, tag))).collect(),
             })
             .collect(),
         milestones: Milestone::ALL
@@ -220,6 +254,11 @@ fn view(game: &Game, viewer: Option<usize>) -> View {
         award_cost: game.award_cost(),
         scores: game.scores(),
     }
+}
+
+/// The catalog ids of `cards`.
+fn ids(cards: CardSet) -> Vec<&'static str> {
+    cards.iter().map(|card| CARD_CATALOG[card].id.as_str()).collect()
 }
 
 fn board_view(board: &Board) -> Vec<AreaView> {
@@ -250,6 +289,7 @@ fn decision_view(decision: &Decision) -> DecisionView {
         kind: match decision.kind {
             DecisionKind::Action => "action",
             DecisionKind::Area => "area",
+            DecisionKind::Payment => "payment",
             DecisionKind::FinalGreenery => "final_greenery",
         },
         sequence: decision.sequence,
@@ -264,6 +304,15 @@ fn decision_view(decision: &Decision) -> DecisionView {
 
 fn label(option: &DecisionOption) -> String {
     match option {
+        DecisionOption::PlayCard(card) => {
+            let printed_card = &CARD_CATALOG[*card];
+            format!(
+                "Play {} ({})",
+                printed_card.name,
+                Resource::MegaCredits.counted(printed_card.project_cost())
+            )
+        }
+        DecisionOption::Pay { payment, .. } => format!("Pay {}", payment.text()),
         DecisionOption::UseStandardProject(project) => {
             format!("{} ({} MegaCredits)", project.name(), project.cost())
         }
@@ -288,6 +337,13 @@ fn label(option: &DecisionOption) -> String {
 
 fn details(option: &DecisionOption) -> OptionDetails {
     match option {
+        DecisionOption::PlayCard(card) => {
+            let printed_card = &CARD_CATALOG[*card];
+            OptionDetails::PlayCard { card: &printed_card.id, cost: printed_card.project_cost() }
+        }
+        DecisionOption::Pay { card, payment } => {
+            OptionDetails::Payment { card: &CARD_CATALOG[*card].id, payment: *payment }
+        }
         DecisionOption::UseStandardProject(project) => {
             OptionDetails::StandardProject { project: project.id(), cost: project.cost() }
         }

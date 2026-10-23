@@ -263,7 +263,12 @@ impl Board {
 
     /// How many Ocean Tiles have been placed.
     pub fn oceans(&self) -> usize {
-        self.tiles.iter().flatten().filter(|tile| tile.kind == TileKind::Ocean).count()
+        self.in_play(TileKind::Ocean)
+    }
+
+    /// How many Tiles of `kind` are on the board, whoever owns them.
+    pub fn in_play(&self, kind: TileKind) -> usize {
+        self.tiles.iter().flatten().filter(|tile| tile.kind == kind).count()
     }
 
     /// How many Tiles of `kind` are next to `area`.

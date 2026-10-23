@@ -2,7 +2,7 @@
 
 import pytest
 
-from tests.helpers import area, ocean, pick, player, resources, scenario
+from tests.helpers import PROJECT_CARDS, area, hand, ocean, pick, player, resources, scenario
 
 
 @pytest.mark.parametrize(
@@ -46,10 +46,32 @@ def test_cities_and_greeneries_get_2_megacredits_for_each_ocean_next_to_them_too
     assert resources(game, 0)["plants"] == 1 + 2
 
 
-def test_until_there_is_a_deck_a_card_bonus_only_says_what_it_would_give():
-    game = scenario(player(megacredits=18), player())
+def test_a_card_bonus_draws_cards_from_the_top_of_the_deck():
+    game = scenario(player(megacredits=18, hand=["mine"]), player(), deck=["birds", "trees", "grass"])
 
     pick(game, project="aquifer")
     pick(game, area="B6")
 
-    assert game.log[-1] == "Player 1 would draw 2 cards from the placement bonus, but there is no deck yet."
+    assert hand(game, 0) == ["mine", "trees", "birds"]  # in card-number order
+    assert game.full_view()["deck"][0] == "grass"
+    assert game.full_view()["deck_size"] == 205
+    assert "Player 1 draws 2 cards from the placement bonus." in game.log
+
+
+def test_the_log_never_names_the_cards_drawn():
+    game = scenario(player(megacredits=18), player(), deck=["birds", "trees"])
+
+    pick(game, project="aquifer")
+    pick(game, area="B6")
+
+    assert not any("Birds" in line or "Trees" in line for line in game.log)
+
+
+def test_a_card_bonus_with_the_deck_empty_draws_nothing():
+    game = scenario(player(megacredits=18, hand=PROJECT_CARDS[:200]), player(hand=PROJECT_CARDS[200:]))
+
+    pick(game, project="aquifer")
+    pick(game, area="B6")
+
+    assert game.player_view(0)["players"][0]["hand_size"] == 200
+    assert "The deck is empty, so Player 1 draws no more cards." in game.log

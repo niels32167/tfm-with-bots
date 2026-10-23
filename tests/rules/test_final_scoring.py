@@ -1,8 +1,19 @@
 """Final scoring: Terraform Rating, 5 Victory Points per Milestone, the Awards, 1 per
-Greenery, 1 per Greenery next to each City whoever owns it, and card Victory Points
-(0 until cards exist). The most Victory Points wins; MegaCredits break a tie."""
+Greenery, 1 per Greenery next to each City whoever owns it, and the Victory Points on
+played cards. The most Victory Points wins; MegaCredits break a tie."""
 
-from tests.helpers import city, claimed, end_the_generation, funded, greenery, pick, player, scenario, terraformed_mars
+from tests.helpers import (
+    city,
+    claimed,
+    end_the_generation,
+    final_scores,
+    funded,
+    greenery,
+    pick,
+    player,
+    scenario,
+    terraformed_mars,
+)
 
 
 def test_the_final_score_breakdown_adds_up_to_the_total():
@@ -44,12 +55,6 @@ def test_the_final_score_breakdown_adds_up_to_the_total():
             "rank": 2,
         },
     ]
-
-
-def final_scores(game):
-    """Each Player's final score, after the last Generation ends."""
-    end_the_generation(game)
-    return game.scores
 
 
 def test_each_claimed_milestone_is_worth_5_victory_points():

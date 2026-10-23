@@ -3,10 +3,13 @@
 //! Python data: dicts, lists, strings, numbers and None.
 
 mod board;
+mod card_set;
 mod cards;
+mod deck;
 mod game;
 mod log;
 mod milestones_and_awards;
+mod playing_cards;
 mod random;
 mod random_bot;
 mod replay;

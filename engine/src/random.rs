@@ -28,6 +28,14 @@ impl RandomNumbers {
         }
     }
 
+    /// Puts `items` in a random order, each order equally likely (Fisher and Yates, as
+    /// Durstenfeld wrote it).
+    pub fn shuffle<T>(&mut self, items: &mut [T]) {
+        for last in (1..items.len()).rev() {
+            items.swap(last, self.below(last + 1));
+        }
+    }
+
     fn next(&mut self) -> u64 {
         self.state = self.state.wrapping_add(0x9E37_79B9_7F4A_7C15);
         let mut z = self.state;

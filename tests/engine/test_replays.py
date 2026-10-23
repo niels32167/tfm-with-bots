@@ -12,6 +12,7 @@ from tests.helpers import (
     claimed,
     everything_about,
     funded,
+    index_of,
     ocean,
     pick,
     play_randomly,
@@ -23,14 +24,12 @@ from tests.helpers import (
 def test_a_replay_holds_the_settings_and_seed_and_the_options_picked():
     game = tm_engine.Game(seed=7, players=3)
 
-    pick(game, "Asteroid")
-    pick(game, "End Turn")
-    pick(game, "Pass")
+    picked = []
+    for label in ("Asteroid", "End Turn", "Pass"):
+        picked.append(index_of(game, label))
+        pick(game, label)
 
-    # With 42 MegaCredits: Power Plant, Asteroid, Aquifer, Greenery, City, the five Awards, Pass.
-    # Then with 28 left: the same five Standard Projects and five Awards, End Turn, Pass.
-    # Then the next Player, with 42: the same ten, Pass.
-    assert game.replay == {"start": {"settings": {"players": 3, "seed": 7}}, "picks": [1, 10, 10]}
+    assert game.replay == {"start": {"settings": {"players": 3, "seed": 7}}, "picks": picked}
 
 
 def test_loading_an_exported_replay_gives_back_the_same_game():
@@ -57,8 +56,8 @@ def test_a_finished_game_loads_from_its_replay_with_its_final_scores():
 
 def test_a_game_started_from_a_scenario_loads_from_its_replay():
     game = scenario(
-        player(megacredits=60, plants=12, production={"megacredits": 3}),
-        player(terraform_rating=25, steel=4),
+        player(megacredits=60, plants=12, production={"megacredits": 3}, hand=["grass"]),
+        player(terraform_rating=25, steel=4, hand=["mine", "black_polar_dust"], played_cards=["trees"]),
         player(megacredits=0),
         generation=3,
         temperature=-10,
@@ -68,7 +67,10 @@ def test_a_game_started_from_a_scenario_loads_from_its_replay():
         awards=[funded("banker", by=0)],
         first_player=1,
         seed=11,
+        deck=["lagrange_observatory"],
     )
+    pick(game, "Play Mine")
+    pick(game, "Pay 2 steel")
     play_randomly(game, seed=3, picks=20)
 
     loaded = tm_engine.Game.from_replay(game.replay)
@@ -80,6 +82,9 @@ def test_a_game_started_from_a_scenario_loads_from_its_replay():
     ]
     assert game.replay["start"]["scenario"]["milestones"] == [{"milestone": "mayor", "claimed_by": 2}]
     assert game.replay["start"]["scenario"]["awards"] == [{"award": "banker", "funded_by": 0}]
+    assert game.replay["start"]["scenario"]["players"][1]["hand"] == ["mine", "black_polar_dust"]
+    assert game.replay["start"]["scenario"]["players"][1]["played_cards"] == ["trees"]
+    assert game.replay["start"]["scenario"]["deck"] == ["lagrange_observatory"]
     assert everything_about(loaded) == everything_about(game)
     assert loaded.replay == game.replay
 

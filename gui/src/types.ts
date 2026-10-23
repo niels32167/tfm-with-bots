@@ -34,6 +34,14 @@ export interface PlayerBoard {
   production: Resources;
   terraform_rating: number;
   passed: boolean;
+  hand_size: number;
+  /** The cards in hand by catalog id, in card-number order: only the viewer's own, or every
+   * hand in the full view; otherwise null. */
+  hand: string[] | null;
+  /** The cards played by catalog id, in card-number order, Events included. */
+  played_cards: string[];
+  /** How many of each Tag are in play. No Tag on a played Event counts, the Event Tag included. */
+  tags: Record<CountedTag, number>;
 }
 
 /** One Player's final score. The six Victory Point counts add up to the total. */
@@ -117,6 +125,9 @@ export interface View {
   oceans: number;
   /** Every Area: on Mars row by row from the top, then off Mars. */
   board: Area[];
+  deck_size: number;
+  /** The deck by catalog id from the top down, only in the full view; otherwise null. */
+  deck: string[] | null;
   first_player: number;
   current_player: number | null;
   actions_this_turn: number;
@@ -149,6 +160,8 @@ export const TAGS = [
   "event",
 ] as const;
 export type Tag = (typeof TAGS)[number];
+/** The Tags that count once played: every Tag but the Event Tag. */
+export type CountedTag = Exclude<Tag, "event">;
 
 /** An element of a card's face as the card list draws it, with its class names, inline style
  * (CSS property names) and children; text is a string. */
@@ -196,6 +209,8 @@ export interface Card {
   victory_points: VictoryPoints;
   text: string;
   face: Face;
+  /** What an implemented card does when played; cards without it are never offered. */
+  effects?: Record<string, unknown>;
 }
 
 /** Where a Game started and the index of every Option picked since. */

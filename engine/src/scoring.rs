@@ -21,7 +21,7 @@ pub struct Score {
     pub greeneries: i32,
     /// 1 for each Greenery next to each of their Cities, whoever owns the Greenery.
     pub cities: i32,
-    /// The Victory Points on their cards, which stay 0 until cards exist (ticket 08).
+    /// The Victory Points on the cards they have played.
     pub cards: i32,
     pub total: i32,
     /// The tiebreak: of Players tied on Victory Points, the one with more MegaCredits ranks higher.
@@ -85,7 +85,7 @@ pub fn final_scores(game: &Game) -> Vec<Score> {
                 .filter(|&(_, kind)| kind == TileKind::City)
                 .map(|(area, _)| game.board.adjacent(area, TileKind::Greenery) as i32)
                 .sum();
-            let cards = 0;
+            let cards = game.card_victory_points(index);
             Score {
                 player: index,
                 terraform_rating: player.terraform_rating,
