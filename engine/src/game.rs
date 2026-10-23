@@ -323,10 +323,18 @@ impl Game {
             return Err(PickError::StaleDecision { current: decision.sequence, given });
         }
         let count = decision.options.len();
-        let option = *decision.options.get(index).ok_or(PickError::NoSuchOption { index, count })?;
-        self.replay.picks.push(index);
-        self.resolve(option);
+        if index >= count {
+            return Err(PickError::NoSuchOption { index, count });
+        }
+        self.apply_pick(&decision, index);
         Ok(())
+    }
+
+    /// Records the pick of `decision`'s Option at `index` and carries it out. `decision` must
+    /// be the current Decision and `index` one of its Options; `pick` checks both.
+    pub fn apply_pick(&mut self, decision: &Decision, index: usize) {
+        self.replay.picks.push(index);
+        self.resolve(decision.options[index]);
     }
 
     /// Each Player's final score, once the Game is over.

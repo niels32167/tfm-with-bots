@@ -225,3 +225,19 @@ start their next one, so End Turn would be an Option that changes nothing. The
 open-source game also hides "End Turn" when all other players have passed.
 
 **Tests:** `tests/rules/test_turns.py::test_end_turn_is_not_offered_once_every_other_player_has_passed`
+
+## Scenarios
+
+### A Terraform Rating of 5 or more
+
+**Call:** A Scenario refuses a Player with a Terraform Rating below 5.
+
+**Why:** Not a rules question but a guard for the fuzzer's "no negative Resources"
+invariant. In the Production phase a Player gains MegaCredits equal to their Terraform
+Rating plus their MegaCredit Production, which stops at −5, so from a Terraform Rating of
+5 up nobody ever ends with fewer than 0 MegaCredits. The rulebook says nothing about
+negative MegaCredits, and a Game from normal setup never comes near this: Terraform
+Rating starts at 20 and only rises in the base game with Corporate Era. Chosen by the
+user (2026-10-23).
+
+**Tests:** `tests/rules/test_starting_a_game.py::test_a_scenario_terraform_rating_is_at_least_5_so_megacredits_never_go_below_zero`

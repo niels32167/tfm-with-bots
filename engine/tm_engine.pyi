@@ -34,7 +34,8 @@ class Game:
         Milestones claimed are {"milestone": "mayor", "claimed_by": 1} and Awards funded
         {"award": "landlord", "funded_by": 0}: at most three of each, each at most once.
         Raises ValueError for unknown fields or impossible values, such as a negative
-        Resource, MegaCredit Production below -5 or any other Production below 0, a City on
+        Resource, MegaCredit Production below -5 or any other Production below 0, a
+        Terraform Rating below 5 (so MegaCredits never go below 0), a City on
         an Area reserved for Oceans, or more than 9 Oceans.
         """
 
@@ -78,6 +79,14 @@ class Game:
 
         Pass the Decision's `sequence` to have a stale pick rejected. Raises ValueError
         for a stale pick, an index that isn't offered, or a Game that is over.
+        """
+
+    def play_randomly(self, *, seed: int, picks: int | None = None) -> None:
+        """Plays on with a Random Bot for every Player, inside the engine: random Options,
+        `picks` of them or until the Game is over (a Game that is over picks nothing).
+
+        The same `seed` always picks the same way from the same position. The picks go
+        into the Replay like any others. For the speed benchmark and, later, search.
         """
 
     @property

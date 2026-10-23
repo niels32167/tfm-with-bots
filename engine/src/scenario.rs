@@ -15,7 +15,12 @@ use crate::game::{
 use crate::log::player_name;
 use crate::milestones_and_awards::{AWARD_COSTS, Award, MAX_MILESTONES_CLAIMED, Milestone};
 use crate::replay::Start;
-use crate::resources::{Resource, Resources};
+use crate::resources::{MIN_MEGACREDIT_PRODUCTION, Resource, Resources};
+
+/// The lowest Terraform Rating a Scenario may give a Player. MegaCredit Production stops at
+/// -5, so from 5 up, a Production phase never leaves anyone with fewer than 0 MegaCredits.
+/// (A Game from normal setup never gets near it: Terraform Rating starts at 20 and only rises.)
+const MIN_TERRAFORM_RATING: i32 = -MIN_MEGACREDIT_PRODUCTION;
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(default, deny_unknown_fields)]
@@ -99,9 +104,16 @@ impl Default for ScenarioPlayer {
 }
 
 impl ScenarioPlayer {
-    /// Whether the rules allow these Resources and this Production for Player `index`.
+    /// Whether the rules allow these Resources, this Production and this Terraform Rating
+    /// for Player `index`.
     fn check(&self, index: usize) -> Result<(), String> {
         let name = player_name(index);
+        if self.terraform_rating < MIN_TERRAFORM_RATING {
+            return Err(format!(
+                "{name}'s Terraform Rating must be {MIN_TERRAFORM_RATING} or more, not {}",
+                self.terraform_rating
+            ));
+        }
         for resource in Resource::ALL {
             let amount = self.resources[resource];
             if amount < 0 {

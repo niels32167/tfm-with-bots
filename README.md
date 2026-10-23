@@ -4,7 +4,7 @@ A digital Terraforming Mars with a fast rules engine, built so an AI opponent ca
 be trained against it by self-play. Phase 1 is a playable, well-tested game; see
 `.scratch/phase-1-playable-game/spec.md`.
 
-So far (tickets 01–05), 2–5 Players hold all six Resources with their Production, use
+So far (tickets 01–06), 2–5 Players hold all six Resources with their Production, use
 the Power Plant, Asteroid, Aquifer, Greenery and City Standard Projects, and convert
 plants into Greeneries and heat into Temperature on the Tharsis board. They place
 Oceans, Greeneries and Cities by clicking a highlighted Area, and collect placement
@@ -14,7 +14,9 @@ The Game ends after the Generation in which Temperature, Oxygen and Oceans are a
 maxed. After a final Greenery conversion, the final score screen shows each Player's
 Terraform Rating, Milestones, Awards, Greeneries and Cities, and the most Victory Points
 wins (MegaCredits break a tie). Each Player is a human or a Random Bot, every Game comes
-from a seed, and any Game can be undone, saved as a Replay file and loaded again.
+from a seed, and any Game can be undone, saved as a Replay file and loaded again. A
+fuzzer plays Random Bot Games and checks them after every Decision, and a benchmark
+measures the engine's speed.
 
 ## How it fits together
 
@@ -47,6 +49,31 @@ engine by itself whenever a Rust file changes, so there is no separate build ste
 
 ```bash
 uv run pytest
+```
+
+The suite includes about 1,000 fuzzed Games: Random Bot Games with 2–5 Players, checked
+after every Decision for things that must never happen, such as a negative Resource, a
+Tile on an Area where the rules never allow one, or an Area Decision that offers the
+wrong Areas (`tests/fuzzing/invariants.py` lists them all).
+
+## Fuzzing and speed
+
+The full fuzz run plays 100,000 Games on all cores and takes a few minutes:
+
+```bash
+uv run python -m tests.fuzzing
+```
+
+It starts from a random seed (`--first-seed` repeats a run, `--games` changes how many).
+Every failure is saved in `fuzz-failures/` as a Replay file: **Load Replay…** opens it at
+the moment it went wrong, with every Player set to human, so **Undo** steps back from there.
+
+The speed benchmark (ADR 0004) reports 2-player Games per second across all cores, how
+long copying a Game takes, and how many Decisions per second a Python loop gets through.
+It exits with status 1 if a target is missed:
+
+```bash
+uv run python -m tools.benchmark
 ```
 
 ## Play
@@ -90,6 +117,7 @@ reloading the page picks it up again.
 | `engine/src/scenario.rs` | Starting a Game from a Scenario |
 | `engine/src/replay.rs` | Replays: rebuilding a Game from its start and picks |
 | `engine/src/random.rs` | The Game's seeded random numbers |
+| `engine/src/random_bot.rs` | Random Bot playouts inside the engine (`Game.play_randomly`), for the benchmark and later search |
 | `engine/src/view.rs` | The Player View and Decisions as plain data for Python |
 | `engine/src/log.rs` | The game log |
 | `engine/src/lib.rs` | The Python bindings (`tm_engine`) |
@@ -97,6 +125,8 @@ reloading the page picks it up again.
 | `tests/rules/` | Scenario tests of the rules, through `tm_engine` |
 | `tests/engine/` | Tests of the engine module itself: views, copies, Replays, reproducibility |
 | `tests/server/` | Tests of the local server over its WebSocket |
+| `tests/fuzzing/` | The fuzzer: its invariants, the runner, and `python -m tests.fuzzing` for the full run |
+| `tools/benchmark.py` | The speed benchmark |
 | `tests/helpers.py` | `scenario()`, `player()`, `ocean()`, `city()`, `claimed()`, `funded()`, `terraformed_mars()`, `pick()`, `offered()`, `area()`, `milestone()`, `award()`, `resources()`: helpers that make tests read like play |
 | `server/` | The local server and the Random Bot |
 | `gui/src/` | The browser GUI; the board is `gui/src/components/MarsBoard.tsx`, the Milestones and Awards bar `gui/src/components/MilestonesAwards.tsx`, and the printed tracks are in `gui/src/tracks.ts` |

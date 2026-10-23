@@ -9,3 +9,6 @@ engine/target/
 # GUI
 gui/node_modules/
 gui/dist/
+
+# Fuzzing: failing Games saved as Replay files
+fuzz-failures/

@@ -9,7 +9,6 @@ game log and the scores. Tests never look inside the engine.
     assert player_board(game, 0)["terraform_rating"] == 21
 """
 
-import random
 from typing import Any
 
 import tm_engine
@@ -20,14 +19,32 @@ MAX_PICKS = 10_000
 # The Areas on Mars as printed on the Tharsis board: rows A to J (there is no row I) with
 # 5 to 9 Areas each, 12 of them reserved for Oceans and E3 for the Noctis City card.
 ROW_LENGTHS = {"A": 5, "B": 6, "C": 7, "D": 8, "E": 9, "F": 8, "G": 7, "H": 6, "J": 5}
+AREAS_ON_MARS = [f"{row}{position}" for row, length in ROW_LENGTHS.items() for position in range(1, length + 1)]
 OCEAN_AREAS = ["A2", "A4", "A5", "B6", "D8", "E4", "E5", "E6", "F6", "F7", "F8", "J5"]
 NOCTIS_CITY = "E3"
 # Every Area on Mars that is reserved for nothing, in board order.
-LAND_AREAS = [
-    name
-    for name in (f"{row}{position}" for row, length in ROW_LENGTHS.items() for position in range(1, length + 1))
-    if name not in OCEAN_AREAS and name != NOCTIS_CITY
-]
+LAND_AREAS = [name for name in AREAS_ON_MARS if name not in OCEAN_AREAS and name != NOCTIS_CITY]
+
+
+def _row_and_half_column(area_id: str) -> tuple[int, int]:
+    """Where an Area on Mars is: its row from the top, and how many half-Areas it is from the
+    left edge of the widest row, since every row is centred under that one."""
+    row, position = area_id[0], int(area_id[1:])
+    widest = max(ROW_LENGTHS.values())
+    return list(ROW_LENGTHS).index(row), 2 * (position - 1) + widest - ROW_LENGTHS[row]
+
+
+def _next_to_each_other(one: str, other: str) -> bool:
+    """Neighbours in the same row are one Area (two half-Areas) apart; in the rows above and
+    below, they are half an Area to either side."""
+    (row, column), (other_row, other_column) = _row_and_half_column(one), _row_and_half_column(other)
+    return (abs(row - other_row), abs(column - other_column)) in {(0, 2), (1, 1)}
+
+
+# The Areas next to each Area on Mars, as printed. The Areas off Mars have none.
+ADJACENT_AREAS = {
+    area_id: [other for other in AREAS_ON_MARS if _next_to_each_other(area_id, other)] for area_id in AREAS_ON_MARS
+}
 
 
 def terraformed_mars(*, tiles: list[dict[str, Any]] = (), **fields: Any) -> dict[str, Any]:
@@ -139,16 +156,13 @@ def end_the_generation(game: tm_engine.Game) -> None:
 
 
 def play_randomly(game: tm_engine.Game, seed: int, picks: int | None = None) -> None:
-    """Pick random Options the way a Random Bot would: `picks` of them, or until the Game is over.
+    """Play on with the engine's Random Bot for every Player: `picks` random Options, or until
+    the Game is over. A Game still going after MAX_PICKS fails the test instead of hanging it.
 
     The same `seed` always picks the same way from the same position.
     """
-    random_numbers = random.Random(seed)
-    for _ in range(MAX_PICKS if picks is None else picks):
-        if game.is_over:
-            return
-        game.pick(random_numbers.randrange(len(options(game))))
-    if picks is None:
+    game.play_randomly(seed=seed, picks=MAX_PICKS if picks is None else picks)
+    if picks is None and not game.is_over:
         raise AssertionError(f"the Game was not over after {MAX_PICKS} picks")
 
 

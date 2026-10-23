@@ -6,6 +6,8 @@
 //! lettered A to J, skipping I, as the open-source game labels them, so "E3" is the third
 //! Area of the fifth row: Noctis City.
 
+use std::sync::LazyLock;
+
 use serde::{Deserialize, Serialize};
 
 use crate::resources::Resource;
@@ -143,19 +145,29 @@ pub fn row_and_position(area: usize) -> Option<(usize, usize)> {
     None
 }
 
+/// The Areas next to each Area, worked out once. Legal Areas and placement bonuses ask for
+/// them all the time, and reading them from here made Random Bot playouts about 20 %
+/// faster than working them out each time (measured in ticket 06).
+static ADJACENT_AREAS: LazyLock<[[Option<usize>; 6]; AREA_COUNT]> =
+    LazyLock::new(|| std::array::from_fn(work_out_adjacent_areas));
+
 /// The Areas next to `area`. Areas off Mars have none.
 pub fn adjacent_areas(area: usize) -> impl Iterator<Item = usize> {
+    ADJACENT_AREAS[area].into_iter().flatten()
+}
+
+/// The (up to six) Areas next to `area`, for `ADJACENT_AREAS`.
+fn work_out_adjacent_areas(area: usize) -> [Option<usize>; 6] {
     // Counted in half-Areas from the left edge of the widest row, an Area's neighbours in
     // the rows above and below are one half-Area to either side, and those in its own row two.
     const NEIGHBOURS: [(isize, isize); 6] = [(-1, -1), (-1, 1), (0, -2), (0, 2), (1, -1), (1, 1)];
-    let neighbours = match row_and_position(area) {
+    match row_and_position(area) {
         Some((row, position)) => {
             let (row, column) = (row as isize, half_column(row, position));
             NEIGHBOURS.map(|(rows, columns)| area_at(row + rows, column + columns))
         }
         None => [None; 6],
-    };
-    neighbours.into_iter().flatten()
+    }
 }
 
 fn half_column(row: usize, position: usize) -> isize {

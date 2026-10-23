@@ -7,6 +7,7 @@ from tests.helpers import (
     area,
     city,
     claimed,
+    end_the_generation,
     funded,
     greenery,
     ocean,
@@ -94,6 +95,17 @@ def test_a_scenario_gives_players_any_of_the_six_resources_and_their_production(
     assert resources(game, 0) == {"megacredits": 42, "steel": 3, "titanium": 2, "plants": 8, "energy": 4, "heat": 5}
     assert production(game, 0) == {"megacredits": 0, "steel": 0, "titanium": 1, "plants": 0, "energy": 0, "heat": 2}
     assert resources(game, 1)["plants"] == 0
+
+
+def test_a_scenario_terraform_rating_is_at_least_5_so_megacredits_never_go_below_zero():
+    # MegaCredit Production stops at -5, so a Terraform Rating of 5 keeps every
+    # Production phase's MegaCredits at 0 or more.
+    game = scenario(player(megacredits=0, terraform_rating=5, production={"megacredits": -5}), player())
+    end_the_generation(game)
+    assert resources(game, 0)["megacredits"] == 0
+
+    with pytest.raises(ValueError, match="Player 2's Terraform Rating must be 5 or more, not 4"):
+        scenario(player(), player(terraform_rating=4))
 
 
 def test_a_scenario_with_an_unknown_resource_is_rejected():

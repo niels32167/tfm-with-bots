@@ -7,6 +7,7 @@ mod game;
 mod log;
 mod milestones_and_awards;
 mod random;
+mod random_bot;
 mod replay;
 mod resources;
 mod scenario;
@@ -71,6 +72,13 @@ impl PyGame {
     #[pyo3(signature = (index, sequence = None))]
     fn pick(&mut self, index: usize, sequence: Option<u64>) -> PyResult<()> {
         self.game.pick(index, sequence).map_err(|error| PyValueError::new_err(error.to_string()))
+    }
+
+    /// Plays on with a Random Bot for every Player: random Options, `picks` of them or until
+    /// the Game is over. The same `seed` always picks the same way from the same position.
+    #[pyo3(signature = (*, seed, picks = None))]
+    fn play_randomly(&mut self, seed: u64, picks: Option<usize>) {
+        random_bot::play_randomly(&mut self.game, seed, picks);
     }
 
     /// The Replay so far: where this Game started and the index of every Option picked.
