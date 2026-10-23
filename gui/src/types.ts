@@ -36,10 +36,46 @@ export interface PlayerBoard {
   passed: boolean;
 }
 
+/** One Player's final score. The six Victory Point counts add up to the total. */
 export interface Score {
   player: number;
   terraform_rating: number;
+  milestones: number;
+  awards: number;
+  greeneries: number;
+  cities: number;
+  cards: number;
   total: number;
+  /** The tiebreak on equal totals. */
+  megacredits: number;
+  /** 1 for the winner; Players tied on both total and MegaCredits share a rank. */
+  rank: number;
+}
+
+/** One Milestone: what it asks for, who claimed it, and how far each Player is towards it. */
+export interface Milestone {
+  /** Its id, such as "mayor". */
+  milestone: string;
+  name: string;
+  /** As printed: "Owning at least 3 Cities". */
+  condition: string;
+  /** The count a Player needs to reach. */
+  target: number;
+  claimed_by: number | null;
+  /** Each Player's count towards it, by Player. */
+  counts: number[];
+}
+
+/** One Award: what it measures, who funded it, and what each Player has of it. */
+export interface Award {
+  /** Its id, such as "landlord". */
+  award: string;
+  name: string;
+  /** As printed: "Owning the most Tiles in play". */
+  condition: string;
+  funded_by: number | null;
+  /** What each Player has of what it measures, by Player. */
+  counts: number[];
 }
 
 export type TileType = "ocean" | "greenery" | "city";
@@ -85,6 +121,14 @@ export interface View {
   current_player: number | null;
   actions_this_turn: number;
   players: PlayerBoard[];
+  /** The five Milestones, in the order printed on the board. */
+  milestones: Milestone[];
+  /** What claiming a Milestone costs, or null once three are claimed. */
+  milestone_cost: number | null;
+  /** The five Awards, in the order printed on the board. */
+  awards: Award[];
+  /** What funding the next Award costs (8, 14 or 20), or null once three are funded. */
+  award_cost: number | null;
   scores: Score[] | null;
 }
 

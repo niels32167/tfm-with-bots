@@ -3,7 +3,7 @@
 import pytest
 import tm_engine
 
-from tests.helpers import end_the_generation, offered, pick, player, resources, scenario, terraformed_mars
+from tests.helpers import end_the_generation, funded, offered, pick, player, resources, scenario, terraformed_mars
 
 
 def test_a_new_game_waits_on_the_first_player_to_choose_an_action():
@@ -19,7 +19,8 @@ def test_a_new_game_waits_on_the_first_player_to_choose_an_action():
 
 
 def test_every_option_has_an_index_a_label_and_structured_details():
-    game = scenario(player(megacredits=11), player())
+    all_three_awards_funded = [funded("landlord", by=1), funded("banker", by=1), funded("miner", by=1)]
+    game = scenario(player(megacredits=11), player(), awards=all_three_awards_funded)
 
     assert game.decision["options"] == [
         {
@@ -62,10 +63,10 @@ def test_a_pick_carrying_a_stale_sequence_number_is_rejected():
 
 
 def test_picking_an_option_that_is_not_offered_is_rejected():
-    game = scenario(player(megacredits=11), player())  # Power Plant or Pass
+    game = scenario(player(megacredits=7), player())  # nothing is affordable, so only Pass
 
-    with pytest.raises(ValueError, match="no Option 2"):
-        game.pick(2)
+    with pytest.raises(ValueError, match="no Option 1"):
+        game.pick(1)
 
 
 def test_nothing_can_be_picked_once_the_game_is_over():

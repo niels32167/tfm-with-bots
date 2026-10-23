@@ -322,6 +322,12 @@ input[aria-invalid="true"] {
   font-weight: 600;
 }
 
+.status-hint {
+  align-self: center;
+  color: #5b564e;
+  font-style: italic;
+}
+
 /* The table: board area and side panel. */
 .table {
   display: grid;
@@ -336,13 +342,22 @@ input[aria-invalid="true"] {
   }
 }
 
+/* Mars between its tracks, with the Milestones and Awards bar underneath. */
 .board-area {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  padding: 16px;
+}
+
+.mars-and-tracks {
   display: flex;
   align-items: flex-start;
   justify-content: center;
   gap: 40px;
-  padding: 16px;
-  min-height: 560px;
+  width: 100%;
+  min-height: 500px;
 }
 
 /* Mars: the Tharsis board drawn as SVG (simple styling until ticket 23). */
@@ -357,7 +372,8 @@ input[aria-invalid="true"] {
 
 .mars-board {
   width: 100%;
-  max-width: min(80vh, 680px);
+  /* Leaves room above for the top and status bars, and below for the Milestones and Awards bar. */
+  max-width: min(calc(100vh - 300px), 680px);
   aspect-ratio: 1;
   filter: drop-shadow(0 0 40px rgba(220, 100, 60, 0.3));
 }
@@ -833,7 +849,7 @@ input[aria-invalid="true"] {
 }
 
 .final-scores {
-  width: min(520px, 100%);
+  width: min(900px, 100%);
   background: #1b1c24;
   border: 1px solid var(--panel-border);
   border-radius: 12px;
@@ -868,13 +884,118 @@ input[aria-invalid="true"] {
   color: var(--text-dim);
 }
 
+.final-scores .number {
+  text-align: right;
+}
+
 .final-scores td.total {
   font-weight: 800;
   font-size: 1.15rem;
+}
+
+.final-scores td.tiebreak {
+  color: var(--text-dim);
+}
+
+.final-scores tr.winner td {
+  background: rgba(240, 181, 74, 0.1);
+}
+
+.final-scores-hint {
+  margin: 0;
+  color: var(--text-dim);
+  font-size: 0.85rem;
 }
 
 .final-scores-buttons {
   display: flex;
   justify-content: center;
   gap: 12px;
+}
+
+/* The Milestones and Awards bar under Mars. */
+.milestones-awards {
+  width: 100%;
+  max-width: 1100px;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+
+.milestones-awards-group h2 {
+  margin: 0 0 6px;
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-dim);
+}
+
+.milestones-awards-price {
+  margin-left: 6px;
+  text-transform: none;
+  letter-spacing: 0;
+  color: var(--accent);
+}
+
+.milestones-awards-entries {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 6px;
+}
+
+.milestones-awards-entry {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  min-width: 0;
+  padding: 6px 4px;
+  color: var(--text);
+  background: var(--panel);
+  border: 2px solid var(--panel-border);
+  border-radius: 8px;
+  font-size: 0.8rem;
+  text-align: center;
+}
+
+.milestones-awards-entry.taken {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.milestones-awards-entry.offered {
+  border-color: var(--accent);
+  box-shadow: 0 0 10px rgba(240, 181, 74, 0.55);
+}
+
+.milestones-awards-entry.offered:hover:not(:disabled) {
+  background: rgba(240, 181, 74, 0.2);
+}
+
+.milestones-awards-name {
+  font-weight: 700;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+}
+
+.milestones-awards-counts {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 2px 6px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.milestones-awards-needs {
+  font-size: 0.72rem;
+  color: var(--text-dim);
+}
+
+.milestones-awards-taken {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.72rem;
+  color: var(--text-dim);
 }

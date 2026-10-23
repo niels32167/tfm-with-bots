@@ -74,17 +74,6 @@ def test_a_game_started_with_mars_terraformed_ends_after_that_generation():
     assert game.is_over
 
 
-def test_the_final_score_is_each_players_terraform_rating():
-    game = scenario(player(terraform_rating=31), player(terraform_rating=27), **terraformed_mars())
-
-    end_the_generation(game)
-
-    assert game.scores == [
-        {"player": 0, "terraform_rating": 31, "total": 31},
-        {"player": 1, "terraform_rating": 27, "total": 27},
-    ]
-
-
 def test_every_player_sees_the_final_scores():
     game = scenario(player(terraform_rating=31), player(terraform_rating=27), **terraformed_mars())
 

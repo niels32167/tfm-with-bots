@@ -7,12 +7,16 @@ use crate::game::{
     HEAT_PER_TEMPERATURE_STEP, MAX_OCEANS, OCEAN_ADJACENCY_BONUS, OCEAN_BONUS_TEMPERATURE,
     PLANTS_PER_GREENERY, StandardProject, TEMPERATURE_BONUS_OXYGEN,
 };
+use crate::milestones_and_awards::{Award, MILESTONE_COST, Milestone};
 use crate::resources::{Resource, Resources};
+use crate::scoring::{AwardPlace, Win};
 
 #[derive(Clone, Copy, Debug)]
 pub enum LogEvent {
     GenerationBegins { generation: u32, first_player: usize },
     UsedStandardProject { player: usize, project: StandardProject },
+    ClaimedMilestone { player: usize, milestone: Milestone },
+    FundedAward { player: usize, award: Award, cost: i32 },
     TemperatureRaised { player: usize, temperature: i32 },
     ConvertedPlants { player: usize },
     ConvertedHeat { player: usize },
@@ -38,7 +42,9 @@ pub enum LogEvent {
     FinalGreeneryConversion { first_player: usize },
     DoneConvertingPlants { player: usize },
     GameOver,
+    AwardPlace(AwardPlace),
     FinalScore { player: usize, victory_points: i32 },
+    Won { player: usize, win: Win },
 }
 
 impl LogEvent {
@@ -53,6 +59,14 @@ impl LogEvent {
                 project.name(),
                 project.cost()
             ),
+            LogEvent::ClaimedMilestone { player, milestone } => format!(
+                "{} claims the {} Milestone for {MILESTONE_COST} MegaCredits.",
+                player_name(player),
+                milestone.name()
+            ),
+            LogEvent::FundedAward { player, award, cost } => {
+                format!("{} funds the {} Award for {cost} MegaCredits.", player_name(player), award.name())
+            }
             LogEvent::TemperatureRaised { player, temperature } => format!(
                 "{} raises Temperature to {temperature} °C and gains 1 Terraform Rating.",
                 player_name(player)
@@ -160,9 +174,29 @@ impl LogEvent {
                 format!("{} is done converting plants.", player_name(player))
             }
             LogEvent::GameOver => "The Game is over.".to_string(),
+            LogEvent::AwardPlace(AwardPlace { award, player, place, count, shared }) => format!(
+                "{} {} {} place in the {} Award ({}) and gains {} Victory Points.",
+                player_name(player),
+                if shared { "shares" } else { "takes" },
+                place.name(),
+                award.name(),
+                award.counted(count),
+                place.victory_points()
+            ),
             LogEvent::FinalScore { player, victory_points } => {
                 format!("{} finishes with {victory_points} Victory Points.", player_name(player))
             }
+            LogEvent::Won { player, win } => match win {
+                Win::Outright => format!("{} wins.", player_name(player)),
+                Win::OnMegaCredits => format!(
+                    "{} wins: tied on Victory Points, but with the most MegaCredits.",
+                    player_name(player)
+                ),
+                Win::Shared => format!(
+                    "{} shares the win, tied on both Victory Points and MegaCredits.",
+                    player_name(player)
+                ),
+            },
         }
     }
 }

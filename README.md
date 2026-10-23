@@ -4,15 +4,17 @@ A digital Terraforming Mars with a fast rules engine, built so an AI opponent ca
 be trained against it by self-play. Phase 1 is a playable, well-tested game; see
 `.scratch/phase-1-playable-game/spec.md`.
 
-So far (tickets 01–04), 2–5 Players hold all six Resources with their Production, use
+So far (tickets 01–05), 2–5 Players hold all six Resources with their Production, use
 the Power Plant, Asteroid, Aquifer, Greenery and City Standard Projects, and convert
 plants into Greeneries and heat into Temperature on the Tharsis board. They place
 Oceans, Greeneries and Cities by clicking a highlighted Area, and collect placement
 bonuses, 2 MegaCredits per adjacent Ocean, and the track bonuses for Temperature and
-Oxygen. The Game ends after the Generation in which Temperature, Oxygen and Oceans are
-all maxed; after a final Greenery conversion, the highest Terraform Rating wins. Each
-Player is a human or a Random Bot, every Game comes from a seed, and any Game can be
-undone, saved as a Replay file and loaded again.
+Oxygen. They claim the Tharsis Milestones and fund its Awards from the bar under Mars.
+The Game ends after the Generation in which Temperature, Oxygen and Oceans are all
+maxed. After a final Greenery conversion, the final score screen shows each Player's
+Terraform Rating, Milestones, Awards, Greeneries and Cities, and the most Victory Points
+wins (MegaCredits break a tie). Each Player is a human or a Random Bot, every Game comes
+from a seed, and any Game can be undone, saved as a Replay file and loaded again.
 
 ## How it fits together
 
@@ -83,6 +85,8 @@ reloading the page picks it up again.
 | `engine/src/game.rs` | The rules: Game state, Decisions and Options |
 | `engine/src/board.rs` | The Tharsis board: Areas, adjacency, and where each Tile may go |
 | `engine/src/resources.rs` | The six Resources, and an amount of each (held, or Production) |
+| `engine/src/milestones_and_awards.rs` | The Tharsis Milestones and Awards, and what each one counts |
+| `engine/src/scoring.rs` | Final scoring: the breakdown, Award places, ranks and the winner |
 | `engine/src/scenario.rs` | Starting a Game from a Scenario |
 | `engine/src/replay.rs` | Replays: rebuilding a Game from its start and picks |
 | `engine/src/random.rs` | The Game's seeded random numbers |
@@ -93,9 +97,9 @@ reloading the page picks it up again.
 | `tests/rules/` | Scenario tests of the rules, through `tm_engine` |
 | `tests/engine/` | Tests of the engine module itself: views, copies, Replays, reproducibility |
 | `tests/server/` | Tests of the local server over its WebSocket |
-| `tests/helpers.py` | `scenario()`, `player()`, `ocean()`, `city()`, `terraformed_mars()`, `pick()`, `offered()`, `area()`, `resources()`: helpers that make tests read like play |
+| `tests/helpers.py` | `scenario()`, `player()`, `ocean()`, `city()`, `claimed()`, `funded()`, `terraformed_mars()`, `pick()`, `offered()`, `area()`, `milestone()`, `award()`, `resources()`: helpers that make tests read like play |
 | `server/` | The local server and the Random Bot |
-| `gui/src/` | The browser GUI; the board is `gui/src/components/MarsBoard.tsx`, and the printed tracks are in `gui/src/tracks.ts` |
+| `gui/src/` | The browser GUI; the board is `gui/src/components/MarsBoard.tsx`, the Milestones and Awards bar `gui/src/components/MilestonesAwards.tsx`, and the printed tracks are in `gui/src/tracks.ts` |
 | `CONTEXT.md` | The glossary; code, tests and messages use its terms |
 | `docs/adr/` | Architecture decisions |
 | `docs/rules-notes.md` | Every rules judgment call |

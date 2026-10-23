@@ -10,15 +10,20 @@ interface Props {
   onPick: (sequence: number, index: number) => void;
 }
 
+// Options picked where they are drawn rather than as buttons here: Milestones and Awards in their bar.
+const PICKED_IN_THE_BAR = new Set(["claim_milestone", "fund_award"]);
+
 /** The current Decision, with its Options as buttons, like Board Game Arena's title bar. */
 export function StatusBar({ game, error, pickedSequence, onPick }: Props) {
   const { decision } = game;
+  const buttons = decision?.options.filter((option) => !PICKED_IN_THE_BAR.has(option.details.type)) ?? [];
+  const inTheBar = (decision?.options.length ?? 0) > buttons.length;
   return (
     <div className="status-bar" role="status">
       <span className="status-text">{statusText(game)}</span>
       {decision && decision.kind !== "area" && (
         <span className="status-options">
-          {decision.options.map((option) => (
+          {buttons.map((option) => (
             <button
               key={option.index}
               className={`option option-${option.details.type}`}
@@ -28,6 +33,7 @@ export function StatusBar({ game, error, pickedSequence, onPick }: Props) {
               {option.label}
             </button>
           ))}
+          {inTheBar && <span className="status-hint">or click a highlighted Milestone or Award</span>}
         </span>
       )}
       {error && <span className="status-error">{error}</span>}

@@ -59,7 +59,7 @@ def test_a_broken_replay_file_is_rejected_and_the_current_game_carries_on():
     with connect() as gui:
         update = gui.start(["human", "human"], seed=12)
         replay = {"start": {"settings": {"players": 2, "seed": 12}}, "picks": [0]}
-        impossible_replay = {**replay, "picks": [0, 9]}
+        impossible_replay = {**replay, "picks": [0, 99]}
 
         gui.send({"type": "load_replay", "file": {"replay": replay}})
         assert "not a Replay file" in gui.receive_error()

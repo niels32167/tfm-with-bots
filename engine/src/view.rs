@@ -7,10 +7,11 @@ use serde::Serialize;
 use crate::board::{AREA_COUNT, Board, TileKind, area_id, area_label, printed, row_and_position};
 use crate::game::{
     Decision, DecisionKind, DecisionOption, Game, HEAT_PER_TEMPERATURE_STEP, PLANTS_PER_GREENERY, Phase,
-    Score,
 };
 use crate::log::player_name;
+use crate::milestones_and_awards::{Award, MILESTONE_COST, Milestone};
 use crate::resources::Resources;
+use crate::scoring::Score;
 
 #[derive(Serialize)]
 pub struct DecisionView {
@@ -32,6 +33,14 @@ pub struct OptionView {
 pub enum OptionDetails {
     StandardProject {
         project: String,
+        cost: i32,
+    },
+    ClaimMilestone {
+        milestone: String,
+        cost: i32,
+    },
+    FundAward {
+        award: String,
         cost: i32,
     },
     ConvertPlants {
@@ -72,6 +81,14 @@ pub struct View {
     /// How many Actions the current Player has taken in this Turn.
     pub actions_this_turn: u32,
     pub players: Vec<PlayerBoard>,
+    /// The five Milestones, in the order printed on the board.
+    pub milestones: Vec<MilestoneView>,
+    /// What claiming a Milestone costs, or None once three are claimed.
+    pub milestone_cost: Option<i32>,
+    /// The five Awards, in the order printed on the board.
+    pub awards: Vec<AwardView>,
+    /// What funding the next Award costs (8, 14 or 20), or None once three are funded.
+    pub award_cost: Option<i32>,
     /// Each Player's final score once the Game is over, otherwise None.
     pub scores: Option<Vec<Score>>,
 }
@@ -112,6 +129,34 @@ pub struct PlayerBoard {
     pub passed: bool,
 }
 
+/// One Milestone: what it asks for, who claimed it, and how far each Player is towards it.
+#[derive(Serialize)]
+pub struct MilestoneView {
+    /// Its id, such as "terraformer".
+    pub milestone: String,
+    pub name: &'static str,
+    /// What a Player needs to claim it, as printed: "Owning at least 3 Cities".
+    pub condition: &'static str,
+    /// The count a Player needs to reach: 3 for Mayor.
+    pub target: i32,
+    pub claimed_by: Option<usize>,
+    /// Each Player's count towards it, by Player.
+    pub counts: Vec<i32>,
+}
+
+/// One Award: what it measures, who funded it, and what each Player has of it.
+#[derive(Serialize)]
+pub struct AwardView {
+    /// Its id, such as "landlord".
+    pub award: String,
+    pub name: &'static str,
+    /// What the leader has most of, as printed: "Owning the most Tiles in play".
+    pub condition: &'static str,
+    pub funded_by: Option<usize>,
+    /// What each Player has of what it measures, by Player.
+    pub counts: Vec<i32>,
+}
+
 pub fn player_view(game: &Game, viewer: usize) -> View {
     view(game, Some(viewer))
 }
@@ -150,6 +195,29 @@ fn view(game: &Game, viewer: Option<usize>) -> View {
                 passed: player.passed,
             })
             .collect(),
+        milestones: Milestone::ALL
+            .into_iter()
+            .map(|milestone| MilestoneView {
+                milestone: milestone.id(),
+                name: milestone.name(),
+                condition: milestone.condition(),
+                target: milestone.target(),
+                claimed_by: game.claimed_milestones[milestone.index()],
+                counts: (0..game.players.len()).map(|player| milestone.count(game, player)).collect(),
+            })
+            .collect(),
+        milestone_cost: game.milestone_cost(),
+        awards: Award::ALL
+            .into_iter()
+            .map(|award| AwardView {
+                award: award.id(),
+                name: award.name(),
+                condition: award.condition(),
+                funded_by: game.funded_awards[award.index()],
+                counts: (0..game.players.len()).map(|player| award.count(game, player)).collect(),
+            })
+            .collect(),
+        award_cost: game.award_cost(),
         scores: game.scores(),
     }
 }
@@ -199,6 +267,12 @@ fn label(option: &DecisionOption) -> String {
         DecisionOption::UseStandardProject(project) => {
             format!("{} ({} MegaCredits)", project.name(), project.cost())
         }
+        DecisionOption::ClaimMilestone(milestone) => {
+            format!("Claim the {} Milestone ({MILESTONE_COST} MegaCredits)", milestone.name())
+        }
+        DecisionOption::FundAward { award, cost } => {
+            format!("Fund the {} Award ({cost} MegaCredits)", award.name())
+        }
         DecisionOption::ConvertPlants => format!("Convert {PLANTS_PER_GREENERY} plants into a Greenery"),
         DecisionOption::ConvertHeat => {
             format!("Convert {HEAT_PER_TEMPERATURE_STEP} heat into a Temperature step")
@@ -216,6 +290,12 @@ fn details(option: &DecisionOption) -> OptionDetails {
     match option {
         DecisionOption::UseStandardProject(project) => {
             OptionDetails::StandardProject { project: project.id(), cost: project.cost() }
+        }
+        DecisionOption::ClaimMilestone(milestone) => {
+            OptionDetails::ClaimMilestone { milestone: milestone.id(), cost: MILESTONE_COST }
+        }
+        DecisionOption::FundAward { award, cost } => {
+            OptionDetails::FundAward { award: award.id(), cost: *cost }
         }
         DecisionOption::ConvertPlants => OptionDetails::ConvertPlants { plants: PLANTS_PER_GREENERY },
         DecisionOption::ConvertHeat => OptionDetails::ConvertHeat { heat: HEAT_PER_TEMPERATURE_STEP },

@@ -5,10 +5,12 @@
 mod board;
 mod game;
 mod log;
+mod milestones_and_awards;
 mod random;
 mod replay;
 mod resources;
 mod scenario;
+mod scoring;
 mod view;
 
 use pyo3::exceptions::PyValueError;

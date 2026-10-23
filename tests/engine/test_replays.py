@@ -6,7 +6,18 @@ import json
 import pytest
 import tm_engine
 
-from tests.helpers import MAX_PICKS, city, everything_about, ocean, pick, play_randomly, player, scenario
+from tests.helpers import (
+    MAX_PICKS,
+    city,
+    claimed,
+    everything_about,
+    funded,
+    ocean,
+    pick,
+    play_randomly,
+    player,
+    scenario,
+)
 
 
 def test_a_replay_holds_the_settings_and_seed_and_the_options_picked():
@@ -16,10 +27,10 @@ def test_a_replay_holds_the_settings_and_seed_and_the_options_picked():
     pick(game, "End Turn")
     pick(game, "Pass")
 
-    # With 42 MegaCredits: Power Plant, Asteroid, Aquifer, Greenery, City, Pass.
-    # Then with 28 left: the same five Standard Projects, End Turn, Pass.
-    # Then the next Player, with 42: the same five, Pass.
-    assert game.replay == {"start": {"settings": {"players": 3, "seed": 7}}, "picks": [1, 5, 5]}
+    # With 42 MegaCredits: Power Plant, Asteroid, Aquifer, Greenery, City, the five Awards, Pass.
+    # Then with 28 left: the same five Standard Projects and five Awards, End Turn, Pass.
+    # Then the next Player, with 42: the same ten, Pass.
+    assert game.replay == {"start": {"settings": {"players": 3, "seed": 7}}, "picks": [1, 10, 10]}
 
 
 def test_loading_an_exported_replay_gives_back_the_same_game():
@@ -53,6 +64,8 @@ def test_a_game_started_from_a_scenario_loads_from_its_replay():
         temperature=-10,
         oxygen=6,
         tiles=[ocean("A2"), city("C3", owner=1)],
+        milestones=[claimed("mayor", by=2)],
+        awards=[funded("banker", by=0)],
         first_player=1,
         seed=11,
     )
@@ -65,6 +78,8 @@ def test_a_game_started_from_a_scenario_loads_from_its_replay():
         {"area": "A2", "tile": "ocean", "owner": None},
         {"area": "C3", "tile": "city", "owner": 1},
     ]
+    assert game.replay["start"]["scenario"]["milestones"] == [{"milestone": "mayor", "claimed_by": 2}]
+    assert game.replay["start"]["scenario"]["awards"] == [{"award": "banker", "funded_by": 0}]
     assert everything_about(loaded) == everything_about(game)
     assert loaded.replay == game.replay
 
@@ -112,9 +127,9 @@ def test_there_is_no_step_beyond_the_end_of_a_replay():
 
 
 def test_a_replay_with_a_pick_the_game_does_not_offer_is_rejected():
-    replay = {"start": {"settings": {"players": 2, "seed": 1}}, "picks": [0, 7]}
+    replay = {"start": {"settings": {"players": 2, "seed": 1}}, "picks": [0, 99]}
 
-    with pytest.raises(ValueError, match="pick 2 of the Replay: there is no Option 7"):
+    with pytest.raises(ValueError, match="pick 2 of the Replay: there is no Option 99"):
         tm_engine.Game.from_replay(replay)
 
 

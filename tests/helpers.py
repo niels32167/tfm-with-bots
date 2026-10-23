@@ -78,6 +78,18 @@ def city(area: str, owner: int) -> dict[str, Any]:
     return {"area": area, "tile": "city", "owner": owner}
 
 
+def claimed(milestone: str, by: int) -> dict[str, Any]:
+    """A Milestone claimed by Player `by` (indexed from 0), for a Scenario's `milestones`,
+    e.g. `scenario(milestones=[claimed("mayor", by=1)])`."""
+    return {"milestone": milestone, "claimed_by": by}
+
+
+def funded(award: str, by: int) -> dict[str, Any]:
+    """An Award funded by Player `by` (indexed from 0), for a Scenario's `awards`,
+    e.g. `scenario(awards=[funded("landlord", by=0)])`."""
+    return {"award": award, "funded_by": by}
+
+
 def options(game: tm_engine.Game) -> list[dict[str, Any]]:
     """The Options of the Decision the Game is waiting on."""
     decision = game.decision
@@ -164,6 +176,20 @@ def area(game: tm_engine.Game, area_id: str) -> dict[str, Any]:
     """One Area of the board as everyone sees it: "E3", or "phobos_space_haven" off Mars."""
     found = [entry for entry in game.full_view()["board"] if entry["area"] == area_id]
     assert len(found) == 1, f"there is no Area {area_id!r} on the board"
+    return found[0]
+
+
+def milestone(game: tm_engine.Game, name: str) -> dict[str, Any]:
+    """One Milestone as everyone sees it, such as `milestone(game, "mayor")`."""
+    found = [entry for entry in game.full_view()["milestones"] if entry["milestone"] == name]
+    assert len(found) == 1, f"there is no Milestone {name!r}"
+    return found[0]
+
+
+def award(game: tm_engine.Game, name: str) -> dict[str, Any]:
+    """One Award as everyone sees it, such as `award(game, "landlord")`."""
+    found = [entry for entry in game.full_view()["awards"] if entry["award"] == name]
+    assert len(found) == 1, f"there is no Award {name!r}"
     return found[0]
 
 

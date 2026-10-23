@@ -11,9 +11,19 @@ interface Props {
   onNewGame: () => void;
 }
 
-/** The final score screen. For now a score is just Terraform Rating. */
+// The breakdown of a score, in the order it is counted; these columns add up to the total.
+const BREAKDOWN: { key: keyof Score; heading: string }[] = [
+  { key: "terraform_rating", heading: "Terraform Rating" },
+  { key: "milestones", heading: "Milestones" },
+  { key: "awards", heading: "Awards" },
+  { key: "greeneries", heading: "Greeneries" },
+  { key: "cities", heading: "Cities" },
+  { key: "cards", heading: "Cards" },
+];
+
+/** The final score screen: each Player's breakdown, total and rank, best first. */
 export function FinalScores({ game, scores, onClose, onUndo, onNewGame }: Props) {
-  const ranked = [...scores].sort((a, b) => b.total - a.total);
+  const ranked = [...scores].sort((a, b) => a.rank - b.rank || a.player - b.player);
   return (
     <div className="overlay" role="dialog" aria-labelledby="final-scores-title">
       <div className="final-scores">
@@ -24,25 +34,40 @@ export function FinalScores({ game, scores, onClose, onUndo, onNewGame }: Props)
             <tr>
               <th>Rank</th>
               <th>Player</th>
-              <th>Terraform Rating</th>
-              <th>Total</th>
+              {BREAKDOWN.map(({ key, heading }) => (
+                <th key={key} className="number">
+                  {heading}
+                </th>
+              ))}
+              <th className="number">Total</th>
+              <th className="number" title="Breaks a tie on Victory Points">
+                MegaCredits
+              </th>
             </tr>
           </thead>
           <tbody>
             {ranked.map((score) => (
-              <tr key={score.player}>
-                <td>{1 + ranked.filter((other) => other.total > score.total).length}</td>
+              <tr key={score.player} className={score.rank === 1 ? "winner" : undefined}>
+                <td>{score.rank}</td>
                 <td>
                   <span className="player-dot" style={{ background: PLAYER_COLOURS[score.player] }} />{" "}
                   {game.view.players[score.player].name}
                   {isYou(game, score.player) && " (you)"}
                 </td>
-                <td>{score.terraform_rating}</td>
-                <td className="total">{score.total}</td>
+                {BREAKDOWN.map(({ key }) => (
+                  <td key={key} className="number">
+                    {score[key]}
+                  </td>
+                ))}
+                <td className="number total">{score.total}</td>
+                <td className="number tiebreak">{score.megacredits}</td>
               </tr>
             ))}
           </tbody>
         </table>
+        <p className="final-scores-hint">
+          On equal totals, the Player with more MegaCredits ranks higher. The game log lists each Award's places.
+        </p>
         <div className="final-scores-buttons">
           <button className="link-button" onClick={onClose}>
             Back to the board

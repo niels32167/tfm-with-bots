@@ -254,11 +254,22 @@ impl Board {
         self.tiles.iter().flatten().filter(|tile| tile.kind == TileKind::Ocean).count()
     }
 
-    /// How many Ocean Tiles are next to `area`.
-    pub fn adjacent_oceans(&self, area: usize) -> usize {
-        adjacent_areas(area)
-            .filter(|&next| self.tiles[next].is_some_and(|tile| tile.kind == TileKind::Ocean))
-            .count()
+    /// How many Tiles of `kind` are next to `area`.
+    pub fn adjacent(&self, area: usize, kind: TileKind) -> usize {
+        adjacent_areas(area).filter(|&next| self.tiles[next].is_some_and(|tile| tile.kind == kind)).count()
+    }
+
+    /// The Areas of `player`'s Tiles, in board order, with each Tile's kind.
+    pub fn tiles_of(&self, player: usize) -> impl Iterator<Item = (usize, TileKind)> {
+        (0..AREA_COUNT).filter_map(move |area| match self.tiles[area] {
+            Some(tile) if tile.owner == Some(player) => Some((area, tile.kind)),
+            _ => None,
+        })
+    }
+
+    /// How many Tiles of `kind` `player` owns.
+    pub fn owned(&self, player: usize, kind: TileKind) -> usize {
+        self.tiles_of(player).filter(|&(_, each)| each == kind).count()
     }
 
     pub fn place(&mut self, area: usize, tile: Tile) {

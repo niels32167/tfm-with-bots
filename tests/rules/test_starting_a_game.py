@@ -3,7 +3,19 @@
 import pytest
 import tm_engine
 
-from tests.helpers import area, city, greenery, ocean, player, player_board, production, resources, scenario
+from tests.helpers import (
+    area,
+    city,
+    claimed,
+    funded,
+    greenery,
+    ocean,
+    player,
+    player_board,
+    production,
+    resources,
+    scenario,
+)
 
 
 def test_a_new_game_starts_in_generation_1_with_temperature_at_minus_30():
@@ -119,6 +131,26 @@ def test_a_scenario_has_at_most_one_tile_per_area_and_at_most_9_oceans():
         scenario(tiles=[city("C3", owner=0), greenery("C3", owner=1)])
     with pytest.raises(ValueError, match="at most 9 Oceans"):
         scenario(tiles=[ocean(name) for name in ["A2", "A4", "A5", "B6", "D8", "E4", "E5", "E6", "F6", "F7"]])
+
+
+def test_a_scenario_claims_each_milestone_at_most_once_and_at_most_three_in_all():
+    with pytest.raises(ValueError, match="Mayor Milestone can be claimed only once"):
+        scenario(milestones=[claimed("mayor", by=0), claimed("mayor", by=1)])
+    with pytest.raises(ValueError, match="at most 3 Milestones"):
+        scenario(milestones=[claimed(name, by=0) for name in ["terraformer", "mayor", "gardener", "builder"]])
+    with pytest.raises(ValueError, match="whoever claimed Mayor must be one of the Players, indexed 0 to 1"):
+        scenario(milestones=[claimed("mayor", by=2)])
+    with pytest.raises(ValueError, match="mayer"):
+        scenario(milestones=[claimed("mayer", by=0)])
+
+
+def test_a_scenario_funds_each_award_at_most_once_and_at_most_three_in_all():
+    with pytest.raises(ValueError, match="Miner Award can be funded only once"):
+        scenario(awards=[funded("miner", by=0), funded("miner", by=1)])
+    with pytest.raises(ValueError, match="at most 3 Awards"):
+        scenario(awards=[funded(name, by=0) for name in ["landlord", "banker", "scientist", "miner"]])
+    with pytest.raises(ValueError, match="whoever funded Miner must be one of the Players, indexed 0 to 1"):
+        scenario(awards=[funded("miner", by=2)])
 
 
 def test_an_empty_scenario_is_a_new_two_player_game_with_player_1_as_first_player():

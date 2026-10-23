@@ -24,13 +24,15 @@ class Game:
         """A Game started from a Scenario. Anything left out takes the normal defaults.
 
         Fields: seed, generation, first_player (default 0, who also takes the first Turn),
-        temperature, oxygen, tiles, and players: a list of
+        temperature, oxygen, tiles, milestones, awards, and players: a list of
         {"resources": {...}, "production": {...}, "terraform_rating": int}.
         Resources and Production name any of the six Resources (megacredits, steel,
         titanium, plants, energy, heat); the rest keep their defaults: 42 MegaCredits and
         nothing else to start with, and no Production.
         Each Tile is {"area": "C3", "tile": "ocean" | "greenery" | "city", "owner": 0};
         Oceans have no owner, and the number of Oceans is the number of Ocean Tiles.
+        Milestones claimed are {"milestone": "mayor", "claimed_by": 1} and Awards funded
+        {"award": "landlord", "funded_by": 0}: at most three of each, each at most once.
         Raises ValueError for unknown fields or impossible values, such as a negative
         Resource, MegaCredit Production below -5 or any other Production below 0, a City on
         an Area reserved for Oceans, or more than 9 Oceans.
@@ -66,7 +68,9 @@ class Game:
         Kinds: "action" (an Action, End Turn or Pass), "area" (where to place a Tile,
         with details {"type": "area", "area": "C3", "tile": "city"}) and "final_greenery"
         (convert 8 plants into a Greenery once more, or be done, after the final Production
-        phase).
+        phase). Claiming a Milestone and funding an Award are Actions, with details
+        {"type": "claim_milestone", "milestone": "mayor", "cost": 8} and
+        {"type": "fund_award", "award": "landlord", "cost": 14}.
         """
 
     def pick(self, index: int, sequence: int | None = None) -> None:
@@ -96,6 +100,13 @@ class Game:
         {"area": "E3", "name": "Noctis City" | None, "row": 5, "position": 3,
          "reserved": "ocean" | "noctis_city" | ... | None, "bonus": ["plant", "plant"],
          "tile": {"type": "city", "owner": 0} | None}
+        and the five "milestones" and five "awards" in the order printed on the board:
+        {"milestone": "mayor", "name": "Mayor", "condition": "Owning at least 3 Cities",
+         "target": 3, "claimed_by": int | None, "counts": [int per Player]} and
+        {"award": "landlord", "name": "Landlord", "condition": "...", "funded_by": int | None,
+         "counts": [int per Player]}, where counts are each Player's progress or standing.
+        "milestone_cost" (8) and "award_cost" (8, 14 or 20) are None once three are
+        claimed or funded. "scores" is None until the Game is over.
         """
 
     def full_view(self) -> dict[str, Any]:
@@ -115,4 +126,11 @@ class Game:
 
     @property
     def scores(self) -> list[dict[str, Any]] | None:
-        """Each Player's final score once the Game is over, otherwise None."""
+        """Each Player's final score once the Game is over, otherwise None.
+
+        {"player": int, "terraform_rating": int, "milestones": int, "awards": int,
+         "greeneries": int, "cities": int, "cards": int, "total": int,
+         "megacredits": int, "rank": int}
+        The six Victory Point counts add up to "total". "rank" is 1 for the winner: the
+        most Victory Points, then the most MegaCredits; Players tied on both share a rank.
+        """

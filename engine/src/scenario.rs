@@ -13,6 +13,7 @@ use crate::game::{
     TEMPERATURE_STEP, check_player_count, check_seed, starting_resources,
 };
 use crate::log::player_name;
+use crate::milestones_and_awards::{AWARD_COSTS, Award, MAX_MILESTONES_CLAIMED, Milestone};
 use crate::replay::Start;
 use crate::resources::{Resource, Resources};
 
@@ -27,6 +28,10 @@ pub struct Scenario {
     pub oxygen: i32,
     /// The Tiles on the board. The number of Oceans is the number of Ocean Tiles.
     pub tiles: Vec<ScenarioTile>,
+    /// The Milestones claimed so far, and by whom.
+    pub milestones: Vec<ClaimedMilestone>,
+    /// The Awards funded so far, and by whom.
+    pub awards: Vec<FundedAward>,
     pub players: Vec<ScenarioPlayer>,
 }
 
@@ -39,6 +44,8 @@ impl Default for Scenario {
             temperature: MIN_TEMPERATURE,
             oxygen: 0,
             tiles: Vec::new(),
+            milestones: Vec::new(),
+            awards: Vec::new(),
             players: vec![ScenarioPlayer::default(); 2],
         }
     }
@@ -53,6 +60,22 @@ pub struct ScenarioTile {
     /// The owning Player; Oceans have none.
     #[serde(default)]
     pub owner: Option<usize>,
+}
+
+/// A Milestone and who claimed it, such as `{"milestone": "mayor", "claimed_by": 1}`.
+#[derive(Clone, Debug, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct ClaimedMilestone {
+    pub milestone: Milestone,
+    pub claimed_by: usize,
+}
+
+/// An Award and who funded it, such as `{"award": "landlord", "funded_by": 0}`.
+#[derive(Clone, Debug, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct FundedAward {
+    pub award: Award,
+    pub funded_by: usize,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -115,13 +138,7 @@ impl Scenario {
         if self.generation < 1 {
             return Err("the Generation must be 1 or more".to_string());
         }
-        if self.first_player >= self.players.len() {
-            return Err(format!(
-                "the first player must be one of the Players, indexed 0 to {}, not {}",
-                self.players.len() - 1,
-                self.first_player
-            ));
-        }
+        check_player(self.first_player, self.players.len(), "the first player")?;
         let on_track = (MIN_TEMPERATURE..=MAX_TEMPERATURE).contains(&self.temperature)
             && (self.temperature - MIN_TEMPERATURE) % TEMPERATURE_STEP == 0;
         if !on_track {
@@ -165,8 +182,48 @@ impl Scenario {
                 game.board.oceans()
             ));
         }
+        if self.milestones.len() > MAX_MILESTONES_CLAIMED {
+            return Err(format!(
+                "at most {MAX_MILESTONES_CLAIMED} Milestones can be claimed, not {}",
+                self.milestones.len()
+            ));
+        }
+        for claim in &self.milestones {
+            let name = claim.milestone.name();
+            check_player(claim.claimed_by, self.players.len(), &format!("whoever claimed {name}"))?;
+            let claimed_by = &mut game.claimed_milestones[claim.milestone.index()];
+            if claimed_by.is_some() {
+                return Err(format!("the {name} Milestone can be claimed only once"));
+            }
+            *claimed_by = Some(claim.claimed_by);
+        }
+        if self.awards.len() > AWARD_COSTS.len() {
+            return Err(format!(
+                "at most {} Awards can be funded, not {}",
+                AWARD_COSTS.len(),
+                self.awards.len()
+            ));
+        }
+        for funding in &self.awards {
+            let name = funding.award.name();
+            check_player(funding.funded_by, self.players.len(), &format!("whoever funded {name}"))?;
+            let funded_by = &mut game.funded_awards[funding.award.index()];
+            if funded_by.is_some() {
+                return Err(format!("the {name} Award can be funded only once"));
+            }
+            *funded_by = Some(funding.funded_by);
+        }
         game.begin(self.generation, self.first_player);
         Ok(game)
+    }
+}
+
+/// Whether `player` is one of the `players` Players; `who` names them in the error.
+fn check_player(player: usize, players: usize, who: &str) -> Result<(), String> {
+    if player < players {
+        Ok(())
+    } else {
+        Err(format!("{who} must be one of the Players, indexed 0 to {}, not {player}", players - 1))
     }
 }
 
@@ -206,11 +263,10 @@ impl ScenarioTile {
         }
         match self.owner {
             None => Err(format!("a {tile} needs an owner: the {tile} on {} has none", self.area)),
-            Some(owner) if owner >= players => Err(format!(
-                "the owner must be one of the Players, indexed 0 to {}, not {owner}",
-                players - 1
-            )),
-            Some(_) => Ok(area),
+            Some(owner) => {
+                check_player(owner, players, "the owner")?;
+                Ok(area)
+            }
         }
     }
 }

@@ -106,6 +106,88 @@ done or cannot convert, and only then moves to the next.
 **Tests:** `tests/rules/test_final_greenery_conversion.py::test_players_go_in_player_order_from_the_first_player_and_then_the_game_is_over`
 and `test_a_player_keeps_converting_until_they_are_done`.
 
+## Milestones and Awards
+
+### Award ties, and counts of 0
+
+**Call:** Every Player tied for first place in a funded Award gets 5 Victory Points, and
+then nobody gets second place. With a single leader, every Player tied for second gets 2.
+2-player Games have no second place. A count of 0 is scored like any other count: if
+nobody has heat, every Player ties for first in Thermalist, and if one Player leads, every
+Player at 0 ties for second.
+
+**Why:**
+- The rulebook says ties are friendly: all tied Players get the bonus for their place, a
+  tie for first leaves no second place, and second place gives nothing in a 2-player Game.
+- The rulebook says nothing about counts of 0. The open-source game (tiebreaker) scores
+  them like any other count, with the results above.
+
+Chosen by Claude (2026-10-23), on the user's instruction to make the ticket 05 calls
+without asking.
+
+**Tests:** `tests/rules/test_awards.py::test_players_tied_for_first_place_all_get_5_and_nobody_gets_second_place`,
+`test_miner_counts_steel_and_titanium_together` (a tie for second),
+`test_in_a_2_player_game_the_runner_up_gets_nothing` and
+`test_a_count_of_0_can_win_an_award_or_take_second_place`.
+
+### What the Awards and Milestones count
+
+**Call:**
+- **Landlord** counts every Tile a Player owns: their Greeneries and Cities, and later
+  their special Tiles. Oceans belong to nobody, so they count for nobody.
+- **Mayor** counts the Cities a Player owns and **Gardener** their Greeneries.
+- **Banker** compares MegaCredit Production as it stands, below zero too: −2 beats −5.
+- **Thermalist** counts heat and **Miner** steel and titanium together. Like every Award,
+  they are counted at final scoring: after the final Production phase (which turns energy
+  into heat) and after the final Greenery conversion (whose Greeneries count for Landlord).
+- A claimed Milestone stays claimed even if its Player later falls below it. Nothing can
+  lower these counts before cards exist; a Planner's hand can shrink once there are cards,
+  and its test comes with ticket 08.
+
+**Why:** These follow the printed conditions ("owning the most tiles in play", "the most
+heat resource cubes"). The open-source game also leaves Oceans out of Landlord. Whether
+the Cities off Mars (Phobos Space Haven, Ganymede Colony) count for Mayor, Landlord and
+City scoring is for ticket 18, when they can be placed.
+
+Chosen by Claude (2026-10-23), on the user's instruction to make the ticket 05 calls
+without asking.
+
+**Tests:** `tests/rules/test_awards.py::test_landlord_goes_to_whoever_owns_the_most_tiles_and_oceans_belong_to_nobody`,
+`test_banker_goes_to_the_highest_megacredit_production_even_below_zero`,
+`test_thermalist_counts_heat_after_the_final_production_phase`,
+`tests/rules/test_final_scoring.py::test_greeneries_from_the_final_conversion_score_and_count_for_landlord`,
+and the Mayor and Gardener tests in `tests/rules/test_milestones.py`.
+
+### Builder, Planner and Scientist before there are cards (temporary)
+
+**Call:** Until cards exist (ticket 08), every Player has 0 building Tags, 0 cards in hand
+and 0 science Tags. Builder and Planner can never be claimed, and a funded Scientist Award
+gives every Player 5 Victory Points, since they all tie for first at 0.
+
+**Why:** Not a rules question but a gap in the engine, recorded so that play-testing
+doesn't mistake it for a bug. It follows from the call on counts of 0 above. Ticket 08
+gives these three their real counts.
+
+**Tests:** `tests/rules/test_awards.py::test_until_there_are_tags_a_funded_scientist_gives_every_player_5_victory_points`
+
+## Final scoring
+
+### A tie for the win
+
+**Call:** The Player with the most Victory Points wins. Of Players tied on Victory Points,
+the one with the most MegaCredits ranks higher. Players tied on both share their rank, and
+the win if it is first place. The game log says which happened.
+
+**Why:** The rulebook breaks a tie on Victory Points by MegaCredits and goes no further.
+Some rules summaries add cards in hand as a further tiebreak, but no official source for
+that was found, and there are no hands until ticket 08.
+
+Chosen by Claude (2026-10-23), on the user's instruction to make the ticket 05 calls
+without asking.
+
+**Tests:** `tests/rules/test_final_scoring.py::test_on_equal_victory_points_the_player_with_more_megacredits_ranks_higher`
+and `test_players_tied_on_victory_points_and_megacredits_share_a_rank`.
+
 ## Tiles
 
 ### Card-draw placement bonuses before there is a deck (temporary)

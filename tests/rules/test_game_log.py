@@ -77,8 +77,9 @@ def test_the_log_ends_with_the_final_scores():
 
     end_the_generation(game)
 
-    assert game.log[-3:] == [
+    assert game.log[-4:] == [
         "The Game is over.",
         "Player 1 finishes with 31 Victory Points.",
         "Player 2 finishes with 27 Victory Points.",
+        "Player 1 wins.",
     ]

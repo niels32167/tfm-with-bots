@@ -11,9 +11,11 @@ use serde::{Deserialize, Serialize};
 
 use crate::board::{Board, BonusItem, Tile, TileKind, printed};
 use crate::log::LogEvent;
+use crate::milestones_and_awards::{AWARD_COSTS, Award, MAX_MILESTONES_CLAIMED, MILESTONE_COST, Milestone};
 use crate::random::RandomNumbers;
 use crate::replay::{Replay, Start};
 use crate::resources::{Resource, Resources};
+use crate::scoring::{Score, final_scores, funded_award_places, winners};
 
 pub const MIN_PLAYERS: usize = 2;
 pub const MAX_PLAYERS: usize = 5;
@@ -167,6 +169,12 @@ pub enum DecisionKind {
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum DecisionOption {
     UseStandardProject(StandardProject),
+    ClaimMilestone(Milestone),
+    /// Fund `award` for `cost`, the price of the next Award funded.
+    FundAward {
+        award: Award,
+        cost: i32,
+    },
     /// Convert plants into a Greenery.
     ConvertPlants,
     /// Convert heat into a Temperature step.
@@ -190,13 +198,6 @@ pub struct Decision {
     /// stale pick (say, a double click) is rejected instead of answering the next Decision.
     pub sequence: u64,
     pub options: Vec<DecisionOption>,
-}
-
-#[derive(Clone, Debug, Serialize)]
-pub struct Score {
-    pub player: usize,
-    pub terraform_rating: i32,
-    pub total: i32,
 }
 
 #[derive(Debug, PartialEq, Eq)]
@@ -241,6 +242,10 @@ pub struct Game {
     /// The Area of a Tile whose placement bonus waits until the Tile being placed is down:
     /// a Greenery's waits for the Ocean its 0 °C step gave (see docs/rules-notes.md).
     pub waiting_bonus: Option<usize>,
+    /// Who claimed each Milestone, by its index in `Milestone::ALL`.
+    pub claimed_milestones: [Option<usize>; Milestone::ALL.len()],
+    /// Who funded each Award, by its index in `Award::ALL`.
+    pub funded_awards: [Option<usize>; Award::ALL.len()],
     pub log: Vec<LogEvent>,
     /// Seeded from the settings; every random event in the Game draws from it.
     pub random_numbers: RandomNumbers,
@@ -278,6 +283,8 @@ impl Game {
             actions_this_turn: 0,
             placing: None,
             waiting_bonus: None,
+            claimed_milestones: [None; Milestone::ALL.len()],
+            funded_awards: [None; Award::ALL.len()],
             log: Vec::new(),
         }
     }
@@ -322,22 +329,9 @@ impl Game {
         Ok(())
     }
 
-    /// Each Player's final score, once the Game is over. For now it is just Terraform Rating.
+    /// Each Player's final score, once the Game is over.
     pub fn scores(&self) -> Option<Vec<Score>> {
-        if !self.is_over() {
-            return None;
-        }
-        let scores = self
-            .players
-            .iter()
-            .enumerate()
-            .map(|(index, player)| Score {
-                player: index,
-                terraform_rating: player.terraform_rating,
-                total: player.terraform_rating,
-            })
-            .collect();
-        Some(scores)
+        self.is_over().then(|| final_scores(self))
     }
 
     fn action_options(&self) -> Vec<DecisionOption> {
@@ -356,6 +350,20 @@ impl Game {
         if player.resources.heat >= HEAT_PER_TEMPERATURE_STEP {
             options.push(DecisionOption::ConvertHeat);
         }
+        for milestone in Milestone::ALL {
+            if self.can_claim(milestone) {
+                options.push(DecisionOption::ClaimMilestone(milestone));
+            }
+        }
+        if let Some(cost) = self.award_cost()
+            && player.resources.megacredits >= cost
+        {
+            for award in Award::ALL {
+                if self.funded_awards[award.index()].is_none() {
+                    options.push(DecisionOption::FundAward { award, cost });
+                }
+            }
+        }
         // Once everyone else has passed, ending the Turn would only start another one.
         if self.actions_this_turn > 0 && self.another_player_still_in() {
             options.push(DecisionOption::EndTurn);
@@ -373,6 +381,26 @@ impl Game {
             Some(TileKind::Ocean) if self.board.oceans() >= MAX_OCEANS => true,
             Some(tile) => self.board.has_area_for(tile),
         }
+    }
+
+    /// Whether the current Player may claim `milestone`: they meet it and can pay, nobody has
+    /// claimed it, and fewer than three Milestones are claimed.
+    fn can_claim(&self, milestone: Milestone) -> bool {
+        let player = self.current_player;
+        self.milestone_cost().is_some_and(|cost| self.players[player].resources.megacredits >= cost)
+            && self.claimed_milestones[milestone.index()].is_none()
+            && milestone.count(self, player) >= milestone.target()
+    }
+
+    /// What claiming a Milestone costs, or None once three are claimed.
+    pub fn milestone_cost(&self) -> Option<i32> {
+        let claimed = self.claimed_milestones.iter().flatten().count();
+        (claimed < MAX_MILESTONES_CLAIMED).then_some(MILESTONE_COST)
+    }
+
+    /// What funding the next Award costs, or None once three are funded.
+    pub fn award_cost(&self) -> Option<i32> {
+        AWARD_COSTS.get(self.funded_awards.iter().flatten().count()).copied()
     }
 
     fn can_convert_plants(&self, player: usize) -> bool {
@@ -402,6 +430,18 @@ impl Game {
                         self.placing = Some(TileKind::City);
                     }
                 }
+                self.finish_unless_placing();
+            }
+            DecisionOption::ClaimMilestone(milestone) => {
+                self.players[player].resources.megacredits -= MILESTONE_COST;
+                self.claimed_milestones[milestone.index()] = Some(player);
+                self.log.push(LogEvent::ClaimedMilestone { player, milestone });
+                self.finish_unless_placing();
+            }
+            DecisionOption::FundAward { award, cost } => {
+                self.players[player].resources.megacredits -= cost;
+                self.funded_awards[award.index()] = Some(player);
+                self.log.push(LogEvent::FundedAward { player, award, cost });
                 self.finish_unless_placing();
             }
             DecisionOption::ConvertPlants => {
@@ -557,11 +597,20 @@ impl Game {
         self.temperature >= MAX_TEMPERATURE && self.oxygen >= MAX_OXYGEN && self.board.oceans() >= MAX_OCEANS
     }
 
+    /// The Game is over: the log says who took each Award, each Player's Victory Points, and
+    /// who wins.
     fn end_game(&mut self) {
         self.phase = Phase::Over;
         self.log.push(LogEvent::GameOver);
-        for score in self.scores().unwrap_or_default() {
+        for place in funded_award_places(self) {
+            self.log.push(LogEvent::AwardPlace(place));
+        }
+        let scores = final_scores(self);
+        for score in &scores {
             self.log.push(LogEvent::FinalScore { player: score.player, victory_points: score.total });
+        }
+        for (player, win) in winners(&scores) {
+            self.log.push(LogEvent::Won { player, win });
         }
     }
 
@@ -606,7 +655,7 @@ impl Game {
 
     /// Whether placing a Tile on `area` now gives anything: a printed bonus or an adjacent Ocean.
     fn has_placement_bonus(&self, area: usize) -> bool {
-        !printed(area).bonus.is_empty() || self.board.adjacent_oceans(area) > 0
+        !printed(area).bonus.is_empty() || self.board.adjacent(area, TileKind::Ocean) > 0
     }
 
     /// What `player` gains for placing a Tile on `area`: the bonus printed on it, and
@@ -624,7 +673,7 @@ impl Game {
             }
             self.log.push(LogEvent::PlacementBonus { player, item, amount });
         }
-        let oceans = self.board.adjacent_oceans(area);
+        let oceans = self.board.adjacent(area, TileKind::Ocean);
         if oceans > 0 {
             self.players[player].resources.megacredits += OCEAN_ADJACENCY_BONUS * oceans as i32;
             self.log.push(LogEvent::AdjacentOceans { player, oceans });

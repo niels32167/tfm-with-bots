@@ -4,6 +4,7 @@ import { DEFAULT_BOT_DELAY } from "./components/BotSpeedSelect";
 import { FinalScores } from "./components/FinalScores";
 import { GameLog } from "./components/GameLog";
 import { MarsBoard } from "./components/MarsBoard";
+import { MilestonesAwards } from "./components/MilestonesAwards";
 import { NewGameSetup } from "./components/NewGameSetup";
 import { OceanTrack } from "./components/OceanTrack";
 import { PlayerBoards } from "./components/PlayerBoards";
@@ -65,6 +66,8 @@ export function App() {
   }
 
   const scores = game.view.scores;
+  // True while a pick is on its way to the server.
+  const picking = pickedSequence === game.decision?.sequence;
   return (
     <div className="game">
       <TopBar
@@ -79,18 +82,21 @@ export function App() {
       <StatusBar game={game} error={error} pickedSequence={pickedSequence} onPick={server.pick} />
       <div className="table">
         <main className="board-area">
-          <TemperatureTrack temperature={game.view.temperature} />
-          <div className="mars-column">
-            <MarsBoard
-              board={game.view.board}
-              oxygen={game.view.oxygen}
-              playerNames={game.view.players.map((board) => board.name)}
-              decision={game.decision}
-              disabled={pickedSequence === game.decision?.sequence}
-              onPick={server.pick}
-            />
+          <div className="mars-and-tracks">
+            <TemperatureTrack temperature={game.view.temperature} />
+            <div className="mars-column">
+              <MarsBoard
+                board={game.view.board}
+                oxygen={game.view.oxygen}
+                playerNames={game.view.players.map((board) => board.name)}
+                decision={game.decision}
+                disabled={picking}
+                onPick={server.pick}
+              />
+            </div>
+            <OceanTrack oceans={game.view.oceans} />
           </div>
-          <OceanTrack oceans={game.view.oceans} />
+          <MilestonesAwards game={game} disabled={picking} onPick={server.pick} />
         </main>
         <aside className="side-panel">
           <PlayerBoards game={game} />
