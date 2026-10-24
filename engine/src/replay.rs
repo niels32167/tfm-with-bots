@@ -35,7 +35,11 @@ impl Start {
     pub fn settings(&self) -> Settings {
         match self {
             Start::Settings(settings) => settings.clone(),
-            Start::Scenario(scenario) => Settings { players: scenario.players.len(), seed: scenario.seed },
+            Start::Scenario(scenario) => Settings {
+                players: scenario.players.len(),
+                seed: scenario.seed,
+                implemented_cards_first: false,
+            },
         }
     }
 }

@@ -7,7 +7,7 @@ from tests.server.helpers import Gui, connect
 
 def play_a_few_turns(gui: Gui, controllers: list[str]) -> dict:
     """Starts a Game and has the humans take a few Actions; returns the latest update."""
-    update = gui.start(controllers, seed=12)
+    update = gui.skip_buying(gui.start(controllers, seed=12))
     for label in ("Asteroid", "End Turn", "Asteroid", "Pass"):
         gui.pick(update, label)
         update = gui.wait_for_human()
@@ -20,7 +20,7 @@ def test_a_saved_replay_file_holds_the_replay_and_every_players_controller():
         file = gui.save_replay()
 
     assert file["controllers"] == ["human", "random_bot", "random_bot"]
-    assert file["replay"]["start"] == {"settings": {"players": 3, "seed": 12}}
+    assert file["replay"]["start"] == {"settings": {"players": 3, "seed": 12, "implemented_cards_first": False}}
     assert len(file["replay"]["picks"]) == update["decision"]["sequence"]
 
 
@@ -68,7 +68,7 @@ def test_a_broken_replay_file_is_rejected_and_the_current_game_carries_on():
         gui.send({"type": "load_replay", "file": {"controllers": ["human", "human"], "replay": impossible_replay}})
         assert "pick 2 of the Replay" in gui.receive_error()
 
-        gui.pick(update, "Asteroid")
+        gui.pick(update, "Done")
         assert gui.next_update()["decision"]["sequence"] == update["decision"]["sequence"] + 1
 
 
@@ -82,13 +82,13 @@ def test_a_loaded_game_carries_on_as_the_saved_one_would_have():
     with connect() as gui:
         saved = play_a_few_turns(gui, ["human", "random_bot", "random_bot"])
         file = gui.save_replay()
-        gui.pick(saved, "Pass")
+        gui.pick(saved, "Done")  # buying nothing in Generation 2's Research phase
         carried_on = gui.wait_for_human()
 
     with connect() as gui:
         gui.send({"type": "load_replay", "file": file, "bot_delay": 0})
         loaded = gui.wait_for_human()
-        gui.pick(loaded, "Pass")
+        gui.pick(loaded, "Done")
         carried_on_after_loading = gui.wait_for_human()
 
     assert carried_on_after_loading["view"] == carried_on["view"]

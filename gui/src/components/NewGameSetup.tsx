@@ -21,7 +21,8 @@ interface Props {
   onCancel?: () => void;
 }
 
-/** The new-Game screen: Players, their Controllers, the seed and how fast Random Bots pick. */
+/** The new-Game screen: Players, their Controllers, the seed, how fast Random Bots pick, and
+ * whether the implemented cards are dealt first. */
 export function NewGameSetup({
   initialControllers,
   initialBotDelay,
@@ -38,6 +39,7 @@ export function NewGameSetup({
   );
   const [seedText, setSeedText] = useState("");
   const [botDelay, setBotDelay] = useState(initialBotDelay);
+  const [implementedCardsFirst, setImplementedCardsFirst] = useState(true);
 
   const controllers = allControllers.slice(0, playerCount);
   const seed = parseSeed(seedText);
@@ -47,7 +49,12 @@ export function NewGameSetup({
 
   const start = () => {
     if (seed === "invalid") return;
-    onStart({ controllers, bot_delay: botDelay, ...(seed === null ? {} : { seed }) });
+    onStart({
+      controllers,
+      bot_delay: botDelay,
+      implemented_cards_first: implementedCardsFirst,
+      ...(seed === null ? {} : { seed }),
+    });
   };
 
   return (
@@ -105,6 +112,20 @@ export function NewGameSetup({
             />
           </label>
           <BotSpeedSelect delay={botDelay} onChange={setBotDelay} />
+        </section>
+        <section className="setup-section">
+          <label className="setup-checkbox">
+            <input
+              type="checkbox"
+              checked={implementedCardsFirst}
+              onChange={(event) => setImplementedCardsFirst(event.target.checked)}
+            />
+            Deal the implemented cards first
+          </label>
+          <p className="setup-hint">
+            Until every card is implemented, this puts the playable ones on top of the deck. Off, the deck is
+            shuffled as the rules say.
+          </p>
         </section>
         {seed === "invalid" && (
           <p className="setup-error">

@@ -10,7 +10,9 @@ use std::fmt;
 use serde::{Deserialize, Serialize};
 
 use crate::board::{Board, BonusItem, Tile, TileKind, printed};
+use crate::card_flow::Buying;
 use crate::card_set::CardSet;
+use crate::cards::{CARD_CATALOG, PROJECT_CARDS};
 use crate::deck::Deck;
 use crate::log::LogEvent;
 use crate::milestones_and_awards::{AWARD_COSTS, Award, MAX_MILESTONES_CLAIMED, MILESTONE_COST, Milestone};
@@ -56,21 +58,21 @@ pub const OCEAN_ADJACENCY_BONUS: i32 = 2;
 
 pub const STARTING_TERRAFORM_RATING: i32 = 20;
 
-/// Temporary until Corporations exist: every Player starts with this many MegaCredits,
-/// the amount the Beginner Corporation gives.
+/// Temporary until Corporations exist (ticket 21): every Player starts with this many
+/// MegaCredits, as Helion and Saturn Systems do, and buys their setup cards with them.
 pub const STARTING_MEGACREDITS: i32 = 42;
 
 pub const ACTIONS_PER_TURN: u32 = 2;
-
-/// Temporary until Corporations and buying cards exist (ticket 09): a new Game deals out these
-/// cards, the starter set of ticket 08, by number.
-pub const STARTER_SET: [usize; 11] = [22, 45, 53, 56, 60, 87, 113, 138, 141, 144, 168];
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct Settings {
     pub players: usize,
     pub seed: u64,
+    /// While most cards are not implemented yet: the implemented ones are shuffled and put on
+    /// top of the deck, so they are dealt first. Off, the deck is shuffled as the rules say.
+    #[serde(default)]
+    pub implemented_cards_first: bool,
 }
 
 #[derive(Clone, Debug)]
@@ -83,6 +85,8 @@ pub struct Player {
     pub hand: CardSet,
     /// The cards they have played, Events included.
     pub played: CardSet,
+    /// In the setup or a Research phase, what they are buying from.
+    pub buying: Buying,
 }
 
 impl Player {
@@ -94,6 +98,7 @@ impl Player {
             passed: false,
             hand: CardSet::default(),
             played: CardSet::default(),
+            buying: Buying::default(),
         }
     }
 }
@@ -105,14 +110,26 @@ pub fn starting_resources() -> Resources {
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Phase {
+    /// Before Generation 1: Players buy from the cards dealt to them.
+    Setup,
+    /// From Generation 2, before the Action phase: Players buy from the cards they drew.
+    Research,
     Action,
     /// After the final Production phase: Players may convert plants into Greeneries.
     FinalGreenery,
     Over,
 }
 
+impl Phase {
+    /// Whether Players are buying cards: in the setup or a Research phase.
+    pub fn is_buying(self) -> bool {
+        matches!(self, Phase::Setup | Phase::Research)
+    }
+}
+
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum StandardProject {
+    SellPatents,
     PowerPlant,
     Asteroid,
     Aquifer,
@@ -121,8 +138,9 @@ pub enum StandardProject {
 }
 
 impl StandardProject {
-    /// In the order printed on the board. (Sell Patents comes with the cards.)
-    pub const ALL: [StandardProject; 5] = [
+    /// In the order printed on the board.
+    pub const ALL: [StandardProject; 6] = [
+        StandardProject::SellPatents,
         StandardProject::PowerPlant,
         StandardProject::Asteroid,
         StandardProject::Aquifer,
@@ -137,6 +155,7 @@ impl StandardProject {
 
     pub fn name(self) -> &'static str {
         match self {
+            StandardProject::SellPatents => "Sell Patents",
             StandardProject::PowerPlant => "Power Plant",
             StandardProject::Asteroid => "Asteroid",
             StandardProject::Aquifer => "Aquifer",
@@ -145,9 +164,10 @@ impl StandardProject {
         }
     }
 
-    /// The printed price in MegaCredits.
+    /// The printed price in MegaCredits. Sell Patents has none: it gains MegaCredits instead.
     pub fn cost(self) -> i32 {
         match self {
+            StandardProject::SellPatents => 0,
             StandardProject::PowerPlant => 11,
             StandardProject::Asteroid => 14,
             StandardProject::Aquifer => 18,
@@ -159,7 +179,7 @@ impl StandardProject {
     /// The Tile it places, if any.
     pub fn tile(self) -> Option<TileKind> {
         match self {
-            StandardProject::PowerPlant | StandardProject::Asteroid => None,
+            StandardProject::SellPatents | StandardProject::PowerPlant | StandardProject::Asteroid => None,
             StandardProject::Aquifer => Some(TileKind::Ocean),
             StandardProject::Greenery => Some(TileKind::Greenery),
             StandardProject::City => Some(TileKind::City),
@@ -175,6 +195,10 @@ pub enum DecisionKind {
     Area,
     /// Choose how to pay for the card being played.
     Payment,
+    /// Buy one more of the cards dealt, or be done, in the setup or a Research phase.
+    BuyCards,
+    /// Sell one more card from the hand, or be done, with the Sell Patents Standard Project.
+    SellPatents,
     /// Convert plants into a Greenery once more, or be done, in the final Greenery conversion.
     FinalGreenery,
 }
@@ -184,6 +208,10 @@ pub enum DecisionKind {
 pub enum DecisionOption {
     /// Play this Project Card from the hand, by its index in the card catalog.
     PlayCard(usize),
+    /// Buy this card, one of those dealt, in the setup or a Research phase.
+    BuyCard(usize),
+    /// Sell this card from the hand, with the Sell Patents Standard Project.
+    SellCard(usize),
     /// Pay for `card`, which is being played, this way.
     Pay {
         card: usize,
@@ -202,7 +230,7 @@ pub enum DecisionOption {
     ConvertHeat,
     EndTurn,
     Pass,
-    /// Finished converting plants in the final Greenery conversion.
+    /// Finished buying cards, selling them, or converting plants in the final Greenery conversion.
     Done,
     /// Place the Tile being placed on this Area.
     PlaceTile {
@@ -252,6 +280,8 @@ pub struct Game {
     pub oxygen: i32,
     pub board: Board,
     pub deck: Deck,
+    /// The cards discarded, face down. A set, since the pile is only ever shuffled into a new deck.
+    pub discard: CardSet,
     pub players: Vec<Player>,
     /// Who holds the first-player marker, and so takes the first Turn of this Generation.
     pub first_player: usize,
@@ -265,6 +295,8 @@ pub struct Game {
     pub paying_for: Option<usize>,
     /// The card whose Tiles the current Player is placing, while it has any left to place.
     pub placing_for: Option<CardTiles>,
+    /// How many cards the current Player has sold so far, while they are selling patents.
+    pub selling: Option<usize>,
     /// The Area of a Tile whose placement bonus waits until the Tile being placed is down:
     /// a Greenery's waits for the Ocean its 0 °C step gave (see docs/rules-notes.md).
     pub waiting_bonus: Option<usize>,
@@ -286,28 +318,16 @@ impl Game {
         check_seed(settings.seed)?;
         let players = vec![Player::new(); settings.players];
         let mut game = Game::prepare(Start::Settings(settings), players);
-        let first_player = game.random_numbers.below(game.players.len());
-        game.deal_starter_set(first_player);
-        game.deck = Deck::shuffled(game.cards_outside_the_deck(), &[], &mut game.random_numbers);
-        game.begin(1, first_player);
-        Ok(game)
-    }
-
-    /// Until ticket 09: the starter set, shuffled and dealt out round-robin from `first_player`.
-    fn deal_starter_set(&mut self, first_player: usize) {
-        let mut cards = STARTER_SET.map(|number| number - 1);
-        self.random_numbers.shuffle(&mut cards);
-        for (offset, card) in cards.into_iter().enumerate() {
-            let player = (first_player + offset) % self.players.len();
-            self.players[player].hand.insert(card);
+        game.first_player = game.random_numbers.below(game.players.len());
+        game.generation = 1;
+        let mut on_top = Vec::new();
+        if game.settings.implemented_cards_first {
+            on_top = (0..PROJECT_CARDS).filter(|&card| CARD_CATALOG[card].effects.is_some()).collect();
+            game.random_numbers.shuffle(&mut on_top);
         }
-    }
-
-    /// Every card in a hand or among played cards.
-    fn cards_outside_the_deck(&self) -> CardSet {
-        self.players
-            .iter()
-            .fold(CardSet::default(), |held, player| held.union(player.hand).union(player.played))
+        game.deck = Deck::shuffled(CardSet::default(), &on_top, &mut game.random_numbers);
+        game.begin_setup();
+        Ok(game)
     }
 
     /// A Game at normal setup, with an empty deck, waiting for `begin` to start its first Generation.
@@ -323,6 +343,7 @@ impl Game {
             oxygen: 0,
             board: Board::new(),
             deck: Deck::EMPTY,
+            discard: CardSet::default(),
             players,
             first_player: 0,
             current_player: 0,
@@ -330,6 +351,7 @@ impl Game {
             placing: None,
             paying_for: None,
             placing_for: None,
+            selling: None,
             waiting_bonus: None,
             claimed_milestones: [None; Milestone::ALL.len()],
             funded_awards: [None; Award::ALL.len()],
@@ -346,13 +368,17 @@ impl Game {
         if self.phase == Phase::Over {
             return None;
         }
-        let (kind, options) = match (self.placing, self.paying_for, self.phase) {
-            (Some(tile), _, _) => (DecisionKind::Area, self.area_options(tile)),
-            (None, Some(card), _) => (DecisionKind::Payment, self.payment_options(card)),
-            (None, None, Phase::FinalGreenery) => {
+        let (kind, options) = match (self.placing, self.paying_for, self.selling, self.phase) {
+            (Some(tile), ..) => (DecisionKind::Area, self.area_options(tile)),
+            (None, Some(card), ..) => (DecisionKind::Payment, self.payment_options(card)),
+            (None, None, Some(sold), _) => (DecisionKind::SellPatents, self.selling_options(sold)),
+            (None, None, None, Phase::Setup | Phase::Research) => {
+                (DecisionKind::BuyCards, self.buying_options())
+            }
+            (None, None, None, Phase::FinalGreenery) => {
                 (DecisionKind::FinalGreenery, vec![DecisionOption::ConvertPlants, DecisionOption::Done])
             }
-            (None, None, _) => (DecisionKind::Action, self.action_options()),
+            (None, None, None, _) => (DecisionKind::Action, self.action_options()),
         };
         Some(Decision {
             player: self.current_player,
@@ -400,8 +426,14 @@ impl Game {
             .map(DecisionOption::PlayCard)
             .collect();
         for project in StandardProject::ALL {
-            if player.resources.megacredits >= project.cost() && self.can_take_action_placing(project.tile())
-            {
+            let can_use = match project {
+                StandardProject::SellPatents => !player.hand.is_empty(),
+                _ => {
+                    player.resources.megacredits >= project.cost()
+                        && self.can_take_action_placing(project.tile())
+                }
+            };
+            if can_use {
                 options.push(DecisionOption::UseStandardProject(project));
             }
         }
@@ -493,10 +525,17 @@ impl Game {
                 self.paying_for = None;
                 self.play_card(player, card, payment);
             }
+            DecisionOption::BuyCard(card) => self.buy(card),
+            DecisionOption::SellCard(card) => self.sell(card),
+            // It has no price: the Player picks the cards to sell next.
+            DecisionOption::UseStandardProject(StandardProject::SellPatents) => self.selling = Some(0),
             DecisionOption::UseStandardProject(project) => {
                 self.players[player].resources.megacredits -= project.cost();
                 self.log.push(LogEvent::UsedStandardProject { player, project });
                 match project {
+                    StandardProject::SellPatents => {
+                        unreachable!("Sell Patents begins with the cards to sell")
+                    }
                     StandardProject::PowerPlant => self.change_production(player, Resource::Energy, 1),
                     StandardProject::Asteroid => self.raise_temperature(player),
                     StandardProject::Aquifer => self.place_ocean(),
@@ -546,10 +585,12 @@ impl Game {
                 self.log.push(LogEvent::Passed { player });
                 self.end_turn();
             }
-            DecisionOption::Done => {
+            DecisionOption::Done if self.selling.is_some() => self.finish_selling(),
+            DecisionOption::Done if self.phase == Phase::FinalGreenery => {
                 self.log.push(LogEvent::DoneConvertingPlants { player });
                 self.offer_final_greenery_from(self.index_in_player_order() + 1);
             }
+            DecisionOption::Done => self.done_buying(),
         }
     }
 
@@ -622,25 +663,36 @@ impl Game {
         } else {
             // The first-player marker passes clockwise, to the next Player.
             self.first_player = (self.first_player + 1) % self.players.len();
-            self.begin_generation(self.generation + 1);
+            self.generation += 1;
+            self.log_generation_begins();
+            self.begin_research_phase();
         }
     }
 
-    /// Hands the first-player marker to `first_player` and begins `generation`.
+    /// Hands the first-player marker to `first_player` and begins `generation` with its Action
+    /// phase: after setup, or where a Scenario starts.
     pub fn begin(&mut self, generation: u32, first_player: usize) {
         self.first_player = first_player;
-        self.begin_generation(generation);
+        self.generation = generation;
+        self.log_generation_begins();
+        self.begin_action_phase();
+    }
+
+    fn log_generation_begins(&mut self) {
+        self.log.push(LogEvent::GenerationBegins {
+            generation: self.generation,
+            first_player: self.first_player,
+        });
     }
 
     /// The first Player takes the first Turn, and everyone is back in the Action phase.
-    fn begin_generation(&mut self, generation: u32) {
-        self.generation = generation;
+    pub(crate) fn begin_action_phase(&mut self) {
+        self.phase = Phase::Action;
         for player in &mut self.players {
             player.passed = false;
         }
         self.current_player = self.first_player;
         self.actions_this_turn = 0;
-        self.log.push(LogEvent::GenerationBegins { generation, first_player: self.first_player });
     }
 
     /// After the final Production phase, Players may convert plants into Greeneries in player
@@ -655,18 +707,30 @@ impl Game {
     /// looking from index `start` in player order (0 is the first player). Once nobody
     /// can, the Game is over.
     fn offer_final_greenery_from(&mut self, start: usize) {
-        let count = self.players.len();
-        let next = (start..count)
-            .map(|index| (self.first_player + index) % count)
-            .find(|&player| self.can_convert_plants(player));
-        match next {
+        match self.first_in_player_order_who(start, Game::can_convert_plants) {
             Some(player) => self.current_player = player,
             None => self.end_game(),
         }
     }
 
+    /// Every Player, in player order from the first player.
+    pub(crate) fn player_order(&self) -> impl Iterator<Item = usize> + use<> {
+        let (first, count) = (self.first_player, self.players.len());
+        (0..count).map(move |offset| (first + offset) % count)
+    }
+
+    /// The first Player for whom `can` holds, looking from index `start` in player order (0 is
+    /// the first player).
+    pub(crate) fn first_in_player_order_who(
+        &self,
+        start: usize,
+        can: fn(&Game, usize) -> bool,
+    ) -> Option<usize> {
+        self.player_order().skip(start).find(|&player| can(self, player))
+    }
+
     /// The current Player's index in player order, counting the first player as 0.
-    fn index_in_player_order(&self) -> usize {
+    pub(crate) fn index_in_player_order(&self) -> usize {
         let count = self.players.len();
         (self.current_player + count - self.first_player) % count
     }

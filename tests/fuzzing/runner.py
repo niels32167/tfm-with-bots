@@ -1,7 +1,7 @@
 """The fuzzer: it plays Random Bot Games from normal setup and checks the invariants after
 every Decision and at the end of every Game (ticket 06).
 
-Game `seed` has `players_for(seed)` Players, and its Random Bot picks come from the same
+Game `seed` has the settings `settings_for(seed)`, and its Random Bot picks come from the same
 seed. Every failure (a broken invariant, an error from the engine or from a check, or a
 Game still going past a fuzzing guard) is saved as a Replay file in fuzz-failures/, which
 the GUI's Load Replay… opens at the moment it went wrong.
@@ -22,9 +22,9 @@ from tests.fuzzing.invariants import AFTER_EVERY_DECISION, AT_THE_END_OF_THE_GAM
 
 FAILURES_FOLDER = Path(__file__).parents[2] / "fuzz-failures"
 
-# Fuzzing guards, not rules. Random Bot Games end after about 12 to 21 Generations on
-# average (5 down to 2 Players) and about 190 to 220 picks; none of the first 100,000 took
-# more than 36 Generations. The pick limit catches a Game that stalls inside a Generation.
+# Fuzzing guards, not rules. Since cards are bought and sold (ticket 09), Random Bot Games end
+# after about 16 to 25 Generations on average (5 down to 2 Players) and about 750 to 510 picks,
+# at most about 1,200. The pick limit catches a Game that stalls inside a Generation.
 GENERATION_LIMIT = 100
 PICK_LIMIT = 50_000
 
@@ -39,9 +39,10 @@ def pick_at_random(random_numbers: random.Random, decision: dict[str, Any]) -> i
     return random_numbers.randrange(len(decision["options"]))
 
 
-def players_for(seed: int) -> int:
-    """How many Players fuzzed Game `seed` has: 2, 3, 4 and 5 in turn."""
-    return 2 + seed % 4
+def settings_for(seed: int) -> dict[str, Any]:
+    """The settings of fuzzed Game `seed`: 2, 3, 4 and 5 Players in turn, and for seeds 4 to 7,
+    12 to 15 and so on the implemented cards dealt first, so that Random Bots play more cards."""
+    return {"players": 2 + seed % 4, "implemented_cards_first": seed // 4 % 2 == 1}
 
 
 @dataclass(frozen=True)
@@ -74,6 +75,7 @@ def fuzz_game(
     seed: int,
     players: int,
     *,
+    implemented_cards_first: bool = False,
     after_every_decision: Sequence[Check] = AFTER_EVERY_DECISION,
     at_the_end: Sequence[Check] = AT_THE_END_OF_THE_GAME,
     generation_limit: int = GENERATION_LIMIT,
@@ -82,7 +84,7 @@ def fuzz_game(
 ) -> FuzzedGame:
     """Plays one Game with a Random Bot for every Player, checking it after every Decision,
     until it is over or something goes wrong."""
-    game = tm_engine.Game(seed=seed, players=players)
+    game = tm_engine.Game(seed=seed, players=players, implemented_cards_first=implemented_cards_first)
     start = game.replay["start"]
     random_numbers = random.Random(seed)
     picks: list[int] = []
@@ -144,7 +146,7 @@ class FuzzRun:
 
 def fuzz_batch(seeds: Iterable[int]) -> list[FuzzedGame]:
     """Fuzzes Game `seed` for each seed, in one worker process."""
-    return [fuzz_game(seed, players_for(seed)) for seed in seeds]
+    return [fuzz_game(seed, **settings_for(seed)) for seed in seeds]
 
 
 def fuzz(

@@ -3,6 +3,7 @@
 //! so the log adds little to the cost of copying a Game.
 
 use crate::board::{BonusItem, TileKind, area_label};
+use crate::card_flow::{CARD_PRICE, PATENT_VALUE, RESEARCH_CARDS, SETUP_CARDS};
 use crate::cards::CARD_CATALOG;
 use crate::game::{
     HEAT_PER_TEMPERATURE_STEP, MAX_OCEANS, OCEAN_ADJACENCY_BONUS, OCEAN_BONUS_TEMPERATURE,
@@ -15,50 +16,171 @@ use crate::scoring::{AwardPlace, Win};
 
 #[derive(Clone, Copy, Debug)]
 pub enum LogEvent {
-    GenerationBegins { generation: u32, first_player: usize },
-    PlayedCard { player: usize, card: usize, payment: Payment },
-    UsedStandardProject { player: usize, project: StandardProject },
-    ClaimedMilestone { player: usize, milestone: Milestone },
-    FundedAward { player: usize, award: Award, cost: i32 },
-    TemperatureRaised { player: usize, temperature: i32 },
-    ConvertedPlants { player: usize },
-    ConvertedHeat { player: usize },
-    ProductionChanged { player: usize, resource: Resource, by: i32 },
-    ResourceChanged { player: usize, resource: Resource, by: i32 },
-    TerraformRatingRaised { player: usize, by: i32 },
-    DrewCards { player: usize, count: i32 },
-    DeckEmpty { player: usize },
+    Setup,
+    GenerationBegins {
+        generation: u32,
+        first_player: usize,
+    },
+    ResearchPhase,
+    /// A Player bought `bought` of the `dealt` cards dealt to them.
+    BoughtCards {
+        player: usize,
+        bought: usize,
+        dealt: usize,
+    },
+    PlayedCard {
+        player: usize,
+        card: usize,
+        payment: Payment,
+    },
+    UsedStandardProject {
+        player: usize,
+        project: StandardProject,
+    },
+    ClaimedMilestone {
+        player: usize,
+        milestone: Milestone,
+    },
+    FundedAward {
+        player: usize,
+        award: Award,
+        cost: i32,
+    },
+    TemperatureRaised {
+        player: usize,
+        temperature: i32,
+    },
+    ConvertedPlants {
+        player: usize,
+    },
+    ConvertedHeat {
+        player: usize,
+    },
+    ProductionChanged {
+        player: usize,
+        resource: Resource,
+        by: i32,
+    },
+    ResourceChanged {
+        player: usize,
+        resource: Resource,
+        by: i32,
+    },
+    TerraformRatingRaised {
+        player: usize,
+        by: i32,
+    },
+    DrewCards {
+        player: usize,
+        count: i32,
+    },
+    SoldPatents {
+        player: usize,
+        cards: usize,
+    },
+    DiscardPileReshuffled {
+        cards: usize,
+    },
+    DeckAndDiscardPileEmpty {
+        player: usize,
+    },
     TemperatureAlreadyAtMaximum,
-    HeatProductionBonus { player: usize, temperature: i32 },
-    OceanBonus { player: usize },
-    TemperatureBonus { player: usize },
-    OxygenRaised { player: usize, oxygen: i32 },
+    HeatProductionBonus {
+        player: usize,
+        temperature: i32,
+    },
+    OceanBonus {
+        player: usize,
+    },
+    TemperatureBonus {
+        player: usize,
+    },
+    OxygenRaised {
+        player: usize,
+        oxygen: i32,
+    },
     OxygenAlreadyAtMaximum,
-    PlacedTile { player: usize, tile: TileKind, area: usize },
-    OceansRaised { player: usize, oceans: usize },
+    PlacedTile {
+        player: usize,
+        tile: TileKind,
+        area: usize,
+    },
+    OceansRaised {
+        player: usize,
+        oceans: usize,
+    },
     OceansAlreadyAtMaximum,
-    PlacementBonus { player: usize, item: BonusItem, amount: i32 },
-    CollectsWaitingBonus { player: usize, area: usize },
-    AdjacentOceans { player: usize, oceans: usize },
-    EndedTurn { player: usize },
-    Passed { player: usize },
+    PlacementBonus {
+        player: usize,
+        item: BonusItem,
+        amount: i32,
+    },
+    CollectsWaitingBonus {
+        player: usize,
+        area: usize,
+    },
+    AdjacentOceans {
+        player: usize,
+        oceans: usize,
+    },
+    EndedTurn {
+        player: usize,
+    },
+    Passed {
+        player: usize,
+    },
     ProductionPhase,
-    EnergyTurnsIntoHeat { player: usize, energy: i32 },
-    Produced { player: usize, terraform_rating: i32, production: Resources },
+    EnergyTurnsIntoHeat {
+        player: usize,
+        energy: i32,
+    },
+    Produced {
+        player: usize,
+        terraform_rating: i32,
+        production: Resources,
+    },
     MarsIsTerraformed,
-    FinalGreeneryConversion { first_player: usize },
-    DoneConvertingPlants { player: usize },
+    FinalGreeneryConversion {
+        first_player: usize,
+    },
+    DoneConvertingPlants {
+        player: usize,
+    },
     GameOver,
     AwardPlace(AwardPlace),
-    FinalScore { player: usize, victory_points: i32 },
-    Won { player: usize, win: Win },
+    FinalScore {
+        player: usize,
+        victory_points: i32,
+    },
+    Won {
+        player: usize,
+        win: Win,
+    },
 }
 
 impl LogEvent {
     pub fn text(&self) -> String {
         match *self {
+            LogEvent::Setup => format!(
+                "Setup: each Player is dealt {SETUP_CARDS} Project Cards and may buy any of them for \
+                 {CARD_PRICE} MegaCredits each."
+            ),
             LogEvent::GenerationBegins { generation, first_player } => {
                 format!("Generation {generation} begins, with {} as first player.", player_name(first_player))
+            }
+            LogEvent::ResearchPhase => format!(
+                "Research phase: each Player draws {RESEARCH_CARDS} cards and may buy any of them for \
+                 {CARD_PRICE} MegaCredits each."
+            ),
+            LogEvent::BoughtCards { player, bought, dealt } => {
+                let price = Resource::MegaCredits.counted(CARD_PRICE * bought as i32);
+                match bought {
+                    0 => format!("{} buys none of their {dealt} cards.", player_name(player)),
+                    _ if bought == dealt => {
+                        format!("{} buys all {dealt} of their cards for {price}.", player_name(player))
+                    }
+                    _ => format!("{} buys {bought} of their {dealt} cards for {price}.", player_name(player)),
+                }
             }
             LogEvent::PlayedCard { player, card, payment } => {
                 format!(
@@ -121,9 +243,20 @@ impl LogEvent {
             LogEvent::DrewCards { player, count } => {
                 format!("{} draws {}.", player_name(player), counted(count, "card", "cards"))
             }
-            LogEvent::DeckEmpty { player } => {
-                format!("The deck is empty, so {} draws no more cards.", player_name(player))
-            }
+            LogEvent::SoldPatents { player, cards } => format!(
+                "{} sells {} for {}.",
+                player_name(player),
+                counted(cards as i32, "patent", "patents"),
+                Resource::MegaCredits.counted(PATENT_VALUE * cards as i32)
+            ),
+            LogEvent::DiscardPileReshuffled { cards } => format!(
+                "The deck has run out, so the discard pile is shuffled into a new deck of {}.",
+                counted(cards as i32, "card", "cards")
+            ),
+            LogEvent::DeckAndDiscardPileEmpty { player } => format!(
+                "The deck and the discard pile are empty, so {} draws no more cards.",
+                player_name(player)
+            ),
             LogEvent::ConvertedPlants { player } => {
                 format!("{} converts {PLANTS_PER_GREENERY} plants into a Greenery.", player_name(player))
             }

@@ -1,5 +1,7 @@
 """Starting a Game from the setup screen: Players, Controllers, seed and Random Bot speed."""
 
+import time
+
 import tm_engine
 
 from tests.server.helpers import connect
@@ -22,14 +24,36 @@ def test_a_single_human_sees_only_their_own_player_view():
     assert update["view"]["viewer"] == 1
 
 
-def test_a_single_human_sees_their_own_hand_but_neither_the_random_bots_hand_nor_the_deck_order():
+def test_a_single_human_sees_the_cards_dealt_to_them_but_neither_the_random_bots_nor_the_deck_order():
     with connect() as gui:
         update = gui.start(["random_bot", "human"], seed=3)
 
     human, bot = update["view"]["players"][1], update["view"]["players"][0]
-    assert human["hand"] is not None and len(human["hand"]) == human["hand_size"]
-    assert bot["hand"] is None and bot["hand_size"] > 0
-    assert update["view"]["deck"] is None
+    assert update["decision"]["kind"] == "buy_cards"
+    assert len(human["buying"]["dealt"]) == 10
+    assert (bot["buying"], bot["hand"]) == (None, None)
+    assert (update["view"]["deck"], update["view"]["discard"]) == (None, None)
+
+
+def test_a_random_bot_buys_its_cards_without_pausing_so_waiting_on_it_reveals_nothing():
+    # A seed whose first player is Player 1, the Random Bot, so it buys before the human.
+    seed = next(seed for seed in range(100) if tm_engine.Game(seed=seed).full_view()["first_player"] == 0)
+    with connect() as gui:
+        started = time.monotonic()
+        update = gui.start(["random_bot", "human"], seed=seed, bot_delay=5)
+        waited = time.monotonic() - started
+
+    assert (update["decision"]["kind"], update["decision"]["player"]) == ("buy_cards", 1)
+    assert waited < 2
+
+
+def test_a_new_game_can_deal_the_implemented_cards_first():
+    with connect() as gui:
+        gui.start(["human", "human"], seed=3, implemented_cards_first=True)
+        assert gui.save_replay()["replay"]["start"]["settings"]["implemented_cards_first"] is True
+
+        gui.send({"type": "new_game", "controllers": ["human", "human"], "implemented_cards_first": "yes"})
+        assert "implemented_cards_first must be true or false" in gui.receive_error()
 
 
 def test_hotseat_shows_the_full_view_and_asks_the_first_player_to_decide():

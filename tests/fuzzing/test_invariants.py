@@ -189,6 +189,31 @@ def test_a_card_in_two_places_or_in_none_breaks_an_invariant():
     ]
 
 
+def test_the_discard_pile_and_the_cards_being_bought_from_are_places_for_cards_too():
+    view, decision = position(tm_engine.Game(seed=7))  # every Player is buying from the 10 cards dealt
+    assert problems(view, decision) == []
+    dealt = view["players"][0]["buying"]["dealt"]
+    view["discard"].append(dealt[0])
+    view["discard_size"] += 1
+    view["players"][1]["buying"]["bought"].append(dealt[1])
+
+    assert problems(view, decision) == [
+        f"Player 2 has bought '{dealt[1]}', which was not dealt to them",
+        f"'{dealt[0]}' is in 2 places: the discard pile and Player 1's cards to buy from",
+    ]
+
+
+def test_buying_cards_outside_the_setup_and_research_phases_breaks_an_invariant():
+    view, decision = position(scenario(player(), player(), discard=["mine"]))
+    view["players"][0]["buying"] = {"dealt": [], "bought": []}
+    view["discard_size"] = 2
+
+    assert problems(view, decision) == [
+        "discard_size is 2, but the discard pile holds 1 card",
+        "in the action phase, Player 1 is buying cards",
+    ]
+
+
 def test_a_corporation_or_an_unknown_card_among_the_cards_breaks_an_invariant():
     view, decision = position(scenario(player(), player()))
     view["players"][0]["played_cards"].append("credicor")

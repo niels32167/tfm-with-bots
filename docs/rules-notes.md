@@ -274,33 +274,117 @@ following the Aquifer call.
 **Tests:** `tests/cards/test_lake_marineris.py::test_with_8_oceans_placed_lake_marineris_places_the_last_one`
 and `tests/cards/test_black_polar_dust.py::test_once_9_oceans_are_placed_black_polar_dust_only_changes_production`.
 
-### The starter-set deal (temporary)
+## Card flow
 
-**Call:** Until ticket 09 brings Corporations and buying cards, a new Game shuffles the 11
-starter-set cards (#022, #045, #053, #056, #060, #087, #113, #138, #141, #144 and #168) and
-deals them round-robin from the first player: 5–6 each with 2 Players, 2–3 with 5. Every
-other Project Card is shuffled into the deck. Cards that are not implemented yet can sit in a
-hand (from a card bonus or a Scenario) but are never offered.
+### What setup cards cost until Corporations exist (temporary)
 
-**Why:** Not a rules question but a stand-in for the Corporate Era setup, so the starter set
-can be played in the GUI. Chosen by the user (2026-10-23).
+**Call:** Until Corporations arrive (ticket 21), every Player starts with 42 MegaCredits, is
+dealt 10 Project Cards, and buys any of them for 3 MegaCredits each.
 
-**Tests:** `tests/rules/test_deck.py::test_until_ticket_09_a_new_game_deals_out_the_starter_set_round_robin_from_the_first_player`
-and `tests/rules/test_playing_cards.py::test_a_card_that_is_not_implemented_yet_is_never_offered`.
+**Why:** 42 MegaCredits was first taken from the Beginner Corporation, but the Beginner keeps
+all 10 cards for free (its card in the open-source game: "Instead of choosing from 10 cards
+during setup, you get 10 cards for free"; the rules: "A Beginner Corporation gets to keep all
+their cards for free"). Ticket 21 leaves the Beginner out, as it belongs to the beginner
+variant. So 42 MegaCredits stays as a plain stand-in (Helion and Saturn Systems start with it
+too), and setup buying works now as the Corporations will use it. Chosen by the user
+(2026-10-24).
 
-### When the deck runs out (temporary)
+**Tests:** `tests/rules/test_buying_cards.py::test_until_corporations_exist_every_player_starts_with_42_megacredits_to_buy_cards_with`
+and `test_players_buy_in_player_order_from_the_first_player_and_pay_once_everyone_is_done`.
 
-**Call:** A Player who must draw from an empty deck draws nothing more, and the game log
-says so: "The deck is empty, so Player 1 draws no more cards."
+### Buying stays hidden until every Player is done
 
-**Why:** Not a rules question but a gap in the engine. The rulebook reshuffles the discard
-pile into a new deck, but nothing is discarded until ticket 09 (Research and Sell Patents),
-which brings the reshuffle. Until then only a Scenario that holds nearly every card can
-empty the deck: a normal Game has 197 cards in it after the deal, and only 6 card bonuses on
-the board. Chosen by Claude (2026-10-23), on the user's instruction to make the remaining
-ticket 08 calls without asking.
+**Call:** At setup and in each Research phase, Players buy one at a time in player order from
+the first player, with a chain of single picks ("Buy …", then Done). Nothing is paid and no
+card moves until the last Player is done: then every Player pays 3 MegaCredits per card
+bought, takes those cards into their hand, and the rest go face down to the discard pile. The
+game log then says how many cards each Player bought, never which. Until then, another
+Player's view shows neither the cards dealt nor those bought, and MegaCredits and hand sizes
+as they were.
 
-**Tests:** `tests/rules/test_placement_bonuses.py::test_a_card_bonus_with_the_deck_empty_draws_nothing`
+**Why:** Buying is simultaneous at the table; the engine asks one Player at a time (ADR 0002),
+so a later Player must not see what an earlier Player bought, even as falling MegaCredits. The
+open-source game lets each player confirm on their own, which shows MegaCredits early. Chosen
+by the user (2026-10-24).
+
+**Tests:** `tests/engine/test_views.py::test_while_players_buy_at_setup_no_player_view_shows_what_another_player_was_dealt_or_bought`,
+`test_while_players_buy_in_a_research_phase_no_player_view_shows_what_another_player_drew_or_bought`
+and `test_once_everyone_is_done_buying_the_log_says_how_many_cards_each_player_bought_but_not_which`.
+
+### The Research phase, and who is asked to buy
+
+**Call:** From Generation 2, after the Player Order phase, each Player draws 4 cards in player
+order from the first player, then buys as above. (The Draft, ticket 10, replaces the drawing.)
+A Player is asked only while they can buy another card: one is left and they can pay for it on
+top of those already bought. A Player who cannot afford any card, or has bought every card
+dealt, is passed over without a Decision; their cards not bought are discarded.
+
+**Why:** The rulebook's Research phase: each Player draws 4 cards and buys any of them for 3
+MegaCredits each, discarding the rest. A Decision whose only Option is Done changes nothing,
+the same reasoning as not offering End Turn when it changes nothing. Chosen by Claude
+(2026-10-24), on the user's instruction to make the remaining ticket 09 calls without asking.
+
+**Tests:** `tests/rules/test_buying_cards.py::test_from_generation_2_the_research_phase_deals_each_player_4_cards_in_player_order`,
+`test_a_player_buys_only_as_many_cards_as_they_can_pay_for_and_with_none_is_not_asked` and
+`test_a_player_who_buys_every_card_dealt_is_done_without_picking_done`.
+
+### Sell Patents
+
+**Call:** Sell Patents, printed first among the Standard Projects, is offered whenever the Player
+has a card in hand. It is a chain of single picks: each card sold goes face down to the
+discard pile and gains 1 MegaCredit at once. Done is offered only once a card is sold, and
+selling the last card in hand ends the Action without it. The game log says how many patents
+were sold, never which.
+
+**Why:** The rulebook: discard any number of cards from your hand to gain 1 MegaCredit each.
+Selling none would only waste an Action, an Option that changes nothing for the better. Chosen
+by Claude (2026-10-24), on the user's instruction to make the remaining ticket 09 calls without
+asking.
+
+**Tests:** `tests/rules/test_sell_patents.py`.
+
+### The discard pile lies face down
+
+**Call:** A Player View shows only how many cards are in the discard pile; the full view lists
+them.
+
+**Why:** The rules: "cards are always discarded face down". Chosen by the user (2026-10-24).
+
+**Tests:** `tests/rules/test_deck.py::test_a_scenario_puts_cards_face_down_in_the_discard_pile_which_only_the_full_view_lists`
+and `tests/rules/test_sell_patents.py::test_selling_patents_is_a_chain_of_single_picks_ending_with_done`.
+
+### When the deck runs out
+
+**Call:** When a Player must draw from an empty deck, the discard pile is shuffled with the
+Game's own random numbers into a new deck, and the game log says so. Cards being bought from
+in that moment are not in the discard pile yet. If the discard pile is empty too, the Player
+draws no more cards.
+
+**Why:** The rulebook shuffles the discard pile into a new deck when the deck runs out. Both
+empty takes every card in hands, being bought or played; the rulebook is silent, and drawing
+nothing is the only possibility. Chosen by Claude (2026-10-24), on the user's instruction to make
+the remaining ticket 09 calls without asking.
+
+**Tests:** `tests/rules/test_deck.py::test_when_the_deck_runs_out_the_discard_pile_is_shuffled_into_a_new_deck`,
+`test_the_reshuffled_deck_comes_from_the_games_own_random_numbers`,
+`tests/rules/test_buying_cards.py::test_the_research_phase_draws_from_the_reshuffled_discard_pile_once_the_deck_runs_out`
+and `tests/rules/test_placement_bonuses.py::test_a_card_bonus_with_the_deck_and_the_discard_pile_empty_draws_nothing`.
+
+### Dealing the implemented cards first (a setting, temporary)
+
+**Call:** A Game setting, `implemented_cards_first`, shuffles the implemented cards and puts them
+on top of the shuffled deck, so with 2 Players almost all of them are dealt at setup. Off (the
+engine's default), the deck is shuffled as the rules say. The GUI's setup screen has it on by
+default until every card is implemented; the fuzzer has it on for seeds 4 to 7, 12 to 15 and so
+on. Cards not implemented can still be dealt, bought, held and sold, but are never offered
+to play.
+
+**Why:** Not a rules question but a play-testing aid: with 23 of 208 cards implemented, about 1
+dealt card in 9 would be playable. Chosen by the user (2026-10-24).
+
+**Tests:** `tests/rules/test_deck.py::test_while_most_cards_are_not_implemented_a_new_game_can_deal_the_implemented_ones_first`,
+`test_a_new_game_deals_from_the_whole_shuffled_deck_by_default` and
+`tests/rules/test_playing_cards.py::test_a_card_that_is_not_implemented_yet_is_never_offered`.
 
 ## Turns
 

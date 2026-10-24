@@ -47,9 +47,10 @@ def test_power_plant_costs_11_megacredits_and_raises_energy_production_by_1():
 
 
 def test_standard_projects_are_offered_in_the_order_printed_on_the_board():
-    game = scenario(player(megacredits=25), player())
+    game = scenario(player(megacredits=25, hand=["birds"]), player())
 
-    assert labels(game)[:5] == [
+    assert labels(game)[:6] == [
+        "Sell Patents (1 MegaCredit per card)",
         "Power Plant (11 MegaCredits)",
         "Asteroid (14 MegaCredits)",
         "Aquifer (18 MegaCredits)",

@@ -1,7 +1,9 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
+import { BuyingPanel, buyerShown } from "./cards/BuyingPanel";
 import { CardGallery } from "./cards/CardGallery";
-import { PlayerCards } from "./cards/PlayerCards";
+import { HandDock, handOptions } from "./cards/HandDock";
+import { PlayedCards } from "./cards/PlayedCards";
 import { DEFAULT_BOT_DELAY } from "./components/BotSpeedSelect";
 import { FinalScores } from "./components/FinalScores";
 import { GameLog } from "./components/GameLog";
@@ -25,6 +27,12 @@ export function App() {
   const [settingUp, setSettingUp] = useState(false);
   const [showScores, setShowScores] = useState(true);
   const [showCards, setShowCards] = useState(false);
+  const [handFolded, setHandFolded] = useState(false);
+  // The hand unfolds when a new Decision lets a card in it be played or sold; it can be folded again.
+  const handHasOptions = handOptions(game?.decision ?? null).size > 0;
+  useEffect(() => {
+    if (handHasOptions) setHandFolded(false);
+  }, [game?.decision?.sequence, handHasOptions]);
 
   // An error shown so far belongs to the Game screen, not to the setup.
   const openSetup = () => {
@@ -78,7 +86,7 @@ export function App() {
   // True while a pick is on its way to the server.
   const picking = pickedSequence === game.decision?.sequence;
   return (
-    <div className="game">
+    <div className={`game ${handFolded ? "hand-dock-folded" : ""}`}>
       <TopBar
         game={game}
         onShowScores={scores && !showScores ? () => setShowScores(true) : undefined}
@@ -98,6 +106,9 @@ export function App() {
       />
       <div className="table">
         <main className="board-area">
+          {buyerShown(game) !== null && (
+            <BuyingPanel game={game} cards={server.cards} disabled={picking} onPick={server.pick} />
+          )}
           <div className="mars-and-tracks">
             <TemperatureTrack temperature={game.view.temperature} />
             <div className="mars-column">
@@ -118,8 +129,16 @@ export function App() {
           <PlayerBoards game={game} />
           <GameLog log={log} />
         </aside>
-        <PlayerCards game={game} cards={server.cards} disabled={picking} onPick={server.pick} />
+        <PlayedCards game={game} cards={server.cards} />
       </div>
+      <HandDock
+        game={game}
+        cards={server.cards}
+        disabled={picking}
+        onPick={server.pick}
+        folded={handFolded}
+        onFold={setHandFolded}
+      />
       {scores && showScores && (
         <FinalScores
           game={game}

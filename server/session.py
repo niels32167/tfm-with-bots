@@ -32,9 +32,13 @@ class GameSession:
         self.answered_by_humans: list[int] = []
 
     @classmethod
-    def new(cls, controllers: list[Controller], seed: int, bot_delay: float) -> "GameSession":
-        """A new Game with one Player for each Controller."""
-        return cls(tm_engine.Game(seed=seed, players=len(controllers)), controllers, bot_delay)
+    def new(
+        cls, controllers: list[Controller], seed: int, bot_delay: float, *, implemented_cards_first: bool = False
+    ) -> "GameSession":
+        """A new Game with one Player for each Controller. While most cards are not implemented
+        yet, `implemented_cards_first` deals the implemented ones first."""
+        game = tm_engine.Game(seed=seed, players=len(controllers), implemented_cards_first=implemented_cards_first)
+        return cls(game, controllers, bot_delay)
 
     @classmethod
     def from_replay_file(cls, file: dict[str, Any], bot_delay: float) -> "GameSession":
@@ -69,6 +73,10 @@ class GameSession:
 
     def waiting_on_random_bot(self) -> bool:
         return self.deciding_controller() == "random_bot"
+
+    def waiting_on_random_bot_to_buy(self) -> bool:
+        """Whether a Random Bot is buying cards, at setup or in a Research phase."""
+        return self.waiting_on_random_bot() and self.game.decision["kind"] == "buy_cards"
 
     def pick_for_random_bot(self) -> None:
         decision = self.game.decision

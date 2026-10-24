@@ -218,17 +218,6 @@ impl Game {
         }
     }
 
-    /// `player` draws `count` cards from the top of the deck, or as many as it has left.
-    pub(crate) fn draw(&mut self, player: usize, count: i32) {
-        for _ in 0..count {
-            let Some(card) = self.deck.draw() else {
-                self.log.push(LogEvent::DeckEmpty { player });
-                return;
-            };
-            self.players[player].hand.insert(card);
-        }
-    }
-
     /// Carries out `effects` for `player`, in the order `Effects` gives.
     fn carry_out(&mut self, player: usize, effects: &Effects) {
         for resource in Resource::ALL {

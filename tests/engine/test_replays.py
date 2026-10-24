@@ -25,11 +25,12 @@ def test_a_replay_holds_the_settings_and_seed_and_the_options_picked():
     game = tm_engine.Game(seed=7, players=3)
 
     picked = []
-    for label in ("Asteroid", "End Turn", "Pass"):
+    for label in ("Done", "Done", "Done", "Asteroid", "End Turn", "Pass"):  # nobody buys a card at setup
         picked.append(index_of(game, label))
         pick(game, label)
 
-    assert game.replay == {"start": {"settings": {"players": 3, "seed": 7}}, "picks": picked}
+    settings = {"players": 3, "seed": 7, "implemented_cards_first": False}
+    assert game.replay == {"start": {"settings": settings}, "picks": picked}
 
 
 def test_loading_an_exported_replay_gives_back_the_same_game():

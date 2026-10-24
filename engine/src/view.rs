@@ -7,10 +7,12 @@ use std::collections::BTreeMap;
 use serde::Serialize;
 
 use crate::board::{AREA_COUNT, Board, TileKind, area_id, area_label, printed, row_and_position};
+use crate::card_flow::{CARD_PRICE, PATENT_VALUE};
 use crate::card_set::CardSet;
 use crate::cards::{CARD_CATALOG, Tag};
 use crate::game::{
     Decision, DecisionKind, DecisionOption, Game, HEAT_PER_TEMPERATURE_STEP, PLANTS_PER_GREENERY, Phase,
+    StandardProject,
 };
 use crate::log::player_name;
 use crate::milestones_and_awards::{Award, MILESTONE_COST, Milestone};
@@ -40,6 +42,16 @@ pub enum OptionDetails {
     PlayCard {
         card: &'static str,
         cost: i32,
+    },
+    /// Buy one of the cards dealt, named by its catalog id.
+    BuyCard {
+        card: &'static str,
+        cost: i32,
+    },
+    /// Sell a card from the hand with Sell Patents, named by its catalog id, for `megacredits`.
+    SellCard {
+        card: &'static str,
+        megacredits: i32,
     },
     /// One way to pay for the card being played: its MegaCredits, steel and titanium.
     Payment {
@@ -94,6 +106,11 @@ pub struct View {
     pub deck_size: usize,
     /// The deck by catalog id, from the top down: only in the full view, otherwise None.
     pub deck: Option<Vec<&'static str>>,
+    /// How many cards are in the discard pile.
+    pub discard_size: usize,
+    /// The discard pile by catalog id, in card-number order: it lies face down, so only in the
+    /// full view, otherwise None.
+    pub discard: Option<Vec<&'static str>>,
     /// Who holds the first-player marker.
     pub first_player: usize,
     /// Whose Turn it is, or None once the Game is over.
@@ -151,10 +168,21 @@ pub struct PlayerBoard {
     /// The cards in their hand, by catalog id in card-number order: only in their own Player
     /// View and the full view, otherwise None.
     pub hand: Option<Vec<&'static str>>,
+    /// In the setup or a Research phase, what they are buying from: only in their own Player View
+    /// and the full view, otherwise None.
+    pub buying: Option<BuyingView>,
     /// The cards they have played, by catalog id in card-number order.
     pub played_cards: Vec<&'static str>,
     /// How many of each Tag they have in play, for every Tag but the Event Tag, which never counts.
     pub tags: BTreeMap<Tag, i32>,
+}
+
+/// The cards dealt to a Player to buy from, and those of them they have bought so far, by
+/// catalog id in card-number order. Nothing is paid until every Player is done buying.
+#[derive(Serialize)]
+pub struct BuyingView {
+    pub dealt: Vec<&'static str>,
+    pub bought: Vec<&'static str>,
 }
 
 /// One Milestone: what it asks for, who claimed it, and how far each Player is towards it.
@@ -196,10 +224,14 @@ pub fn full_view(game: &Game) -> View {
 }
 
 fn view(game: &Game, viewer: Option<usize>) -> View {
+    // Hands, and the cards being bought from, are shown only to their own Player, or to everyone in the full view.
+    let sees_hand = |player: usize| viewer.is_none() || viewer == Some(player);
     View {
         viewer,
         generation: game.generation,
         phase: match game.phase {
+            Phase::Setup => "setup",
+            Phase::Research => "research",
             Phase::Action => "action",
             Phase::FinalGreenery => "final_greenery",
             Phase::Over => "over",
@@ -210,6 +242,8 @@ fn view(game: &Game, viewer: Option<usize>) -> View {
         board: board_view(&game.board),
         deck_size: game.deck.len(),
         deck: viewer.is_none().then(|| game.deck.iter().map(|card| CARD_CATALOG[card].id.as_str()).collect()),
+        discard_size: game.discard.len(),
+        discard: viewer.is_none().then(|| ids(game.discard)),
         first_player: game.first_player,
         current_player: if game.is_over() { None } else { Some(game.current_player) },
         actions_this_turn: game.actions_this_turn,
@@ -224,7 +258,11 @@ fn view(game: &Game, viewer: Option<usize>) -> View {
                 terraform_rating: player.terraform_rating,
                 passed: player.passed,
                 hand_size: player.hand.len(),
-                hand: (viewer.is_none() || viewer == Some(index)).then(|| ids(player.hand)),
+                hand: sees_hand(index).then(|| ids(player.hand)),
+                buying: (sees_hand(index) && game.phase.is_buying()).then(|| BuyingView {
+                    dealt: ids(player.buying.dealt),
+                    bought: ids(player.buying.bought),
+                }),
                 played_cards: ids(player.played),
                 tags: Tag::COUNTED.into_iter().map(|tag| (tag, game.tags(index, tag))).collect(),
             })
@@ -290,6 +328,8 @@ fn decision_view(decision: &Decision) -> DecisionView {
             DecisionKind::Action => "action",
             DecisionKind::Area => "area",
             DecisionKind::Payment => "payment",
+            DecisionKind::BuyCards => "buy_cards",
+            DecisionKind::SellPatents => "sell_patents",
             DecisionKind::FinalGreenery => "final_greenery",
         },
         sequence: decision.sequence,
@@ -312,7 +352,16 @@ fn label(option: &DecisionOption) -> String {
                 Resource::MegaCredits.counted(printed_card.project_cost())
             )
         }
+        DecisionOption::BuyCard(card) => {
+            format!("Buy {} ({})", CARD_CATALOG[*card].name, Resource::MegaCredits.counted(CARD_PRICE))
+        }
+        DecisionOption::SellCard(card) => {
+            format!("Sell {} ({})", CARD_CATALOG[*card].name, Resource::MegaCredits.counted(PATENT_VALUE))
+        }
         DecisionOption::Pay { payment, .. } => format!("Pay {}", payment.text()),
+        DecisionOption::UseStandardProject(StandardProject::SellPatents) => {
+            format!("Sell Patents ({} per card)", Resource::MegaCredits.counted(PATENT_VALUE))
+        }
         DecisionOption::UseStandardProject(project) => {
             format!("{} ({} MegaCredits)", project.name(), project.cost())
         }
@@ -340,6 +389,12 @@ fn details(option: &DecisionOption) -> OptionDetails {
         DecisionOption::PlayCard(card) => {
             let printed_card = &CARD_CATALOG[*card];
             OptionDetails::PlayCard { card: &printed_card.id, cost: printed_card.project_cost() }
+        }
+        DecisionOption::BuyCard(card) => {
+            OptionDetails::BuyCard { card: &CARD_CATALOG[*card].id, cost: CARD_PRICE }
+        }
+        DecisionOption::SellCard(card) => {
+            OptionDetails::SellCard { card: &CARD_CATALOG[*card].id, megacredits: PATENT_VALUE }
         }
         DecisionOption::Pay { card, payment } => {
             OptionDetails::Payment { card: &CARD_CATALOG[*card].id, payment: *payment }

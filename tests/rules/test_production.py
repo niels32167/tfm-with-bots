@@ -2,7 +2,16 @@
 
 import pytest
 
-from tests.helpers import RESOURCES, end_the_generation, player, player_board, production, resources, scenario
+from tests.helpers import (
+    RESOURCES,
+    end_the_action_phase,
+    end_the_generation,
+    player,
+    player_board,
+    production,
+    resources,
+    scenario,
+)
 
 
 def test_each_player_gains_megacredits_equal_to_terraform_rating_plus_megacredit_production():
@@ -51,14 +60,13 @@ def test_the_log_shows_energy_turning_into_heat_and_what_each_player_gains():
         generation=2,
     )
 
-    end_the_generation(game)
+    end_the_action_phase(game)
 
-    assert game.log[-5:] == [
+    assert game.log[-6:-2] == [
         "Production phase.",
         "Player 1's 3 energy turns into heat.",
         "Player 1 gains 20 MegaCredits (Terraform Rating 20 + MegaCredit Production 0), 2 steel, 1 plant and 3 heat.",
         "Player 2 gains 21 MegaCredits (Terraform Rating 21 + MegaCredit Production 0).",
-        "Generation 3 begins, with Player 2 as first player.",
     ]
 
 

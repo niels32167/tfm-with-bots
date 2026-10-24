@@ -150,16 +150,19 @@ def at_most_three_milestones_and_awards(view: View, decision: Decision | None) -
 
 
 def every_card_in_exactly_one_place(view: View, decision: Decision | None) -> Iterator[str]:
-    """Every Project Card is in exactly one place: the deck, a hand, or among a Player's played
-    cards. (Ticket 09 adds the discard pile, ticket 10 the cards passed in the Draft.) The
+    """Every Project Card is in exactly one place: the deck, the discard pile, a hand, a Player's
+    played cards, or the cards dealt to a Player to buy from in the setup or a Research phase,
+    among which are those they have bought. (Ticket 10 adds the cards passed in the Draft.) The
     sizes shown agree with the cards."""
     places: dict[str, list[str]] = {card_id: [] for card_id in PROJECT_CARDS}
-    if view["deck_size"] != len(view["deck"]):
-        yield f"deck_size is {view['deck_size']}, but the deck holds {counted(len(view['deck']), 'card')}"
-    for card_id in view["deck"]:
-        places.setdefault(card_id, []).append("the deck")
+    for pile, name in (("deck", "the deck"), ("discard", "the discard pile")):
+        if view[f"{pile}_size"] != len(view[pile]):
+            yield f"{pile}_size is {view[f'{pile}_size']}, but {name} holds {counted(len(view[pile]), 'card')}"
+        for card_id in view[pile]:
+            places.setdefault(card_id, []).append(name)
+    buying_phase = view["phase"] in ("setup", "research")
     for player_board in view["players"]:
-        name, hand = player_board["name"], player_board["hand"]
+        name, hand, buying = player_board["name"], player_board["hand"], player_board["buying"]
         if player_board["hand_size"] != len(hand):
             holds = counted(len(hand), "card")
             yield f"{name}'s hand_size is {player_board['hand_size']}, but their hand holds {holds}"
@@ -167,6 +170,15 @@ def every_card_in_exactly_one_place(view: View, decision: Decision | None) -> It
             places.setdefault(card_id, []).append(f"{name}'s hand")
         for card_id in player_board["played_cards"]:
             places.setdefault(card_id, []).append(f"{name}'s played cards")
+        if (buying is not None) != buying_phase:
+            yield f"in the {view['phase']} phase, {name} is {'' if buying else 'not '}buying cards"
+        if buying is None:
+            continue
+        for card_id in buying["dealt"]:
+            places.setdefault(card_id, []).append(f"{name}'s cards to buy from")
+        for card_id in buying["bought"]:
+            if card_id not in buying["dealt"]:
+                yield f"{name} has bought '{card_id}', which was not dealt to them"
     for card_id, found in places.items():
         if card_id not in CARDS or CARDS[card_id]["type"] == "corporation":
             yield f"'{card_id}' is not a Project Card, but is in {' and '.join(found)}"

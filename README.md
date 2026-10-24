@@ -4,8 +4,8 @@ A digital Terraforming Mars with a fast rules engine, built so an AI opponent ca
 be trained against it by self-play. Phase 1 is a playable, well-tested game; see
 `.scratch/phase-1-playable-game/spec.md`.
 
-So far (tickets 01–08), 2–5 Players hold all six Resources with their Production, use
-the Power Plant, Asteroid, Aquifer, Greenery and City Standard Projects, and convert
+So far (tickets 01–09), 2–5 Players hold all six Resources with their Production, use
+the Sell Patents, Power Plant, Asteroid, Aquifer, Greenery and City Standard Projects, and convert
 plants into Greeneries and heat into Temperature on the Tharsis board. They place
 Oceans, Greeneries and Cities by clicking a highlighted Area, and collect placement
 bonuses, 2 MegaCredits per adjacent Ocean, and the track bonuses for Temperature and
@@ -19,9 +19,14 @@ fuzzer plays Random Bot Games and checks them after every Decision, and a benchm
 measures the engine's speed. The card catalog holds the printed data of all 208 Project
 Cards and 12 Corporations, and the GUI's card gallery draws every card as the fan-made card
 list does. Players play Project Cards from their hand, paying with MegaCredits, steel and
-titanium, once the cards' Requirements are met; 23 simple cards work so far, the 11 of the
-starter set among them. Until Corporations and buying cards exist (ticket 09), a new Game deals
-out the starter set, and every other Project Card waits in the deck for card placement bonuses.
+titanium, once the cards' Requirements are met; 23 simple cards work so far. At setup each
+Player is dealt 10 Project Cards and buys any of them for 3 MegaCredits each (everyone starts
+with 42 MegaCredits until Corporations exist), and from Generation 2 each Research phase deals
+4 more to buy from; the rest go face down to the discard pile, which is shuffled into a new
+deck when the deck runs out. Buying is hidden from the other Players until all are done. The
+hand sits in a dock at the bottom of the window. While most cards are not implemented, the
+setup screen's "Deal the implemented cards first" (on by default) puts the playable ones on
+top of the deck.
 
 ## How it fits together
 

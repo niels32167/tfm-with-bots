@@ -17,6 +17,7 @@ from tests.helpers import (
     production,
     resources,
     scenario,
+    skip_buying,
 )
 
 
@@ -25,7 +26,7 @@ def test_a_new_game_starts_in_generation_1_with_temperature_at_minus_30():
 
     view = game.player_view(0)
     assert view["generation"] == 1
-    assert view["phase"] == "action"
+    assert view["phase"] == "setup"  # the setup buy: see tests/rules/test_buying_cards.py
     assert view["temperature"] == -30
     assert game.seed == 7
     assert not game.is_over
@@ -36,7 +37,7 @@ def test_until_corporations_exist_every_player_starts_with_42_megacredits_and_te
 
     for index in (0, 1):
         board = player_board(game, index)
-        del board["hand"], board["hand_size"]  # the deal: see tests/rules/test_deck.py
+        del board["hand"], board["hand_size"], board["buying"]  # the deal: see tests/rules/test_buying_cards.py
         assert board == {
             "name": f"Player {index + 1}",
             "resources": {"megacredits": 42, "steel": 0, "titanium": 0, "plants": 0, "energy": 0, "heat": 0},
@@ -172,7 +173,9 @@ def test_a_scenario_funds_each_award_at_most_once_and_at_most_three_in_all():
 
 def test_an_empty_scenario_is_a_new_two_player_game_with_player_1_as_first_player_and_no_cards_dealt():
     view = scenario().full_view()
-    new_game = tm_engine.Game(seed=0).full_view()
+    new_game = tm_engine.Game(seed=0)
+    skip_buying(new_game)
+    new_game = new_game.full_view()
 
     assert view["first_player"] == 0
     assert view["current_player"] == 0
@@ -183,10 +186,11 @@ def test_an_empty_scenario_is_a_new_two_player_game_with_player_1_as_first_playe
 
 
 def without_cards(view):
-    """A view without the deck, the hands and the Planner Milestone's counts of cards in hand."""
-    del view["deck"], view["deck_size"]
+    """A view without the deck, the discard pile, the hands and the Planner Milestone's counts of
+    cards in hand."""
+    del view["deck"], view["deck_size"], view["discard"], view["discard_size"]
     for board in view["players"]:
-        del board["hand"], board["hand_size"]
+        del board["hand"], board["hand_size"], board["buying"]
     for entry in view["milestones"]:
         if entry["milestone"] == "planner":
             del entry["counts"]

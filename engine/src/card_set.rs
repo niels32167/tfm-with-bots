@@ -30,8 +30,17 @@ impl CardSet {
         CardSet { bits: std::array::from_fn(|word| self.bits[word] | other.bits[word]) }
     }
 
+    /// The cards in this set but not in `other`.
+    pub fn without(self, other: CardSet) -> CardSet {
+        CardSet { bits: std::array::from_fn(|word| self.bits[word] & !other.bits[word]) }
+    }
+
     pub fn len(&self) -> usize {
         self.bits.iter().map(|word| word.count_ones() as usize).sum()
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.bits == [0; WORDS]
     }
 
     /// The cards in card-number order.

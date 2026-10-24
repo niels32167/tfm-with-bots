@@ -67,11 +67,11 @@ def test_the_log_never_names_the_cards_drawn():
     assert not any("Birds" in line or "Trees" in line for line in game.log)
 
 
-def test_a_card_bonus_with_the_deck_empty_draws_nothing():
+def test_a_card_bonus_with_the_deck_and_the_discard_pile_empty_draws_nothing():
     game = scenario(player(megacredits=18, hand=PROJECT_CARDS[:200]), player(hand=PROJECT_CARDS[200:]))
 
     pick(game, project="aquifer")
     pick(game, area="B6")
 
     assert game.player_view(0)["players"][0]["hand_size"] == 200
-    assert "The deck is empty, so Player 1 draws no more cards." in game.log
+    assert "The deck and the discard pile are empty, so Player 1 draws no more cards." in game.log

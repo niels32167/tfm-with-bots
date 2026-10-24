@@ -1,8 +1,9 @@
 """The local server: the GUI talks to it over one WebSocket, and it drives the engine.
 
 Messages from the GUI:
-    {"type": "new_game", "controllers": ["human", "random_bot"], "seed": 7, "bot_delay": 0.8}
-        (2 to 5 Controllers; seed and bot_delay are optional)
+    {"type": "new_game", "controllers": ["human", "random_bot"], "seed": 7, "bot_delay": 0.8,
+     "implemented_cards_first": true}
+        (2 to 5 Controllers; seed, bot_delay and implemented_cards_first are optional)
     {"type": "pick", "sequence": 12, "index": 0}
     {"type": "undo"}                  back to the Decision a human answered last
     {"type": "save_replay"}           answered with a replay_file message
@@ -85,7 +86,13 @@ class GameHost:
             seed = random.randrange(2**32)
         if not isinstance(seed, int) or not 0 <= seed <= tm_engine.MAX_SEED:
             raise ValueError(f"the seed must be a whole number from 0 to {tm_engine.MAX_SEED}, not {seed!r}")
-        await self.start(GameSession.new(message["controllers"], seed, bot_delay(message)))
+        implemented_cards_first = message.get("implemented_cards_first", False)
+        if not isinstance(implemented_cards_first, bool):
+            raise ValueError(f"implemented_cards_first must be true or false, not {implemented_cards_first!r}")
+        session = GameSession.new(
+            message["controllers"], seed, bot_delay(message), implemented_cards_first=implemented_cards_first
+        )
+        await self.start(session)
 
     async def start(self, session: GameSession) -> None:
         """Replaces the current Game, if any, with `session`."""
@@ -125,9 +132,11 @@ class GameHost:
             self.random_bot_task = asyncio.create_task(self.play_random_bots(session))
 
     async def play_random_bots(self, session: GameSession) -> None:
-        """Answers Random Bot Decisions one at a time, at a pace a person can follow."""
+        """Answers Random Bot Decisions one at a time, at a pace a person can follow. A Random Bot
+        buys cards without pausing, so that how long it takes says nothing about how many it buys."""
         while session.waiting_on_random_bot():
-            await asyncio.sleep(session.bot_delay)
+            if not session.waiting_on_random_bot_to_buy():
+                await asyncio.sleep(session.bot_delay)
             session.pick_for_random_bot()
             for message in session.news():
                 await self.broadcast(message)

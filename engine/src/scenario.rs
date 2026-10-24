@@ -8,6 +8,7 @@ use std::collections::BTreeMap;
 use serde::{Deserialize, Deserializer, Serialize};
 
 use crate::board::{Reservation, Tile, TileKind, find_area, printed};
+use crate::card_flow::Buying;
 use crate::card_set::CardSet;
 use crate::cards::find_project_card;
 use crate::deck::Deck;
@@ -44,6 +45,8 @@ pub struct Scenario {
     /// Cards on top of the deck, by catalog id, the first drawn first. Every Project Card
     /// that is in no hand, among no played cards and not here is shuffled beneath them.
     pub deck: Vec<String>,
+    /// The cards in the discard pile, by catalog id.
+    pub discard: Vec<String>,
 }
 
 impl Default for Scenario {
@@ -59,6 +62,7 @@ impl Default for Scenario {
             awards: Vec::new(),
             players: vec![ScenarioPlayer::default(); 2],
             deck: Vec::new(),
+            discard: Vec::new(),
         }
     }
 }
@@ -189,11 +193,14 @@ impl Scenario {
                 passed: false,
                 hand: cards_named(&player.hand, &mut named_cards)?.into_iter().collect(),
                 played: cards_named(&player.played_cards, &mut named_cards)?.into_iter().collect(),
+                buying: Buying::default(),
             });
         }
         let top_of_deck = cards_named(&self.deck, &mut named_cards)?;
+        let discard = cards_named(&self.discard, &mut named_cards)?.into_iter().collect();
         let mut game = Game::prepare(Start::Scenario(self.clone()), players);
         game.deck = Deck::shuffled(named_cards, &top_of_deck, &mut game.random_numbers);
+        game.discard = discard;
         game.temperature = self.temperature;
         game.oxygen = self.oxygen;
         for tile in &self.tiles {

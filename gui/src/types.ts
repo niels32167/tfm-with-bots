@@ -38,10 +38,20 @@ export interface PlayerBoard {
   /** The cards in hand by catalog id, in card-number order: only the viewer's own, or every
    * hand in the full view; otherwise null. */
   hand: string[] | null;
+  /** In the setup or a Research phase, the cards dealt to them to buy from and those of them
+   * they have bought so far (nothing is paid until every Player is done): only the viewer's own,
+   * or everyone's in the full view; otherwise null. */
+  buying: Buying | null;
   /** The cards played by catalog id, in card-number order, Events included. */
   played_cards: string[];
   /** How many of each Tag are in play. No Tag on a played Event counts, the Event Tag included. */
   tags: Record<CountedTag, number>;
+}
+
+/** Cards by catalog id, in card-number order: those dealt, and those of them bought. */
+export interface Buying {
+  dealt: string[];
+  bought: string[];
 }
 
 /** One Player's final score. The six Victory Point counts add up to the total. */
@@ -116,8 +126,10 @@ export interface View {
   /** The Player whose Player View this is, or null for the full view. */
   viewer: number | null;
   generation: number;
-  /** "final_greenery" is the final Greenery conversion, after the final Production phase. */
-  phase: "action" | "final_greenery" | "over";
+  /** "setup" is the setup buy before Generation 1, and "research" a Research phase, where
+   * Players buy cards; "final_greenery" is the final Greenery conversion, after the final
+   * Production phase. */
+  phase: "setup" | "research" | "action" | "final_greenery" | "over";
   temperature: number;
   /** In percent. */
   oxygen: number;
@@ -128,6 +140,10 @@ export interface View {
   deck_size: number;
   /** The deck by catalog id from the top down, only in the full view; otherwise null. */
   deck: string[] | null;
+  discard_size: number;
+  /** The discard pile by catalog id, in card-number order: it lies face down, so only in the
+   * full view; otherwise null. */
+  discard: string[] | null;
   first_player: number;
   current_player: number | null;
   actions_this_turn: number;
@@ -215,7 +231,9 @@ export interface Card {
 
 /** Where a Game started and the index of every Option picked since. */
 export interface Replay {
-  start: { settings: { players: number; seed: number } } | { scenario: { seed: number } };
+  start:
+    | { settings: { players: number; seed: number; implemented_cards_first: boolean } }
+    | { scenario: { seed: number } };
   picks: number[];
 }
 
@@ -255,6 +273,8 @@ export interface NewGameSettings {
   controllers: Controller[];
   seed?: number;
   bot_delay: number;
+  /** While most cards are not implemented yet: deal the implemented ones first. */
+  implemented_cards_first: boolean;
 }
 
 export type ClientMessage =

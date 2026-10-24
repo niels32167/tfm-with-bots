@@ -156,16 +156,41 @@ def index_of(game: tm_engine.Game, label: str | None = None, **details: Any) -> 
     return found[0]["index"]
 
 
-def end_the_generation(game: tm_engine.Game) -> None:
-    """Every Player who is still in passes, which ends the Generation: the next one begins,
-    or, once Mars is terraformed, the final Greenery conversion or the end of the Game follows."""
+def end_the_action_phase(game: tm_engine.Game) -> None:
+    """Every Player who is still in passes. The Production phase follows, then the next Generation
+    begins with its Research phase; once Mars is terraformed, the final Greenery conversion or the
+    end of the Game follows instead."""
     generation = game.player_view(0)["generation"]
     for _ in range(MAX_PICKS):
         view = game.player_view(0)
         if view["phase"] != "action" or view["generation"] != generation:
             return
         pick(game, "Pass")
-    raise AssertionError(f"Generation {generation} had not ended after {MAX_PICKS} picks")
+    raise AssertionError(f"Generation {generation}'s Action phase had not ended after {MAX_PICKS} picks")
+
+
+def buy(game: tm_engine.Game, *cards: str) -> None:
+    """The Player deciding, in the setup or a Research phase, buys `cards` and is done."""
+    for card in cards:
+        pick(game, type="buy_card", card=card)
+    pick(game, "Done")
+
+
+def skip_buying(game: tm_engine.Game) -> None:
+    """In the setup or a Research phase, every Player still to decide is done without buying."""
+    for _ in range(MAX_PICKS):
+        if game.decision is None or game.decision["kind"] != "buy_cards":
+            return
+        pick(game, "Done")
+    raise AssertionError(f"buying had not ended after {MAX_PICKS} picks")
+
+
+def end_the_generation(game: tm_engine.Game) -> None:
+    """Every Player who is still in passes, which ends the Generation: the next one begins, and
+    nobody buys any card in its Research phase. Once Mars is terraformed, the final Greenery
+    conversion or the end of the Game follows instead."""
+    end_the_action_phase(game)
+    skip_buying(game)
 
 
 def final_scores(game: tm_engine.Game) -> list[dict[str, Any]]:
@@ -213,6 +238,13 @@ def production(game: tm_engine.Game, player: int) -> dict[str, int]:
 def hand(game: tm_engine.Game, player: int) -> list[str]:
     """The cards in a Player's hand, by catalog id, as that Player sees them."""
     return player_board(game, player)["hand"]
+
+
+def buying(game: tm_engine.Game, player: int) -> dict[str, list[str]] | None:
+    """What a Player is buying from, as that Player sees it, in the setup or a Research phase:
+    `{"dealt": [...], "bought": [...]}` by catalog id, the cards bought among those dealt.
+    None outside those phases."""
+    return player_board(game, player)["buying"]
 
 
 def played_cards(game: tm_engine.Game, player: int) -> list[str]:

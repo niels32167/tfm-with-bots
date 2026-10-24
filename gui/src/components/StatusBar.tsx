@@ -1,3 +1,4 @@
+import { CARD_PRICE, playersAreBuying } from "../cards/BuyingPanel";
 import { TILE_NAMES } from "../format";
 import { playerTitle } from "../players";
 import type { Card, TileType } from "../types";
@@ -15,19 +16,22 @@ interface Props {
 }
 
 // Options picked where they are drawn rather than as buttons here: Milestones and Awards in
-// their bar, and cards in the hand.
+// their bar, cards to play or sell in the hand, and cards to buy in the buying panel.
 const PICKED_IN_THE_BAR = new Set(["claim_milestone", "fund_award"]);
-const PICKED_IN_THE_HAND = new Set(["play_card"]);
+const PICKED_IN_THE_HAND = new Set(["play_card", "sell_card"]);
+const PICKED_IN_THE_PANEL = new Set(["buy_card"]);
 
 /** The current Decision, with its Options as buttons, like Board Game Arena's title bar. A
  * payment Decision gets the payment picker instead. */
 export function StatusBar({ game, cards, error, disabled, onPick }: Props) {
   const { decision } = game;
   const options = decision?.options ?? [];
-  const pickedElsewhere = (type: string) => PICKED_IN_THE_BAR.has(type) || PICKED_IN_THE_HAND.has(type);
+  const pickedElsewhere = (type: string) =>
+    PICKED_IN_THE_BAR.has(type) || PICKED_IN_THE_HAND.has(type) || PICKED_IN_THE_PANEL.has(type);
   const buttons = options.filter((option) => !pickedElsewhere(option.details.type));
+  // Where else an Action can be picked; buying and selling say so in the status text.
   const inTheBar = options.some((option) => PICKED_IN_THE_BAR.has(option.details.type));
-  const inTheHand = options.some((option) => PICKED_IN_THE_HAND.has(option.details.type));
+  const inTheHand = options.some((option) => option.details.type === "play_card");
   return (
     <div className="status-bar" role="status">
       <span className="status-text">{statusText(game, cards)}</span>
@@ -78,6 +82,19 @@ function statusText(game: GameUpdate, cards: Card[]): string {
   if (decision?.kind === "final_greenery") {
     return `${who} may convert plants into a Greenery before final scoring, or be done:`;
   }
+  if (decision?.kind === "buy_cards") {
+    const bought = view.players[decision.player].buying?.bought.length ?? 0;
+    return (
+      `${who} may buy any of the cards dealt for ${CARD_PRICE} MegaCredits each: click them above, then Done. ` +
+      `Bought: ${bought} (${bought * CARD_PRICE} MegaCredits).`
+    );
+  }
+  if (decision?.kind === "sell_patents") {
+    const sale = decision.options.find((option) => option.details.type === "sell_card");
+    const then = decision.options.some((option) => option.details.type === "done") ? ", then Done:" : ".";
+    return `${who} may sell cards from the hand for ${sale?.details.megacredits} MegaCredit each: click them${then}`;
+  }
+  if (playersAreBuying(view)) return `${who} (Random Bot) is buying cards…`;
   if (view.phase === "final_greenery") return `${who} (Random Bot) is converting plants into Greeneries…`;
   if (decision) {
     if (view.actions_this_turn === 0) return `${who} must take an Action or Pass:`;

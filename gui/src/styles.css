@@ -210,6 +210,13 @@ input[aria-invalid="true"] {
   font-size: 0.9rem;
 }
 
+.setup-checkbox {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 600;
+}
+
 .setup-row {
   flex-direction: row;
   flex-wrap: wrap;
@@ -344,6 +351,7 @@ input[aria-invalid="true"] {
 
 /* Mars between its tracks, with the Milestones and Awards bar underneath. */
 .board-area {
+  position: relative;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -352,12 +360,14 @@ input[aria-invalid="true"] {
 }
 
 .mars-and-tracks {
+  /* The most Mars may take: room is left above for the top and status bars, and below for the
+     Milestones and Awards bar and the hand dock. The thermometer shrinks with it. */
+  --mars-size: min(calc(100vh - 300px - var(--hand-dock-height)), 680px);
   display: flex;
   align-items: flex-start;
   justify-content: center;
   gap: 40px;
   width: 100%;
-  min-height: 500px;
 }
 
 /* Mars: the Tharsis board drawn as SVG (simple styling until ticket 23). */
@@ -372,8 +382,7 @@ input[aria-invalid="true"] {
 
 .mars-board {
   width: 100%;
-  /* Leaves room above for the top and status bars, and below for the Milestones and Awards bar. */
-  max-width: min(calc(100vh - 300px), 680px);
+  max-width: var(--mars-size);
   aspect-ratio: 1;
   filter: drop-shadow(0 0 40px rgba(220, 100, 60, 0.3));
 }
@@ -520,14 +529,17 @@ input[aria-invalid="true"] {
   background: rgba(0, 0, 0, 0.35);
 }
 
+/* A step is at most 23 pixels high, and less on a short window, so that the 20 steps, the title,
+   the bulb and the reading (about 162 pixels together) are no taller than Mars. */
 .thermometer-step {
+  --step-height: clamp(14px, calc((var(--mars-size) - 162px) / 20), 23px);
   position: relative;
-  height: 23px;
+  height: var(--step-height);
   margin: 1px 0;
   border-radius: 4px;
   text-align: center;
   font-size: 0.78rem;
-  line-height: 23px;
+  line-height: var(--step-height);
   color: var(--text-dim);
   font-variant-numeric: tabular-nums;
 }
@@ -1167,16 +1179,6 @@ input[aria-invalid="true"] {
   transform: scale(1.7);
 }
 
-.hand-cards {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 12px;
-}
-
-.small-card.in-hand {
-  transform-origin: center bottom;
-}
-
 .small-card.playable {
   cursor: pointer;
   outline: 6px solid var(--accent);
@@ -1276,4 +1278,204 @@ input[aria-invalid="true"] {
   font-weight: 600;
   min-width: 4.5em;
   text-align: center;
+}
+
+/* The game page leaves room at the bottom for the hand dock, which is fixed to the window. */
+.game {
+  --hand-dock-height: 112px;
+  padding-bottom: var(--hand-dock-height);
+}
+
+.game.hand-dock-folded {
+  --hand-dock-height: 40px;
+}
+
+/* The hand dock: only the tops of the cards show (cost, Tags, title); the rest lies below the
+   window's edge, and hovering a card lifts it into full view. */
+.hand-dock {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 6;
+  height: var(--hand-dock-height);
+  padding: 0 16px;
+  background: rgba(14, 15, 21, 0.95);
+  border-top: 4px solid;
+  box-shadow: 0 -4px 14px rgba(0, 0, 0, 0.55);
+}
+
+.hand-dock-header {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  height: 36px;
+}
+
+.hand-dock-header h2 {
+  font-size: 0.95rem;
+}
+
+.hand-tabs button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 10px;
+  font-size: 0.85rem;
+  text-decoration: none;
+}
+
+.hand-dock-hint {
+  color: var(--accent);
+  font-size: 0.9rem;
+}
+
+.hand-dock-fold {
+  margin-left: auto;
+  padding: 2px 10px;
+  text-decoration: none;
+}
+
+.hand-dock-cards {
+  display: flex;
+  gap: 8px;
+  padding-top: 6px;
+}
+
+/* Each card keeps its width until the hand is too wide for the window; then the cards overlap,
+   each covering the right-hand side of the one before. */
+.hand-slot {
+  flex: 0 1 152px;
+  min-width: 30px;
+}
+
+.small-card.in-dock {
+  transform-origin: center bottom;
+}
+
+/* Lifts the card until its bottom is just above the window's edge, then enlarges it upwards. */
+.small-card.in-dock:hover,
+.small-card.in-dock:focus-visible {
+  transform: translateY(-225px) scale(1.5);
+}
+
+.small-card.sellable {
+  cursor: pointer;
+  outline: 6px solid var(--mercury);
+  outline-offset: 2px;
+}
+
+.small-card.sellable:disabled {
+  cursor: default;
+  opacity: 0.6;
+}
+
+/* The buying panel covers the board while Players buy cards; hidden, only its header shows. */
+.buying-panel {
+  position: absolute;
+  inset: 0;
+  z-index: 4;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 12px 16px;
+  background: rgba(14, 15, 21, 0.94);
+  border: 1px solid var(--panel-border);
+  border-radius: 12px;
+}
+
+.buying-panel.hidden {
+  bottom: auto;
+}
+
+.buying-panel-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 16px;
+}
+
+.buying-panel-header h2 {
+  font-size: 1.05rem;
+}
+
+.buying-panel-total {
+  color: var(--accent);
+  font-weight: 650;
+}
+
+.buying-panel-waiting {
+  color: var(--text-dim);
+  font-style: italic;
+}
+
+.buying-panel-header .link-button {
+  margin-left: auto;
+  text-decoration: none;
+}
+
+.buying-panel-cards {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  align-content: flex-start;
+}
+
+/* A card to buy, drawn at the zoom that fits them all in view. Sizes inside are zoomed too. */
+.buy-card {
+  position: relative;
+  padding: 0;
+  border: none;
+  background: none;
+  border-radius: 20px;
+  transition: transform 150ms ease-in-out;
+}
+
+.buy-card.buyable {
+  cursor: pointer;
+  outline: 6px solid var(--accent);
+  outline-offset: 3px;
+}
+
+/* Hovering enlarges a card to read it, as in the hand; the panel sets how much. */
+.buy-card:hover,
+.buy-card:focus-visible {
+  z-index: 3;
+  transform: scale(var(--hover-scale));
+}
+
+.buy-card.buyable:disabled {
+  cursor: default;
+  opacity: 0.6;
+}
+
+.buy-card.bought {
+  outline: 8px solid #6fcf7a;
+  outline-offset: 3px;
+}
+
+.card-ribbon {
+  position: absolute;
+  left: 50%;
+  z-index: 2;
+  transform: translateX(-50%);
+  padding: 6px 18px;
+  border-radius: 999px;
+  font-weight: 700;
+  white-space: nowrap;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.5);
+}
+
+.card-ribbon.bought {
+  top: 42%;
+  background: #6fcf7a;
+  color: #10240f;
+  font-size: 26px;
+}
+
+.card-ribbon.not-implemented {
+  bottom: 10px;
+  background: rgba(20, 20, 24, 0.85);
+  color: var(--text-dim);
+  font-size: 16px;
 }

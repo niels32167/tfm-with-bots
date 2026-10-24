@@ -3,11 +3,22 @@
 import pytest
 import tm_engine
 
-from tests.helpers import end_the_generation, funded, offered, pick, player, resources, scenario, terraformed_mars
+from tests.helpers import (
+    end_the_generation,
+    funded,
+    offered,
+    pick,
+    player,
+    resources,
+    scenario,
+    skip_buying,
+    terraformed_mars,
+)
 
 
-def test_a_new_game_waits_on_the_first_player_to_choose_an_action():
+def test_after_the_setup_buy_generation_1_waits_on_the_first_player_to_choose_an_action():
     game = tm_engine.Game(seed=1)
+    skip_buying(game)
 
     decision = game.decision
 
@@ -36,7 +47,7 @@ def test_each_decision_carries_the_next_sequence_number():
     game = tm_engine.Game(seed=1)
     first = game.decision["sequence"]
 
-    pick(game, "Asteroid")
+    pick(game, "Done")
 
     assert game.decision["sequence"] == first + 1
 

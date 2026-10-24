@@ -3,6 +3,7 @@
 //! Python data: dicts, lists, strings, numbers and None.
 
 mod board;
+mod card_flow;
 mod card_set;
 mod cards;
 mod deck;
@@ -31,11 +32,13 @@ struct PyGame {
 
 #[pymethods]
 impl PyGame {
-    /// A new Game from its settings.
+    /// A new Game from its settings. While most cards are not implemented yet,
+    /// `implemented_cards_first` deals the implemented ones first.
     #[new]
-    #[pyo3(signature = (*, seed, players = 2))]
-    fn new(seed: u64, players: usize) -> PyResult<Self> {
-        let game = game::Game::new(game::Settings { players, seed }).map_err(PyValueError::new_err)?;
+    #[pyo3(signature = (*, seed, players = 2, implemented_cards_first = false))]
+    fn new(seed: u64, players: usize, implemented_cards_first: bool) -> PyResult<Self> {
+        let settings = game::Settings { players, seed, implemented_cards_first };
+        let game = game::Game::new(settings).map_err(PyValueError::new_err)?;
         Ok(PyGame { game })
     }
 

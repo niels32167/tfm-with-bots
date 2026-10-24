@@ -1,6 +1,6 @@
 """The game log: a plain-language line for everything that happens."""
 
-from tests.helpers import end_the_generation, ocean, pick, player, scenario, terraformed_mars
+from tests.helpers import end_the_action_phase, end_the_generation, ocean, pick, player, scenario, terraformed_mars
 
 
 def test_a_new_game_log_starts_with_generation_1_and_its_first_player():
@@ -59,16 +59,17 @@ def test_the_log_says_when_temperature_is_already_at_its_maximum():
     assert game.log[-1] == "Temperature is already at its maximum, so it does not rise."
 
 
-def test_the_log_shows_the_production_phase_and_the_next_generation():
+def test_the_log_shows_the_production_phase_and_the_next_generation_with_its_research_phase():
     game = scenario(player(terraform_rating=25, production={"megacredits": 2}), player(), generation=2)
 
-    end_the_generation(game)
+    end_the_action_phase(game)
 
-    assert game.log[-4:] == [
+    assert game.log[-5:] == [
         "Production phase.",
         "Player 1 gains 27 MegaCredits (Terraform Rating 25 + MegaCredit Production 2).",
         "Player 2 gains 20 MegaCredits (Terraform Rating 20 + MegaCredit Production 0).",
         "Generation 3 begins, with Player 2 as first player.",
+        "Research phase: each Player draws 4 cards and may buy any of them for 3 MegaCredits each.",
     ]
 
 

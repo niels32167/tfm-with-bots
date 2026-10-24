@@ -4,55 +4,49 @@ cards in hands, among played cards and on top of the deck."""
 import pytest
 import tm_engine
 
-from tests.helpers import PROJECT_CARDS, hand, played_cards, player, scenario
+from tests.helpers import PROJECT_CARDS, hand, pick, played_cards, player, scenario
 
-# Until Corporations and buying cards exist (ticket 09), a new Game deals out these 11 cards.
-STARTER_SET = [
-    "black_polar_dust",
-    "nuclear_power",
-    "lake_marineris",
-    "mine",
-    "trees",
-    "grass",
-    "solar_power",
-    "strip_mine",
-    "power_plant",
-    "titanium_mine",
-    "windmills",
-]
+# The cards implemented so far: those with effect data. A card without it is never offered.
+IMPLEMENTED = {card["id"] for card in tm_engine.card_catalog() if card.get("effects") is not None}
 
 
-@pytest.mark.parametrize("players", [2, 3, 4, 5])
-def test_until_ticket_09_a_new_game_deals_out_the_starter_set_round_robin_from_the_first_player(players):
-    view = tm_engine.Game(seed=7, players=players).full_view()
-
-    first = view["first_player"]
-    hands = [view["players"][(first + offset) % players]["hand"] for offset in range(players)]
-    assert sorted(card for held in hands for card in held) == sorted(STARTER_SET)
-    assert [len(held) for held in hands] == [len(STARTER_SET[offset::players]) for offset in range(players)]
+def dealt_cards(view):
+    """Every card dealt to a Player to buy from, as the full view shows them."""
+    return [card for board in view["players"] for card in board["buying"]["dealt"]]
 
 
-def test_every_other_project_card_is_in_the_deck():
-    view = tm_engine.Game(seed=7).full_view()
+def test_the_deck_order_comes_from_the_seed():
+    def deck(seed):
+        return tm_engine.Game(seed=seed).full_view()["deck"]
 
-    assert view["deck_size"] == 208 - len(STARTER_SET)
-    assert sorted(view["deck"]) == sorted(set(PROJECT_CARDS) - set(STARTER_SET))
-
-
-def test_the_deal_and_the_deck_order_come_from_the_seed():
-    def cards(seed):
-        view = tm_engine.Game(seed=seed).full_view()
-        return [board["hand"] for board in view["players"]], view["deck"]
-
-    assert cards(7) == cards(7)
-    assert cards(7)[1] != cards(8)[1]
+    assert deck(7) == deck(7)
+    assert deck(7) != deck(8)
 
 
 def test_only_the_full_view_shows_the_deck_order():
     game = tm_engine.Game(seed=7)
 
     assert game.player_view(0)["deck"] is None
-    assert game.player_view(0)["deck_size"] == 197
+    assert game.player_view(0)["deck_size"] == 208 - 2 * 10
+
+
+def test_while_most_cards_are_not_implemented_a_new_game_can_deal_the_implemented_ones_first():
+    game = tm_engine.Game(seed=7, players=2, implemented_cards_first=True)
+
+    view = game.full_view()
+    dealt = dealt_cards(view)
+    assert len(dealt) == 20
+    assert set(dealt) <= IMPLEMENTED
+    assert set(view["deck"][: len(IMPLEMENTED) - 20]) == IMPLEMENTED - set(dealt)
+    assert sorted(dealt + view["deck"]) == sorted(PROJECT_CARDS)
+    assert game.replay["start"]["settings"]["implemented_cards_first"] is True
+
+
+def test_a_new_game_deals_from_the_whole_shuffled_deck_by_default():
+    deals = [set(dealt_cards(tm_engine.Game(seed=seed, players=5).full_view())) for seed in range(3)]
+
+    assert not all(dealt <= IMPLEMENTED for dealt in deals)
+    assert tm_engine.Game(seed=7).replay["start"]["settings"]["implemented_cards_first"] is False
 
 
 def test_a_scenario_puts_cards_in_hands_and_among_played_cards():
@@ -73,10 +67,21 @@ def test_a_scenario_puts_its_deck_on_top_in_drawing_order_and_shuffles_every_oth
     assert game.full_view()["deck_size"] == 206
 
 
+def test_a_scenario_puts_cards_face_down_in_the_discard_pile_which_only_the_full_view_lists():
+    game = scenario(player(hand=["mine"]), player(), discard=["windmills", "trees"])
+
+    assert game.full_view()["discard"] == ["trees", "windmills"]
+    assert game.full_view()["discard_size"] == 2
+    assert game.full_view()["deck_size"] == 205
+    assert game.player_view(0)["discard"] is None
+    assert game.player_view(0)["discard_size"] == 2
+
+
 def test_a_scenario_without_cards_has_every_project_card_in_the_deck():
     view = scenario().full_view()
 
     assert view["deck_size"] == 208
+    assert view["discard_size"] == 0
     assert [board["hand"] for board in view["players"]] == [[], []]
 
 
@@ -89,3 +94,34 @@ def test_a_scenario_names_only_project_cards_and_each_at_most_once():
         scenario(player(hand=["mine"]), player(played_cards=["mine"]))
     with pytest.raises(ValueError, match="'mine' card in only one place"):
         scenario(player(hand=["mine"]), player(), deck=["mine"])
+    with pytest.raises(ValueError, match="'mine' card in only one place"):
+        scenario(player(), player(), deck=["mine"], discard=["mine"])
+
+
+def test_when_the_deck_runs_out_the_discard_pile_is_shuffled_into_a_new_deck():
+    held, deck, discarded = PROJECT_CARDS[:204], PROJECT_CARDS[204:205], PROJECT_CARDS[205:]
+    game = scenario(player(megacredits=18, hand=held[:150]), player(hand=held[150:]), deck=deck, discard=discarded)
+
+    pick(game, project="aquifer")
+    pick(game, area="B6")  # its placement bonus draws 2 cards: the last one in the deck, then one more
+
+    drawn = set(hand(game, 0)) - set(held)
+    assert len(drawn) == 2
+    assert deck[0] in drawn
+    assert sorted(game.full_view()["deck"] + list(drawn - set(deck))) == sorted(discarded)
+    assert game.full_view()["deck_size"] == 2
+    assert game.full_view()["discard_size"] == 0
+    assert "The deck has run out, so the discard pile is shuffled into a new deck of 3 cards." in game.log
+
+
+def test_the_reshuffled_deck_comes_from_the_games_own_random_numbers():
+    def reshuffled_deck(seed):
+        game = scenario(
+            player(megacredits=18, hand=PROJECT_CARDS[:150]), player(), discard=PROJECT_CARDS[150:], seed=seed
+        )
+        pick(game, project="aquifer")
+        pick(game, area="B6")
+        return game.full_view()["deck"]
+
+    assert reshuffled_deck(1) == reshuffled_deck(1)
+    assert reshuffled_deck(1) != reshuffled_deck(2)

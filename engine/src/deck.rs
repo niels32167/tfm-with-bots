@@ -21,16 +21,22 @@ impl Deck {
     /// Every Project Card neither `outside` the deck nor in `top`, shuffled, beneath the
     /// cards of `top`, the first of which is drawn first.
     pub fn shuffled(outside: CardSet, top: &[usize], random_numbers: &mut RandomNumbers) -> Deck {
-        let mut deck = Deck::EMPTY;
-        for card in 0..PROJECT_CARDS {
-            if !outside.contains(card) && !top.contains(&card) {
-                deck.put_on_top(card);
-            }
-        }
-        random_numbers.shuffle(&mut deck.cards[..deck.size as usize]);
+        let beneath =
+            (0..PROJECT_CARDS).filter(|card| !outside.contains(*card) && !top.contains(card)).collect();
+        let mut deck = Deck::shuffled_from(beneath, random_numbers);
         for &card in top.iter().rev() {
             deck.put_on_top(card);
         }
+        deck
+    }
+
+    /// A deck of exactly `cards`, shuffled.
+    pub fn shuffled_from(cards: CardSet, random_numbers: &mut RandomNumbers) -> Deck {
+        let mut deck = Deck::EMPTY;
+        for card in cards.iter() {
+            deck.put_on_top(card);
+        }
+        random_numbers.shuffle(&mut deck.cards[..deck.size as usize]);
         deck
     }
 
@@ -47,6 +53,10 @@ impl Deck {
 
     pub fn len(&self) -> usize {
         self.size as usize
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.size == 0
     }
 
     /// The cards from the top down.

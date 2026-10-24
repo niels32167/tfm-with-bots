@@ -1,3 +1,4 @@
+import { playersAreBuying } from "../cards/BuyingPanel";
 import { signed } from "../format";
 import { controllerLabel, isYou, PLAYER_COLOURS } from "../players";
 import { RESOURCES, TAGS, type CountedTag, type Resource } from "../types";
@@ -93,5 +94,6 @@ export function PlayerBoards({ game }: { game: GameUpdate }) {
 function turnBadge(game: GameUpdate): string {
   const { view } = game;
   if (view.phase === "final_greenery") return "Final Greeneries";
+  if (playersAreBuying(view)) return "Buying cards";
   return `Turn${view.actions_this_turn > 0 ? ` · Action ${view.actions_this_turn + 1}` : ""}`;
 }

@@ -9,7 +9,7 @@ from typing import Any
 import pytest
 import tm_engine
 
-from tests.fuzzing.runner import fuzz, fuzz_game, players_for, save_failure
+from tests.fuzzing.runner import fuzz, fuzz_game, save_failure, settings_for
 
 
 def test_about_a_thousand_fuzzed_games_break_no_invariant():
@@ -19,8 +19,11 @@ def test_about_a_thousand_fuzzed_games_break_no_invariant():
     assert not run.failures, "\n".join(failure.description() for failure in run.failures)
 
 
-def test_fuzzed_games_have_2_to_5_players():
-    assert [players_for(seed) for seed in range(8)] == [2, 3, 4, 5, 2, 3, 4, 5]
+def test_fuzzed_games_have_2_to_5_players_and_deal_the_implemented_cards_first_for_every_other_four_seeds():
+    settings = [settings_for(seed) for seed in range(8)]
+
+    assert [each["players"] for each in settings] == [2, 3, 4, 5, 2, 3, 4, 5]
+    assert [each["implemented_cards_first"] for each in settings] == [False] * 4 + [True] * 4
 
 
 def test_a_fuzzed_game_that_breaks_nothing_has_no_failure():
