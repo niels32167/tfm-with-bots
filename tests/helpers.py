@@ -69,6 +69,9 @@ def scenario(*players: dict[str, Any], **fields: Any) -> tm_engine.Game:
 # Every Project Card by catalog id, in number order (#001 first).
 PROJECT_CARDS = [card["id"] for card in tm_engine.card_catalog() if card["type"] != "corporation"]
 
+# Every card's printed name, by catalog id.
+CARD_NAMES = {card["id"]: card["name"] for card in tm_engine.card_catalog()}
+
 # The Tags counted on a player board, in the card list's order: every Tag but the Event Tag,
 # since no Tag on a played Event counts.
 TAGS_THAT_COUNT = ("building", "space", "power", "science", "jovian", "earth", "plant", "microbe", "animal", "city")
@@ -176,6 +179,18 @@ def buy(game: tm_engine.Game, *cards: str) -> None:
     pick(game, "Done")
 
 
+def keep_the_first_cards_offered(game: tm_engine.Game) -> list[int]:
+    """In the Draft, every Player keeps the first card offered until every card is kept.
+    Returns who picked, in order."""
+    deciding = []
+    for _ in range(MAX_PICKS):
+        if game.decision is None or game.decision["kind"] != "draft":
+            return deciding
+        deciding.append(game.decision["player"])
+        game.pick(0)
+    raise AssertionError(f"the Draft was not over after {MAX_PICKS} picks")
+
+
 def skip_buying(game: tm_engine.Game) -> None:
     """In the setup or a Research phase, every Player still to decide is done without buying."""
     for _ in range(MAX_PICKS):
@@ -187,9 +202,11 @@ def skip_buying(game: tm_engine.Game) -> None:
 
 def end_the_generation(game: tm_engine.Game) -> None:
     """Every Player who is still in passes, which ends the Generation: the next one begins, and
-    nobody buys any card in its Research phase. Once Mars is terraformed, the final Greenery
-    conversion or the end of the Game follows instead."""
+    in its Research phase each Player keeps the first cards offered in the Draft (if it is on)
+    and buys none. Once Mars is terraformed, the final Greenery conversion or the end of the Game
+    follows instead."""
     end_the_action_phase(game)
+    keep_the_first_cards_offered(game)
     skip_buying(game)
 
 
@@ -245,6 +262,13 @@ def buying(game: tm_engine.Game, player: int) -> dict[str, list[str]] | None:
     `{"dealt": [...], "bought": [...]}` by catalog id, the cards bought among those dealt.
     None outside those phases."""
     return player_board(game, player)["buying"]
+
+
+def drafting(game: tm_engine.Game, player: int) -> dict[str, Any] | None:
+    """What a Player is drafting, as that Player sees it, from Generation 2 with the Draft on:
+    `{"picking_from": [...], "kept": [...], "passing_to": int}`, the cards by catalog id: those
+    they keep one of and pass the rest on, and those kept so far. None outside the Draft."""
+    return player_board(game, player)["drafting"]
 
 
 def played_cards(game: tm_engine.Game, player: int) -> list[str]:

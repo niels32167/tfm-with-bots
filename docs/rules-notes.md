@@ -314,7 +314,8 @@ and `test_once_everyone_is_done_buying_the_log_says_how_many_cards_each_player_b
 ### The Research phase, and who is asked to buy
 
 **Call:** From Generation 2, after the Player Order phase, each Player draws 4 cards in player
-order from the first player, then buys as above. (The Draft, ticket 10, replaces the drawing.)
+order from the first player, then buys as above. With the Draft on (the default), the Draft
+replaces the drawing (see "Draft" below), and Players buy from the cards they kept.
 A Player is asked only while they can buy another card: one is left and they can pay for it on
 top of those already bought. A Player who cannot afford any card, or has bought every card
 dealt, is passed over without a Decision; their cards not bought are discarded.
@@ -385,6 +386,89 @@ dealt card in 9 would be playable. Chosen by the user (2026-10-24).
 **Tests:** `tests/rules/test_deck.py::test_while_most_cards_are_not_implemented_a_new_game_can_deal_the_implemented_ones_first`,
 `test_a_new_game_deals_from_the_whole_shuffled_deck_by_default` and
 `tests/rules/test_playing_cards.py::test_a_card_that_is_not_implemented_yet_is_never_offered`.
+
+## Draft
+
+### The Draft is on unless switched off, from Generation 2 only
+
+**Call:** Every Research phase from Generation 2 has the Draft, unless the Game's `draft` setting
+is off: `tm_engine.Game(draft=True)`, Scenarios (`"draft": true`), the server's `new_game` and
+the GUI's setup screen all default to on. A Replay whose settings or Scenario have no `draft`
+(saved before ticket 10) reads as off, as it was played. There is no Draft at setup: each Player still buys
+from the 10 cards dealt.
+
+**Why:** ADR 0003 has the Draft on by default in the GUI and in AI training. The rulebook:
+"Drafting is not used during the first generation since the first Research phase is skipped".
+The open-source game's draft at setup is an optional variant of its own, not a rule. The
+default was chosen by the user (2026-10-24); no Draft at setup by Claude, on the rulebook.
+
+**Tests:** `tests/rules/test_draft.py::test_the_draft_is_on_unless_switched_off_and_a_replay_from_before_the_draft_existed_reads_as_off`,
+`test_a_scenario_has_the_draft_unless_switched_off_but_one_in_a_replay_from_before_the_draft_existed_does_not`,
+`test_there_is_no_draft_at_setup_where_each_player_buys_from_the_10_cards_dealt`,
+`test_with_the_draft_off_the_research_phase_deals_4_cards_straight_to_buy_from` and
+`tests/server/test_new_game.py::test_a_new_game_has_the_draft_unless_it_is_switched_off`.
+
+### Picks, passing and the passing direction
+
+**Call:** Each Player, in player order from the first player, is dealt 4 cards to draft. Every
+Player keeps one of the cards they hold, one Player at a time in player order from the first
+player; once all have kept one, everyone passes the rest at the same moment, and each picks
+again from the cards passed to them. Cards go clockwise, to the next Player as the Turns go
+(Player 1 to Player 2), in even Generations, and counter-clockwise, to the Player before, in
+odd ones. With 2 Players both directions reach
+the other Player. Once every card is kept, the Draft is over and each Player buys from the
+cards they kept, as in "Buying stays hidden until every Player is done".
+
+**Why:** The rulebook's Draft variant: each Player keeps 1 card and passes the rest, until all
+4 are kept; "Cards are passed clockwise during even-numbered generations and counter-clockwise
+during odd-numbered generations", and play proceeds clockwise. The open-source game agrees: it
+passes to the player after in even Generations and before in odd ones. Neither has a rule of
+its own for 2 Players. Picks are simultaneous at the table, so the engine asks one Player at a
+time (ADR 0002) and moves no card until everyone has picked. Chosen by Claude (2026-10-24), as
+the sources agree.
+
+**Tests:** `tests/rules/test_draft.py::test_from_generation_2_each_player_is_dealt_4_cards_to_draft_and_the_first_player_keeps_one_first`,
+`test_players_keep_a_card_in_player_order_and_the_rest_pass_on_only_once_everyone_has_kept_one`,
+`test_cards_pass_clockwise_in_even_generations_and_counter_clockwise_in_odd_ones` and
+`test_with_2_players_cards_always_pass_to_the_other_player`.
+
+### The last card is kept without a Decision
+
+**Call:** A Player holding a single card to draft keeps it without a Decision: normally the
+last card of each hand, passed on after the third pick.
+
+**Why:** The rulebook has each Player simply receive the last card; the open-source game hands
+it over automatically. A Decision with one Option changes nothing. Chosen by Claude
+(2026-10-24), on the user's instruction to make the remaining calls without asking.
+
+**Tests:** `tests/rules/test_draft.py::test_the_last_card_of_each_hand_is_kept_without_a_decision_and_then_players_buy_from_the_cards_they_kept`.
+
+### When the deck and the discard pile run out during the deal
+
+**Call:** A Player dealt fewer than 4 cards, because the deck and the discard pile are both
+empty, still drafts: each time, every Player holding cards keeps one (with a Decision only
+when they hold two or more), and the rest are passed on, until every card is kept. So the
+cards dealt all end up kept, though not always 4 each.
+
+**Why:** The rulebook is silent; this keeps the Draft's own steps and ends it with every card
+kept. Both piles are empty only when nearly every card is in hands or played. Chosen by Claude
+(2026-10-24), on the user's instruction to make the remaining calls without asking.
+
+**Tests:** `tests/rules/test_draft.py::test_a_player_left_with_fewer_cards_when_the_deck_and_discard_pile_run_out_still_keeps_every_card_passed`.
+
+### What stays hidden, and what each Player sees of the cards they passed
+
+**Call:** A Player View shows its own Player's cards to draft from and those kept, never another
+Player's, and the game log names no card drafted. Each Player View also lists every set of
+cards its Player passed on in the Draft, with the Generation and to whom, for the rest of the
+Game. Nothing is paid during the Draft, so MegaCredits and hand sizes stay as they were.
+
+**Why:** CONTEXT.md: the Player View is everything one Player is allowed to know, including
+the cards they passed in the Draft; a Player at the table saw those cards, so the AI needn't
+remember them on its own. Kept for the whole Game: chosen by the user (2026-10-24).
+
+**Tests:** `tests/engine/test_views.py::test_while_players_draft_no_player_view_shows_what_another_player_holds_kept_or_passed`
+and `tests/rules/test_draft.py::test_a_player_view_lists_the_cards_its_player_passed_and_to_whom_for_the_rest_of_the_game`.
 
 ## Turns
 

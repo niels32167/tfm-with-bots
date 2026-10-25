@@ -7,7 +7,7 @@ from tests.server.helpers import Gui, connect
 
 def play_a_few_turns(gui: Gui, controllers: list[str]) -> dict:
     """Starts a Game and has the humans take a few Actions; returns the latest update."""
-    update = gui.skip_buying(gui.start(controllers, seed=12))
+    update = gui.skip_drafting_and_buying(gui.start(controllers, seed=12))
     for label in ("Asteroid", "End Turn", "Asteroid", "Pass"):
         gui.pick(update, label)
         update = gui.wait_for_human()
@@ -20,7 +20,8 @@ def test_a_saved_replay_file_holds_the_replay_and_every_players_controller():
         file = gui.save_replay()
 
     assert file["controllers"] == ["human", "random_bot", "random_bot"]
-    assert file["replay"]["start"] == {"settings": {"players": 3, "seed": 12, "implemented_cards_first": False}}
+    settings = {"players": 3, "seed": 12, "implemented_cards_first": False, "draft": True}
+    assert file["replay"]["start"] == {"settings": settings}
     assert len(file["replay"]["picks"]) == update["decision"]["sequence"]
 
 
@@ -82,13 +83,12 @@ def test_a_loaded_game_carries_on_as_the_saved_one_would_have():
     with connect() as gui:
         saved = play_a_few_turns(gui, ["human", "random_bot", "random_bot"])
         file = gui.save_replay()
-        gui.pick(saved, "Done")  # buying nothing in Generation 2's Research phase
-        carried_on = gui.wait_for_human()
+        # In Generation 2's Research phase: keeping the first cards in the Draft, and buying none.
+        carried_on = gui.skip_drafting_and_buying(saved)
 
     with connect() as gui:
         gui.send({"type": "load_replay", "file": file, "bot_delay": 0})
         loaded = gui.wait_for_human()
-        gui.pick(loaded, "Done")
-        carried_on_after_loading = gui.wait_for_human()
+        carried_on_after_loading = gui.skip_drafting_and_buying(loaded)
 
     assert carried_on_after_loading["view"] == carried_on["view"]

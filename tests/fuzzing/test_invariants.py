@@ -10,6 +10,7 @@ from tests.fuzzing.invariants import AFTER_EVERY_DECISION, AT_THE_END_OF_THE_GAM
 from tests.helpers import (
     city,
     claimed,
+    end_the_action_phase,
     end_the_generation,
     funded,
     greenery,
@@ -212,6 +213,31 @@ def test_buying_cards_outside_the_setup_and_research_phases_breaks_an_invariant(
         "discard_size is 2, but the discard pile holds 1 card",
         "in the action phase, Player 1 is buying cards",
     ]
+
+
+def test_the_cards_being_drafted_are_places_for_cards_too():
+    game = scenario(player(), player())
+    end_the_action_phase(game)
+    game.pick(0)  # Player 2, the first player, keeps a card
+    view, decision = position(game)
+    assert problems(view, decision) == []
+    kept, picking_from = view["players"][1]["drafting"]["kept"], view["players"][0]["drafting"]["picking_from"]
+    view["discard"].append(kept[0])
+    view["discard_size"] += 1
+    view["players"][1]["hand"].append(picking_from[0])
+    view["players"][1]["hand_size"] += 1
+
+    assert problems(view, decision) == [
+        f"'{picking_from[0]}' is in 2 places: Player 1's cards to draft from and Player 2's hand",
+        f"'{kept[0]}' is in 2 places: the discard pile and Player 2's cards kept in the Draft",
+    ]
+
+
+def test_drafting_cards_outside_the_draft_breaks_an_invariant():
+    view, decision = position(scenario(player(), player()))
+    view["players"][1]["drafting"] = {"picking_from": [], "kept": [], "passing_to": 0}
+
+    assert problems(view, decision) == ["in the action phase, Player 2 is drafting cards"]
 
 
 def test_a_corporation_or_an_unknown_card_among_the_cards_breaks_an_invariant():

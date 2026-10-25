@@ -25,10 +25,14 @@ def card_catalog() -> list[dict[str, Any]]:
 class Game:
     """A Game of Terraforming Mars, always either over or waiting on one Decision."""
 
-    def __init__(self, *, seed: int, players: int = 2) -> None:
-        """A new Game from its settings; the first player is drawn from the seed. Until
-        ticket 09, the 11 starter-set cards are shuffled and dealt round-robin from the first
-        player, and every other Project Card is shuffled into the deck.
+    def __init__(
+        self, *, seed: int, players: int = 2, implemented_cards_first: bool = False, draft: bool = True
+    ) -> None:
+        """A new Game from its settings; the first player is drawn from the seed. It begins with
+        the setup buy: each Player is dealt 10 Project Cards from the shuffled deck to buy from.
+        From Generation 2, each Research phase has the Draft unless `draft` is False. While most
+        cards are not implemented yet, `implemented_cards_first` puts the implemented ones, shuffled,
+        on top of the deck.
 
         Raises ValueError for an unsupported Player count or a seed above MAX_SEED.
         """
@@ -38,12 +42,14 @@ class Game:
         """A Game started from a Scenario. Anything left out takes the normal defaults.
 
         Fields: seed, generation, first_player (default 0, who also takes the first Turn),
-        temperature, oxygen, tiles, milestones, awards, deck, and players: a list of
+        temperature, oxygen, tiles, milestones, awards, deck, discard, draft (default True:
+        whether the Research phases have the Draft), and players: a list of
         {"resources": {...}, "production": {...}, "terraform_rating": int,
          "hand": [card id, ...], "played_cards": [card id, ...]}.
         Cards are named by their catalog id ("black_polar_dust"); only Project Cards, each in
         one place at most. "deck" lists the cards on top of the deck, the first drawn first;
-        every other Project Card is shuffled beneath them with the seed.
+        every other Project Card is shuffled beneath them with the seed. "discard" lists the cards
+        in the discard pile. A Scenario starts in the Action phase.
         Resources and Production name any of the six Resources (megacredits, steel,
         titanium, plants, energy, heat); the rest keep their defaults: 42 MegaCredits and
         nothing else to start with, and no Production.
@@ -88,9 +94,14 @@ class Game:
         being played, with details {"type": "payment", "card": "mine", "megacredits": 2,
         "steel": 1, "titanium": 0}; it comes only when there is more than one way), "area"
         (where to place a Tile, with details {"type": "area", "area": "C3", "tile": "city"})
-        and "final_greenery" (convert 8 plants into a Greenery once more, or be done, after
-        the final Production phase). Playing a card, claiming a Milestone and funding an Award
-        are Actions, with details {"type": "play_card", "card": "mine", "cost": 4},
+        "final_greenery" (convert 8 plants into a Greenery once more, or be done, after
+        the final Production phase), "draft" (keep one of the cards being drafted and pass the
+        rest on, with details {"type": "draft_card", "card": "mine"}), "buy_cards" (buy one more
+        of the cards dealt or drafted, {"type": "buy_card", "card": "mine", "cost": 3}, or be
+        done) and "sell_patents" (sell one more card from the hand, {"type": "sell_card", "card":
+        "mine", "megacredits": 1}, or be done). Being done is {"type": "done"}. Playing a card,
+        claiming a Milestone and funding an Award are Actions, with details
+        {"type": "play_card", "card": "mine", "cost": 4},
         {"type": "claim_milestone", "milestone": "mayor", "cost": 8} and
         {"type": "fund_award", "award": "landlord", "cost": 14}.
         """
@@ -114,22 +125,32 @@ class Game:
     def replay(self) -> dict[str, Any]:
         """The Replay so far: where this Game started and the index of every Option picked.
 
-        {"start": {"settings": {"players": int, "seed": int}} or {"scenario": {...}},
+        {"start": {"settings": {"players": int, "seed": int, "implemented_cards_first": bool,
+         "draft": bool}} or {"scenario": {...}},
          "picks": [int, ...]}
         """
 
     def player_view(self, player: int) -> dict[str, Any]:
         """Everything `player` is allowed to know. Its "viewer" is `player`.
 
-        It has the Generation, the phase ("action", "final_greenery" or "over"), the Global
-        Parameters (temperature, oxygen, oceans) and each Player's board:
+        It has the Generation, the phase ("setup", "draft", "research", "action",
+        "final_greenery" or "over"), the Global Parameters (temperature, oxygen, oceans) and each
+        Player's board:
         {"name": "Player 1", "resources": {...}, "production": {...}, "terraform_rating": int,
          "passed": bool, "hand_size": int, "hand": [card id, ...] | None,
+         "buying": {"dealt": [...], "bought": [...]} | None,
+         "drafting": {"picking_from": [...], "kept": [...], "passing_to": int} | None,
+         "passed_in_draft": [{"generation": int, "to": int, "cards": [...]}, ...] | None,
          "played_cards": [card id, ...], "tags": {"building": int, ...}}, where Resources and
-        Production each hold all six Resources, "hand" is None but for the viewer's own, cards
-        come in card-number order, and "tags" counts the ten Tags in play (on played Automated
-        and Active cards; no Tag on a played Event counts). "deck_size" is the number of cards
-        in the deck and "deck" is None.
+        Production each hold all six Resources, cards come in card-number order, and "tags"
+        counts the ten Tags in play (on played Automated and Active cards; no Tag on a played
+        Event counts). "hand", "buying", "drafting" and "passed_in_draft" are None but on the
+        viewer's own board. "buying" is the cards dealt to buy from and those bought so far, in
+        the setup and Research phases. "drafting" is the cards being drafted, keeping one and
+        passing the rest to Player "passing_to", and those kept so far, in the Draft.
+        "passed_in_draft" lists every set of cards the Player passed on in the Draft this Game,
+        in the order passed. "deck_size" and "discard_size" are the numbers of cards in the deck
+        and the discard pile, and "deck" and "discard" are None.
         It also has the "board": every Area, on Mars row by row from the
         top (A to J, skipping I) and each row from the left, then the two Areas off Mars:
         {"area": "E3", "name": "Noctis City" | None, "row": 5, "position": 3,
@@ -148,8 +169,8 @@ class Game:
         """Everything about the Game, including what Players hide from each other.
 
         For Hotseat and the dev panel, never for an AI Controller. It has the Player
-        View's shape, with "viewer" None, every Player's "hand", and the "deck" by catalog id
-        from the top down.
+        View's shape, with "viewer" None, every Player's "hand", "buying", "drafting" and
+        "passed_in_draft", the "deck" by catalog id from the top down, and the "discard" pile.
         """
 
     @property

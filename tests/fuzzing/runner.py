@@ -22,9 +22,9 @@ from tests.fuzzing.invariants import AFTER_EVERY_DECISION, AT_THE_END_OF_THE_GAM
 
 FAILURES_FOLDER = Path(__file__).parents[2] / "fuzz-failures"
 
-# Fuzzing guards, not rules. Since cards are bought and sold (ticket 09), Random Bot Games end
-# after about 16 to 25 Generations on average (5 down to 2 Players) and about 750 to 510 picks,
-# at most about 1,200. The pick limit catches a Game that stalls inside a Generation.
+# Fuzzing guards, not rules. Random Bot Games end after about 16 to 25 Generations on average
+# (5 down to 2 Players), and about 970 to 650 picks with the Draft (750 to 510 without), at most
+# about 1,500. The pick limit catches a Game that stalls inside a Generation.
 GENERATION_LIMIT = 100
 PICK_LIMIT = 50_000
 
@@ -40,9 +40,11 @@ def pick_at_random(random_numbers: random.Random, decision: dict[str, Any]) -> i
 
 
 def settings_for(seed: int) -> dict[str, Any]:
-    """The settings of fuzzed Game `seed`: 2, 3, 4 and 5 Players in turn, and for seeds 4 to 7,
-    12 to 15 and so on the implemented cards dealt first, so that Random Bots play more cards."""
-    return {"players": 2 + seed % 4, "implemented_cards_first": seed // 4 % 2 == 1}
+    """The settings of fuzzed Game `seed`: 2, 3, 4 and 5 Players in turn; for seeds 4 to 7, 12 to
+    15 and so on the implemented cards dealt first, so that Random Bots play more cards; and the
+    Draft on for seeds 0 to 7, 16 to 23 and so on, and off for the others, so that every Player
+    count meets every setting."""
+    return {"players": 2 + seed % 4, "implemented_cards_first": seed // 4 % 2 == 1, "draft": seed // 8 % 2 == 0}
 
 
 @dataclass(frozen=True)
@@ -76,6 +78,7 @@ def fuzz_game(
     players: int,
     *,
     implemented_cards_first: bool = False,
+    draft: bool = True,
     after_every_decision: Sequence[Check] = AFTER_EVERY_DECISION,
     at_the_end: Sequence[Check] = AT_THE_END_OF_THE_GAME,
     generation_limit: int = GENERATION_LIMIT,
@@ -84,7 +87,7 @@ def fuzz_game(
 ) -> FuzzedGame:
     """Plays one Game with a Random Bot for every Player, checking it after every Decision,
     until it is over or something goes wrong."""
-    game = tm_engine.Game(seed=seed, players=players, implemented_cards_first=implemented_cards_first)
+    game = tm_engine.Game(seed=seed, players=players, implemented_cards_first=implemented_cards_first, draft=draft)
     start = game.replay["start"]
     random_numbers = random.Random(seed)
     picks: list[int] = []

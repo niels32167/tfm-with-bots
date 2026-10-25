@@ -4,9 +4,16 @@ from typing import Any
 
 import tm_engine
 
-from tests.helpers import PROJECT_CARDS, buy, buying, end_the_action_phase, player, scenario
-
-CARD_NAMES = {card["id"]: card["name"] for card in tm_engine.card_catalog()}
+from tests.helpers import (
+    CARD_NAMES,
+    PROJECT_CARDS,
+    buy,
+    buying,
+    end_the_action_phase,
+    keep_the_first_cards_offered,
+    player,
+    scenario,
+)
 
 
 def cards_named_in(value: Any) -> set[str]:
@@ -47,28 +54,50 @@ def test_the_full_view_shows_every_hand_and_the_deck_order_and_otherwise_what_ev
         own_view = game.player_view(viewer)
         assert (own_view["deck"], own_view["discard"]) == (None, None)
         for index, board in enumerate(own_view["players"]):
-            board["hand"] = full_view["players"][index]["hand"]
+            for hidden in ("hand", "passed_in_draft"):
+                board[hidden] = full_view["players"][index][hidden]
         assert full_view == {**own_view, "viewer": None, "deck": full_view["deck"], "discard": []}
 
 
-def log_names_none_of_the_cards_dealt(game: tm_engine.Game, before: list[dict[str, Any]]) -> bool:
-    """Whether no game log line names a card dealt to any Player to buy from."""
-    names = [CARD_NAMES[card] for board in before for card in board["buying"]["dealt"]]
-    return not any(name in line for name in names for line in game.log)
+def log_names_none_of(game: tm_engine.Game, cards: list[str]) -> bool:
+    """Whether no game log line names any of `cards`."""
+    return not any(CARD_NAMES[card] in line for card in cards for line in game.log)
 
 
-def assert_no_player_view_shows_what_others_buy(game: tm_engine.Game, before: list[dict[str, Any]]) -> None:
-    """While Players buy: each Player View shows only cards dealt to its viewer or seen by all,
-    and every other Player's MegaCredits and hand as they were `before` the buying began."""
+def cards_dealt(before: list[dict[str, Any]]) -> list[str]:
+    """The cards dealt to every Player to draft or to buy from, from the player boards of the full view."""
+    dealt = []
+    for board in before:
+        dealt += board["buying"]["dealt"] if board["buying"] else board["drafting"]["picking_from"]
+    return dealt
+
+
+def cards_seen_by(own: dict[str, Any]) -> set[str]:
+    """The cards a Player has seen, from their own player board: their hand, the cards they are
+    buying from or drafting, and those they passed in the Draft."""
+    seen = set(own["hand"])
+    if own["buying"]:
+        seen |= set(own["buying"]["dealt"])
+    if own["drafting"]:
+        seen |= set(own["drafting"]["picking_from"] + own["drafting"]["kept"])
+    return seen.union(*(passed["cards"] for passed in own["passed_in_draft"]))
+
+
+def assert_no_player_view_shows_what_others_draft_or_buy(
+    game: tm_engine.Game, before: list[dict[str, Any]]
+) -> None:
+    """While Players draft or buy: each Player View shows only cards its viewer has seen or that
+    everyone has, and every other Player's MegaCredits and hand as they were `before` it began."""
     seen_by_all = {card for board in before for card in board["played_cards"]}
-    for viewer, own in enumerate(before):
+    for viewer in range(len(before)):
         view = game.player_view(viewer)
-        dealt = set(view["players"][viewer]["buying"]["dealt"])
-        assert cards_named_in({**view, "board": None, "phase": None}) <= dealt | set(own["hand"]) | seen_by_all
+        seen = cards_seen_by(view["players"][viewer])
+        assert cards_named_in({**view, "board": None, "phase": None}) <= seen | seen_by_all
         assert (view["deck"], view["discard"]) == (None, None)
         for index, board in enumerate(view["players"]):
             if index != viewer:
                 assert (board["hand"], board["buying"]) == (None, None)
+                assert (board["drafting"], board["passed_in_draft"]) == (None, None)
                 assert (board["resources"], board["hand_size"]) == (before[index]["resources"], before[index]["hand_size"])
 
 
@@ -80,23 +109,51 @@ def test_while_players_buy_at_setup_no_player_view_shows_what_another_player_was
         buy(game, *buying(game, game.decision["player"])["dealt"][:2])
 
     assert game.full_view()["phase"] == "setup"
-    assert_no_player_view_shows_what_others_buy(game, before)
+    assert_no_player_view_shows_what_others_draft_or_buy(game, before)
     assert game.player_view(0)["discard_size"] == 0
-    assert log_names_none_of_the_cards_dealt(game, before)
+    assert log_names_none_of(game, cards_dealt(before))
+
+
+def research_phase_of_three_players_with_cards(*, draft: bool) -> tm_engine.Game:
+    """Generation 2's Research phase, with or without the Draft, for three Players who each hold
+    and have played different cards."""
+    hands = [PROJECT_CARDS[0:3], PROJECT_CARDS[3:5], PROJECT_CARDS[5:6]]
+    players = [player(hand=held, played_cards=[PROJECT_CARDS[10 + index]]) for index, held in enumerate(hands)]
+    game = scenario(*players, draft=draft)
+    end_the_action_phase(game)
+    return game
 
 
 def test_while_players_buy_in_a_research_phase_no_player_view_shows_what_another_player_drew_or_bought():
-    hands = [PROJECT_CARDS[0:3], PROJECT_CARDS[3:5], PROJECT_CARDS[5:6]]
-    game = scenario(*[player(hand=held, played_cards=[PROJECT_CARDS[10 + index]]) for index, held in enumerate(hands)])
-    end_the_action_phase(game)
+    game = research_phase_of_three_players_with_cards(draft=False)
     before = game.full_view()["players"]
 
     for _ in range(2):
         buy(game, buying(game, game.decision["player"])["dealt"][0])
 
     assert game.full_view()["phase"] == "research"
-    assert_no_player_view_shows_what_others_buy(game, before)
-    assert log_names_none_of_the_cards_dealt(game, before)
+    assert_no_player_view_shows_what_others_draft_or_buy(game, before)
+    assert log_names_none_of(game, cards_dealt(before))
+
+
+def test_while_players_draft_no_player_view_shows_what_another_player_holds_kept_or_passed():
+    game = research_phase_of_three_players_with_cards(draft=True)
+    before = game.full_view()["players"]
+    dealt = cards_dealt(before)
+
+    game.pick(0)  # Player 2, the first player, keeps a card; then Player 3
+    game.pick(1)
+    assert game.full_view()["phase"] == "draft"
+    assert_no_player_view_shows_what_others_draft_or_buy(game, before)
+
+    game.pick(2)  # Player 1 keeps a card, and every Player passes the rest on
+    assert all(board["passed_in_draft"] for board in game.full_view()["players"])
+    assert_no_player_view_shows_what_others_draft_or_buy(game, before)
+
+    keep_the_first_cards_offered(game)
+    assert game.full_view()["phase"] == "research"
+    assert_no_player_view_shows_what_others_draft_or_buy(game, before)
+    assert log_names_none_of(game, dealt)
 
 
 def test_once_everyone_is_done_buying_the_log_says_how_many_cards_each_player_bought_but_not_which():
@@ -108,4 +165,4 @@ def test_once_everyone_is_done_buying_the_log_says_how_many_cards_each_player_bo
     assert [board["hand_size"] for board in game.player_view(0)["players"]] == [1, 1]
     assert game.player_view(0)["discard_size"] == 18
     assert "Player 1 buys 1 of their 10 cards for 3 MegaCredits." in game.log
-    assert log_names_none_of_the_cards_dealt(game, before)
+    assert log_names_none_of(game, cards_dealt(before))

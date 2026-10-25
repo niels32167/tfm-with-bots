@@ -19,11 +19,12 @@ def test_about_a_thousand_fuzzed_games_break_no_invariant():
     assert not run.failures, "\n".join(failure.description() for failure in run.failures)
 
 
-def test_fuzzed_games_have_2_to_5_players_and_deal_the_implemented_cards_first_for_every_other_four_seeds():
-    settings = [settings_for(seed) for seed in range(8)]
+def test_fuzzed_games_cover_2_to_5_players_the_implemented_cards_dealt_first_and_the_draft_on_and_off():
+    settings = [settings_for(seed) for seed in range(16)]
 
-    assert [each["players"] for each in settings] == [2, 3, 4, 5, 2, 3, 4, 5]
-    assert [each["implemented_cards_first"] for each in settings] == [False] * 4 + [True] * 4
+    assert [each["players"] for each in settings] == [2, 3, 4, 5] * 4
+    assert [each["implemented_cards_first"] for each in settings] == ([False] * 4 + [True] * 4) * 2
+    assert [each["draft"] for each in settings] == [True] * 8 + [False] * 8
 
 
 def test_a_fuzzed_game_that_breaks_nothing_has_no_failure():

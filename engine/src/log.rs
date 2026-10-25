@@ -22,6 +22,12 @@ pub enum LogEvent {
         first_player: usize,
     },
     ResearchPhase,
+    /// The Research phase begins with the Draft, among `players` Players, passing clockwise or not.
+    ResearchPhaseWithDraft {
+        players: usize,
+        clockwise: bool,
+    },
+    DraftIsOver,
     /// A Player bought `bought` of the `dealt` cards dealt to them.
     BoughtCards {
         player: usize,
@@ -172,6 +178,19 @@ impl LogEvent {
                 "Research phase: each Player draws {RESEARCH_CARDS} cards and may buy any of them for \
                  {CARD_PRICE} MegaCredits each."
             ),
+            LogEvent::ResearchPhaseWithDraft { players, clockwise } => {
+                let passing = match (players, clockwise) {
+                    (2, _) => "to the other Player",
+                    (_, true) => "clockwise, to the next Player",
+                    (_, false) => "counter-clockwise, to the Player before them",
+                };
+                format!(
+                    "Research phase, with the Draft: each Player is dealt {RESEARCH_CARDS} cards, keeps one and \
+                     passes the rest {passing}, until every card is kept. Then they may buy any of the cards \
+                     they kept for {CARD_PRICE} MegaCredits each."
+                )
+            }
+            LogEvent::DraftIsOver => "The Draft is over.".to_string(),
             LogEvent::BoughtCards { player, bought, dealt } => {
                 let price = Resource::MegaCredits.counted(CARD_PRICE * bought as i32);
                 match bought {

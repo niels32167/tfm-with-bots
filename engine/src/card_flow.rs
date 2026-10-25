@@ -44,8 +44,12 @@ impl Game {
         self.deal(SETUP_CARDS);
     }
 
-    /// The Research phase, from Generation 2: each Player draws their cards to buy from.
+    /// The Research phase, from Generation 2: each Player draws their cards to buy from, or
+    /// with the Draft on, drafts them.
     pub(crate) fn begin_research_phase(&mut self) {
+        if self.settings.draft {
+            return self.begin_draft();
+        }
         self.phase = Phase::Research;
         self.log.push(LogEvent::ResearchPhase);
         self.deal(RESEARCH_CARDS);
@@ -89,7 +93,7 @@ impl Game {
 
     /// Hands buying to the first Player who can buy a card, looking from index `start` in player
     /// order (0 is the first player). Once nobody can, every Player's buys are carried out.
-    fn offer_buying_from(&mut self, start: usize) {
+    pub(crate) fn offer_buying_from(&mut self, start: usize) {
         match self.first_in_player_order_who(start, Game::can_buy) {
             Some(player) => self.current_player = player,
             None => self.finish_buying(),
@@ -154,7 +158,7 @@ impl Game {
 
     /// The `count` cards `player` draws from the top of the deck. When the deck runs out, the
     /// discard pile is shuffled into a new deck; once both are empty, they draw no more.
-    fn draw_cards(&mut self, player: usize, count: i32) -> CardSet {
+    pub(crate) fn draw_cards(&mut self, player: usize, count: i32) -> CardSet {
         let mut drawn = CardSet::default();
         for _ in 0..count {
             if self.deck.is_empty() && !self.discard.is_empty() {

@@ -21,10 +21,14 @@ Cards and 12 Corporations, and the GUI's card gallery draws every card as the fa
 list does. Players play Project Cards from their hand, paying with MegaCredits, steel and
 titanium, once the cards' Requirements are met; 23 simple cards work so far. At setup each
 Player is dealt 10 Project Cards and buys any of them for 3 MegaCredits each (everyone starts
-with 42 MegaCredits until Corporations exist), and from Generation 2 each Research phase deals
-4 more to buy from; the rest go face down to the discard pile, which is shuffled into a new
-deck when the deck runs out. Buying is hidden from the other Players until all are done. The
-hand sits in a dock at the bottom of the window. While most cards are not implemented, the
+with 42 MegaCredits until Corporations exist). From Generation 2 each Research phase has the
+Draft, on by default and switchable on the setup screen: each Player is dealt 4 cards, keeps one
+and passes the rest to their neighbour (clockwise in even Generations, counter-clockwise in odd
+ones) until every card is kept, then buys any of the cards kept. Without the Draft each Player
+draws 4 cards to buy from. The cards not bought go face down to the discard pile, which is
+shuffled into a new deck when the deck runs out. Drafting and buying are hidden from the other
+Players, and each Player sees the cards they passed. The hand sits in a dock at the bottom of
+the window. While most cards are not implemented, the
 setup screen's "Deal the implemented cards first" (on by default) puts the playable ones on
 top of the deck.
 

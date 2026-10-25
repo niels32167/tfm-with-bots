@@ -10,6 +10,7 @@ use crate::board::{AREA_COUNT, Board, TileKind, area_id, area_label, printed, ro
 use crate::card_flow::{CARD_PRICE, PATENT_VALUE};
 use crate::card_set::CardSet;
 use crate::cards::{CARD_CATALOG, Tag};
+use crate::draft::DraftPass;
 use crate::game::{
     Decision, DecisionKind, DecisionOption, Game, HEAT_PER_TEMPERATURE_STEP, PLANTS_PER_GREENERY, Phase,
     StandardProject,
@@ -42,6 +43,10 @@ pub enum OptionDetails {
     PlayCard {
         card: &'static str,
         cost: i32,
+    },
+    /// Keep one of the cards being drafted, named by its catalog id, and pass the rest on.
+    DraftCard {
+        card: &'static str,
     },
     /// Buy one of the cards dealt, named by its catalog id.
     BuyCard {
@@ -171,6 +176,12 @@ pub struct PlayerBoard {
     /// In the setup or a Research phase, what they are buying from: only in their own Player View
     /// and the full view, otherwise None.
     pub buying: Option<BuyingView>,
+    /// In the Draft, what they are drafting: only in their own Player View and the full view,
+    /// otherwise None.
+    pub drafting: Option<DraftingView>,
+    /// The cards they have passed on in the Draft this Game, in the order passed: only in their
+    /// own Player View and the full view, otherwise None.
+    pub passed_in_draft: Option<Vec<DraftPassView>>,
     /// The cards they have played, by catalog id in card-number order.
     pub played_cards: Vec<&'static str>,
     /// How many of each Tag they have in play, for every Tag but the Event Tag, which never counts.
@@ -183,6 +194,24 @@ pub struct PlayerBoard {
 pub struct BuyingView {
     pub dealt: Vec<&'static str>,
     pub bought: Vec<&'static str>,
+}
+
+/// What a Player is drafting, by catalog id in card-number order: the cards they pick one from
+/// now, passing the rest to `passing_to`, and the cards they have kept so far.
+#[derive(Serialize)]
+pub struct DraftingView {
+    pub picking_from: Vec<&'static str>,
+    pub kept: Vec<&'static str>,
+    pub passing_to: usize,
+}
+
+/// Cards a Player passed on in the Draft, by catalog id in card-number order: in `generation`,
+/// to Player `to`.
+#[derive(Serialize)]
+pub struct DraftPassView {
+    pub generation: u32,
+    pub to: usize,
+    pub cards: Vec<&'static str>,
 }
 
 /// One Milestone: what it asks for, who claimed it, and how far each Player is towards it.
@@ -231,6 +260,7 @@ fn view(game: &Game, viewer: Option<usize>) -> View {
         generation: game.generation,
         phase: match game.phase {
             Phase::Setup => "setup",
+            Phase::Draft => "draft",
             Phase::Research => "research",
             Phase::Action => "action",
             Phase::FinalGreenery => "final_greenery",
@@ -263,6 +293,12 @@ fn view(game: &Game, viewer: Option<usize>) -> View {
                     dealt: ids(player.buying.dealt),
                     bought: ids(player.buying.bought),
                 }),
+                drafting: (sees_hand(index) && game.phase == Phase::Draft).then(|| DraftingView {
+                    picking_from: ids(player.drafting.picking_from),
+                    kept: ids(player.drafting.kept),
+                    passing_to: game.passing_to(index),
+                }),
+                passed_in_draft: sees_hand(index).then(|| passed_in_draft(&game.draft_passes, index)),
                 played_cards: ids(player.played),
                 tags: Tag::COUNTED.into_iter().map(|tag| (tag, game.tags(index, tag))).collect(),
             })
@@ -292,6 +328,15 @@ fn view(game: &Game, viewer: Option<usize>) -> View {
         award_cost: game.award_cost(),
         scores: game.scores(),
     }
+}
+
+/// The cards `player` has passed on in the Draft, in the order passed.
+fn passed_in_draft(passes: &[DraftPass], player: usize) -> Vec<DraftPassView> {
+    passes
+        .iter()
+        .filter(|pass| pass.player == player)
+        .map(|pass| DraftPassView { generation: pass.generation, to: pass.to, cards: ids(pass.cards) })
+        .collect()
 }
 
 /// The catalog ids of `cards`.
@@ -328,6 +373,7 @@ fn decision_view(decision: &Decision) -> DecisionView {
             DecisionKind::Action => "action",
             DecisionKind::Area => "area",
             DecisionKind::Payment => "payment",
+            DecisionKind::Draft => "draft",
             DecisionKind::BuyCards => "buy_cards",
             DecisionKind::SellPatents => "sell_patents",
             DecisionKind::FinalGreenery => "final_greenery",
@@ -352,6 +398,7 @@ fn label(option: &DecisionOption) -> String {
                 Resource::MegaCredits.counted(printed_card.project_cost())
             )
         }
+        DecisionOption::DraftCard(card) => format!("Keep {}", CARD_CATALOG[*card].name),
         DecisionOption::BuyCard(card) => {
             format!("Buy {} ({})", CARD_CATALOG[*card].name, Resource::MegaCredits.counted(CARD_PRICE))
         }
@@ -390,6 +437,7 @@ fn details(option: &DecisionOption) -> OptionDetails {
             let printed_card = &CARD_CATALOG[*card];
             OptionDetails::PlayCard { card: &printed_card.id, cost: printed_card.project_cost() }
         }
+        DecisionOption::DraftCard(card) => OptionDetails::DraftCard { card: &CARD_CATALOG[*card].id },
         DecisionOption::BuyCard(card) => {
             OptionDetails::BuyCard { card: &CARD_CATALOG[*card].id, cost: CARD_PRICE }
         }

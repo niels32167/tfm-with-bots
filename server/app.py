@@ -2,8 +2,9 @@
 
 Messages from the GUI:
     {"type": "new_game", "controllers": ["human", "random_bot"], "seed": 7, "bot_delay": 0.8,
-     "implemented_cards_first": true}
-        (2 to 5 Controllers; seed, bot_delay and implemented_cards_first are optional)
+     "implemented_cards_first": true, "draft": true}
+        (2 to 5 Controllers; seed, bot_delay, implemented_cards_first and draft are optional;
+         the Draft is on unless draft is false)
     {"type": "pick", "sequence": 12, "index": 0}
     {"type": "undo"}                  back to the Decision a human answered last
     {"type": "save_replay"}           answered with a replay_file message
@@ -86,11 +87,14 @@ class GameHost:
             seed = random.randrange(2**32)
         if not isinstance(seed, int) or not 0 <= seed <= tm_engine.MAX_SEED:
             raise ValueError(f"the seed must be a whole number from 0 to {tm_engine.MAX_SEED}, not {seed!r}")
-        implemented_cards_first = message.get("implemented_cards_first", False)
-        if not isinstance(implemented_cards_first, bool):
-            raise ValueError(f"implemented_cards_first must be true or false, not {implemented_cards_first!r}")
+        implemented_cards_first = true_or_false(message, "implemented_cards_first", default=False)
+        draft = true_or_false(message, "draft", default=True)
         session = GameSession.new(
-            message["controllers"], seed, bot_delay(message), implemented_cards_first=implemented_cards_first
+            message["controllers"],
+            seed,
+            bot_delay(message),
+            implemented_cards_first=implemented_cards_first,
+            draft=draft,
         )
         await self.start(session)
 
@@ -133,9 +137,10 @@ class GameHost:
 
     async def play_random_bots(self, session: GameSession) -> None:
         """Answers Random Bot Decisions one at a time, at a pace a person can follow. A Random Bot
-        buys cards without pausing, so that how long it takes says nothing about how many it buys."""
+        drafts and buys cards without pausing, so that how long it takes says nothing about what
+        it keeps or how many it buys."""
         while session.waiting_on_random_bot():
-            if not session.waiting_on_random_bot_to_buy():
+            if not session.waiting_on_random_bot_to_draft_or_buy():
                 await asyncio.sleep(session.bot_delay)
             session.pick_for_random_bot()
             for message in session.news():
@@ -145,6 +150,14 @@ class GameHost:
         for websocket in list(self.connections):
             with contextlib.suppress(WebSocketDisconnect, RuntimeError):
                 await websocket.send_json(message)
+
+
+def true_or_false(message: dict[str, Any], field: str, *, default: bool) -> bool:
+    """The message's `field`, which must be true or false if given."""
+    value = message.get(field, default)
+    if not isinstance(value, bool):
+        raise ValueError(f"{field} must be true or false, not {value!r}")
+    return value
 
 
 def bot_delay(message: dict[str, Any]) -> float:

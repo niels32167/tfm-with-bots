@@ -42,6 +42,12 @@ export interface PlayerBoard {
    * they have bought so far (nothing is paid until every Player is done): only the viewer's own,
    * or everyone's in the full view; otherwise null. */
   buying: Buying | null;
+  /** In the Draft, the cards they keep one from now and pass the rest on, and those kept so far:
+   * only the viewer's own, or everyone's in the full view; otherwise null. */
+  drafting: Drafting | null;
+  /** Every set of cards they passed on in the Draft this Game, in the order passed: only the
+   * viewer's own, or everyone's in the full view; otherwise null. */
+  passed_in_draft: DraftPass[] | null;
   /** The cards played by catalog id, in card-number order, Events included. */
   played_cards: string[];
   /** How many of each Tag are in play. No Tag on a played Event counts, the Event Tag included. */
@@ -52,6 +58,22 @@ export interface PlayerBoard {
 export interface Buying {
   dealt: string[];
   bought: string[];
+}
+
+/** Cards by catalog id, in card-number order: those to keep one from, passing the rest to Player
+ * `passing_to`, and those kept so far. */
+export interface Drafting {
+  picking_from: string[];
+  kept: string[];
+  passing_to: number;
+}
+
+/** Cards a Player passed on in the Draft, by catalog id in card-number order. */
+export interface DraftPass {
+  generation: number;
+  /** The Player they were passed to. */
+  to: number;
+  cards: string[];
 }
 
 /** One Player's final score. The six Victory Point counts add up to the total. */
@@ -126,10 +148,10 @@ export interface View {
   /** The Player whose Player View this is, or null for the full view. */
   viewer: number | null;
   generation: number;
-  /** "setup" is the setup buy before Generation 1, and "research" a Research phase, where
-   * Players buy cards; "final_greenery" is the final Greenery conversion, after the final
-   * Production phase. */
-  phase: "setup" | "research" | "action" | "final_greenery" | "over";
+  /** "setup" is the setup buy before Generation 1, "draft" the Draft that begins a Research phase
+   * with the Draft on, and "research" a Research phase, where Players buy cards; "final_greenery"
+   * is the final Greenery conversion, after the final Production phase. */
+  phase: "setup" | "draft" | "research" | "action" | "final_greenery" | "over";
   temperature: number;
   /** In percent. */
   oxygen: number;
@@ -232,7 +254,7 @@ export interface Card {
 /** Where a Game started and the index of every Option picked since. */
 export interface Replay {
   start:
-    | { settings: { players: number; seed: number; implemented_cards_first: boolean } }
+    | { settings: { players: number; seed: number; implemented_cards_first: boolean; draft: boolean } }
     | { scenario: { seed: number } };
   picks: number[];
 }
@@ -275,6 +297,8 @@ export interface NewGameSettings {
   bot_delay: number;
   /** While most cards are not implemented yet: deal the implemented ones first. */
   implemented_cards_first: boolean;
+  /** Whether the Research phases have the Draft. */
+  draft: boolean;
 }
 
 export type ClientMessage =

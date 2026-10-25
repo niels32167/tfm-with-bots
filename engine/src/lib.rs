@@ -7,6 +7,7 @@ mod card_flow;
 mod card_set;
 mod cards;
 mod deck;
+mod draft;
 mod game;
 mod log;
 mod milestones_and_awards;
@@ -32,12 +33,12 @@ struct PyGame {
 
 #[pymethods]
 impl PyGame {
-    /// A new Game from its settings. While most cards are not implemented yet,
-    /// `implemented_cards_first` deals the implemented ones first.
+    /// A new Game from its settings, with the Draft unless `draft` is false. While most cards
+    /// are not implemented yet, `implemented_cards_first` deals the implemented ones first.
     #[new]
-    #[pyo3(signature = (*, seed, players = 2, implemented_cards_first = false))]
-    fn new(seed: u64, players: usize, implemented_cards_first: bool) -> PyResult<Self> {
-        let settings = game::Settings { players, seed, implemented_cards_first };
+    #[pyo3(signature = (*, seed, players = 2, implemented_cards_first = false, draft = true))]
+    fn new(seed: u64, players: usize, implemented_cards_first: bool, draft: bool) -> PyResult<Self> {
+        let settings = game::Settings { players, seed, implemented_cards_first, draft };
         let game = game::Game::new(settings).map_err(PyValueError::new_err)?;
         Ok(PyGame { game })
     }

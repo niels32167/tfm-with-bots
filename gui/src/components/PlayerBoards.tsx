@@ -1,7 +1,8 @@
 import { playersAreBuying } from "../cards/BuyingPanel";
+import { useCardsById } from "../cards/catalog";
 import { signed } from "../format";
-import { controllerLabel, isYou, PLAYER_COLOURS } from "../players";
-import { RESOURCES, TAGS, type CountedTag, type Resource } from "../types";
+import { controllerLabel, isYou, PLAYER_COLOURS, playerTitle } from "../players";
+import { type Card, type DraftPass, RESOURCES, TAGS, type CountedTag, type Resource } from "../types";
 import type { GameUpdate } from "../useGameServer";
 
 const RESOURCE_NAMES: Record<Resource, string> = {
@@ -26,10 +27,18 @@ const PRODUCTION_NAMES: Record<Resource, string> = {
 // The Tags a player board counts: every Tag but the Event Tag, which never counts once played.
 const COUNTED_TAGS = TAGS.filter((tag): tag is CountedTag => tag !== "event");
 
+interface Props {
+  game: GameUpdate;
+  /** The card catalog. */
+  cards: Card[];
+}
+
 /** One board per Player: Terraform Rating, the six Resources with their Production, Turn
- * state, the first-player marker, cards in hand and the Tags in play. */
-export function PlayerBoards({ game }: { game: GameUpdate }) {
+ * state, the first-player marker, cards in hand, the Tags in play, and the cards they passed in
+ * the Draft where the view shows them. */
+export function PlayerBoards({ game, cards }: Props) {
   const { view } = game;
+  const catalog = useCardsById(cards);
   return (
     <section className="player-boards" aria-label="Player boards">
       {view.players.map((board, index) => {
@@ -83,6 +92,13 @@ export function PlayerBoards({ game }: { game: GameUpdate }) {
                 </span>
               ))}
             </div>
+            {board.passed_in_draft && board.passed_in_draft.length > 0 && (
+              <PassedInDraft
+                game={game}
+                passes={board.passed_in_draft}
+                name={(id) => catalog.get(id)?.name ?? id}
+              />
+            )}
           </article>
         );
       })}
@@ -90,10 +106,46 @@ export function PlayerBoards({ game }: { game: GameUpdate }) {
   );
 }
 
-/** What the current Player is doing: their Turn (and which Action), or the final Greenery conversion. */
+interface PassedInDraftProps {
+  game: GameUpdate;
+  passes: DraftPass[];
+  /** A card's name, by its id. */
+  name: (id: string) => string;
+}
+
+/** The cards a Player passed on in the Draft this Game, folded away: by Generation, whom they went
+ * to and each set passed, latest first. */
+function PassedInDraft({ game, passes, name }: PassedInDraftProps) {
+  const generations = [...new Set(passes.map((pass) => pass.generation))].reverse();
+  const count = passes.reduce((total, pass) => total + pass.cards.length, 0);
+  return (
+    <details className="passed-in-draft">
+      <summary>Passed in the Draft ({count} cards)</summary>
+      {generations.map((generation) => {
+        const passed = passes.filter((pass) => pass.generation === generation);
+        return (
+          <div key={generation} className="passed-in-draft-generation">
+            <h4>
+              Generation {generation}, to {playerTitle(game, passed[0].to)}
+            </h4>
+            <ul>
+              {passed.map((pass, index) => (
+                <li key={index}>{pass.cards.map(name).join(", ")}</li>
+              ))}
+            </ul>
+          </div>
+        );
+      })}
+    </details>
+  );
+}
+
+/** What the current Player is doing: their Turn (and which Action), the Draft, buying cards, or
+ * the final Greenery conversion. */
 function turnBadge(game: GameUpdate): string {
   const { view } = game;
   if (view.phase === "final_greenery") return "Final Greeneries";
+  if (view.phase === "draft") return "Drafting";
   if (playersAreBuying(view)) return "Buying cards";
   return `Turn${view.actions_this_turn > 0 ? ` · Action ${view.actions_this_turn + 1}` : ""}`;
 }

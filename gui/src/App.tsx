@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 
-import { BuyingPanel, buyerShown } from "./cards/BuyingPanel";
+import { BuyingPanel, cardsShownFor } from "./cards/BuyingPanel";
 import { CardGallery } from "./cards/CardGallery";
 import { HandDock, handOptions } from "./cards/HandDock";
 import { PlayedCards } from "./cards/PlayedCards";
@@ -106,7 +106,7 @@ export function App() {
       />
       <div className="table">
         <main className="board-area">
-          {buyerShown(game) !== null && (
+          {cardsShownFor(game) !== null && (
             <BuyingPanel game={game} cards={server.cards} disabled={picking} onPick={server.pick} />
           )}
           <div className="mars-and-tracks">
@@ -126,7 +126,7 @@ export function App() {
           <MilestonesAwards game={game} disabled={picking} onPick={server.pick} />
         </main>
         <aside className="side-panel">
-          <PlayerBoards game={game} />
+          <PlayerBoards game={game} cards={server.cards} />
           <GameLog log={log} />
         </aside>
         <PlayedCards game={game} cards={server.cards} />

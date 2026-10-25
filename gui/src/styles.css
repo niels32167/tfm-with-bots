@@ -1479,3 +1479,68 @@ input[aria-invalid="true"] {
   color: var(--text-dim);
   font-size: 16px;
 }
+
+/* Above the cards in the buying panel: the cards kept in the Draft, and those passed on this
+   Generation, small; hovering one enlarges it downwards to read. */
+.buying-panel-strip {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 28px;
+}
+
+.buying-panel-small-cards {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+}
+
+.buying-panel-small-cards h3 {
+  align-self: center;
+  font-size: 0.85rem;
+  color: var(--text-dim);
+  white-space: nowrap;
+}
+
+.small-card-group {
+  display: flex;
+  gap: 4px;
+  min-height: 40px;
+}
+
+/* Each set of cards passed on stands apart from the one before. */
+.small-card-group + .small-card-group {
+  padding-left: 10px;
+  border-left: 1px solid var(--panel-border);
+}
+
+.small-card.in-strip {
+  zoom: 0.32;
+  transform-origin: center top;
+}
+
+.small-card.in-strip:hover,
+.small-card.in-strip:focus-visible {
+  transform: scale(2.6);
+}
+
+/* On a player board: the cards they passed in the Draft, folded away. */
+.passed-in-draft {
+  margin-top: 6px;
+  font-size: 0.8rem;
+  color: var(--text-dim);
+}
+
+.passed-in-draft summary {
+  cursor: pointer;
+}
+
+.passed-in-draft h4 {
+  margin: 6px 0 2px;
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
+.passed-in-draft ul {
+  margin: 0;
+  padding-left: 18px;
+}

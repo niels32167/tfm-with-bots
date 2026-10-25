@@ -1,4 +1,4 @@
-"""The speed benchmark (ADR 0004), on 2-player Games with a Random Bot for every Player:
+"""The speed benchmark (ADR 0004), on 2-player Games with the Draft and a Random Bot for every Player:
 
     uv run python -m tools.benchmark
     uv run python -m tools.benchmark --seconds 10 --processes 8
@@ -66,7 +66,7 @@ class Results:
 
 def play_out(seed: int) -> tm_engine.Game:
     """A whole Game, played out inside the engine."""
-    game = tm_engine.Game(seed=seed, players=PLAYERS)
+    game = tm_engine.Game(seed=seed, players=PLAYERS, draft=True)
     game.play_randomly(seed=seed, picks=MAX_PICKS)
     if not game.is_over:
         raise RuntimeError(f"Game {seed} was not over after {MAX_PICKS:,} picks")
@@ -127,7 +127,7 @@ def python_decisions_per_second(seconds: float) -> float:
     decisions, seed = 0, 0
     started = time.perf_counter()
     while time.perf_counter() - started < seconds:
-        game = tm_engine.Game(seed=seed, players=PLAYERS)
+        game = tm_engine.Game(seed=seed, players=PLAYERS, draft=True)
         for _ in range(MAX_PICKS):
             if (decision := game.decision) is None:
                 break
@@ -159,7 +159,7 @@ def report(results: Results) -> str:
 
     games_target = met(results.games_per_second_in_all_processes >= TARGET_GAMES_PER_SECOND)
     lines = [
-        f"Speed benchmark (ADR 0004): {PLAYERS}-player Games with a Random Bot for every Player.",
+        f"Speed benchmark (ADR 0004): {PLAYERS}-player Games with the Draft and a Random Bot for every Player.",
         "",
         "Complete Games played out inside the engine:",
         f"  1 process:    {results.games_per_second_in_one_process:9,.0f} Games per second",

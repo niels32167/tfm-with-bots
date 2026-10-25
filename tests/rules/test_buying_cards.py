@@ -1,7 +1,8 @@
 """Buying Project Cards: the 10 dealt at setup, and the 4 drawn in each Research phase from
-Generation 2. Buying is a chain of single picks ending with Done, one Player at a time in
-player order from the first player. Nothing is paid or revealed until every Player is done;
-then each pays 3 MegaCredits per card bought, and the rest go face down to the discard pile."""
+Generation 2 with the Draft off (see test_draft.py for the Draft). Buying is a chain of single
+picks ending with Done, one Player at a time in player order from the first player. Nothing is
+paid or revealed until every Player is done; then each pays 3 MegaCredits per card bought, and
+the rest go face down to the discard pile."""
 
 import pytest
 import tm_engine
@@ -128,7 +129,7 @@ def test_a_scenario_starts_in_the_action_phase_with_nothing_to_buy():
 
 @pytest.mark.parametrize("players", [2, 3, 4, 5])
 def test_from_generation_2_the_research_phase_deals_each_player_4_cards_in_player_order(players):
-    game = scenario(*[player()] * players, first_player=0, deck=PROJECT_CARDS[: 4 * players])
+    game = scenario(*[player()] * players, first_player=0, deck=PROJECT_CARDS[: 4 * players], draft=False)
 
     end_the_action_phase(game)
 
@@ -148,7 +149,9 @@ def test_from_generation_2_the_research_phase_deals_each_player_4_cards_in_playe
 
 
 def test_research_cards_not_bought_go_face_down_to_the_discard_pile_and_then_the_action_phase_begins():
-    game = scenario(player(megacredits=10, **NO_INCOME), player(megacredits=10, **NO_INCOME), deck=PROJECT_CARDS[:8])
+    game = scenario(
+        player(megacredits=10, **NO_INCOME), player(megacredits=10, **NO_INCOME), deck=PROJECT_CARDS[:8], draft=False
+    )
     end_the_action_phase(game)
 
     buy(game, PROJECT_CARDS[1])  # Player 2, the first player of Generation 2
@@ -168,7 +171,11 @@ def test_research_cards_not_bought_go_face_down_to_the_discard_pile_and_then_the
 
 def test_a_player_buys_only_as_many_cards_as_they_can_pay_for_and_with_none_is_not_asked():
     game = scenario(
-        player(megacredits=7, **NO_INCOME), player(megacredits=2, **NO_INCOME), first_player=1, deck=PROJECT_CARDS[:8]
+        player(megacredits=7, **NO_INCOME),
+        player(megacredits=2, **NO_INCOME),
+        first_player=1,
+        deck=PROJECT_CARDS[:8],
+        draft=False,
     )
     end_the_action_phase(game)  # Player 1 is first player in Generation 2
 
@@ -187,7 +194,11 @@ def test_a_player_buys_only_as_many_cards_as_they_can_pay_for_and_with_none_is_n
 def test_the_research_phase_draws_from_the_reshuffled_discard_pile_once_the_deck_runs_out():
     held = PROJECT_CARDS[:200]
     game = scenario(
-        player(hand=held[:100]), player(hand=held[100:]), deck=PROJECT_CARDS[200:206], discard=PROJECT_CARDS[206:]
+        player(hand=held[:100]),
+        player(hand=held[100:]),
+        deck=PROJECT_CARDS[200:206],
+        discard=PROJECT_CARDS[206:],
+        draft=False,
     )
 
     end_the_action_phase(game)

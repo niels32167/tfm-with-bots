@@ -1,7 +1,7 @@
 import { type CSSProperties, useEffect, useRef, useState } from "react";
 
 import { isYou, playerTitle } from "../players";
-import type { Card, View } from "../types";
+import type { Card, Decision, View } from "../types";
 import type { GameUpdate } from "../useGameServer";
 import { notImplementedNote, useCardsById } from "./catalog";
 import { PrintedCard } from "./PrintedCard";
@@ -29,17 +29,26 @@ export function playersAreBuying(view: View): boolean {
   return view.phase === "setup" || view.phase === "research";
 }
 
-/** Whose cards to buy from the buying panel shows: the human deciding, or else the one human at
- * the screen while Players buy. Null when there is nothing to show. */
-export function buyerShown(game: GameUpdate): number | null {
-  if (game.decision?.kind === "buy_cards") return game.decision.player;
-  if (game.viewer !== null && game.view.players[game.viewer].buying) return game.viewer;
+/** Whose cards the buying panel shows: the human deciding while Players draft or buy, or else the
+ * one human at the screen. Null when there is nothing to show. */
+export function cardsShownFor(game: GameUpdate): number | null {
+  const { decision, viewer, view } = game;
+  if (decision?.kind === "draft" || decision?.kind === "buy_cards") return decision.player;
+  if (viewer !== null && (view.players[viewer].drafting || view.players[viewer].buying)) return viewer;
   return null;
 }
 
-/** Over the board in the setup and each Research phase: the cards dealt to a Player, large enough
- * to read and all in view. Clicking one buys it; those bought are marked, and Done is in the status
- * bar. It can be hidden to look at the board. */
+/** The Option of `type` for each card, by the card's id, while `player` decides. */
+function optionsByCard(decision: Decision | null, player: number, type: string): Map<string, number> {
+  if (decision?.player !== player) return new Map();
+  const options = decision.options.filter((option) => option.details.type === type);
+  return new Map(options.map((option) => [option.details.card as string, option.index]));
+}
+
+/** Over the board in the setup and each Research phase: the cards a Player drafts from or buys
+ * from, large enough to read and all in view. In the Draft, clicking one keeps it, and the cards
+ * kept and passed on so far show above; buying, clicking one buys it, those bought are marked,
+ * and Done is in the status bar. It can be hidden to look at the board. */
 export function BuyingPanel({ game, cards, disabled, onPick }: Props) {
   const catalog = useCardsById(cards);
   const [hidden, setHidden] = useState(false);
@@ -47,72 +56,152 @@ export function BuyingPanel({ game, cards, disabled, onPick }: Props) {
   useEffect(() => {
     window.scrollTo({ top: 0 });
   }, []);
-  const buyer = buyerShown(game);
-  const buying = buyer === null ? null : game.view.players[buyer].buying;
-  if (buyer === null || buying === null || catalog.size === 0) return null;
-
+  const shown = cardsShownFor(game);
+  if (shown === null || catalog.size === 0) return null;
   const { view, decision } = game;
-  // The Option that buys each card, by the card's id, while this Player decides.
-  const buyOptions = new Map(
-    decision?.player === buyer
-      ? decision.options
-          .filter((option) => option.details.type === "buy_card")
-          .map((option) => [option.details.card as string, option.index])
-      : [],
-  );
-  const whose = isYou(game, buyer) ? "your" : `${view.players[buyer].name}'s`;
-  const what =
-    view.phase === "setup"
-      ? `Setup: ${whose} ${buying.dealt.length} Project Cards`
-      : `Research phase: ${whose} ${buying.dealt.length} cards`;
-  const waitingFor = view.current_player !== null && view.current_player !== buyer ? view.current_player : null;
+  const board = view.players[shown];
+  const panel = board.drafting ? draftPanel(game, shown) : board.buying ? buyingPanel(game, shown) : null;
+  if (panel === null) return null;
+  const waitingFor = view.current_player !== null && view.current_player !== shown ? view.current_player : null;
+  const passedThisGeneration = (board.passed_in_draft ?? []).filter((pass) => pass.generation === view.generation);
+  const named = (ids: string[]) => ids.map((id) => catalog.get(id)!);
 
   return (
-    <section className={`buying-panel ${hidden ? "hidden" : ""}`} aria-label="Cards to buy">
+    <section className={`buying-panel ${hidden ? "hidden" : ""}`} aria-label={panel.label}>
       <header className="buying-panel-header">
-        <h2>{what}</h2>
-        <span className="buying-panel-total">
-          {buying.bought.length} bought, {buying.bought.length * CARD_PRICE} MegaCredits · {CARD_PRICE} each
-        </span>
+        <h2>{panel.heading}</h2>
+        <span className="buying-panel-total">{panel.summary}</span>
         {waitingFor !== null && (
-          <span className="buying-panel-waiting">Waiting for {playerTitle(game, waitingFor)} to buy…</span>
+          <span className="buying-panel-waiting">
+            Waiting for {playerTitle(game, waitingFor)} to {panel.waitingFor}…
+          </span>
         )}
         <button className="link-button" onClick={() => setHidden(!hidden)}>
           {hidden ? "Show the cards" : "Look at the board"}
         </button>
       </header>
+      {!hidden && (board.drafting || passedThisGeneration.length > 0) && (
+        <div className="buying-panel-strip">
+          {board.drafting && (
+            <SmallCards label={`Kept (${board.drafting.kept.length})`} groups={[named(board.drafting.kept)]} />
+          )}
+          {passedThisGeneration.length > 0 && (
+            <SmallCards
+              label={`Passed to ${playerTitle(game, passedThisGeneration[0].to)}`}
+              groups={passedThisGeneration.map((pass) => named(pass.cards))}
+            />
+          )}
+        </div>
+      )}
       {!hidden && (
-        <DealtCards
-          dealt={buying.dealt.map((id) => catalog.get(id)!)}
-          bought={buying.bought}
-          buyOptions={buyOptions}
+        <PanelCards
+          cards={named(panel.cards)}
+          bought={board.buying?.bought ?? []}
+          options={optionsByCard(decision, shown, panel.optionType)}
+          verb={panel.verb}
           disabled={disabled}
-          onBuy={(index) => decision && onPick(decision.sequence, index)}
+          onPick={(index) => decision && onPick(decision.sequence, index)}
         />
       )}
     </section>
   );
 }
 
-interface DealtCardsProps {
-  dealt: Card[];
-  /** The ids of the cards bought so far. */
-  bought: string[];
-  /** The Option that buys each card, by its id, while the Player shown decides. */
-  buyOptions: Map<string, number>;
-  disabled: boolean;
-  onBuy: (index: number) => void;
+/** What the panel shows and says for one Player's cards. */
+interface Panel {
+  label: string;
+  heading: string;
+  summary: string;
+  /** What the Player waited for is doing: "keep a card". */
+  waitingFor: string;
+  /** The ids of the cards shown large, to pick from. */
+  cards: string[];
+  /** The type of the Options that pick them, and the verb on their buttons. */
+  optionType: string;
+  verb: string;
 }
 
-/** The cards dealt, as large as the space in view allows. */
-function DealtCards({ dealt, bought, buyOptions, disabled, onBuy }: DealtCardsProps) {
+/** "your", or "Player 2's". */
+function whose(game: GameUpdate, player: number): string {
+  return isYou(game, player) ? "your" : `${game.view.players[player].name}'s`;
+}
+
+/** In the Draft: the cards `player` keeps one from now, passing the rest on. */
+function draftPanel(game: GameUpdate, player: number): Panel {
+  const { picking_from, kept, passing_to } = game.view.players[player].drafting!;
+  return {
+    label: "Cards to draft",
+    heading: `Draft: ${whose(game, player)} ${picking_from.length} ${picking_from.length === 1 ? "card" : "cards"}`,
+    summary: `Keep one and pass the rest to ${playerTitle(game, passing_to)} · ${kept.length} kept`,
+    waitingFor: "keep a card",
+    cards: picking_from,
+    optionType: "draft_card",
+    verb: "Keep",
+  };
+}
+
+/** At setup and in a Research phase: the cards dealt to `player` (or kept in the Draft) to buy from. */
+function buyingPanel(game: GameUpdate, player: number): Panel {
+  const { dealt, bought } = game.view.players[player].buying!;
+  return {
+    label: "Cards to buy",
+    heading:
+      game.view.phase === "setup"
+        ? `Setup: ${whose(game, player)} ${dealt.length} Project Cards`
+        : `Research phase: ${whose(game, player)} ${dealt.length} cards`,
+    summary: `${bought.length} bought, ${bought.length * CARD_PRICE} MegaCredits · ${CARD_PRICE} each`,
+    waitingFor: "buy",
+    cards: dealt,
+    optionType: "buy_card",
+    verb: "Buy",
+  };
+}
+
+interface SmallCardsProps {
+  label: string;
+  /** The cards, in groups shown apart: each set passed on, say. */
+  groups: Card[][];
+}
+
+/** A labelled row of small cards; hovering one enlarges it to read. */
+function SmallCards({ label, groups }: SmallCardsProps) {
+  return (
+    <div className="buying-panel-small-cards">
+      <h3>{label}</h3>
+      {groups.map((group, index) => (
+        <div key={index} className="small-card-group">
+          {group.map((card) => (
+            <div key={card.id} className="small-card in-strip" tabIndex={0} aria-label={card.name}>
+              <PrintedCard card={card} />
+            </div>
+          ))}
+        </div>
+      ))}
+    </div>
+  );
+}
+
+interface PanelCardsProps {
+  cards: Card[];
+  /** The ids of the cards bought so far. */
+  bought: string[];
+  /** The Option that picks each card, by its id, while the Player shown decides. */
+  options: Map<string, number>;
+  /** What picking a card does: "Buy" or "Keep". */
+  verb: string;
+  disabled: boolean;
+  onPick: (index: number) => void;
+}
+
+/** The cards to pick from, as large as the space in view allows. */
+function PanelCards({ cards, bought, options, verb, disabled, onPick }: PanelCardsProps) {
   const cardsRef = useRef<HTMLDivElement>(null);
-  const zoom = useFitZoom(cardsRef, dealt.length, GAP);
+  const zoom = useFitZoom(cardsRef, cards.length, GAP);
   const style = { zoom, "--hover-scale": Math.max(1.05, HOVER_ZOOM / zoom) } as CSSProperties;
   return (
     <div ref={cardsRef} className="buying-panel-cards" style={{ gap: GAP }}>
-      {dealt.map((card) => {
-        const optionIndex = buyOptions.get(card.id);
+      {cards.map((card) => {
+        const optionIndex = options.get(card.id);
         const isBought = bought.includes(card.id);
         const note = notImplementedNote(card);
         const face = (
@@ -130,8 +219,8 @@ function DealtCards({ dealt, bought, buyOptions, disabled, onBuy }: DealtCardsPr
               style={style}
               disabled={disabled}
               title={note}
-              aria-label={`Buy ${card.name}`}
-              onClick={() => onBuy(optionIndex)}
+              aria-label={`${verb} ${card.name}`}
+              onClick={() => onPick(optionIndex)}
             >
               {face}
             </button>

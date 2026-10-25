@@ -2,7 +2,8 @@
 //! Replaying them always gives the same Game (ADR 0010); save files, undo and bug
 //! reports all rely on that. A Game keeps its own Replay up to date as it is played.
 
-use serde::{Deserialize, Serialize};
+use serde::de::Error;
+use serde::{Deserialize, Deserializer, Serialize};
 
 use crate::game::{Game, Settings};
 use crate::scenario::Scenario;
@@ -20,7 +21,17 @@ pub struct Replay {
 #[serde(rename_all = "snake_case")]
 pub enum Start {
     Settings(Settings),
-    Scenario(Scenario),
+    Scenario(#[serde(deserialize_with = "scenario_saved_before_the_draft_without_it")] Scenario),
+}
+
+/// Reads a Replay's Scenario. One saved before the Draft existed has no `draft`, and was played
+/// without it, though a Scenario has the Draft unless switched off.
+fn scenario_saved_before_the_draft_without_it<'de, D: Deserializer<'de>>(
+    deserializer: D,
+) -> Result<Scenario, D::Error> {
+    let mut scenario = serde_json::Map::deserialize(deserializer)?;
+    scenario.entry("draft").or_insert(false.into());
+    serde_json::from_value(scenario.into()).map_err(D::Error::custom)
 }
 
 impl Start {
@@ -39,6 +50,7 @@ impl Start {
                 players: scenario.players.len(),
                 seed: scenario.seed,
                 implemented_cards_first: false,
+                draft: scenario.draft,
             },
         }
     }

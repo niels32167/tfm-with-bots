@@ -69,7 +69,8 @@ def test_the_log_shows_the_production_phase_and_the_next_generation_with_its_res
         "Player 1 gains 27 MegaCredits (Terraform Rating 25 + MegaCredit Production 2).",
         "Player 2 gains 20 MegaCredits (Terraform Rating 20 + MegaCredit Production 0).",
         "Generation 3 begins, with Player 2 as first player.",
-        "Research phase: each Player draws 4 cards and may buy any of them for 3 MegaCredits each.",
+        "Research phase, with the Draft: each Player is dealt 4 cards, keeps one and passes the rest to the other "
+        "Player, until every card is kept. Then they may buy any of the cards they kept for 3 MegaCredits each.",
     ]
 
 

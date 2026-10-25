@@ -14,6 +14,7 @@ use crate::card_flow::Buying;
 use crate::card_set::CardSet;
 use crate::cards::{CARD_CATALOG, PROJECT_CARDS};
 use crate::deck::Deck;
+use crate::draft::{DraftPass, Drafting};
 use crate::log::LogEvent;
 use crate::milestones_and_awards::{AWARD_COSTS, Award, MAX_MILESTONES_CLAIMED, MILESTONE_COST, Milestone};
 use crate::playing_cards::{CardTiles, Payment};
@@ -73,6 +74,10 @@ pub struct Settings {
     /// top of the deck, so they are dealt first. Off, the deck is shuffled as the rules say.
     #[serde(default)]
     pub implemented_cards_first: bool,
+    /// The Draft variant in the Research phase. On by default (ADR 0003), but a Replay saved
+    /// before the Draft existed has no such setting, and reads as off, as it was played.
+    #[serde(default)]
+    pub draft: bool,
 }
 
 #[derive(Clone, Debug)]
@@ -87,6 +92,8 @@ pub struct Player {
     pub played: CardSet,
     /// In the setup or a Research phase, what they are buying from.
     pub buying: Buying,
+    /// In the Draft, what they are drafting.
+    pub drafting: Drafting,
 }
 
 impl Player {
@@ -99,6 +106,7 @@ impl Player {
             hand: CardSet::default(),
             played: CardSet::default(),
             buying: Buying::default(),
+            drafting: Drafting::default(),
         }
     }
 }
@@ -112,7 +120,10 @@ pub fn starting_resources() -> Resources {
 pub enum Phase {
     /// Before Generation 1: Players buy from the cards dealt to them.
     Setup,
-    /// From Generation 2, before the Action phase: Players buy from the cards they drew.
+    /// From Generation 2 with the Draft on, the first part of the Research phase: Players draft
+    /// the cards they will buy from.
+    Draft,
+    /// From Generation 2, before the Action phase: Players buy from the cards they drew or drafted.
     Research,
     Action,
     /// After the final Production phase: Players may convert plants into Greeneries.
@@ -195,6 +206,8 @@ pub enum DecisionKind {
     Area,
     /// Choose how to pay for the card being played.
     Payment,
+    /// Keep one of the cards being drafted, and pass the rest on.
+    Draft,
     /// Buy one more of the cards dealt, or be done, in the setup or a Research phase.
     BuyCards,
     /// Sell one more card from the hand, or be done, with the Sell Patents Standard Project.
@@ -208,6 +221,8 @@ pub enum DecisionKind {
 pub enum DecisionOption {
     /// Play this Project Card from the hand, by its index in the card catalog.
     PlayCard(usize),
+    /// Keep this card, one of those being drafted, and pass the rest on.
+    DraftCard(usize),
     /// Buy this card, one of those dealt, in the setup or a Research phase.
     BuyCard(usize),
     /// Sell this card from the hand, with the Sell Patents Standard Project.
@@ -282,6 +297,8 @@ pub struct Game {
     pub deck: Deck,
     /// The cards discarded, face down. A set, since the pile is only ever shuffled into a new deck.
     pub discard: CardSet,
+    /// The cards each Player has passed on in the Draft, in the order passed.
+    pub draft_passes: Vec<DraftPass>,
     pub players: Vec<Player>,
     /// Who holds the first-player marker, and so takes the first Turn of this Generation.
     pub first_player: usize,
@@ -344,6 +361,7 @@ impl Game {
             board: Board::new(),
             deck: Deck::EMPTY,
             discard: CardSet::default(),
+            draft_passes: Vec::new(),
             players,
             first_player: 0,
             current_player: 0,
@@ -372,6 +390,7 @@ impl Game {
             (Some(tile), ..) => (DecisionKind::Area, self.area_options(tile)),
             (None, Some(card), ..) => (DecisionKind::Payment, self.payment_options(card)),
             (None, None, Some(sold), _) => (DecisionKind::SellPatents, self.selling_options(sold)),
+            (None, None, None, Phase::Draft) => (DecisionKind::Draft, self.drafting_options()),
             (None, None, None, Phase::Setup | Phase::Research) => {
                 (DecisionKind::BuyCards, self.buying_options())
             }
@@ -525,6 +544,7 @@ impl Game {
                 self.paying_for = None;
                 self.play_card(player, card, payment);
             }
+            DecisionOption::DraftCard(card) => self.draft(card),
             DecisionOption::BuyCard(card) => self.buy(card),
             DecisionOption::SellCard(card) => self.sell(card),
             // It has no price: the Player picks the cards to sell next.

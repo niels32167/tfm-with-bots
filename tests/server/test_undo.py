@@ -25,7 +25,7 @@ def test_undo_returns_to_the_humans_previous_decision_and_drops_the_random_bots_
 
 def test_undo_can_go_back_any_number_of_times_until_the_first_human_decision():
     with connect() as gui:
-        first = gui.start(["random_bot", "human", "random_bot"], seed=8)
+        first = gui.start(["random_bot", "human", "random_bot"], seed=8, draft=False)
         assert not first["can_undo"]
         update = first
         for label in ("Done", "Pass", "Done"):  # at setup, in Generation 1, and in Generation 2's Research phase
@@ -57,7 +57,7 @@ def test_in_hotseat_undo_goes_back_one_human_decision_at_a_time():
 def test_undo_while_a_random_bot_is_taking_its_turn_stops_it():
     with connect() as gui:
         # Past the setup buy, in which a Random Bot picks without pausing.
-        before = gui.skip_buying(gui.start(["human", "random_bot"], seed=5, bot_delay=BOT_DELAY))
+        before = gui.skip_drafting_and_buying(gui.start(["human", "random_bot"], seed=5, bot_delay=BOT_DELAY))
         gui.pick(before, "Pass")
         assert gui.next_update()["decision"] is None  # the Random Bot's Turn
 

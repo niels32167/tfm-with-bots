@@ -16,10 +16,10 @@ interface Props {
 }
 
 // Options picked where they are drawn rather than as buttons here: Milestones and Awards in
-// their bar, cards to play or sell in the hand, and cards to buy in the buying panel.
+// their bar, cards to play or sell in the hand, and cards to keep or buy in the buying panel.
 const PICKED_IN_THE_BAR = new Set(["claim_milestone", "fund_award"]);
 const PICKED_IN_THE_HAND = new Set(["play_card", "sell_card"]);
-const PICKED_IN_THE_PANEL = new Set(["buy_card"]);
+const PICKED_IN_THE_PANEL = new Set(["draft_card", "buy_card"]);
 
 /** The current Decision, with its Options as buttons, like Board Game Arena's title bar. A
  * payment Decision gets the payment picker instead. */
@@ -82,10 +82,15 @@ function statusText(game: GameUpdate, cards: Card[]): string {
   if (decision?.kind === "final_greenery") {
     return `${who} may convert plants into a Greenery before final scoring, or be done:`;
   }
+  if (decision?.kind === "draft") {
+    const passingTo = view.players[decision.player].drafting?.passing_to;
+    const to = passingTo === undefined ? "on" : `to ${playerTitle(game, passingTo)}`;
+    return `${who} must keep one of the cards above and pass the rest ${to}: click the card to keep.`;
+  }
   if (decision?.kind === "buy_cards") {
     const bought = view.players[decision.player].buying?.bought.length ?? 0;
     return (
-      `${who} may buy any of the cards dealt for ${CARD_PRICE} MegaCredits each: click them above, then Done. ` +
+      `${who} may buy any of the cards above for ${CARD_PRICE} MegaCredits each: click them, then Done. ` +
       `Bought: ${bought} (${bought * CARD_PRICE} MegaCredits).`
     );
   }
@@ -94,6 +99,7 @@ function statusText(game: GameUpdate, cards: Card[]): string {
     const then = decision.options.some((option) => option.details.type === "done") ? ", then Done:" : ".";
     return `${who} may sell cards from the hand for ${sale?.details.megacredits} MegaCredit each: click them${then}`;
   }
+  if (view.phase === "draft") return `${who} (Random Bot) is drafting cards…`;
   if (playersAreBuying(view)) return `${who} (Random Bot) is buying cards…`;
   if (view.phase === "final_greenery") return `${who} (Random Bot) is converting plants into Greeneries…`;
   if (decision) {

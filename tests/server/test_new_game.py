@@ -4,6 +4,7 @@ import time
 
 import tm_engine
 
+from tests.helpers import end_the_action_phase, skip_buying
 from tests.server.helpers import connect
 
 
@@ -54,6 +55,35 @@ def test_a_new_game_can_deal_the_implemented_cards_first():
 
         gui.send({"type": "new_game", "controllers": ["human", "human"], "implemented_cards_first": "yes"})
         assert "implemented_cards_first must be true or false" in gui.receive_error()
+
+
+def test_a_new_game_has_the_draft_unless_it_is_switched_off():
+    with connect() as gui:
+        gui.start(["human", "human"], seed=3)
+        assert gui.save_replay()["replay"]["start"]["settings"]["draft"] is True
+        gui.start(["human", "human"], seed=3, draft=False)
+        assert gui.save_replay()["replay"]["start"]["settings"]["draft"] is False
+
+        gui.send({"type": "new_game", "controllers": ["human", "human"], "draft": "no"})
+        assert "draft must be true or false" in gui.receive_error()
+
+
+def test_a_random_bot_drafts_without_pausing_so_waiting_on_it_reveals_nothing():
+    # A seed whose first player in Generation 2 is Player 1, the Random Bot, so it drafts first.
+    seed = next(seed for seed in range(100) if tm_engine.Game(seed=seed).full_view()["first_player"] == 1)
+    game = tm_engine.Game(seed=seed)
+    skip_buying(game)
+    end_the_action_phase(game)
+    file = {"controllers": ["random_bot", "human"], "replay": game.replay}
+    with connect() as gui:
+        started = time.monotonic()
+        gui.send({"type": "load_replay", "file": file, "bot_delay": 5})
+        update = gui.wait_for_human()
+        waited = time.monotonic() - started
+
+    assert (update["decision"]["kind"], update["decision"]["player"]) == ("draft", 1)
+    assert len(update["view"]["players"][1]["drafting"]["kept"]) == 0
+    assert waited < 2
 
 
 def test_hotseat_shows_the_full_view_and_asks_the_first_player_to_decide():

@@ -21,8 +21,8 @@ interface Props {
   onCancel?: () => void;
 }
 
-/** The new-Game screen: Players, their Controllers, the seed, how fast Random Bots pick, and
- * whether the implemented cards are dealt first. */
+/** The new-Game screen: Players, their Controllers, the seed, how fast Random Bots pick, whether
+ * the Research phases have the Draft, and whether the implemented cards are dealt first. */
 export function NewGameSetup({
   initialControllers,
   initialBotDelay,
@@ -39,6 +39,7 @@ export function NewGameSetup({
   );
   const [seedText, setSeedText] = useState("");
   const [botDelay, setBotDelay] = useState(initialBotDelay);
+  const [draft, setDraft] = useState(true);
   const [implementedCardsFirst, setImplementedCardsFirst] = useState(true);
 
   const controllers = allControllers.slice(0, playerCount);
@@ -53,6 +54,7 @@ export function NewGameSetup({
       controllers,
       bot_delay: botDelay,
       implemented_cards_first: implementedCardsFirst,
+      draft,
       ...(seed === null ? {} : { seed }),
     });
   };
@@ -114,6 +116,14 @@ export function NewGameSetup({
           <BotSpeedSelect delay={botDelay} onChange={setBotDelay} />
         </section>
         <section className="setup-section">
+          <label className="setup-checkbox">
+            <input type="checkbox" checked={draft} onChange={(event) => setDraft(event.target.checked)} />
+            Draft
+          </label>
+          <p className="setup-hint">
+            From Generation 2, each Player is dealt 4 cards, keeps one and passes the rest on, until every card is
+            kept; then they buy from the cards they kept. Off, each Player draws 4 cards to buy from.
+          </p>
           <label className="setup-checkbox">
             <input
               type="checkbox"

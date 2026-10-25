@@ -44,6 +44,8 @@ def test_until_corporations_exist_every_player_starts_with_42_megacredits_and_te
             "production": {"megacredits": 0, "steel": 0, "titanium": 0, "plants": 0, "energy": 0, "heat": 0},
             "terraform_rating": 20,
             "passed": False,
+            "drafting": None,
+            "passed_in_draft": [],
             "played_cards": [],
             "tags": dict.fromkeys(TAGS_THAT_COUNT, 0),
         }

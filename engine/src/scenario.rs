@@ -12,6 +12,7 @@ use crate::card_flow::Buying;
 use crate::card_set::CardSet;
 use crate::cards::find_project_card;
 use crate::deck::Deck;
+use crate::draft::Drafting;
 use crate::game::{
     Game, MAX_OCEANS, MAX_OXYGEN, MAX_TEMPERATURE, MIN_TEMPERATURE, Player, STARTING_TERRAFORM_RATING,
     TEMPERATURE_STEP, check_player_count, check_seed, starting_resources,
@@ -47,6 +48,8 @@ pub struct Scenario {
     pub deck: Vec<String>,
     /// The cards in the discard pile, by catalog id.
     pub discard: Vec<String>,
+    /// Whether the Research phases have the Draft. On by default (ADR 0003).
+    pub draft: bool,
 }
 
 impl Default for Scenario {
@@ -63,6 +66,7 @@ impl Default for Scenario {
             players: vec![ScenarioPlayer::default(); 2],
             deck: Vec::new(),
             discard: Vec::new(),
+            draft: true,
         }
     }
 }
@@ -194,6 +198,7 @@ impl Scenario {
                 hand: cards_named(&player.hand, &mut named_cards)?.into_iter().collect(),
                 played: cards_named(&player.played_cards, &mut named_cards)?.into_iter().collect(),
                 buying: Buying::default(),
+                drafting: Drafting::default(),
             });
         }
         let top_of_deck = cards_named(&self.deck, &mut named_cards)?;

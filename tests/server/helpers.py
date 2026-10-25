@@ -69,15 +69,18 @@ class Gui:
         self.send({"type": "new_game", "controllers": controllers, "bot_delay": 0, **fields})
         return self.wait_for_human()
 
-    def skip_buying(self, update: dict[str, Any]) -> dict[str, Any]:
-        """While a human must buy cards (at setup or in a Research phase), they are done without
-        buying any; returns the first update in which a human must decide something else."""
+    def skip_drafting_and_buying(self, update: dict[str, Any]) -> dict[str, Any]:
+        """While a human must draft or buy cards (at setup or in a Research phase), they keep the
+        first card offered in the Draft and are done without buying any; returns the first update
+        in which a human must decide something else."""
         for _ in range(MAX_MESSAGES):
-            if update["decision"] is None or update["decision"]["kind"] != "buy_cards":
+            decision = update["decision"]
+            if decision is None or decision["kind"] not in ("draft", "buy_cards"):
                 return update
-            self.pick(update, "Done")
+            label = decision["options"][0]["label"] if decision["kind"] == "draft" else "Done"
+            self.pick(update, label)
             update = self.wait_for_human()
-        raise AssertionError(f"still buying after {MAX_MESSAGES} picks")
+        raise AssertionError(f"still drafting or buying after {MAX_MESSAGES} picks")
 
     def pick(self, update: dict[str, Any], label: str) -> None:
         """Picks the one Option in `update`'s Decision whose label contains `label`."""
