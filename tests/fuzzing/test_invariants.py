@@ -45,8 +45,9 @@ def put(view: dict[str, Any], area_id: str, tile: str, owner: int | None = None)
         view["oceans"] += 1
 
 
-def area_option(area_id: str, tile: str) -> dict[str, Any]:
-    details = {"type": "area", "area": area_id, "tile": tile}
+def area_option(area_id: str, tile: str, on: str | None = None) -> dict[str, Any]:
+    """An Option of an Area Decision; `on="ocean_areas"` for a Tile that goes on other Areas than usual."""
+    details = {"type": "area", "area": area_id, "tile": tile} | ({"on": on} if on else {})
     return {"index": 99, "label": f"Place the {tile} on {area_id}", "details": details}
 
 
@@ -148,6 +149,43 @@ def test_a_greenery_offered_away_from_its_owners_tiles_when_it_could_go_next_to_
     decision["options"].append(area_option("H2", "greenery"))
 
     assert problems(view, decision) == ["the Area Decision for a Greenery offers H2, where it may not go"]
+
+
+def test_mangroves_greenery_on_an_area_reserved_for_oceans_breaks_no_invariant():
+    game = scenario(player(hand=["mangrove"]), player(), temperature=4, tiles=[city("C3", owner=0)])
+    pick(game, "Play Mangrove")
+    assert problems(*position(game)) == []
+
+    pick(game, area="E4")
+
+    assert problems(*position(game)) == []
+
+
+def test_a_greenery_on_an_area_reserved_for_oceans_without_a_card_that_puts_it_there_breaks_an_invariant():
+    game = scenario(player(hand=["mangrove"]), player(), temperature=4)
+    pick(game, "Play Mangrove")
+    pick(game, area="E4")
+    view, decision = position(game)
+    put(view, "A4", "greenery", 0)
+    put(view, "A5", "greenery", 1)
+
+    assert problems(view, decision) == [
+        "Player 1 has 2 Greeneries on Areas reserved for Oceans, but played 1 card that put one there",
+        "Player 2 has 1 Greenery on Areas reserved for Oceans, but played 0 cards that put one there",
+    ]
+
+
+def test_mangroves_area_decision_offering_land_breaks_an_invariant():
+    game = scenario(player(hand=["mangrove"]), player(), temperature=4)
+    pick(game, "Play Mangrove")
+    view, decision = position(game)
+    decision["options"].append(area_option("C4", "greenery", on="ocean_areas"))
+    decision["options"] = [option for option in decision["options"] if option["details"]["area"] != "A4"]
+
+    assert problems(view, decision) == [
+        "the Area Decision for a Greenery on an Area reserved for Oceans offers C4, where it may not go",
+        "the Area Decision for a Greenery on an Area reserved for Oceans leaves out A4, where it may go",
+    ]
 
 
 def test_more_than_three_milestones_claimed_or_awards_funded_break_an_invariant():

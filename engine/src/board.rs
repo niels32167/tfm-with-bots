@@ -239,6 +239,65 @@ impl TileKind {
     }
 }
 
+/// Which Areas a Tile may go on.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum Areas {
+    /// Those the rules give its kind of Tile.
+    #[default]
+    Usual,
+    /// Any free Area reserved for Oceans, whatever is next to it, as for Mangrove's Greenery.
+    OceanAreas,
+}
+
+impl Areas {
+    pub fn is_usual(&self) -> bool {
+        *self == Areas::Usual
+    }
+}
+
+/// A Tile to place, and the Areas it may go on. Effect data writes the usual Areas as the Tile
+/// alone, `"city"`, and others as `{"tile": "greenery", "on": "ocean_areas"}`.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(from = "WrittenPlacement", into = "WrittenPlacement")]
+pub struct Placement {
+    pub tile: TileKind,
+    pub on: Areas,
+}
+
+impl Placement {
+    /// `tile` on the usual Areas for it.
+    pub fn usual(tile: TileKind) -> Placement {
+        Placement { tile, on: Areas::Usual }
+    }
+}
+
+/// How effect data writes a Placement.
+#[derive(Clone, Copy, Serialize, Deserialize)]
+#[serde(untagged, deny_unknown_fields)]
+enum WrittenPlacement {
+    Usual(TileKind),
+    On { tile: TileKind, on: Areas },
+}
+
+impl From<WrittenPlacement> for Placement {
+    fn from(written: WrittenPlacement) -> Placement {
+        match written {
+            WrittenPlacement::Usual(tile) => Placement::usual(tile),
+            WrittenPlacement::On { tile, on } => Placement { tile, on },
+        }
+    }
+}
+
+impl From<Placement> for WrittenPlacement {
+    fn from(placement: Placement) -> WrittenPlacement {
+        match placement.on {
+            Areas::Usual => WrittenPlacement::Usual(placement.tile),
+            on => WrittenPlacement::On { tile: placement.tile, on },
+        }
+    }
+}
+
 /// A Tile on the board. Oceans belong to nobody.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct Tile {
@@ -293,28 +352,30 @@ impl Board {
         self.tiles[area] = Some(tile);
     }
 
-    /// Every Area where `player` may place `tile`, in board order.
-    pub fn areas_for(&self, tile: TileKind, player: usize) -> Vec<usize> {
-        match tile {
-            TileKind::Ocean => self.free_ocean_areas().collect(),
-            TileKind::Greenery => {
+    /// Every Area where `player` may make `placement`, in board order.
+    pub fn areas_for(&self, placement: Placement, player: usize) -> Vec<usize> {
+        match (placement.on, placement.tile) {
+            (Areas::OceanAreas, _) | (Areas::Usual, TileKind::Ocean) => self.free_ocean_areas().collect(),
+            (Areas::Usual, TileKind::Greenery) => {
                 // A Greenery must go next to one of its owner's Tiles if it can.
                 let next_to_own: Vec<usize> =
                     self.free_land().filter(|&area| self.next_to_a_tile_of(player, area)).collect();
                 if next_to_own.is_empty() { self.free_land().collect() } else { next_to_own }
             }
-            TileKind::City => self.city_areas().collect(),
+            (Areas::Usual, TileKind::City) => self.city_areas().collect(),
         }
     }
 
-    /// Whether there is any Area for `tile`: the same as `areas_for` not being empty, but
+    /// Whether there is any Area for `placement`: the same as `areas_for` not being empty, but
     /// quicker, as it stops at the first one.
-    pub fn has_area_for(&self, tile: TileKind) -> bool {
-        match tile {
-            TileKind::Ocean => self.free_ocean_areas().next().is_some(),
+    pub fn has_area_for(&self, placement: Placement) -> bool {
+        match (placement.on, placement.tile) {
+            (Areas::OceanAreas, _) | (Areas::Usual, TileKind::Ocean) => {
+                self.free_ocean_areas().next().is_some()
+            }
             // With no free Area next to its owner's Tiles, a Greenery may go on any free land.
-            TileKind::Greenery => self.free_land().next().is_some(),
-            TileKind::City => self.city_areas().next().is_some(),
+            (Areas::Usual, TileKind::Greenery) => self.free_land().next().is_some(),
+            (Areas::Usual, TileKind::City) => self.city_areas().next().is_some(),
         }
     }
 

@@ -77,7 +77,8 @@ function statusText(game: GameUpdate, cards: Card[]): string {
   if (paidFor) return `${who} must choose how to pay for ${paidFor.name} (${paidFor.cost} MegaCredits):`;
   if (decision?.kind === "area") {
     const tile = decision.options[0]?.details.tile as TileType;
-    return `${who} must choose where to place the ${TILE_NAMES[tile]}: click a highlighted Area on Mars.`;
+    const where = decision.options[0]?.details.on === "ocean_areas" ? " on an Area reserved for Oceans" : "";
+    return `${who} must choose where to place the ${TILE_NAMES[tile]}${where}: click a highlighted Area on Mars.`;
   }
   if (decision?.kind === "final_greenery") {
     return `${who} may convert plants into a Greenery before final scoring, or be done:`;

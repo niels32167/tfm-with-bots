@@ -18,9 +18,11 @@ def card_catalog() -> list[dict[str, Any]]:
     "victory_points", "text", and "face": the card's middle part as the card list draws it,
     for the GUI. Implemented cards also have "effects": what they do when played, with any of
     "resources" and "production" (amounts of the six Resources, below zero to lose),
-    "temperature" and "oxygen" (steps raised), "terraform_rating", "draw" (cards) and "tiles"
-    (a list such as ["ocean", "ocean"]). Cards without "effects" are never offered. Each call
-    returns a new list."""
+    "production_per" (Production raised per Tag or Tile, such as {"resource": "megacredits",
+    "steps": 1, "per": 1, "of": {"tag": "earth"}}), "temperature" and "oxygen" (steps raised),
+    "terraform_rating", "draw" (cards) and "tiles" (a list such as ["ocean", "ocean"], with
+    {"tile": "greenery", "on": "ocean_areas"} for a Tile that goes on other Areas than usual).
+    Cards without "effects" are never offered. Each call returns a new list."""
 
 class Game:
     """A Game of Terraforming Mars, always either over or waiting on one Decision."""
@@ -93,7 +95,9 @@ class Game:
         Kinds: "action" (an Action, End Turn or Pass), "payment" (how to pay for the card
         being played, with details {"type": "payment", "card": "mine", "megacredits": 2,
         "steel": 1, "titanium": 0}; it comes only when there is more than one way), "area"
-        (where to place a Tile, with details {"type": "area", "area": "C3", "tile": "city"})
+        (where to place a Tile, with details {"type": "area", "area": "C3", "tile": "city"}, plus
+        "on": "ocean_areas" for a Tile that goes on any free Area reserved for Oceans instead of
+        its usual Areas, as Mangrove's Greenery does),
         "final_greenery" (convert 8 plants into a Greenery once more, or be done, after
         the final Production phase), "draft" (keep one of the cards being drafted and pass the
         rest on, with details {"type": "draft_card", "card": "mine"}), "buy_cards" (buy one more

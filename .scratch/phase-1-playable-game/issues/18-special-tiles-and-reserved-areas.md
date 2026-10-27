@@ -16,8 +16,9 @@ If a card turns out to need machinery from another ticket, move it to that ticke
 - [ ] Every card is playable in the GUI, and the short fuzz run stays clean with these cards in the deck.
 - [ ] Test: each reserved Area is used only by its card.
 
-**Cards in this batch (10):**
+**Cards in this batch (11):**
 
+- [ ] #008 Capital — moved here from ticket 11 (2026-10-27): its City Tile is a special Tile, scored by the Oceans next to it
 - [ ] #017 Noctis City
 - [ ] #021 Phobos Space Haven
 - [ ] #044 Natural Preserve
@@ -27,4 +28,4 @@ If a card turns out to need machinery from another ticket, move it to that ticke
 - [ ] #085 Commercial District
 - [ ] #097 Nuclear Zone
 - [ ] #140 Lava Flows
-- [ ] #142 Mohole Area
+- [ ] #142 Mohole Area — on an Area reserved for Oceans, like Mangrove's `"on": "ocean_areas"` (ticket 11)

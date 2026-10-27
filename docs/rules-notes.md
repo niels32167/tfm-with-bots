@@ -246,8 +246,8 @@ rulebook.
 ### The order of a card's effects
 
 **Call:** The effects written as data are carried out in a fixed order: Resources,
-Production, Temperature and Oxygen steps, Terraform Rating, cards drawn, then the Tiles one
-at a time. A Tile that a track bonus gives along the way (the Ocean at 0 °C) is placed
+Production (fixed, then per Tag or Tile), Temperature and Oxygen steps, Terraform Rating,
+cards drawn, then the Tiles one at a time. A Tile that a track bonus gives along the way (the Ocean at 0 °C) is placed
 before the card's own Tiles. When Strip Mine's first Oxygen step reaches 8 % and that
 Temperature step reaches 0 °C, its second Oxygen step comes before the Ocean is placed.
 
@@ -273,6 +273,71 @@ following the Aquifer call.
 
 **Tests:** `tests/cards/test_lake_marineris.py::test_with_8_oceans_placed_lake_marineris_places_the_last_one`
 and `tests/cards/test_black_polar_dust.py::test_once_9_oceans_are_placed_black_polar_dust_only_changes_production`.
+
+### A card's City or Greenery needs an Area
+
+**Call:** A card that places a City or a Greenery is offered only while there is an Area for
+that Tile. Domed Crater is not offered when the only free land on Mars is next to a City.
+Oceans are the exception (see "A card's Oceans once 9 are placed"). No card in the v1 set
+places two Cities or two Greeneries, so one Area for each kind is enough. The same check
+covers Greeneries; its first card with a Greenery on the usual Areas is Plantation (#193,
+ticket 13).
+
+**Why:** The rulebook lets a Player play a card only if they can carry out its effects, and a
+Tile with no legal Area can't be placed. The open-source game also checks for an Area before
+it offers such a card. Chosen by Claude in ticket 08 (2026-10-23). The test came with Domed
+Crater, the first card with a City Tile (2026-10-27).
+
+**Tests:** `tests/rules/test_playing_cards.py::test_a_card_with_a_city_tile_is_not_offered_without_an_area_for_the_city`
+and `test_no_card_places_two_cities_or_two_greeneries_so_one_area_for_each_is_enough`.
+
+### Production per Tag
+
+**Call:** A card that raises Production "for each" Tag the Player has counts their Tags once
+the card is played, so its own Tags count. Tags on played Events don't count. With nothing to
+count, the Production stays as it is and the game log says nothing about it. Miranda Resort
+raises MegaCredit Production 1 step for each Earth Tag. It has no Earth Tag of its own.
+
+**Why:**
+- The cards that also count their own Tags say so: Power Grid's "including this" and
+  Satellites' "including this one".
+- Tags on Events are covered under "Tags on played Events" above.
+- The open-source game adds the card's own Tags to the count while the card is being played
+  (`Counter`: "include the card itself if it isn't already on the tableau"), with the same
+  results.
+
+Chosen by Claude (2026-10-27), on the user's instruction to make the remaining ticket 11 calls
+without asking.
+
+**Tests:** `tests/cards/test_miranda_resort.py`.
+
+### Mangrove's Greenery
+
+**Call:** Mangrove places a Greenery on any free Area reserved for Oceans. That Area need not
+be next to the Player's own Tiles. From then on it is a Greenery like any other:
+- it raises Oxygen, and with it Terraform Rating, unless Oxygen is at its maximum;
+- the Player collects the Area's printed placement bonus and 2 MegaCredits for each Ocean next
+  to it;
+- it scores as a Greenery and counts for Gardener and Landlord;
+- the Player's later Greeneries may go next to it.
+
+Fewer than 9 Oceans placed always leaves an Area for the next one. Of the 12 Areas reserved
+for Oceans, other Tiles take at most 3 (Mangrove, Protected Valley and Mohole Area), and
+Artificial Lake's Ocean goes on land. So the 0 °C Ocean and Aquifer need no extra check.
+
+**Why:**
+- The card says "Disregard normal placement restrictions for this".
+- The rulebook gives the placement bonus for any Tile placed on an Area.
+- The open-source game places Mangrove's Greenery on an Area reserved for Oceans
+  (`greenery: {on: 'ocean'}`) through its normal Greenery placement, bonuses included.
+
+The sources agree. Chosen by Claude (2026-10-27), on the user's instruction to make the
+remaining ticket 11 calls without asking.
+
+**Tests:** `tests/cards/test_mangrove.py`, among them
+`test_mangroves_greenery_is_the_players_own_for_milestones_awards_and_their_next_greenery`,
+`tests/fuzzing/test_invariants.py::test_mangroves_greenery_on_an_area_reserved_for_oceans_breaks_no_invariant`
+and `test_a_greenery_on_an_area_reserved_for_oceans_without_a_card_that_puts_it_there_breaks_an_invariant`.
 
 ## Card flow
 

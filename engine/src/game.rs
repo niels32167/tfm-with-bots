@@ -9,7 +9,7 @@ use std::fmt;
 
 use serde::{Deserialize, Serialize};
 
-use crate::board::{Board, BonusItem, Tile, TileKind, printed};
+use crate::board::{Areas, Board, BonusItem, Placement, Tile, TileKind, printed};
 use crate::card_flow::Buying;
 use crate::card_set::CardSet;
 use crate::cards::{CARD_CATALOG, PROJECT_CARDS};
@@ -247,9 +247,9 @@ pub enum DecisionOption {
     Pass,
     /// Finished buying cards, selling them, or converting plants in the final Greenery conversion.
     Done,
-    /// Place the Tile being placed on this Area.
+    /// Make the placement under way on this Area.
     PlaceTile {
-        tile: TileKind,
+        placement: Placement,
         area: usize,
     },
 }
@@ -306,8 +306,9 @@ pub struct Game {
     pub current_player: usize,
     /// How many Actions the current Player has taken in this Turn.
     pub actions_this_turn: u32,
-    /// The Tile the current Player must place next, if the Game is waiting on an Area for it.
-    pub placing: Option<TileKind>,
+    /// The Tile the current Player must place next, and the Areas it may go on, if the Game is
+    /// waiting on an Area for it.
+    pub placing: Option<Placement>,
     /// The card the current Player is playing, while the Game waits on how they pay for it.
     pub paying_for: Option<usize>,
     /// The card whose Tiles the current Player is placing, while it has any left to place.
@@ -387,7 +388,7 @@ impl Game {
             return None;
         }
         let (kind, options) = match (self.placing, self.paying_for, self.selling, self.phase) {
-            (Some(tile), ..) => (DecisionKind::Area, self.area_options(tile)),
+            (Some(placement), ..) => (DecisionKind::Area, self.area_options(placement)),
             (None, Some(card), ..) => (DecisionKind::Payment, self.payment_options(card)),
             (None, None, Some(sold), _) => (DecisionKind::SellPatents, self.selling_options(sold)),
             (None, None, None, Phase::Draft) => (DecisionKind::Draft, self.drafting_options()),
@@ -449,7 +450,7 @@ impl Game {
                 StandardProject::SellPatents => !player.hand.is_empty(),
                 _ => {
                     player.resources.megacredits >= project.cost()
-                        && self.can_take_action_placing(project.tile())
+                        && self.can_take_action_placing(project.tile().map(Placement::usual))
                 }
             };
             if can_use {
@@ -485,14 +486,14 @@ impl Game {
         options
     }
 
-    /// Whether an Action that places `tile` (or no Tile, for None) may be taken: only if the
-    /// Tile has an Area to go on. Actions that raise a Global Parameter stay open once it is
-    /// at its maximum, though: Aquifer once 9 Oceans are placed (see docs/rules-notes.md).
-    pub(crate) fn can_take_action_placing(&self, tile: Option<TileKind>) -> bool {
-        match tile {
+    /// Whether an Action that makes `placement` (or places no Tile, for None) may be taken: only
+    /// if the Tile has an Area to go on. Actions that raise a Global Parameter stay open once it
+    /// is at its maximum, though: Aquifer once 9 Oceans are placed (see docs/rules-notes.md).
+    pub(crate) fn can_take_action_placing(&self, placement: Option<Placement>) -> bool {
+        match placement {
             None => true,
-            Some(TileKind::Ocean) if self.board.oceans() >= MAX_OCEANS => true,
-            Some(tile) => self.board.has_area_for(tile),
+            Some(placement) if placement.tile == TileKind::Ocean && self.board.oceans() >= MAX_OCEANS => true,
+            Some(placement) => self.board.has_area_for(placement),
         }
     }
 
@@ -518,7 +519,7 @@ impl Game {
 
     fn can_convert_plants(&self, player: usize) -> bool {
         self.players[player].resources.plants >= PLANTS_PER_GREENERY
-            && self.board.has_area_for(TileKind::Greenery)
+            && self.board.has_area_for(Placement::usual(TileKind::Greenery))
     }
 
     /// Every way the current Player may pay for `card`.
@@ -527,10 +528,10 @@ impl Game {
         payments.into_iter().map(|payment| DecisionOption::Pay { card, payment }).collect()
     }
 
-    /// Every Area where the current Player may place `tile`.
-    fn area_options(&self, tile: TileKind) -> Vec<DecisionOption> {
-        let areas = self.board.areas_for(tile, self.current_player);
-        areas.into_iter().map(|area| DecisionOption::PlaceTile { tile, area }).collect()
+    /// Every Area where the current Player may make `placement`.
+    fn area_options(&self, placement: Placement) -> Vec<DecisionOption> {
+        let areas = self.board.areas_for(placement, self.current_player);
+        areas.into_iter().map(|area| DecisionOption::PlaceTile { placement, area }).collect()
     }
 
     fn resolve(&mut self, option: DecisionOption) {
@@ -558,11 +559,11 @@ impl Game {
                     }
                     StandardProject::PowerPlant => self.change_production(player, Resource::Energy, 1),
                     StandardProject::Asteroid => self.raise_temperature(player),
-                    StandardProject::Aquifer => self.place_ocean(),
-                    StandardProject::Greenery => self.placing = Some(TileKind::Greenery),
+                    StandardProject::Aquifer => self.place_ocean(Areas::Usual),
+                    StandardProject::Greenery => self.placing = Some(Placement::usual(TileKind::Greenery)),
                     StandardProject::City => {
                         self.change_production(player, Resource::MegaCredits, 1);
-                        self.placing = Some(TileKind::City);
+                        self.placing = Some(Placement::usual(TileKind::City));
                     }
                 }
                 self.finish_unless_placing();
@@ -582,7 +583,7 @@ impl Game {
             DecisionOption::ConvertPlants => {
                 self.players[player].resources.plants -= PLANTS_PER_GREENERY;
                 self.log.push(LogEvent::ConvertedPlants { player });
-                self.placing = Some(TileKind::Greenery);
+                self.placing = Some(Placement::usual(TileKind::Greenery));
                 self.finish_unless_placing();
             }
             DecisionOption::ConvertHeat => {
@@ -591,9 +592,9 @@ impl Game {
                 self.raise_temperature(player);
                 self.finish_unless_placing();
             }
-            DecisionOption::PlaceTile { tile, area } => {
+            DecisionOption::PlaceTile { placement, area } => {
                 self.placing = None;
-                self.place_tile(player, tile, area);
+                self.place_tile(player, placement.tile, area);
                 self.finish_unless_placing();
             }
             DecisionOption::EndTurn => {
@@ -777,12 +778,14 @@ impl Game {
         }
     }
 
-    /// The current Player has an Ocean to place, unless all 9 are already placed: then the
-    /// Aquifer they paid for, or the 0 °C bonus they reached, places nothing (see
-    /// docs/rules-notes.md).
-    pub(crate) fn place_ocean(&mut self) {
+    /// The current Player has an Ocean to place `on` those Areas, unless all 9 are already
+    /// placed: then the Aquifer they paid for, or the 0 °C bonus they reached, places nothing
+    /// (see docs/rules-notes.md). Fewer than 9 placed always leaves an Area for one: of the 12
+    /// reserved for Oceans, other Tiles take at most 3 (Mangrove, Protected Valley and Mohole
+    /// Area).
+    pub(crate) fn place_ocean(&mut self, on: Areas) {
         if self.board.oceans() < MAX_OCEANS {
-            self.placing = Some(TileKind::Ocean);
+            self.placing = Some(Placement { tile: TileKind::Ocean, on });
         } else {
             self.log.push(LogEvent::OceansAlreadyAtMaximum);
         }
@@ -882,7 +885,7 @@ impl Game {
         }
         if self.temperature == OCEAN_BONUS_TEMPERATURE {
             self.log.push(LogEvent::OceanBonus { player });
-            self.place_ocean();
+            self.place_ocean(Areas::Usual);
         }
     }
 }

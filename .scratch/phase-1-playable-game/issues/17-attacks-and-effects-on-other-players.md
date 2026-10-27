@@ -28,16 +28,16 @@ If a card turns out to need machinery from another ticket, move it to that ticke
 - [ ] #063 Mining Expedition
 - [ ] #080 Giant Ice Asteroid
 - [ ] #096 Greenhouses
-- [ ] #099 Toll Station
+- [ ] #099 Toll Station — effect data `"production_per"` from ticket 11, with a new count of opponents' Tags
 - [ ] #107 Media Archives
 - [ ] #121 Sabotage
 - [ ] #124 Hired Raiders
 - [ ] #125 Hackers
-- [ ] #129 Zeppelins
+- [ ] #129 Zeppelins — effect data `"production_per"` from ticket 11; it counts Cities on Mars only, while `TilesInPlay` counts off Mars too
 - [ ] #160 Power Supply Consortium
 - [ ] #178 Heat Trappers
 - [ ] #183 Biomass Combustors
 - [ ] #188 Flooding
-- [ ] #189 Energy Saving
+- [ ] #189 Energy Saving — effect data `"production_per"` from ticket 11
 - [x] #198 Immigration Shuttles — done in ticket 08 (to test the central rules)
 - [ ] #201 Energy Tapping

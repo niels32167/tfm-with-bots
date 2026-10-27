@@ -8,7 +8,8 @@ use serde::Serialize;
 
 use crate::board::TileKind;
 use crate::cards::{
-    CARD_CATALOG, Card, CardType, Counted, Effects, Limit, Owner, Requirement, Tag, VictoryPoints,
+    CARD_CATALOG, Card, CardType, Counted, Effects, Limit, Owner, ProductionPer, Requirement, Tag,
+    VictoryPoints,
 };
 use crate::game::Game;
 use crate::log::{LogEvent, listed};
@@ -122,7 +123,7 @@ impl Game {
             .filter_map(|card| CARD_CATALOG[card].victory_points)
             .map(|points| match points {
                 VictoryPoints::Fixed(points) => points,
-                VictoryPoints::Per { points, per, of } => points * (self.count_of(player, of) / per),
+                VictoryPoints::Per { points, per, of } => self.for_every(player, points, per, of),
                 VictoryPoints::AtLeast { points, at_least, of } => {
                     if self.count_of(player, of) >= at_least {
                         points
@@ -134,8 +135,13 @@ impl Game {
             .sum()
     }
 
-    /// How many of `what` there are for `player`'s card Victory Points. Card Resources (ticket
-    /// 19) and Tiles of cards (ticket 18) don't exist yet, so they count 0.
+    /// `amount` for every `per` of `of` that `player` has: 2 for 5 Tags at 1 for every 2.
+    fn for_every(&self, player: usize, amount: i32, per: i32, of: Counted) -> i32 {
+        amount * (self.count_of(player, of) / per)
+    }
+
+    /// How many of `what` there are for `player`'s card Victory Points or Production. Card
+    /// Resources (ticket 19) and Tiles of cards (ticket 18) don't exist yet, so they count 0.
     fn count_of(&self, player: usize, what: Counted) -> i32 {
         match what {
             Counted::Tag(tag) => self.tags(player, tag),
@@ -153,7 +159,7 @@ impl Game {
         Resource::ALL.into_iter().all(|resource| {
             own.resources[resource] + effects.resources[resource] >= 0
                 && own.production[resource] + effects.production[resource] >= resource.min_production()
-        }) && effects.tiles.iter().all(|&tile| self.can_take_action_placing(Some(tile)))
+        }) && effects.tiles.iter().all(|&placement| self.can_take_action_placing(Some(placement)))
     }
 
     /// Every way `player` may pay for `card`, the most MegaCredits first: each split between
@@ -203,14 +209,15 @@ impl Game {
     /// once all 9 are placed is skipped, as for Aquifer (see docs/rules-notes.md).
     pub(crate) fn place_next_card_tile(&mut self) {
         while let Some(CardTiles { card, placed }) = self.placing_for {
-            let Some(&tile) = CARD_CATALOG[card].implemented_effects().tiles.get(placed) else {
+            let Some(&placement) = CARD_CATALOG[card].implemented_effects().tiles.get(placed) else {
                 self.placing_for = None;
                 return;
             };
             self.placing_for = Some(CardTiles { card, placed: placed + 1 });
-            match tile {
-                TileKind::Ocean => self.place_ocean(),
-                _ => self.placing = Some(tile),
+            if placement.tile == TileKind::Ocean {
+                self.place_ocean(placement.on);
+            } else {
+                self.placing = Some(placement);
             }
             if self.placing.is_some() {
                 return;
@@ -229,6 +236,12 @@ impl Game {
         }
         for resource in Resource::ALL {
             let by = effects.production[resource];
+            if by != 0 {
+                self.change_production(player, resource, by);
+            }
+        }
+        if let Some(ProductionPer { resource, steps, per, of }) = effects.production_per {
+            let by = self.for_every(player, steps, per, of);
             if by != 0 {
                 self.change_production(player, resource, by);
             }

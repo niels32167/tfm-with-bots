@@ -1,8 +1,13 @@
 """Playing a Project Card from the hand: an Action, offered for each card whose Requirements
 are met, that the Player can pay for, and whose effects they can carry out."""
 
+import tm_engine
+
 from tests.helpers import (
+    LAND_AREAS,
+    city,
     final_scores,
+    greenery,
     offered,
     options,
     pick,
@@ -64,3 +69,23 @@ def test_victory_points_on_played_cards_add_up_and_cards_in_hand_score_nothing()
     )
 
     assert [score["cards"] for score in final_scores(game)] == [4, 0]
+
+
+def test_a_card_with_a_city_tile_is_not_offered_without_an_area_for_the_city():
+    # A1 is next to A2 (reserved for Oceans), B1 and B2; every other free Area holds a Greenery.
+    every_other_area_taken = [greenery(name, owner=1) for name in LAND_AREAS if name not in ("A1", "B1")]
+    holding_domed_crater = player(hand=["domed_crater"], production={"energy": 1})
+    a1_free = scenario(holding_domed_crater, player(), tiles=[*every_other_area_taken, greenery("B1", owner=1)])
+    a1_next_to_a_city = scenario(holding_domed_crater, player(), tiles=[*every_other_area_taken, city("B1", owner=1)])
+
+    assert offered(a1_free, "Play Domed Crater")
+    assert not offered(a1_next_to_a_city, "Play Domed Crater")
+
+
+def test_no_card_places_two_cities_or_two_greeneries_so_one_area_for_each_is_enough():
+    # A card is offered once there is an Area for each of its Tiles on its own, so two Cities
+    # would need a check for two Areas.
+    for card in tm_engine.card_catalog():
+        placements = card.get("effects", {}).get("tiles", [])
+        kinds = [placement if isinstance(placement, str) else placement["tile"] for placement in placements]
+        assert kinds.count("city") <= 1 and kinds.count("greenery") <= 1, card["id"]

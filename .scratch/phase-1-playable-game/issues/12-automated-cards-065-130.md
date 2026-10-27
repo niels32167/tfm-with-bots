@@ -33,17 +33,17 @@ If a card turns out to need machinery from another ticket, move it to that ticke
 - [ ] #093 Bushes
 - [ ] #098 Tropical Resort
 - [ ] #100 Fueled Generators
-- [ ] #102 Power Grid
+- [ ] #102 Power Grid — effect data `"production_per"` from ticket 11
 - [ ] #106 Acquired Company
 - [ ] #108 Open City
 - [x] #113 Solar Power — done in ticket 08 (starter set)
 - [ ] #114 Breathing Filters
 - [ ] #115 Artificial Photosynthesis
-- [ ] #116 Artificial Lake
+- [ ] #116 Artificial Lake — an Ocean on land: add a variant to `board::Areas` (ticket 11), which `place_ocean` already takes
 - [ ] #117 Geothermal Power
 - [ ] #118 Farming
 - [x] #119 Dust Seals — done in ticket 08 (to test the central rules)
 - [ ] #120 Urbanized Area
 - [ ] #122 Moss
 - [ ] #126 GHG Factories
-- [ ] #130 Worms
+- [ ] #130 Worms — effect data `"production_per"` from ticket 11

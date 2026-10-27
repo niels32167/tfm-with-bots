@@ -6,7 +6,7 @@ use std::collections::BTreeMap;
 
 use serde::Serialize;
 
-use crate::board::{AREA_COUNT, Board, TileKind, area_id, area_label, printed, row_and_position};
+use crate::board::{AREA_COUNT, Areas, Board, TileKind, area_id, area_label, printed, row_and_position};
 use crate::card_flow::{CARD_PRICE, PATENT_VALUE};
 use crate::card_set::CardSet;
 use crate::cards::{CARD_CATALOG, Tag};
@@ -85,10 +85,12 @@ pub enum OptionDetails {
     EndTurn,
     Pass,
     Done,
-    /// An Area for the Tile being placed.
+    /// An Area for the Tile being placed. `on` is left out for the usual Areas of its kind.
     Area {
         area: String,
         tile: TileKind,
+        #[serde(skip_serializing_if = "Areas::is_usual")]
+        on: Areas,
     },
 }
 
@@ -425,8 +427,8 @@ fn label(option: &DecisionOption) -> String {
         DecisionOption::EndTurn => "End Turn".to_string(),
         DecisionOption::Pass => "Pass".to_string(),
         DecisionOption::Done => "Done".to_string(),
-        DecisionOption::PlaceTile { tile, area } => {
-            format!("Place the {} on {}", tile.name(), area_label(*area))
+        DecisionOption::PlaceTile { placement, area } => {
+            format!("Place the {} on {}", placement.tile.name(), area_label(*area))
         }
     }
 }
@@ -461,6 +463,8 @@ fn details(option: &DecisionOption) -> OptionDetails {
         DecisionOption::EndTurn => OptionDetails::EndTurn,
         DecisionOption::Pass => OptionDetails::Pass,
         DecisionOption::Done => OptionDetails::Done,
-        DecisionOption::PlaceTile { tile, area } => OptionDetails::Area { area: area_id(*area), tile: *tile },
+        DecisionOption::PlaceTile { placement, area } => {
+            OptionDetails::Area { area: area_id(*area), tile: placement.tile, on: placement.on }
+        }
     }
 }

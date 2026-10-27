@@ -20,14 +20,14 @@ If a card turns out to need machinery from another ticket, move it to that ticke
 - [x] #132 Fusion Power — done in ticket 08 (to test the central rules)
 - [ ] #135 Advanced Ecosystems
 - [ ] #136 Great Dam
-- [ ] #137 Cartel
+- [ ] #137 Cartel — effect data `"production_per"` from ticket 11
 - [x] #138 Strip Mine — done in ticket 08 (starter set)
 - [x] #139 Wave Power — done in ticket 08 (to test the central rules)
 - [x] #141 Power Plant — done in ticket 08 (starter set)
 - [x] #144 Titanium Mine — done in ticket 08 (starter set)
 - [ ] #145 Tectonic Stress Power
 - [ ] #146 Nitrophilic Moss
-- [ ] #148 Insects
+- [ ] #148 Insects — effect data `"production_per"` from ticket 11
 - [ ] #152 Insulation
 - [ ] #155 Designed Microorganisms
 - [ ] #158 Industrial Microbes
@@ -37,8 +37,8 @@ If a card turns out to need machinery from another ticket, move it to that ticke
 - [x] #168 Windmills — done in ticket 08 (starter set)
 - [ ] #169 Tundra Farming
 - [ ] #171 Magnetic Field Dome
-- [ ] #174 Protected Valley
-- [ ] #175 Satellites
+- [ ] #174 Protected Valley — `{"tile": "greenery", "on": "ocean_areas"}` as Mangrove (ticket 11); add it to the fuzzer's `GREENERY_ON_AN_OCEAN_AREA_CARDS`
+- [ ] #175 Satellites — effect data `"production_per"` from ticket 11
 - [ ] #176 Noctis Farming
 - [ ] #179 Soil Factory
 - [ ] #180 Fuel Factory
@@ -49,4 +49,4 @@ If a card turns out to need machinery from another ticket, move it to that ticke
 - [ ] #197 Terraforming Ganymede
 - [ ] #203 Soletta
 - [x] #205 Rad-Chem Factory — done in ticket 08 (to test the central rules)
-- [ ] #207 Medical Lab
+- [ ] #207 Medical Lab — effect data `"production_per"` from ticket 11

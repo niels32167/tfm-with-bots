@@ -42,6 +42,9 @@ SCORE_PARTS = ("terraform_rating", "milestones", "awards", "greeneries", "cities
 
 CARDS = {card["id"]: card for card in tm_engine.card_catalog()}
 
+# The cards printed with "Place a greenery tile ON AN AREA RESERVED FOR OCEAN".
+GREENERY_ON_AN_OCEAN_AREA_CARDS = ("mangrove",)
+
 
 def no_negative_resources(view: View, decision: Decision | None) -> Iterator[str]:
     for player_board in view["players"]:
@@ -79,8 +82,11 @@ def global_parameters_within_range(view: View, decision: Decision | None) -> Ite
 
 def tiles_only_on_legal_areas(view: View, decision: Decision | None) -> Iterator[str]:
     """Oceans lie on Areas reserved for Oceans and belong to nobody. Greeneries and Cities
-    lie on Areas of Mars reserved for nothing, belong to a Player, and no two Cities touch."""
+    lie on Areas of Mars reserved for nothing, belong to a Player, and no two Cities touch.
+    The exception: a Player may have one Greenery on an Area reserved for Oceans for each card
+    they played that puts one there (Mangrove)."""
     tiles = tiles_on_the_board(view)
+    greeneries_on_ocean_areas: Counter[int] = Counter()
     for area_id, tile in tiles.items():
         name, owner = TILE_NAMES[tile["type"]], tile["owner"]
         if tile["type"] == "ocean":
@@ -89,36 +95,52 @@ def tiles_only_on_legal_areas(view: View, decision: Decision | None) -> Iterator
             if owner is not None:
                 yield f"the Ocean on {area_id} belongs to Player {owner + 1}, but Oceans belong to nobody"
             continue
-        if area_id not in LAND_AREAS:
+        owned_by_a_player = owner in range(len(view["players"]))
+        if tile["type"] == "greenery" and area_id in OCEAN_AREAS:
+            if owned_by_a_player:
+                greeneries_on_ocean_areas[owner] += 1
+        elif area_id not in LAND_AREAS:
             yield f"the {name} on {area_id} is not on an Area of Mars that is reserved for nothing"
-        if owner not in range(len(view["players"])):
+        if not owned_by_a_player:
             yield f"the {name} on {area_id} belongs to no Player in the Game"
         if tile["type"] == "city":
             for next_area in ADJACENT_AREAS.get(area_id, []):
                 if next_area > area_id and tiles.get(next_area, {}).get("type") == "city":
                     yield f"the Cities on {area_id} and {next_area} are next to each other"
+    for owner, greeneries in sorted(greeneries_on_ocean_areas.items()):
+        played = view["players"][owner]["played_cards"]
+        cards = sum(1 for card_id in played if card_id in GREENERY_ON_AN_OCEAN_AREA_CARDS)
+        if greeneries > cards:
+            yield (
+                f"Player {owner + 1} has {counted(greeneries, 'Greenery', 'Greeneries')} on Areas reserved for "
+                f"Oceans, but played {counted(cards, 'card')} that put one there"
+            )
 
 
 def only_legal_areas_offered(view: View, decision: Decision | None) -> Iterator[str]:
     """A choose-an-Area Decision offers exactly the Areas where its Tile may go."""
     if decision is None or decision["kind"] != "area" or not decision["options"]:
         return
-    tile = decision["options"][0]["details"]["tile"]
+    details = decision["options"][0]["details"]
+    tile, on = details["tile"], details.get("on", "usual")
     offered = {option["details"]["area"] for option in decision["options"]}
-    legal = legal_areas(view, tile, decision["player"])
+    legal = legal_areas(view, tile, decision["player"], on)
     article_and_name = f"{'an' if tile == 'ocean' else 'a'} {TILE_NAMES[tile]}"
+    if on == "ocean_areas":
+        article_and_name += " on an Area reserved for Oceans"
     for area_id in sorted(offered - legal):
         yield f"the Area Decision for {article_and_name} offers {area_id}, where it may not go"
     for area_id in sorted(legal - offered):
         yield f"the Area Decision for {article_and_name} leaves out {area_id}, where it may go"
 
 
-def legal_areas(view: View, tile: str, player: int) -> set[str]:
+def legal_areas(view: View, tile: str, player: int, on: str = "usual") -> set[str]:
     """Where `player` may place `tile`: an Ocean on a free Area reserved for Oceans; a City on
     free land on Mars next to no City; a Greenery on free land next to one of its owner's
-    Tiles, or on any free land if there is no such Area."""
+    Tiles, or on any free land if there is no such Area. A Tile `on` "ocean_areas" (Mangrove's
+    Greenery) goes on any free Area reserved for Oceans."""
     tiles = tiles_on_the_board(view)
-    if tile == "ocean":
+    if tile == "ocean" or on == "ocean_areas":
         return {area_id for area_id in OCEAN_AREAS if area_id not in tiles}
     free_land = {area_id for area_id in LAND_AREAS if area_id not in tiles}
 
@@ -285,9 +307,9 @@ def card_victory_points(view: View, player: int) -> int:
     return points
 
 
-def counted(count: int, thing: str) -> str:
-    """"1 Award", "0 Milestones"."""
-    return f"{count} {thing}{'' if count == 1 else 's'}"
+def counted(count: int, thing: str, things: str | None = None) -> str:
+    """"1 Award", "0 Milestones", or with `things` for an irregular plural, "2 Greeneries"."""
+    return f"{count} {thing if count == 1 else things or thing + 's'}"
 
 
 def tiles_on_the_board(view: View) -> dict[str, dict[str, Any]]:

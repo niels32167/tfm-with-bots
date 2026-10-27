@@ -8,7 +8,7 @@ use std::sync::LazyLock;
 
 use serde::{Deserialize, Serialize};
 
-use crate::board::TileKind;
+use crate::board::{Placement, TileKind};
 use crate::resources::{Resource, Resources};
 
 const CARD_FILE: &str = include_str!("../cards/cards.json");
@@ -78,10 +78,10 @@ impl Card {
     }
 }
 
-/// The simple effects of a card, which are carried out in this order: Resources, Production,
-/// Temperature and Oxygen steps, Terraform Rating, cards drawn, and then the Tiles one at a
-/// time. For the cards described this way the order never changes the outcome; a card whose
-/// effects depend on their order gets its own Rust code.
+/// The simple effects of a card, which are carried out in this order: Resources, Production
+/// (fixed, then per Tag or Tile), Temperature and Oxygen steps, Terraform Rating, cards
+/// drawn, and then the Tiles one at a time. For the cards described this way the order never
+/// changes the outcome; a card whose effects depend on their order gets its own Rust code.
 #[derive(Debug, Default, Serialize, Deserialize)]
 #[serde(default, deny_unknown_fields)]
 pub struct Effects {
@@ -89,6 +89,10 @@ pub struct Effects {
     pub resources: Resources,
     /// Production steps raised, or lowered below zero.
     pub production: Resources,
+    /// Production raised by what the Player has, counted once the card is played, so its own
+    /// Tags count ("including this").
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub production_per: Option<ProductionPer>,
     /// Temperature steps raised.
     pub temperature: i32,
     /// Oxygen steps raised.
@@ -97,8 +101,19 @@ pub struct Effects {
     pub terraform_rating: i32,
     /// Cards drawn.
     pub draw: i32,
-    /// The Tiles to place, in order.
-    pub tiles: Vec<TileKind>,
+    /// The Tiles to place, in order, each on the Areas it may go on.
+    pub tiles: Vec<Placement>,
+}
+
+/// `steps` of Production of `resource` for every `per` of something, such as 1 MegaCredit
+/// Production step for each Earth Tag (Miranda Resort).
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct ProductionPer {
+    pub resource: Resource,
+    pub steps: i32,
+    pub per: i32,
+    pub of: Counted,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -199,7 +214,7 @@ pub enum VictoryPoints {
     AtLeast { points: i32, at_least: i32, of: Counted },
 }
 
-/// What Victory Points count.
+/// What Victory Points, or Production per Tag or Tile, count.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum Counted {
