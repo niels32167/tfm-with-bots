@@ -1809,7 +1809,8 @@
       "requirements": [{"type": "tag", "tag": "plant", "min": 1}, {"type": "tag", "tag": "microbe", "min": 1}, {"type": "tag", "tag": "animal", "min": 1}],
       "victory_points": 3,
       "text": "(Requires a Plant tag, a Microbe tag, and an Animal tag.)",
-      "face": {"content": {"tag": "div", "class": "content", "children": [" ", {"tag": "div", "class": "points points-big", "children": ["3"]}, " ", {"tag": "div", "class": "requirements", "children": ["Plant Microbe Animal"]}, " ", {"tag": "div", "class": "description", "children": [" (Requires a Plant tag, a Microbe tag, and an Animal tag.) "]}, " "]}}
+      "face": {"content": {"tag": "div", "class": "content", "children": [" ", {"tag": "div", "class": "points points-big", "children": ["3"]}, " ", {"tag": "div", "class": "requirements", "children": ["Plant Microbe Animal"]}, " ", {"tag": "div", "class": "description", "children": [" (Requires a Plant tag, a Microbe tag, and an Animal tag.) "]}, " "]}},
+      "effects": {}
     },
     {
       "id": "great_dam",
@@ -1822,7 +1823,8 @@
       "requirements": [{"type": "oceans", "min": 4}],
       "victory_points": 1,
       "text": "(Requires 4 ocean tiles. Increase your Energy production 2 steps.)",
-      "face": {"content": {"tag": "div", "class": "content", "children": [" ", {"tag": "div", "class": "points points-big", "children": ["1"]}, " ", {"tag": "div", "class": "requirements", "children": ["4 Oceans"]}, " ", {"tag": "div", "class": "production-box production-box-size2", "children": [" ", {"tag": "div", "class": "energy production"}, " ", {"tag": "div", "class": "energy production"}, " "]}, " ", {"tag": "div", "class": "description", "children": [" (Requires 4 ocean tiles. Increase your Energy production 2 steps.) "]}, " "]}}
+      "face": {"content": {"tag": "div", "class": "content", "children": [" ", {"tag": "div", "class": "points points-big", "children": ["1"]}, " ", {"tag": "div", "class": "requirements", "children": ["4 Oceans"]}, " ", {"tag": "div", "class": "production-box production-box-size2", "children": [" ", {"tag": "div", "class": "energy production"}, " ", {"tag": "div", "class": "energy production"}, " "]}, " ", {"tag": "div", "class": "description", "children": [" (Requires 4 ocean tiles. Increase your Energy production 2 steps.) "]}, " "]}},
+      "effects": {"production": {"energy": 2}}
     },
     {
       "id": "cartel",
@@ -1835,7 +1837,8 @@
       "requirements": [],
       "victory_points": null,
       "text": "(Increase your MC production 1 step for each Earth tag you have, including this.)",
-      "face": {"content": {"tag": "div", "class": "content", "children": [" ", {"tag": "div", "class": "production-box production-box-size2a", "children": [" ", {"tag": "div", "class": "money production", "children": ["1"]}, " / ", {"tag": "div", "class": "tag-earth production-tag resource-tag"}, " "]}, " ", {"tag": "div", "class": "description", "children": [" (Increase your MC production 1 step for each Earth tag you have, including this.) "]}, " "]}}
+      "face": {"content": {"tag": "div", "class": "content", "children": [" ", {"tag": "div", "class": "production-box production-box-size2a", "children": [" ", {"tag": "div", "class": "money production", "children": ["1"]}, " / ", {"tag": "div", "class": "tag-earth production-tag resource-tag"}, " "]}, " ", {"tag": "div", "class": "description", "children": [" (Increase your MC production 1 step for each Earth tag you have, including this.) "]}, " "]}},
+      "effects": {"production_per": {"resource": "megacredits", "steps": 1, "per": 1, "of": {"tag": "earth"}}}
     },
     {
       "id": "strip_mine",
@@ -1943,7 +1946,8 @@
       "requirements": [{"type": "tag", "tag": "science", "min": 2}],
       "victory_points": 1,
       "text": "(Requires 2 Science tags. Increase your Energy production 3 steps.)",
-      "face": {"content": {"tag": "div", "class": "content", "children": [" ", {"tag": "div", "class": "points points-big", "children": ["1"]}, " ", {"tag": "div", "class": "requirements", "children": ["2 Science"]}, " ", {"tag": "div", "class": "production-box production-box-size3", "children": [" ", {"tag": "div", "class": "energy production"}, " ", {"tag": "div", "class": "energy production"}, " ", {"tag": "div", "class": "energy production"}, " "]}, " ", {"tag": "div", "class": "description", "children": [" (Requires 2 Science tags. Increase your Energy production 3 steps.) "]}, " "]}}
+      "face": {"content": {"tag": "div", "class": "content", "children": [" ", {"tag": "div", "class": "points points-big", "children": ["1"]}, " ", {"tag": "div", "class": "requirements", "children": ["2 Science"]}, " ", {"tag": "div", "class": "production-box production-box-size3", "children": [" ", {"tag": "div", "class": "energy production"}, " ", {"tag": "div", "class": "energy production"}, " ", {"tag": "div", "class": "energy production"}, " "]}, " ", {"tag": "div", "class": "description", "children": [" (Requires 2 Science tags. Increase your Energy production 3 steps.) "]}, " "]}},
+      "effects": {"production": {"energy": 3}}
     },
     {
       "id": "nitrophilic_moss",
@@ -1956,7 +1960,8 @@
       "requirements": [{"type": "oceans", "min": 3}],
       "victory_points": null,
       "text": "(Requires 3 ocean tiles and that you lose 2 plants. Increase your plant production 2 steps.)",
-      "face": {"content": {"tag": "div", "class": "content", "children": [" ", {"tag": "div", "class": "requirements", "children": ["3 Oceans"]}, " ", {"tag": "div", "class": "production-box production-box-size2", "children": [" ", {"tag": "div", "class": "plant production"}, " ", {"tag": "div", "class": "plant production"}, " "]}, "    - ", {"tag": "div", "class": "plant resource"}, " ", {"tag": "div", "class": "plant resource"}, " ", {"tag": "div", "class": "description", "children": [" (Requires 3 ocean tiles and that you lose 2 plants. Increase your plant production 2 steps.) "]}, " "]}}
+      "face": {"content": {"tag": "div", "class": "content", "children": [" ", {"tag": "div", "class": "requirements", "children": ["3 Oceans"]}, " ", {"tag": "div", "class": "production-box production-box-size2", "children": [" ", {"tag": "div", "class": "plant production"}, " ", {"tag": "div", "class": "plant production"}, " "]}, "    - ", {"tag": "div", "class": "plant resource"}, " ", {"tag": "div", "class": "plant resource"}, " ", {"tag": "div", "class": "description", "children": [" (Requires 3 ocean tiles and that you lose 2 plants. Increase your plant production 2 steps.) "]}, " "]}},
+      "effects": {"resources": {"plants": -2}, "production": {"plants": 2}}
     },
     {
       "id": "herbivores",
@@ -1982,7 +1987,8 @@
       "requirements": [{"type": "oxygen", "min": 6}],
       "victory_points": null,
       "text": "(Requires 6% oxygen. Increase your Plant production 1 step for each plant tag you have.)",
-      "face": {"content": {"tag": "div", "class": "content", "children": [" ", {"tag": "div", "class": "requirements", "children": ["6% O2"]}, " ", {"tag": "div", "class": "production-box production-box-size2a", "children": [" ", {"tag": "div", "class": "plant production"}, " / ", {"tag": "div", "class": "resource-tag production-tag tag-plant"}, " ", {"tag": "br"}, " "]}, " ", {"tag": "div", "class": "description", "children": [" (Requires 6% oxygen. Increase your Plant production 1 step for each plant tag you have.) "]}, " "]}}
+      "face": {"content": {"tag": "div", "class": "content", "children": [" ", {"tag": "div", "class": "requirements", "children": ["6% O2"]}, " ", {"tag": "div", "class": "production-box production-box-size2a", "children": [" ", {"tag": "div", "class": "plant production"}, " / ", {"tag": "div", "class": "resource-tag production-tag tag-plant"}, " ", {"tag": "br"}, " "]}, " ", {"tag": "div", "class": "description", "children": [" (Requires 6% oxygen. Increase your Plant production 1 step for each plant tag you have.) "]}, " "]}},
+      "effects": {"production_per": {"resource": "plants", "steps": 1, "per": 1, "of": {"tag": "plant"}}}
     },
     {
       "id": "ceos_favorite_project",
@@ -2034,7 +2040,8 @@
       "requirements": [],
       "victory_points": null,
       "text": "(Decrease your heat production any number of steps and increase your MC production the same number of steps.)",
-      "face": {"content": {"tag": "div", "class": "content", "children": [" ", {"tag": "div", "class": "production-box production-box-size3", "children": [" -X ", {"tag": "div", "class": "heat production"}, " + ", {"tag": "div", "class": "money production", "children": ["X"]}, " "]}, " ", {"tag": "div", "class": "description", "children": [" (Decrease your heat production any number of steps and increase your MC production the same number of steps.) "]}, " "]}}
+      "face": {"content": {"tag": "div", "class": "content", "children": [" ", {"tag": "div", "class": "production-box production-box-size3", "children": [" -X ", {"tag": "div", "class": "heat production"}, " + ", {"tag": "div", "class": "money production", "children": ["X"]}, " "]}, " ", {"tag": "div", "class": "description", "children": [" (Decrease your heat production any number of steps and increase your MC production the same number of steps.) "]}, " "]}},
+      "effects": {}
     },
     {
       "id": "adaptation_technology",
@@ -2073,7 +2080,8 @@
       "requirements": [{"type": "temperature", "max": -14}],
       "victory_points": null,
       "text": "(It must be -14 C or colder. Increase your Plant production 2 steps.)",
-      "face": {"content": {"tag": "div", "class": "content", "children": [" ", {"tag": "div", "class": "requirements requirements-max", "children": ["max -14 C"]}, " ", {"tag": "div", "class": "production-box production-box-size2", "children": [" ", {"tag": "div", "class": "plant production"}, " ", {"tag": "div", "class": "plant production"}, " "]}, " ", {"tag": "div", "class": "description", "children": [" (It must be -14 C or colder. Increase your Plant production 2 steps.) "]}, " "]}}
+      "face": {"content": {"tag": "div", "class": "content", "children": [" ", {"tag": "div", "class": "requirements requirements-max", "children": ["max -14 C"]}, " ", {"tag": "div", "class": "production-box production-box-size2", "children": [" ", {"tag": "div", "class": "plant production"}, " ", {"tag": "div", "class": "plant production"}, " "]}, " ", {"tag": "div", "class": "description", "children": [" (It must be -14 C or colder. Increase your Plant production 2 steps.) "]}, " "]}},
+      "effects": {"production": {"plants": 2}}
     },
     {
       "id": "standard_technology",
@@ -2112,7 +2120,8 @@
       "requirements": [],
       "victory_points": null,
       "text": "(Increase your Energy production and your steel production 1 step each.)",
-      "face": {"content": {"tag": "div", "class": "content", "children": [" ", {"tag": "div", "class": "production-box", "children": [" ", {"tag": "div", "class": "energy production"}, " ", {"tag": "div", "class": "steel production"}, " "]}, " ", {"tag": "div", "class": "description", "children": [" (Increase your Energy production and your steel production 1 step each.) "]}, " "]}}
+      "face": {"content": {"tag": "div", "class": "content", "children": [" ", {"tag": "div", "class": "production-box", "children": [" ", {"tag": "div", "class": "energy production"}, " ", {"tag": "div", "class": "steel production"}, " "]}, " ", {"tag": "div", "class": "description", "children": [" (Increase your Energy production and your steel production 1 step each.) "]}, " "]}},
+      "effects": {"production": {"energy": 1, "steel": 1}}
     },
     {
       "id": "lichen",
@@ -2125,7 +2134,8 @@
       "requirements": [{"type": "temperature", "min": -24}],
       "victory_points": null,
       "text": "(Requires -24 C or warmer. Increase your Plant production 1 step.)",
-      "face": {"content": {"tag": "div", "class": "content", "children": [" ", {"tag": "div", "class": "requirements", "children": ["-24 C"]}, " ", {"tag": "div", "class": "production-box", "children": [" ", {"tag": "div", "class": "plant production"}, " "]}, " ", {"tag": "div", "class": "description", "children": [" (Requires -24 C or warmer. Increase your Plant production 1 step.) "]}, " "]}}
+      "face": {"content": {"tag": "div", "class": "content", "children": [" ", {"tag": "div", "class": "requirements", "children": ["-24 C"]}, " ", {"tag": "div", "class": "production-box", "children": [" ", {"tag": "div", "class": "plant production"}, " "]}, " ", {"tag": "div", "class": "description", "children": [" (Requires -24 C or warmer. Increase your Plant production 1 step.) "]}, " "]}},
+      "effects": {"production": {"plants": 1}}
     },
     {
       "id": "power_supply_consortium",
@@ -2190,7 +2200,8 @@
       "requirements": [],
       "victory_points": null,
       "text": "(Increase your heat production 1 step.)",
-      "face": {"content": {"tag": "div", "class": "content", "children": [" ", {"tag": "div", "class": "production-box", "children": [" ", {"tag": "div", "class": "heat production"}, " "]}, " ", {"tag": "br"}, " ", {"tag": "div", "class": "description", "children": [" (Increase your heat production 1 step.) "]}, " "]}}
+      "face": {"content": {"tag": "div", "class": "content", "children": [" ", {"tag": "div", "class": "production-box", "children": [" ", {"tag": "div", "class": "heat production"}, " "]}, " ", {"tag": "br"}, " ", {"tag": "div", "class": "description", "children": [" (Increase your heat production 1 step.) "]}, " "]}},
+      "effects": {"production": {"heat": 1}}
     },
     {
       "id": "magnetic_field_generators",
@@ -2203,7 +2214,8 @@
       "requirements": [],
       "victory_points": null,
       "text": "(Decrease your Energy production 4 steps and increase your Plant production 2 steps. Raise your TR 3 steps.)",
-      "face": {"content": {"tag": "div", "class": "content", "children": [" ", {"tag": "div", "class": "production-box production-box-size2a", "children": [" ", {"tag": "div", "class": "production-prefix", "children": [{"tag": "div", "class": "minus"}]}, " 4 ", {"tag": "div", "class": "energy production"}, " ", {"tag": "br"}, " ", {"tag": "div", "class": "production-prefix", "children": [{"tag": "div", "class": "plus"}]}, " ", {"tag": "div", "class": "plant production"}, " ", {"tag": "div", "class": "plant production"}, " "]}, " ", {"tag": "br"}, " ", {"tag": "div", "class": "tile rating"}, " ", {"tag": "div", "class": "tile rating"}, " ", {"tag": "div", "class": "tile rating"}, " ", {"tag": "div", "class": "description", "children": [" (Decrease your Energy production 4 steps and increase your Plant production 2 steps. Raise your TR 3 steps.) "]}, " "]}}
+      "face": {"content": {"tag": "div", "class": "content", "children": [" ", {"tag": "div", "class": "production-box production-box-size2a", "children": [" ", {"tag": "div", "class": "production-prefix", "children": [{"tag": "div", "class": "minus"}]}, " 4 ", {"tag": "div", "class": "energy production"}, " ", {"tag": "br"}, " ", {"tag": "div", "class": "production-prefix", "children": [{"tag": "div", "class": "plus"}]}, " ", {"tag": "div", "class": "plant production"}, " ", {"tag": "div", "class": "plant production"}, " "]}, " ", {"tag": "br"}, " ", {"tag": "div", "class": "tile rating"}, " ", {"tag": "div", "class": "tile rating"}, " ", {"tag": "div", "class": "tile rating"}, " ", {"tag": "div", "class": "description", "children": [" (Decrease your Energy production 4 steps and increase your Plant production 2 steps. Raise your TR 3 steps.) "]}, " "]}},
+      "effects": {"production": {"energy": -4, "plants": 2}, "terraform_rating": 3}
     },
     {
       "id": "shuttles",
@@ -2256,7 +2268,8 @@
       "requirements": [{"type": "temperature", "min": -6}],
       "victory_points": 2,
       "text": "(Requires -6 C or warmer. Increase your Plant production 1 step and your MC production 2 steps. Gain 1 Plant.)",
-      "face": {"content": {"tag": "div", "class": "content", "children": [" ", {"tag": "div", "class": "points points-big", "children": ["2"]}, " ", {"tag": "div", "class": "requirements", "children": ["-6 C"]}, " ", {"tag": "div", "class": "production-box production-box-size2", "children": [" ", {"tag": "div", "class": "plant production"}, " ", {"tag": "div", "class": "money production", "children": ["2"]}, " ", {"tag": "br"}, " "]}, " ", {"tag": "div", "class": "plant resource", "style": {"margin-left": "20px"}}, " ", {"tag": "div", "class": "description", "children": [" (Requires -6 C or warmer. Increase your Plant production 1 step and your MC production 2 steps. Gain 1 Plant.) "]}, " "]}}
+      "face": {"content": {"tag": "div", "class": "content", "children": [" ", {"tag": "div", "class": "points points-big", "children": ["2"]}, " ", {"tag": "div", "class": "requirements", "children": ["-6 C"]}, " ", {"tag": "div", "class": "production-box production-box-size2", "children": [" ", {"tag": "div", "class": "plant production"}, " ", {"tag": "div", "class": "money production", "children": ["2"]}, " ", {"tag": "br"}, " "]}, " ", {"tag": "div", "class": "plant resource", "style": {"margin-left": "20px"}}, " ", {"tag": "div", "class": "description", "children": [" (Requires -6 C or warmer. Increase your Plant production 1 step and your MC production 2 steps. Gain 1 Plant.) "]}, " "]}},
+      "effects": {"resources": {"plants": 1}, "production": {"plants": 1, "megacredits": 2}}
     },
     {
       "id": "aerobraked_ammonia_asteroid",
@@ -2282,7 +2295,8 @@
       "requirements": [],
       "victory_points": null,
       "text": "(Decrease your Energy production 2 steps and increase your Plant production 1 step. Raise your TR 1 step.)",
-      "face": {"content": {"tag": "div", "class": "content", "children": [" ", {"tag": "div", "class": "production-box production-box-size2a", "children": [" ", {"tag": "div", "class": "production-prefix", "children": [{"tag": "div", "class": "minus"}]}, " ", {"tag": "div", "class": "energy production"}, " ", {"tag": "div", "class": "energy production"}, " ", {"tag": "br"}, " ", {"tag": "div", "class": "production-prefix", "children": [{"tag": "div", "class": "plus"}]}, " ", {"tag": "div", "class": "plant production"}, " "]}, "     ", {"tag": "div", "class": "tile rating"}, " ", {"tag": "div", "class": "description", "children": [" (Decrease your Energy production 2 steps and increase your Plant production 1 step. Raise your TR 1 step.) "]}, " "]}}
+      "face": {"content": {"tag": "div", "class": "content", "children": [" ", {"tag": "div", "class": "production-box production-box-size2a", "children": [" ", {"tag": "div", "class": "production-prefix", "children": [{"tag": "div", "class": "minus"}]}, " ", {"tag": "div", "class": "energy production"}, " ", {"tag": "div", "class": "energy production"}, " ", {"tag": "br"}, " ", {"tag": "div", "class": "production-prefix", "children": [{"tag": "div", "class": "plus"}]}, " ", {"tag": "div", "class": "plant production"}, " "]}, "     ", {"tag": "div", "class": "tile rating"}, " ", {"tag": "div", "class": "description", "children": [" (Decrease your Energy production 2 steps and increase your Plant production 1 step. Raise your TR 1 step.) "]}, " "]}},
+      "effects": {"production": {"energy": -2, "plants": 1}, "terraform_rating": 1}
     },
     {
       "id": "pets",
@@ -2321,7 +2335,8 @@
       "requirements": [],
       "victory_points": null,
       "text": "(Increase your MC production 2 steps. Place on a greenery tile ON AN AREA RESERVED FOR OCEAN, disregarding normal placement restrictions, and increase oxygen 1 step.)",
-      "face": {"content": {"tag": "div", "class": "content", "children": [" ", {"tag": "div", "class": "production-box production-box", "children": [" ", {"tag": "div", "class": "money production", "children": ["2"]}, " "]}, " ", {"tag": "div", "class": "tile greenery-tile", "style": {"margin-left": "30px"}}, " * ", {"tag": "div", "class": "description", "children": [" (Increase your MC production 2 steps. Place on a greenery tile ON AN AREA RESERVED FOR OCEAN, disregarding normal placement restrictions, and increase oxygen 1 step.) "]}, " "]}}
+      "face": {"content": {"tag": "div", "class": "content", "children": [" ", {"tag": "div", "class": "production-box production-box", "children": [" ", {"tag": "div", "class": "money production", "children": ["2"]}, " "]}, " ", {"tag": "div", "class": "tile greenery-tile", "style": {"margin-left": "30px"}}, " * ", {"tag": "div", "class": "description", "children": [" (Increase your MC production 2 steps. Place on a greenery tile ON AN AREA RESERVED FOR OCEAN, disregarding normal placement restrictions, and increase oxygen 1 step.) "]}, " "]}},
+      "effects": {"production": {"megacredits": 2}, "tiles": [{"tile": "greenery", "on": "ocean_areas"}]}
     },
     {
       "id": "satellites",
@@ -2334,7 +2349,8 @@
       "requirements": [],
       "victory_points": null,
       "text": "(Increase your MC production 1 step for each space tag your have, including this one.)",
-      "face": {"content": {"tag": "div", "class": "content", "children": [" ", {"tag": "div", "class": "production-box production-box-size2a", "children": [" ", {"tag": "div", "class": "production money", "children": ["1"]}, " / ", {"tag": "div", "class": "resource-tag production-tag tag-space"}, " "]}, " ", {"tag": "div", "class": "description", "children": [" (Increase your MC production 1 step for each space tag your have, including this one.) "]}, " "]}}
+      "face": {"content": {"tag": "div", "class": "content", "children": [" ", {"tag": "div", "class": "production-box production-box-size2a", "children": [" ", {"tag": "div", "class": "production money", "children": ["1"]}, " / ", {"tag": "div", "class": "resource-tag production-tag tag-space"}, " "]}, " ", {"tag": "div", "class": "description", "children": [" (Increase your MC production 1 step for each space tag your have, including this one.) "]}, " "]}},
+      "effects": {"production_per": {"resource": "megacredits", "steps": 1, "per": 1, "of": {"tag": "space"}}}
     },
     {
       "id": "noctis_farming",
@@ -2347,7 +2363,8 @@
       "requirements": [{"type": "temperature", "min": -20}],
       "victory_points": 1,
       "text": "(Requires -20 C or warmer. Increase your MC production 1 step and gain 2 Plants.)",
-      "face": {"content": {"tag": "div", "class": "content", "children": [" ", {"tag": "div", "class": "points points-big", "children": ["1"]}, " ", {"tag": "div", "class": "requirements", "children": ["-20 C"]}, " ", {"tag": "div", "class": "production-box", "children": [" ", {"tag": "div", "class": "money production", "children": ["1"]}, " "]}, " ", {"tag": "div", "class": "resource plant", "style": {"margin-left": "20px"}}, " ", {"tag": "div", "class": "resource plant"}, " ", {"tag": "div", "class": "description", "children": [" (Requires -20 C or warmer. Increase your MC production 1 step and gain 2 Plants.) "]}, " "]}}
+      "face": {"content": {"tag": "div", "class": "content", "children": [" ", {"tag": "div", "class": "points points-big", "children": ["1"]}, " ", {"tag": "div", "class": "requirements", "children": ["-20 C"]}, " ", {"tag": "div", "class": "production-box", "children": [" ", {"tag": "div", "class": "money production", "children": ["1"]}, " "]}, " ", {"tag": "div", "class": "resource plant", "style": {"margin-left": "20px"}}, " ", {"tag": "div", "class": "resource plant"}, " ", {"tag": "div", "class": "description", "children": [" (Requires -20 C or warmer. Increase your MC production 1 step and gain 2 Plants.) "]}, " "]}},
+      "effects": {"resources": {"plants": 2}, "production": {"megacredits": 1}}
     },
     {
       "id": "water_splitting_plant",
@@ -2386,7 +2403,8 @@
       "requirements": [],
       "victory_points": 1,
       "text": "(Decrease your Energy production 1 step and increase your Plant production 1 step.)",
-      "face": {"content": {"tag": "div", "class": "content", "children": [" ", {"tag": "div", "class": "points points-big", "children": ["1"]}, " ", {"tag": "div", "class": "production-box production-box-size1a", "children": [" ", {"tag": "div", "class": "production-prefix", "children": [{"tag": "div", "class": "minus"}]}, " ", {"tag": "div", "class": "energy production"}, " ", {"tag": "div", "class": "production-prefix", "children": [{"tag": "div", "class": "plus"}]}, " ", {"tag": "div", "class": "plant production"}, " "]}, " ", {"tag": "div", "class": "description", "children": [" (Decrease your Energy production 1 step and increase your Plant production 1 step.) "]}, " "]}}
+      "face": {"content": {"tag": "div", "class": "content", "children": [" ", {"tag": "div", "class": "points points-big", "children": ["1"]}, " ", {"tag": "div", "class": "production-box production-box-size1a", "children": [" ", {"tag": "div", "class": "production-prefix", "children": [{"tag": "div", "class": "minus"}]}, " ", {"tag": "div", "class": "energy production"}, " ", {"tag": "div", "class": "production-prefix", "children": [{"tag": "div", "class": "plus"}]}, " ", {"tag": "div", "class": "plant production"}, " "]}, " ", {"tag": "div", "class": "description", "children": [" (Decrease your Energy production 1 step and increase your Plant production 1 step.) "]}, " "]}},
+      "effects": {"production": {"energy": -1, "plants": 1}}
     },
     {
       "id": "fuel_factory",
@@ -2399,7 +2417,8 @@
       "requirements": [],
       "victory_points": null,
       "text": "(Decrease your Energy production 1 step and increase your titanium and your MC production 1 step each.)",
-      "face": {"content": {"tag": "div", "class": "content", "children": [" ", {"tag": "div", "class": "production-box production-box-size2a", "children": [" ", {"tag": "div", "class": "production-prefix", "children": [{"tag": "div", "class": "minus"}]}, " ", {"tag": "div", "class": "energy production"}, " ", {"tag": "br"}, " ", {"tag": "div", "class": "production-prefix", "children": [{"tag": "div", "class": "plus"}]}, " ", {"tag": "div", "class": "titanium production"}, " ", {"tag": "div", "class": "money production", "children": ["1"]}, " "]}, " ", {"tag": "div", "class": "description", "children": [" (Decrease your Energy production 1 step and increase your titanium and your MC production 1 step each.) "]}, " "]}}
+      "face": {"content": {"tag": "div", "class": "content", "children": [" ", {"tag": "div", "class": "production-box production-box-size2a", "children": [" ", {"tag": "div", "class": "production-prefix", "children": [{"tag": "div", "class": "minus"}]}, " ", {"tag": "div", "class": "energy production"}, " ", {"tag": "br"}, " ", {"tag": "div", "class": "production-prefix", "children": [{"tag": "div", "class": "plus"}]}, " ", {"tag": "div", "class": "titanium production"}, " ", {"tag": "div", "class": "money production", "children": ["1"]}, " "]}, " ", {"tag": "div", "class": "description", "children": [" (Decrease your Energy production 1 step and increase your titanium and your MC production 1 step each.) "]}, " "]}},
+      "effects": {"production": {"energy": -1, "titanium": 1, "megacredits": 1}}
     },
     {
       "id": "ice_cap_melting",
@@ -2425,7 +2444,8 @@
       "requirements": [],
       "victory_points": -2,
       "text": "(Decrease your Energy production 1 step and increase your MC production 3 steps. Place a City tile.)",
-      "face": {"content": {"tag": "div", "class": "content", "children": [" ", {"tag": "div", "class": "points points-big", "children": ["-2"]}, " ", {"tag": "div", "class": "production-box production-box-size1a", "children": [" ", {"tag": "div", "class": "production-prefix", "children": [{"tag": "div", "class": "minus"}]}, " ", {"tag": "div", "class": "energy production"}, " ", {"tag": "div", "class": "production-prefix", "children": [{"tag": "div", "class": "plus"}]}, " ", {"tag": "div", "class": "money production", "children": ["3"]}, " "]}, " ", {"tag": "div", "class": "tile city-tile", "style": {"margin-left": "20px"}}, " ", {"tag": "br"}, " ", {"tag": "div", "class": "description", "children": [" (Decrease your Energy production 1 step and increase your MC production 3 steps. Place a City tile.) "]}, " "]}}
+      "face": {"content": {"tag": "div", "class": "content", "children": [" ", {"tag": "div", "class": "points points-big", "children": ["-2"]}, " ", {"tag": "div", "class": "production-box production-box-size1a", "children": [" ", {"tag": "div", "class": "production-prefix", "children": [{"tag": "div", "class": "minus"}]}, " ", {"tag": "div", "class": "energy production"}, " ", {"tag": "div", "class": "production-prefix", "children": [{"tag": "div", "class": "plus"}]}, " ", {"tag": "div", "class": "money production", "children": ["3"]}, " "]}, " ", {"tag": "div", "class": "tile city-tile", "style": {"margin-left": "20px"}}, " ", {"tag": "br"}, " ", {"tag": "div", "class": "description", "children": [" (Decrease your Energy production 1 step and increase your MC production 3 steps. Place a City tile.) "]}, " "]}},
+      "effects": {"production": {"energy": -1, "megacredits": 3}, "tiles": ["city"]}
     },
     {
       "id": "biomass_combustors",
@@ -2569,7 +2589,8 @@
       "requirements": [{"type": "tag", "tag": "science", "min": 2}],
       "victory_points": null,
       "text": "(Requires 2 Science tags. Place a greenery tile and raise oxygen 1 step.)",
-      "face": {"content": {"tag": "div", "class": "content", "children": [" ", {"tag": "div", "class": "requirements", "children": ["2 Science"]}, " ", {"tag": "div", "class": "tile greenery-tile"}, " ", {"tag": "div", "class": "description", "children": [" (Requires 2 Science tags. Place a greenery tile and raise oxygen 1 step.) "]}, " "]}}
+      "face": {"content": {"tag": "div", "class": "content", "children": [" ", {"tag": "div", "class": "requirements", "children": ["2 Science"]}, " ", {"tag": "div", "class": "tile greenery-tile"}, " ", {"tag": "div", "class": "description", "children": [" (Requires 2 Science tags. Place a greenery tile and raise oxygen 1 step.) "]}, " "]}},
+      "effects": {"tiles": ["greenery"]}
     },
     {
       "id": "power_infrastructure",
@@ -2622,7 +2643,8 @@
       "requirements": [],
       "victory_points": 2,
       "text": "(Raise your TR 1 step for each Jovian tag you have, including this.)",
-      "face": {"content": {"tag": "div", "class": "content", "children": [" ", {"tag": "div", "class": "points points-big", "children": ["2"]}, " ", {"tag": "div", "class": "tile rating"}, " / ", {"tag": "div", "class": "resource-tag tag-jovian"}, " ", {"tag": "div", "class": "description", "children": [" (Raise your TR 1 step for each Jovian tag you have, including this.) "]}, " "]}}
+      "face": {"content": {"tag": "div", "class": "content", "children": [" ", {"tag": "div", "class": "points points-big", "children": ["2"]}, " ", {"tag": "div", "class": "tile rating"}, " / ", {"tag": "div", "class": "resource-tag tag-jovian"}, " ", {"tag": "div", "class": "description", "children": [" (Raise your TR 1 step for each Jovian tag you have, including this.) "]}, " "]}},
+      "effects": {"terraform_rating_per": {"steps": 1, "per": 1, "of": {"tag": "jovian"}}}
     },
     {
       "id": "immigration_shuttles",
@@ -2701,7 +2723,8 @@
       "requirements": [],
       "victory_points": null,
       "text": "(Increase your heat production 7 steps.)",
-      "face": {"content": {"tag": "div", "class": "content", "children": [" ", {"tag": "div", "class": "production-box production-box-size1a", "children": [" 7 ", {"tag": "div", "class": "heat production"}, " "]}, " ", {"tag": "div", "class": "description", "children": [" (Increase your heat production 7 steps.) "]}, " "]}}
+      "face": {"content": {"tag": "div", "class": "content", "children": [" ", {"tag": "div", "class": "production-box production-box-size1a", "children": [" 7 ", {"tag": "div", "class": "heat production"}, " "]}, " ", {"tag": "div", "class": "description", "children": [" (Increase your heat production 7 steps.) "]}, " "]}},
+      "effects": {"production": {"heat": 7}}
     },
     {
       "id": "technology_demonstration",
@@ -2754,7 +2777,8 @@
       "requirements": [],
       "victory_points": 1,
       "text": "(Increase your MC production 1 step for every 2 Building tags you have, including this.)",
-      "face": {"content": {"tag": "div", "class": "content", "children": [" ", {"tag": "div", "class": "points points-big", "children": ["1"]}, " ", {"tag": "div", "class": "production-box production-box-size3", "children": [" ", {"tag": "div", "class": "money production", "children": ["1"]}, " / 2 ", {"tag": "div", "class": "resource-tag production-tag tag-building"}, " "]}, " ", {"tag": "div", "class": "description", "children": [" (Increase your MC production 1 step for every 2 Building tags you have, including this.) "]}, " "]}}
+      "face": {"content": {"tag": "div", "class": "content", "children": [" ", {"tag": "div", "class": "points points-big", "children": ["1"]}, " ", {"tag": "div", "class": "production-box production-box-size3", "children": [" ", {"tag": "div", "class": "money production", "children": ["1"]}, " / 2 ", {"tag": "div", "class": "resource-tag production-tag tag-building"}, " "]}, " ", {"tag": "div", "class": "description", "children": [" (Increase your MC production 1 step for every 2 Building tags you have, including this.) "]}, " "]}},
+      "effects": {"production_per": {"resource": "megacredits", "steps": 1, "per": 2, "of": {"tag": "building"}}}
     },
     {
       "id": "ai_central",

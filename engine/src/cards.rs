@@ -99,10 +99,10 @@ impl Card {
 }
 
 /// The simple effects of a card, which are carried out in this order: Resources, Production
-/// (fixed, then per Tag or Tile), Temperature and Oxygen steps, Terraform Rating, cards
-/// drawn, the Production change the Player chooses, and then the Tiles one at a time. For the
-/// cards described this way the order never changes the outcome; a card whose effects depend
-/// on their order gets its own Rust code.
+/// (fixed, then per Tag or Tile), Temperature and Oxygen steps, Terraform Rating (fixed, then
+/// per Tag), cards drawn, the Production change the Player chooses, and then the Tiles one at a
+/// time. For the cards described this way the order never changes the outcome; a card whose
+/// effects depend on their order gets its own Rust code.
 #[derive(Debug, Default, Serialize, Deserialize)]
 #[serde(default, deny_unknown_fields)]
 pub struct Effects {
@@ -123,6 +123,10 @@ pub struct Effects {
     pub oxygen: i32,
     /// Terraform Rating steps raised.
     pub terraform_rating: i32,
+    /// Terraform Rating raised by what the Player has, counted once the card is played, so its
+    /// own Tags count (Terraforming Ganymede).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub terraform_rating_per: Option<TerraformRatingPer>,
     /// Cards drawn.
     pub draw: i32,
     /// The Tiles to place, in order, each on the Areas it may go on.
@@ -135,6 +139,16 @@ pub struct Effects {
 #[serde(deny_unknown_fields)]
 pub struct ProductionPer {
     pub resource: Resource,
+    pub steps: i32,
+    pub per: i32,
+    pub of: Counted,
+}
+
+/// `steps` of Terraform Rating for every `per` of something, such as 1 step for each jovian Tag
+/// (Terraforming Ganymede).
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct TerraformRatingPer {
     pub steps: i32,
     pub per: i32,
     pub of: Counted,
@@ -238,7 +252,7 @@ pub enum VictoryPoints {
     AtLeast { points: i32, at_least: i32, of: Counted },
 }
 
-/// What Victory Points, or Production per Tag or Tile, count.
+/// What Victory Points, or Production or Terraform Rating per Tag or Tile, count.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum Counted {

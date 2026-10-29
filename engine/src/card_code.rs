@@ -5,12 +5,24 @@
 use crate::cards::{CARD_CATALOG, CardType, Tag};
 use crate::game::Game;
 use crate::log::LogEvent;
+use crate::resources::Resources;
 
 /// #086 Robotic Workforce: "Duplicate only the production box of one of your building cards."
 pub const ROBOTIC_WORKFORCE: usize = 85;
 
+/// #152 Insulation: "Decrease your heat production any number of steps and increase your MC
+/// production the same number of steps."
+pub const INSULATION: usize = 151;
+
 /// Every card with code here, and its id.
-pub const CARDS_WITH_CODE: [(usize, &str); 1] = [(ROBOTIC_WORKFORCE, "robotic_workforce")];
+pub const CARDS_WITH_CODE: [(usize, &str); 2] =
+    [(ROBOTIC_WORKFORCE, "robotic_workforce"), (INSULATION, "insulation")];
+
+/// Insulation's Production change for `steps`: that many steps of heat Production traded for as
+/// many of MegaCredit Production.
+pub fn insulation_change(steps: i32) -> Resources {
+    Resources { megacredits: steps, heat: -steps, ..Resources::default() }
+}
 
 impl Game {
     /// The cards whose production box `player` may copy with Robotic Workforce: their own played
@@ -34,5 +46,12 @@ impl Game {
         let effects = CARD_CATALOG[card].implemented_effects();
         self.change_productions(player, effects.production);
         self.change_production_per(player, effects.production_per);
+    }
+
+    /// How many steps of heat Production `player` may trade with Insulation: from 1 up to all of
+    /// it. Trading 0 steps is never offered, as it would only spend the card (see
+    /// docs/rules-notes.md).
+    pub(crate) fn insulation_steps(&self, player: usize) -> std::ops::RangeInclusive<i32> {
+        1..=self.players[player].production.heat
     }
 }

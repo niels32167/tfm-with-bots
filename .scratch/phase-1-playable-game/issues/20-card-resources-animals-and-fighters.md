@@ -25,7 +25,7 @@ If a card turns out to need machinery from another ticket, move it to that ticke
 - [ ] #052 Fish
 - [ ] #054 Small Animals
 - [ ] #072 Birds
-- [ ] #074 Viral Enhancers
+- [ ] #074 Viral Enhancers — the open-source game offers Nitrophilic Moss (ticket 13, "lose 2 plants") with only 1 plant while Viral Enhancers is in play, as its plant Tag gains a plant first; Moss (#122, lose 1) likewise with none. Decide whether the plant loss is checked before or after the "when you play" effect, and update "Production at its limit" in docs/rules-notes.md
 - [ ] #128 Ecological Zone
 - [ ] #143 Large Convoy
 - [ ] #147 Herbivores

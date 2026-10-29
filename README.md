@@ -19,7 +19,7 @@ fuzzer plays Random Bot Games and checks them after every Decision, and a benchm
 measures the engine's speed. The card catalog holds the printed data of all 208 Project
 Cards and 12 Corporations, and the GUI's card gallery draws every card as the fan-made card
 list does. Players play Project Cards from their hand, paying with MegaCredits, steel and
-titanium, once the cards' Requirements are met; 64 Automated cards work so far. At setup each
+titanium, once the cards' Requirements are met; 88 Automated cards work so far. At setup each
 Player is dealt 10 Project Cards and buys any of them for 3 MegaCredits each (everyone starts
 with 42 MegaCredits until Corporations exist). From Generation 2 each Research phase has the
 Draft, on by default and switchable on the setup screen: each Player is dealt 4 cards, keeps one

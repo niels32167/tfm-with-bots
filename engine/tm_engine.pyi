@@ -21,11 +21,13 @@ def card_catalog() -> list[dict[str, Any]]:
     "production_per" (Production raised per Tag or Tile, such as {"resource": "megacredits",
     "steps": 1, "per": 1, "of": {"tag": "earth"}}), "production_choice" (Production changes
     the Player chooses one of, such as [{"plants": 1}, {"energy": 2}]), "temperature" and
-    "oxygen" (steps raised), "terraform_rating", "draw" (cards) and "tiles" (a list such as
-    ["ocean", "ocean"], with {"tile": "greenery", "on": "ocean_areas"} for a Tile that goes on
-    other Areas than usual: "ocean_areas", "land" or "next_to_two_cities"). Cards without
+    "oxygen" (steps raised), "terraform_rating", "terraform_rating_per" (Terraform Rating raised
+    per Tag, such as {"steps": 1, "per": 1, "of": {"tag": "jovian"}}), "draw" (cards) and
+    "tiles" (a list such as ["ocean", "ocean"], with {"tile": "greenery", "on": "ocean_areas"}
+    for a Tile that goes on other Areas than usual: "ocean_areas", "land" or
+    "next_to_two_cities"). Cards without
     "effects" are never offered; a few cards also have Rust code of their own (Robotic
-    Workforce). Each call returns a new list."""
+    Workforce and Insulation). Each call returns a new list."""
 
 class Game:
     """A Game of Terraforming Mars, always either over or waiting on one Decision."""

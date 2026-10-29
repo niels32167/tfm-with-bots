@@ -239,21 +239,23 @@ game checks the same before offering a card. Chosen by Claude (2026-10-23), foll
 rulebook.
 
 The same check covers a Resource the card makes its Player lose: Moss "requires that you lose 1
-plant", so it is not offered to a Player with no plant (open-source game: `player.plants >= 1`).
+plant", so it is not offered to a Player with no plant (open-source game: `player.plants >= 1`),
+and Nitrophilic Moss, which loses 2, not to a Player with fewer than 2 (`player.plants >= 2`).
 
 **Tests:** `tests/cards/test_nuclear_power.py::test_nuclear_power_cannot_take_megacredit_production_below_minus_5`,
 `tests/cards/test_black_polar_dust.py::test_black_polar_dust_cannot_take_megacredit_production_below_minus_5`,
 `tests/cards/test_strip_mine.py::test_strip_mine_needs_2_energy_production_to_lower`,
-`tests/cards/test_rad_chem_factory.py::test_rad_chem_factory_needs_energy_production_to_lower` and
-`tests/cards/test_moss.py::test_moss_needs_a_plant_to_lose`.
+`tests/cards/test_rad_chem_factory.py::test_rad_chem_factory_needs_energy_production_to_lower`,
+`tests/cards/test_moss.py::test_moss_needs_a_plant_to_lose` and
+`tests/cards/test_nitrophilic_moss.py::test_nitrophilic_moss_needs_2_plants_to_lose`.
 
 ### The order of a card's effects
 
 **Call:** The effects written as data are carried out in a fixed order: Resources,
-Production (fixed, then per Tag or Tile), Temperature and Oxygen steps, Terraform Rating,
-cards drawn, the Production change the Player chooses (see "A Production change to choose"
-below), then the Tiles one at a time. A Tile that a track bonus gives along the way (the Ocean at 0 °C) is placed
-before the card's own Tiles. When Strip Mine's first Oxygen step reaches 8 % and that
+Production (fixed, then per Tag or Tile), Temperature and Oxygen steps, Terraform Rating
+(fixed, then per Tag), cards drawn, the Production change the Player chooses (see "A
+Production change to choose" below), then the Tiles one at a time. A Tile that a track bonus
+gives along the way (the Ocean at 0 °C) is placed before the card's own Tiles. When Strip Mine's first Oxygen step reaches 8 % and that
 Temperature step reaches 0 °C, its second Oxygen step comes before the Ocean is placed.
 
 **Why:** The rulebook doesn't order a card's effects. The Player chooses the order of
@@ -287,8 +289,8 @@ Urbanized Area not without free land next to 2 Cities. Oceans are the exception 
 Oceans once 9 are placed"), but Artificial Lake's Ocean, which goes on land, needs a free Area
 reserved for nothing while fewer than 9 Oceans are placed. No card in the v1 set
 places two Cities or two Greeneries, so one Area for each kind is enough. The same check
-covers Greeneries; its first card with a Greenery on the usual Areas is Plantation (#193,
-ticket 13).
+covers Greeneries: Plantation (#193), the first card with a Greenery on the usual Areas, is not
+offered without free land.
 
 **Why:** The rulebook lets a Player play a card only if they can carry out its effects, and a
 Tile with no legal Area can't be placed. The open-source game also checks for an Area before
@@ -297,33 +299,40 @@ Crater, the first card with a City Tile (2026-10-27).
 
 **Tests:** `tests/rules/test_playing_cards.py::test_a_card_with_a_city_tile_is_not_offered_without_an_area_for_the_city`,
 `test_no_card_places_two_cities_or_two_greeneries_so_one_area_for_each_is_enough`,
-`tests/cards/test_urbanized_area.py::test_urbanized_area_needs_free_land_next_to_2_cities` and
-`tests/cards/test_artificial_lake.py::test_artificial_lake_is_not_offered_without_free_land`.
+`tests/cards/test_urbanized_area.py::test_urbanized_area_needs_free_land_next_to_2_cities`,
+`tests/cards/test_artificial_lake.py::test_artificial_lake_is_not_offered_without_free_land` and
+`tests/cards/test_plantation.py::test_plantation_is_not_offered_without_an_area_for_its_greenery`.
 
-### Production per Tag
+### Production and Terraform Rating per Tag
 
 **Call:** A card that raises Production "for each" Tag the Player has counts their Tags once
-the card is played, so its own Tags count. Tags on played Events don't count. With nothing to
-count, the Production stays as it is and the game log says nothing about it. Miranda Resort
-raises MegaCredit Production 1 step for each Earth Tag. It has no Earth Tag of its own.
+the card is played, so its own Tags count. So does Terraforming Ganymede, which raises
+Terraform Rating 1 step for each jovian Tag, its own included. Tags on played Events don't
+count. With nothing to count, the Production stays as it is and the game log says nothing
+about it. Miranda Resort raises MegaCredit Production 1 step for each Earth Tag. It has no
+Earth Tag of its own.
 
 **Why:**
-- The cards that also count their own Tags say so: Power Grid's "including this" and
-  Satellites' "including this one".
+- The cards that also count their own Tags say so: Power Grid's and Terraforming Ganymede's
+  "including this" and Satellites' "including this one". Insects, which counts plant Tags, has
+  none of its own.
 - Tags on Events are covered under "Tags on played Events" above.
 - The open-source game adds the card's own Tags to the count while the card is being played
   (`Counter`: "include the card itself if it isn't already on the tableau"), with the same
   results.
 
 Chosen by Claude (2026-10-27), on the user's instruction to make the remaining ticket 11 calls
-without asking.
+without asking. Terraform Rating per Tag as effect data (`terraform_rating_per`): chosen by the
+user (2026-10-29).
 
-**Tests:** `tests/cards/test_miranda_resort.py`.
+**Tests:** `tests/cards/test_miranda_resort.py`,
+`tests/cards/test_cartel.py::test_cartel_with_only_its_own_earth_tag_raises_megacredit_production_by_1`
+and `tests/cards/test_terraforming_ganymede.py`.
 
-### Mangrove's Greenery
+### Mangrove's and Protected Valley's Greenery
 
-**Call:** Mangrove places a Greenery on any free Area reserved for Oceans. That Area need not
-be next to the Player's own Tiles. From then on it is a Greenery like any other:
+**Call:** Mangrove and Protected Valley each place a Greenery on any free Area reserved for
+Oceans. That Area need not be next to the Player's own Tiles. From then on it is a Greenery like any other:
 - it raises Oxygen, and with it Terraform Rating, unless Oxygen is at its maximum;
 - the Player collects the Area's printed placement bonus and 2 MegaCredits for each Ocean next
   to it;
@@ -336,17 +345,21 @@ Artificial Lake's Ocean goes on land (see "Artificial Lake's Ocean" below). So t
 and Aquifer need no extra check.
 
 **Why:**
-- The card says "Disregard normal placement restrictions for this".
+- Mangrove says "Disregard normal placement restrictions for this", Protected Valley
+  "disregarding normal placement restrictions".
 - The rulebook gives the placement bonus for any Tile placed on an Area.
-- The open-source game places Mangrove's Greenery on an Area reserved for Oceans
+- The open-source game places both cards' Greenery on an Area reserved for Oceans
   (`greenery: {on: 'ocean'}`) through its normal Greenery placement, bonuses included.
 
 The sources agree. Chosen by Claude (2026-10-27), on the user's instruction to make the
-remaining ticket 11 calls without asking.
+remaining ticket 11 calls without asking; Protected Valley by Claude (2026-10-29), on the same
+instruction for ticket 13.
 
 **Tests:** `tests/cards/test_mangrove.py`, among them
 `test_mangroves_greenery_is_the_players_own_for_milestones_awards_and_their_next_greenery`,
-`tests/fuzzing/test_invariants.py::test_mangroves_greenery_on_an_area_reserved_for_oceans_breaks_no_invariant`
+`tests/cards/test_protected_valley.py`,
+`tests/fuzzing/test_invariants.py::test_mangroves_greenery_on_an_area_reserved_for_oceans_breaks_no_invariant`,
+`test_protected_valleys_greenery_on_an_area_reserved_for_oceans_beside_mangroves_breaks_no_invariant`
 and `test_a_greenery_on_an_area_reserved_for_oceans_without_a_card_that_puts_it_there_breaks_an_invariant`.
 
 ### Artificial Lake's Ocean
@@ -455,7 +468,8 @@ fails for a building card whose production box isn't Production data.
 
 **Tests:** `tests/cards/test_robotic_workforce.py`, among them
 `test_robotic_workforce_copies_only_the_production_box_not_the_cards_other_effects` and
-`test_robotic_workforce_offers_every_card_in_card_number_order_even_two_with_the_same_box`, and
+`test_robotic_workforce_offers_every_card_in_card_number_order_even_two_with_the_same_box`;
+`tests/cards/test_medical_lab.py::test_robotic_workforce_copying_medical_lab_counts_the_building_tags_again`, and
 `tests/fuzzing/test_invariants.py::test_robotic_workforce_offering_a_card_it_may_not_copy_breaks_an_invariant`.
 
 ### Research's two science Tags
@@ -472,6 +486,44 @@ asking.
 **Tests:** `tests/cards/test_research.py::test_research_counts_as_2_science_tags`,
 `test_research_counts_twice_for_the_scientist_award` and
 `tests/cards/test_gene_repair.py::test_gene_repair_needs_3_science_tags`.
+
+### A card's own Tags and its Requirements
+
+**Call:** A card's Requirements are checked before it is played, so its own Tags never help
+meet them. Advanced Ecosystems, printed with a plant, a microbe and an animal Tag, needs one
+of each on the Player's other played cards.
+
+**Why:**
+- The rulebook checks a card's Requirements to see whether it may be played; until then the
+  card is not in play, and only Tags in play count (see "Tags on played Events").
+- The open-source game checks Requirements against the Player's tableau, which doesn't hold the
+  card yet.
+
+The sources agree. Chosen by Claude (2026-10-29), on the user's instruction to make the
+remaining ticket 13 calls without asking.
+
+**Tests:** `tests/cards/test_advanced_ecosystems.py::test_advanced_ecosystems_own_tags_do_not_meet_its_requirements`.
+
+### Insulation
+
+**Call:** Insulation trades 1 up to all of its Player's heat Production for as many steps of
+MegaCredit Production. A Production Decision (see "A Production change to choose") offers one
+Option per number of steps, the fewest first. With 1 heat Production the trade is made without
+a Decision, and without heat Production the card is not offered.
+
+**Why:**
+- The card: "Decrease your heat production any number of steps and increase your MC production
+  the same number of steps".
+- The open-source game asks for an amount from 1 up to the heat Production, and doesn't offer
+  the card without heat Production (`bespokeCanPlay`: `player.production.heat >= 1`).
+- Trading 0 steps would only spend 2 MegaCredits and the card, an Option that only does worse
+  than not playing it (the same reasoning as not offering End Turn when it changes nothing).
+
+Chosen by the user (2026-10-29): Rust code sharing the Production Decision, and 1 up to the heat
+Production. The Option order by Claude, on the user's instruction to make the remaining ticket
+13 calls without asking.
+
+**Tests:** `tests/cards/test_insulation.py`.
 
 ## Card flow
 

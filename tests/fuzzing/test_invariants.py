@@ -176,6 +176,18 @@ def test_a_greenery_on_an_area_reserved_for_oceans_without_a_card_that_puts_it_t
     ]
 
 
+def test_protected_valleys_greenery_on_an_area_reserved_for_oceans_beside_mangroves_breaks_no_invariant():
+    game = scenario(player(hand=["mangrove", "protected_valley"]), player(), temperature=4)
+    pick(game, "Play Mangrove")
+    pick(game, area="E4")
+    pick(game, "Play Protected Valley")
+    assert problems(*position(game)) == []
+
+    pick(game, area="E5")
+
+    assert problems(*position(game)) == []
+
+
 def test_mangroves_area_decision_offering_land_breaks_an_invariant():
     game = scenario(player(hand=["mangrove"]), player(), temperature=4)
     pick(game, "Play Mangrove")

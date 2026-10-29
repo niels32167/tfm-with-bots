@@ -7,6 +7,7 @@ use std::collections::BTreeMap;
 use serde::Serialize;
 
 use crate::board::{AREA_COUNT, Areas, Board, TileKind, area_id, area_label, printed, row_and_position};
+use crate::card_code::insulation_change;
 use crate::card_flow::{CARD_PRICE, PATENT_VALUE};
 use crate::card_set::CardSet;
 use crate::cards::{CARD_CATALOG, Tag};
@@ -424,6 +425,9 @@ fn label(option: &DecisionOption) -> String {
         DecisionOption::ChangeProduction { change: ProductionChange::CopyBox(copied), .. } => {
             format!("Copy the production box of {}", CARD_CATALOG[*copied].name)
         }
+        DecisionOption::ChangeProduction { change: ProductionChange::HeatForMegaCredits(steps), .. } => {
+            production_change(insulation_change(*steps))
+        }
         DecisionOption::UseStandardProject(StandardProject::SellPatents) => {
             format!("Sell Patents ({} per card)", Resource::MegaCredits.counted(PATENT_VALUE))
         }
@@ -484,6 +488,12 @@ fn details(option: &DecisionOption) -> OptionDetails {
         }
         DecisionOption::ChangeProduction { change: ProductionChange::CopyBox(copied), .. } => {
             OptionDetails::CopyProductionBox { card: &CARD_CATALOG[*copied].id }
+        }
+        DecisionOption::ChangeProduction { card, change: ProductionChange::HeatForMegaCredits(steps) } => {
+            OptionDetails::ChooseProduction {
+                card: &CARD_CATALOG[*card].id,
+                production: insulation_change(*steps),
+            }
         }
         DecisionOption::UseStandardProject(project) => {
             OptionDetails::StandardProject { project: project.id(), cost: project.cost() }

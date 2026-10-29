@@ -51,7 +51,7 @@ SCORE_PARTS = ("terraform_rating", "milestones", "awards", "greeneries", "cities
 CARDS = {card["id"]: card for card in tm_engine.card_catalog()}
 
 # The cards printed with "Place a greenery tile ON AN AREA RESERVED FOR OCEAN".
-GREENERY_ON_AN_OCEAN_AREA_CARDS = ("mangrove",)
+GREENERY_ON_AN_OCEAN_AREA_CARDS = ("mangrove", "protected_valley")
 # The cards printed with "Place 1 ocean tile ON AN AREA NOT RESERVED FOR OCEAN".
 OCEAN_ON_LAND_CARDS = ("artificial_lake",)
 # The cards printed with "Place a city tile ADJACENT TO AT LEAST 2 OTHER CITY TILES".

@@ -7,10 +7,10 @@ use std::cmp::Reverse;
 use serde::Serialize;
 
 use crate::board::TileKind;
-use crate::card_code::ROBOTIC_WORKFORCE;
+use crate::card_code::{INSULATION, ROBOTIC_WORKFORCE, insulation_change};
 use crate::cards::{
     CARD_CATALOG, Card, CardType, Counted, Effects, Limit, Owner, ProductionPer, Requirement, Tag,
-    VictoryPoints,
+    TerraformRatingPer, VictoryPoints,
 };
 use crate::game::{DecisionOption, Game};
 use crate::log::{LogEvent, listed};
@@ -53,6 +53,8 @@ pub enum ProductionChange {
     Alternative(usize),
     /// The production box of this building card of the Player's, copied (Robotic Workforce).
     CopyBox(usize),
+    /// This many steps of heat Production traded for MegaCredit Production (Insulation).
+    HeatForMegaCredits(i32),
 }
 
 /// The card whose Tiles the current Player is placing, and how many of them are placed.
@@ -185,6 +187,8 @@ impl Game {
     pub(crate) fn production_options(&self, player: usize, card: usize) -> Vec<DecisionOption> {
         let changes: Vec<ProductionChange> = if card == ROBOTIC_WORKFORCE {
             self.copyable_production_boxes(player).map(ProductionChange::CopyBox).collect()
+        } else if card == INSULATION {
+            self.insulation_steps(player).map(ProductionChange::HeatForMegaCredits).collect()
         } else {
             let alternatives = &CARD_CATALOG[card].implemented_effects().production_choice;
             (0..alternatives.len())
@@ -202,6 +206,9 @@ impl Game {
     fn can_make_a_production_change(&self, player: usize, card: usize) -> bool {
         if card == ROBOTIC_WORKFORCE {
             return self.copyable_production_boxes(player).next().is_some();
+        }
+        if card == INSULATION {
+            return !self.insulation_steps(player).is_empty();
         }
         let alternatives = &CARD_CATALOG[card].implemented_effects().production_choice;
         alternatives.is_empty() || alternatives.iter().any(|&by| self.can_change_production(player, by))
@@ -267,6 +274,9 @@ impl Game {
                 self.change_productions(player, CARD_CATALOG[card].production_alternative(index))
             }
             ProductionChange::CopyBox(copied) => self.copy_production_box(player, copied),
+            ProductionChange::HeatForMegaCredits(steps) => {
+                self.change_productions(player, insulation_change(steps))
+            }
         }
         self.place_card_tiles(card);
     }
@@ -316,13 +326,21 @@ impl Game {
         for _ in 0..effects.oxygen {
             self.raise_oxygen(player);
         }
-        if effects.terraform_rating != 0 {
-            self.players[player].terraform_rating += effects.terraform_rating;
-            self.log.push(LogEvent::TerraformRatingRaised { player, by: effects.terraform_rating });
+        self.raise_terraform_rating_by(player, effects.terraform_rating);
+        if let Some(TerraformRatingPer { steps, per, of }) = effects.terraform_rating_per {
+            self.raise_terraform_rating_by(player, self.for_every(player, steps, per, of));
         }
         if effects.draw > 0 {
             self.log.push(LogEvent::DrewCards { player, count: effects.draw });
             self.draw(player, effects.draw);
+        }
+    }
+
+    /// Raises `player`'s Terraform Rating `by` so many steps, if any.
+    fn raise_terraform_rating_by(&mut self, player: usize, by: i32) {
+        if by != 0 {
+            self.players[player].terraform_rating += by;
+            self.log.push(LogEvent::TerraformRatingRaised { player, by });
         }
     }
 
