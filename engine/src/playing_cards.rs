@@ -7,13 +7,14 @@ use std::cmp::Reverse;
 use serde::Serialize;
 
 use crate::board::TileKind;
+use crate::card_code::ROBOTIC_WORKFORCE;
 use crate::cards::{
     CARD_CATALOG, Card, CardType, Counted, Effects, Limit, Owner, ProductionPer, Requirement, Tag,
     VictoryPoints,
 };
-use crate::game::Game;
+use crate::game::{DecisionOption, Game};
 use crate::log::{LogEvent, listed};
-use crate::resources::Resource;
+use crate::resources::{Resource, Resources};
 
 /// What a steel cube pays towards a card with a building Tag.
 pub const STEEL_VALUE: i32 = 2;
@@ -43,6 +44,15 @@ impl Payment {
             .collect();
         if paid.is_empty() { Resource::MegaCredits.counted(0) } else { listed(paid.into_iter()) }
     }
+}
+
+/// A Production change the Player chooses for the card they are playing.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum ProductionChange {
+    /// The card's own Production alternative at this index (Artificial Photosynthesis).
+    Alternative(usize),
+    /// The production box of this building card of the Player's, copied (Robotic Workforce).
+    CopyBox(usize),
 }
 
 /// The card whose Tiles the current Player is placing, and how many of them are placed.
@@ -104,6 +114,7 @@ impl Game {
         printed.requirements.iter().all(|requirement| self.meets(player, requirement))
             && spendable >= printed.project_cost()
             && self.can_carry_out(player, effects)
+            && self.can_make_a_production_change(player, card)
     }
 
     /// The steel and titanium `player` may put towards `printed`: steel only for a building
@@ -156,10 +167,44 @@ impl Game {
     /// no card yet both costs steel or titanium and loses some.
     fn can_carry_out(&self, player: usize, effects: &Effects) -> bool {
         let own = &self.players[player];
-        Resource::ALL.into_iter().all(|resource| {
-            own.resources[resource] + effects.resources[resource] >= 0
-                && own.production[resource] + effects.production[resource] >= resource.min_production()
-        }) && effects.tiles.iter().all(|&placement| self.can_take_action_placing(Some(placement)))
+        Resource::ALL.into_iter().all(|resource| own.resources[resource] + effects.resources[resource] >= 0)
+            && self.can_change_production(player, effects.production)
+            && effects.tiles.iter().all(|&placement| self.can_take_action_placing(Some(placement)))
+    }
+
+    /// Whether changing `player`'s Production `by` this keeps it within its limits.
+    pub(crate) fn can_change_production(&self, player: usize, by: Resources) -> bool {
+        let production = self.players[player].production;
+        Resource::ALL
+            .into_iter()
+            .all(|resource| production[resource] + by[resource] >= resource.min_production())
+    }
+
+    /// The Production changes `player` may choose between for `card`, which they are playing:
+    /// none for a card that offers no such choice.
+    pub(crate) fn production_options(&self, player: usize, card: usize) -> Vec<DecisionOption> {
+        let changes: Vec<ProductionChange> = if card == ROBOTIC_WORKFORCE {
+            self.copyable_production_boxes(player).map(ProductionChange::CopyBox).collect()
+        } else {
+            let alternatives = &CARD_CATALOG[card].implemented_effects().production_choice;
+            (0..alternatives.len())
+                .filter(|&index| self.can_change_production(player, alternatives[index]))
+                .map(ProductionChange::Alternative)
+                .collect()
+        };
+        changes.into_iter().map(|change| DecisionOption::ChangeProduction { card, change }).collect()
+    }
+
+    /// Whether `card` offers `player` no Production change to choose, or at least one they can
+    /// make: `production_options` not being empty, but quicker, as it stops at the first one.
+    /// It is checked against their Production before the card's other effects; no card has both a
+    /// choice and fixed Production.
+    fn can_make_a_production_change(&self, player: usize, card: usize) -> bool {
+        if card == ROBOTIC_WORKFORCE {
+            return self.copyable_production_boxes(player).next().is_some();
+        }
+        let alternatives = &CARD_CATALOG[card].implemented_effects().production_choice;
+        alternatives.is_empty() || alternatives.iter().any(|&by| self.can_change_production(player, by))
     }
 
     /// Every way `player` may pay for `card`, the most MegaCredits first: each split between
@@ -199,7 +244,36 @@ impl Game {
         self.log.push(LogEvent::PlayedCard { player, card, payment });
         let effects = CARD_CATALOG[card].implemented_effects();
         self.carry_out(player, effects);
-        if !effects.tiles.is_empty() {
+        // With only one Production change to make, the Player has nothing to choose.
+        match self.production_options(player, card)[..] {
+            [] => self.place_card_tiles(card),
+            [DecisionOption::ChangeProduction { change, .. }] => {
+                self.change_production_as_chosen(player, card, change)
+            }
+            _ => self.choosing_production = Some(card),
+        }
+    }
+
+    /// `player` makes `change` for `card`, which they are playing, and the card's Tiles follow.
+    pub(crate) fn change_production_as_chosen(
+        &mut self,
+        player: usize,
+        card: usize,
+        change: ProductionChange,
+    ) {
+        self.choosing_production = None;
+        match change {
+            ProductionChange::Alternative(index) => {
+                self.change_productions(player, CARD_CATALOG[card].production_alternative(index))
+            }
+            ProductionChange::CopyBox(copied) => self.copy_production_box(player, copied),
+        }
+        self.place_card_tiles(card);
+    }
+
+    /// The Tiles of `card`, which is being played, are placed one at a time; then the Action ends.
+    fn place_card_tiles(&mut self, card: usize) {
+        if !CARD_CATALOG[card].implemented_effects().tiles.is_empty() {
             self.placing_for = Some(CardTiles { card, placed: 0 });
         }
         self.finish_unless_placing();
@@ -234,18 +308,8 @@ impl Game {
                 self.log.push(LogEvent::ResourceChanged { player, resource, by });
             }
         }
-        for resource in Resource::ALL {
-            let by = effects.production[resource];
-            if by != 0 {
-                self.change_production(player, resource, by);
-            }
-        }
-        if let Some(ProductionPer { resource, steps, per, of }) = effects.production_per {
-            let by = self.for_every(player, steps, per, of);
-            if by != 0 {
-                self.change_production(player, resource, by);
-            }
-        }
+        self.change_productions(player, effects.production);
+        self.change_production_per(player, effects.production_per);
         for _ in 0..effects.temperature {
             self.raise_temperature(player);
         }
@@ -259,6 +323,25 @@ impl Game {
         if effects.draw > 0 {
             self.log.push(LogEvent::DrewCards { player, count: effects.draw });
             self.draw(player, effects.draw);
+        }
+    }
+
+    /// Raises `player`'s Production by `per` what they have, if the card has such an effect.
+    pub(crate) fn change_production_per(&mut self, player: usize, per: Option<ProductionPer>) {
+        if let Some(ProductionPer { resource, steps, per, of }) = per {
+            let by = self.for_every(player, steps, per, of);
+            if by != 0 {
+                self.change_production(player, resource, by);
+            }
+        }
+    }
+
+    /// Changes each of `player`'s Productions `by` so many steps.
+    pub(crate) fn change_productions(&mut self, player: usize, by: Resources) {
+        for resource in Resource::ALL {
+            if by[resource] != 0 {
+                self.change_production(player, resource, by[resource]);
+            }
         }
     }
 }

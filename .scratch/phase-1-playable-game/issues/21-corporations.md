@@ -19,3 +19,13 @@ The Beginner Corporation is left out: it isn't on the card list, and it belongs 
 - [ ] This ticket's entries in the card mismatch report are resolved.
 - [ ] The GUI shows each Player's Corporation with its ability.
 - [ ] The fuzzer plays with random Corporations.
+
+## Comments
+
+### 2026-10-29 — note from ticket 12 (Claude)
+
+- **Robotic Workforce** (ticket 12) copies the production box of the Player's own building
+  cards. The FAQ lets it copy a Corporation's printed Production that is not part of an effect or
+  action: Mining Guild (two building Tags) and its 1 steel Production. Tharsis Republic's
+  Production comes from its effect, so it is not copied. `copyable_production_boxes` in
+  `engine/src/card_code.rs` looks only at played Project Cards so far.

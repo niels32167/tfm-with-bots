@@ -238,16 +238,21 @@ their own Resources and Production; Production never goes below its limit. The o
 game checks the same before offering a card. Chosen by Claude (2026-10-23), following the
 rulebook.
 
+The same check covers a Resource the card makes its Player lose: Moss "requires that you lose 1
+plant", so it is not offered to a Player with no plant (open-source game: `player.plants >= 1`).
+
 **Tests:** `tests/cards/test_nuclear_power.py::test_nuclear_power_cannot_take_megacredit_production_below_minus_5`,
 `tests/cards/test_black_polar_dust.py::test_black_polar_dust_cannot_take_megacredit_production_below_minus_5`,
-`tests/cards/test_strip_mine.py::test_strip_mine_needs_2_energy_production_to_lower` and
-`tests/cards/test_rad_chem_factory.py::test_rad_chem_factory_needs_energy_production_to_lower`.
+`tests/cards/test_strip_mine.py::test_strip_mine_needs_2_energy_production_to_lower`,
+`tests/cards/test_rad_chem_factory.py::test_rad_chem_factory_needs_energy_production_to_lower` and
+`tests/cards/test_moss.py::test_moss_needs_a_plant_to_lose`.
 
 ### The order of a card's effects
 
 **Call:** The effects written as data are carried out in a fixed order: Resources,
 Production (fixed, then per Tag or Tile), Temperature and Oxygen steps, Terraform Rating,
-cards drawn, then the Tiles one at a time. A Tile that a track bonus gives along the way (the Ocean at 0 °C) is placed
+cards drawn, the Production change the Player chooses (see "A Production change to choose"
+below), then the Tiles one at a time. A Tile that a track bonus gives along the way (the Ocean at 0 °C) is placed
 before the card's own Tiles. When Strip Mine's first Oxygen step reaches 8 % and that
 Temperature step reaches 0 °C, its second Oxygen step comes before the Ocean is placed.
 
@@ -277,8 +282,10 @@ and `tests/cards/test_black_polar_dust.py::test_once_9_oceans_are_placed_black_p
 ### A card's City or Greenery needs an Area
 
 **Call:** A card that places a City or a Greenery is offered only while there is an Area for
-that Tile. Domed Crater is not offered when the only free land on Mars is next to a City.
-Oceans are the exception (see "A card's Oceans once 9 are placed"). No card in the v1 set
+that Tile. Domed Crater is not offered when the only free land on Mars is next to a City, and
+Urbanized Area not without free land next to 2 Cities. Oceans are the exception (see "A card's
+Oceans once 9 are placed"), but Artificial Lake's Ocean, which goes on land, needs a free Area
+reserved for nothing while fewer than 9 Oceans are placed. No card in the v1 set
 places two Cities or two Greeneries, so one Area for each kind is enough. The same check
 covers Greeneries; its first card with a Greenery on the usual Areas is Plantation (#193,
 ticket 13).
@@ -288,8 +295,10 @@ Tile with no legal Area can't be placed. The open-source game also checks for an
 it offers such a card. Chosen by Claude in ticket 08 (2026-10-23). The test came with Domed
 Crater, the first card with a City Tile (2026-10-27).
 
-**Tests:** `tests/rules/test_playing_cards.py::test_a_card_with_a_city_tile_is_not_offered_without_an_area_for_the_city`
-and `test_no_card_places_two_cities_or_two_greeneries_so_one_area_for_each_is_enough`.
+**Tests:** `tests/rules/test_playing_cards.py::test_a_card_with_a_city_tile_is_not_offered_without_an_area_for_the_city`,
+`test_no_card_places_two_cities_or_two_greeneries_so_one_area_for_each_is_enough`,
+`tests/cards/test_urbanized_area.py::test_urbanized_area_needs_free_land_next_to_2_cities` and
+`tests/cards/test_artificial_lake.py::test_artificial_lake_is_not_offered_without_free_land`.
 
 ### Production per Tag
 
@@ -323,7 +332,8 @@ be next to the Player's own Tiles. From then on it is a Greenery like any other:
 
 Fewer than 9 Oceans placed always leaves an Area for the next one. Of the 12 Areas reserved
 for Oceans, other Tiles take at most 3 (Mangrove, Protected Valley and Mohole Area), and
-Artificial Lake's Ocean goes on land. So the 0 °C Ocean and Aquifer need no extra check.
+Artificial Lake's Ocean goes on land (see "Artificial Lake's Ocean" below). So the 0 °C Ocean
+and Aquifer need no extra check.
 
 **Why:**
 - The card says "Disregard normal placement restrictions for this".
@@ -338,6 +348,130 @@ remaining ticket 11 calls without asking.
 `test_mangroves_greenery_is_the_players_own_for_milestones_awards_and_their_next_greenery`,
 `tests/fuzzing/test_invariants.py::test_mangroves_greenery_on_an_area_reserved_for_oceans_breaks_no_invariant`
 and `test_a_greenery_on_an_area_reserved_for_oceans_without_a_card_that_puts_it_there_breaks_an_invariant`.
+
+### Artificial Lake's Ocean
+
+**Call:** Artificial Lake places its Ocean on any free Area on Mars reserved for nothing,
+whatever is next to it: not on an Area reserved for Oceans, and not on Noctis City's Area,
+which is reserved for the Noctis City card. From then on it is an Ocean like any other:
+- it raises the Ocean track, and with it Terraform Rating;
+- the Player collects the Area's printed placement bonus and 2 MegaCredits for each Ocean
+  next to it;
+- a Tile placed next to it later collects 2 MegaCredits for it.
+
+The card is offered only while there is a free Area reserved for nothing, unless all 9 Oceans
+are placed: then it is played and places none (see "A card's Oceans once 9 are placed").
+
+**Why:**
+- The card: "Place 1 ocean tile ON AN AREA NOT RESERVED FOR OCEAN".
+- The rulebook keeps Noctis City's Area for the Noctis City card, and gives the placement bonus
+  and the adjacent-Ocean bonus for any Tile placed.
+- The open-source game places it with `ocean: {on: 'land'}` and checks for a free Area on land
+  only while Oceans are not at their maximum (`bespokeCanPlay`: "Card is playable, it just has
+  no effect").
+
+The sources agree. Chosen by Claude (2026-10-29), on the user's instruction to make the
+remaining ticket 12 calls without asking.
+
+**Tests:** `tests/cards/test_artificial_lake.py`, among them
+`test_artificial_lakes_ocean_next_to_an_ocean_collects_2_megacredits_for_it` and
+`test_once_9_oceans_are_placed_artificial_lake_needs_no_free_land`, and
+`tests/fuzzing/test_invariants.py::test_more_oceans_on_land_than_cards_that_put_one_there_break_an_invariant`.
+
+### Urbanized Area's City
+
+**Call:** Urbanized Area places its City on any free Area on Mars reserved for nothing that is
+next to at least 2 Cities, whoever owns them; the usual rule that no City goes next to another
+does not apply to it. The card is offered only while there is such an Area (see "A card's City
+or Greenery needs an Area"). Later Cities still keep apart from it, as from any City.
+
+**Why:**
+- The card: "Place a city tile ADJACENT TO AT LEAST 2 OTHER CITY TILES".
+- The open-source game offers the Areas on land with at least 2 Cities next to them, and checks
+  for one before it offers the card.
+
+The sources agree. Chosen by Claude (2026-10-29), on the user's instruction to make the
+remaining ticket 12 calls without asking.
+
+**Tests:** `tests/cards/test_urbanized_area.py`, among them
+`test_later_cities_keep_apart_from_urbanized_areas_city`, and
+`tests/fuzzing/test_invariants.py::test_urbanized_area_lets_only_its_own_city_lie_next_to_other_cities`.
+
+### A Production change to choose
+
+**Call:** A card whose Production change is the Player's choice (Artificial Photosynthesis: "1
+plant Production step or 2 energy Production steps") asks with a Production Decision, one
+Option for each change the Player can carry out, after the card's other effects and before its
+Tiles. When only one change is possible, it is made without a Decision. Whether the card can be
+played at all is checked against the Player's Production before its other effects; no card has
+both a choice and fixed Production.
+
+**Why:**
+- The card leaves the choice to its Player, and both changes are worth having, so neither Option
+  only does worse.
+- A Decision with one Option changes nothing (see "The last card is kept without a Decision").
+- The open-source game offers the two as `or` behaviours, and selects the only one possible on
+  its own (`autoSelect`).
+
+Chosen by the user (effect data and a shared Decision, 2026-10-29); the Decision's details by
+Claude, on the user's instruction to make the remaining ticket 12 calls without asking.
+
+**Tests:** `tests/cards/test_artificial_photosynthesis.py`.
+
+### Robotic Workforce
+
+**Call:** Robotic Workforce copies the production box of one of its Player's own played
+Automated or Active cards with a building Tag: that card's fixed Production, then its Production
+per Tag or Tile, counted again as it is copied. The copy is carried out in full, decreases
+included, so:
+- a box the Player cannot carry out is not offered (Tropical Resort without 2 heat Production);
+- the card is not offered without at least one box it can copy;
+- with only one, it is copied without a Decision;
+- otherwise a Production Decision offers one Option per card, in card-number order, even when
+  two boxes are the same.
+
+Events, cards without a production box and other Players' cards are never offered.
+
+**Why:**
+- The card: "Duplicate only the production box of one of your building cards".
+- The *Comprehensive FAQ* (v1.7, quoted in the open-source game) says it copies only the
+  production box, decreases must still be performed, it "cannot be played if you have no
+  building cards in play with a production box that you can fully copy", and only your own
+  cards count. Copying Medical Lab recounts the building Tags.
+- The open-source game copies the production of the Player's own building cards it can carry
+  out, Events excluded.
+- One Option per card is what the card names. An Option that gives the same as another is not
+  worse, so it isn't left out.
+
+The sources agree. Chosen by the user (implemented now, as Rust code, 2026-10-29); the details
+by Claude, on the user's instruction to make the remaining ticket 12 calls without asking.
+
+Still to come, from the FAQ: a box that decreases any Player's Production picks its victim again
+(Heat Trappers and Biomass Combustors, ticket 17); Mining Area and Mining Rights copy the
+Production their Tile gave (ticket 18); a Corporation's printed Production, but not one in an
+effect or action, can be copied (Mining Guild, ticket 21). Each ticket's card line says so, and
+`tests/rules/test_playing_cards.py::test_every_implemented_building_card_has_its_printed_production_box_as_production_data`
+fails for a building card whose production box isn't Production data.
+
+**Tests:** `tests/cards/test_robotic_workforce.py`, among them
+`test_robotic_workforce_copies_only_the_production_box_not_the_cards_other_effects` and
+`test_robotic_workforce_offers_every_card_in_card_number_order_even_two_with_the_same_box`, and
+`tests/fuzzing/test_invariants.py::test_robotic_workforce_offering_a_card_it_may_not_copy_breaks_an_invariant`.
+
+### Research's two science Tags
+
+**Call:** Research is printed with two science Tags, and both count, for Requirements, Awards
+and Victory Points like any other Tags. "Counts as playing 2 science cards" also makes it two
+science Tags played for the "when you play a science Tag" effects: Mars University (ticket 16)
+and Olympus Conference (ticket 19).
+
+**Why:** The card list and the open-source game both give it two science Tags. Chosen by
+Claude (2026-10-29), on the user's instruction to make the remaining ticket 12 calls without
+asking.
+
+**Tests:** `tests/cards/test_research.py::test_research_counts_as_2_science_tags`,
+`test_research_counts_twice_for_the_scientist_award` and
+`tests/cards/test_gene_repair.py::test_gene_repair_needs_3_science_tags`.
 
 ## Card flow
 

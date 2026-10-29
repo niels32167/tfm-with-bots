@@ -10,13 +10,21 @@ card catalog's printed data is the exception: it is checked against the card lis
 lands.
 """
 
+import itertools
 from collections import Counter
 from collections.abc import Callable, Iterator
 from typing import Any
 
 import tm_engine
 
-from tests.helpers import ADJACENT_AREAS, LAND_AREAS, OCEAN_AREAS, PROJECT_CARDS, RESOURCES
+from tests.helpers import (
+    ADJACENT_AREAS,
+    LAND_AREAS,
+    OCEAN_AREAS,
+    PROJECT_CARDS,
+    RESOURCES,
+    has_printed_production_box,
+)
 
 type View = dict[str, Any]
 type Decision = dict[str, Any]
@@ -44,6 +52,17 @@ CARDS = {card["id"]: card for card in tm_engine.card_catalog()}
 
 # The cards printed with "Place a greenery tile ON AN AREA RESERVED FOR OCEAN".
 GREENERY_ON_AN_OCEAN_AREA_CARDS = ("mangrove",)
+# The cards printed with "Place 1 ocean tile ON AN AREA NOT RESERVED FOR OCEAN".
+OCEAN_ON_LAND_CARDS = ("artificial_lake",)
+# The cards printed with "Place a city tile ADJACENT TO AT LEAST 2 OTHER CITY TILES".
+CITY_NEXT_TO_CITIES_CARDS = ("urbanized_area",)
+# How the fuzzer's messages describe a Tile that goes on other Areas than usual, by the Area
+# Decision's "on".
+OTHER_AREAS = {
+    "ocean_areas": " on an Area reserved for Oceans",
+    "land": " on an Area reserved for nothing",
+    "next_to_two_cities": " next to at least 2 Cities",
+}
 
 
 def no_negative_resources(view: View, decision: Decision | None) -> Iterator[str]:
@@ -83,15 +102,20 @@ def global_parameters_within_range(view: View, decision: Decision | None) -> Ite
 def tiles_only_on_legal_areas(view: View, decision: Decision | None) -> Iterator[str]:
     """Oceans lie on Areas reserved for Oceans and belong to nobody. Greeneries and Cities
     lie on Areas of Mars reserved for nothing, belong to a Player, and no two Cities touch.
-    The exception: a Player may have one Greenery on an Area reserved for Oceans for each card
-    they played that puts one there (Mangrove)."""
+    The exceptions, each allowed once for every card played that makes it:
+    - a Player's Greenery on an Area reserved for Oceans (Mangrove);
+    - an Ocean on an Area reserved for nothing (Artificial Lake);
+    - a Player's City next to at least 2 other Cities (Urbanized Area)."""
     tiles = tiles_on_the_board(view)
     greeneries_on_ocean_areas: Counter[int] = Counter()
+    oceans_on_land = 0
     for area_id, tile in tiles.items():
         name, owner = TILE_NAMES[tile["type"]], tile["owner"]
         if tile["type"] == "ocean":
-            if area_id not in OCEAN_AREAS:
-                yield f"the Ocean on {area_id} is not on an Area reserved for Oceans"
+            if area_id in LAND_AREAS:
+                oceans_on_land += 1
+            elif area_id not in OCEAN_AREAS:
+                yield f"the Ocean on {area_id} is not on an Area reserved for Oceans or for nothing"
             if owner is not None:
                 yield f"the Ocean on {area_id} belongs to Player {owner + 1}, but Oceans belong to nobody"
             continue
@@ -103,18 +127,62 @@ def tiles_only_on_legal_areas(view: View, decision: Decision | None) -> Iterator
             yield f"the {name} on {area_id} is not on an Area of Mars that is reserved for nothing"
         if not owned_by_a_player:
             yield f"the {name} on {area_id} belongs to no Player in the Game"
-        if tile["type"] == "city":
-            for next_area in ADJACENT_AREAS.get(area_id, []):
-                if next_area > area_id and tiles.get(next_area, {}).get("type") == "city":
-                    yield f"the Cities on {area_id} and {next_area} are next to each other"
     for owner, greeneries in sorted(greeneries_on_ocean_areas.items()):
-        played = view["players"][owner]["played_cards"]
-        cards = sum(1 for card_id in played if card_id in GREENERY_ON_AN_OCEAN_AREA_CARDS)
+        cards = cards_played(view, owner, GREENERY_ON_AN_OCEAN_AREA_CARDS)
         if greeneries > cards:
             yield (
                 f"Player {owner + 1} has {counted(greeneries, 'Greenery', 'Greeneries')} on Areas reserved for "
                 f"Oceans, but played {counted(cards, 'card')} that put one there"
             )
+    cards = sum(cards_played(view, player, OCEAN_ON_LAND_CARDS) for player in range(len(view["players"])))
+    if oceans_on_land > cards:
+        lie_on = "lies on an Area" if oceans_on_land == 1 else "lie on Areas"
+        put_was = "puts one there was" if cards == 1 else "put one there were"
+        yield (
+            f"{counted(oceans_on_land, 'Ocean')} {lie_on} reserved for nothing, but "
+            f"{counted(cards, 'card')} that {put_was} played"
+        )
+    yield from cities_apart(view, tiles)
+
+
+def cities_apart(view: View, tiles: dict[str, dict[str, Any]]) -> Iterator[str]:
+    """No two Cities touch, unless one of them is the City a Player placed next to at least 2
+    other Cities with a card that puts one there (Urbanized Area): a Player may have one such
+    City for each of those cards they played. Every pair of touching Cities left over is
+    reported, for the choice of such Cities that leaves the fewest."""
+    cities = {area_id for area_id, tile in tiles.items() if tile["type"] == "city"}
+    touching = [
+        (area_id, next_area)
+        for area_id in sorted(cities)
+        for next_area in ADJACENT_AREAS.get(area_id, [])
+        if next_area > area_id and next_area in cities
+    ]
+    if not touching:
+        return
+    # For each Player, every way to pick as many of their Cities next to 2 others as they may have.
+    picks_per_player = []
+    for player in range(len(view["players"])):
+        allowed = cards_played(view, player, CITY_NEXT_TO_CITIES_CARDS)
+        next_to_two = [
+            area_id
+            for area_id in sorted(cities)
+            if tiles[area_id]["owner"] == player
+            and sum(1 for next_area in ADJACENT_AREAS.get(area_id, []) if next_area in cities) >= 2
+        ]
+        picks_per_player.append(list(itertools.combinations(next_to_two, min(allowed, len(next_to_two)))))
+
+    def left_over_with(picks: tuple[tuple[str, ...], ...]) -> list[tuple[str, str]]:
+        allowed_cities = {area_id for pick in picks for area_id in pick}
+        return [pair for pair in touching if not allowed_cities & set(pair)]
+
+    fewest_left_over = min((left_over_with(picks) for picks in itertools.product(*picks_per_player)), key=len)
+    for area_id, next_area in fewest_left_over:
+        yield f"the Cities on {area_id} and {next_area} are next to each other"
+
+
+def cards_played(view: View, player: int, cards: tuple[str, ...]) -> int:
+    """How many of `cards` `player` has played."""
+    return sum(1 for card_id in view["players"][player]["played_cards"] if card_id in cards)
 
 
 def only_legal_areas_offered(view: View, decision: Decision | None) -> Iterator[str]:
@@ -125,9 +193,7 @@ def only_legal_areas_offered(view: View, decision: Decision | None) -> Iterator[
     tile, on = details["tile"], details.get("on", "usual")
     offered = {option["details"]["area"] for option in decision["options"]}
     legal = legal_areas(view, tile, decision["player"], on)
-    article_and_name = f"{'an' if tile == 'ocean' else 'a'} {TILE_NAMES[tile]}"
-    if on == "ocean_areas":
-        article_and_name += " on an Area reserved for Oceans"
+    article_and_name = f"{'an' if tile == 'ocean' else 'a'} {TILE_NAMES[tile]}{OTHER_AREAS.get(on, '')}"
     for area_id in sorted(offered - legal):
         yield f"the Area Decision for {article_and_name} offers {area_id}, where it may not go"
     for area_id in sorted(legal - offered):
@@ -137,20 +203,54 @@ def only_legal_areas_offered(view: View, decision: Decision | None) -> Iterator[
 def legal_areas(view: View, tile: str, player: int, on: str = "usual") -> set[str]:
     """Where `player` may place `tile`: an Ocean on a free Area reserved for Oceans; a City on
     free land on Mars next to no City; a Greenery on free land next to one of its owner's
-    Tiles, or on any free land if there is no such Area. A Tile `on` "ocean_areas" (Mangrove's
-    Greenery) goes on any free Area reserved for Oceans."""
+    Tiles, or on any free land if there is no such Area. A Tile `on` other Areas goes on:
+    - "ocean_areas" (Mangrove's Greenery): any free Area reserved for Oceans;
+    - "land" (Artificial Lake's Ocean): any free land, an Area reserved for nothing;
+    - "next_to_two_cities" (Urbanized Area's City): any free land next to at least 2 Cities."""
     tiles = tiles_on_the_board(view)
-    if tile == "ocean" or on == "ocean_areas":
+    if on == "ocean_areas" or (tile == "ocean" and on == "usual"):
         return {area_id for area_id in OCEAN_AREAS if area_id not in tiles}
     free_land = {area_id for area_id in LAND_AREAS if area_id not in tiles}
 
     def next_to(area_id: str, wanted: Callable[[dict[str, Any]], bool]) -> bool:
         return any(wanted(tiles[next_area]) for next_area in ADJACENT_AREAS[area_id] if next_area in tiles)
 
+    def cities_next_to(area_id: str) -> int:
+        return sum(1 for next_area in ADJACENT_AREAS[area_id] if tiles.get(next_area, {}).get("type") == "city")
+
+    if on == "land":
+        return free_land
+    if on == "next_to_two_cities":
+        return {area_id for area_id in free_land if cities_next_to(area_id) >= 2}
     if tile == "city":
         return {area_id for area_id in free_land if not next_to(area_id, lambda each: each["type"] == "city")}
     next_to_own = {area_id for area_id in free_land if next_to(area_id, lambda each: each["owner"] == player)}
     return next_to_own or free_land
+
+
+def robotic_workforce_copies_only_your_building_cards(view: View, decision: Decision | None) -> Iterator[str]:
+    """Robotic Workforce copies only the production box of a building card the Player has
+    played: an Automated or Active card with a building Tag and a printed production box."""
+    if decision is None:
+        return
+    player = decision["player"]
+    played = view["players"][player]["played_cards"]
+    for option in decision["options"]:
+        details = option["details"]
+        if details["type"] != "copy_production_box":
+            continue
+        card = CARDS[details["card"]]
+        building_card = (
+            card["id"] in played
+            and card["type"] in ("automated", "active")
+            and "building" in card["tags"]
+            and has_printed_production_box(card)
+        )
+        if not building_card:
+            yield (
+                f"Robotic Workforce offers to copy the production box of {card['name']}, "
+                f"not a building card of Player {player + 1}'s"
+            )
 
 
 def at_most_three_milestones_and_awards(view: View, decision: Decision | None) -> Iterator[str]:
@@ -323,6 +423,7 @@ AFTER_EVERY_DECISION: tuple[Check, ...] = (
     global_parameters_within_range,
     tiles_only_on_legal_areas,
     only_legal_areas_offered,
+    robotic_workforce_copies_only_your_building_cards,
     at_most_three_milestones_and_awards,
     every_card_in_exactly_one_place,
     every_decision_has_an_option,

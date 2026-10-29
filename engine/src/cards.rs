@@ -9,6 +9,7 @@ use std::sync::LazyLock;
 use serde::{Deserialize, Serialize};
 
 use crate::board::{Placement, TileKind};
+use crate::card_code::CARDS_WITH_CODE;
 use crate::resources::{Resource, Resources};
 
 const CARD_FILE: &str = include_str!("../cards/cards.json");
@@ -21,6 +22,12 @@ pub const PROJECT_CARDS: usize = 208;
 pub static CARD_CATALOG: LazyLock<Vec<Card>> = LazyLock::new(|| {
     let file: CardFile = serde_json::from_str(CARD_FILE)
         .unwrap_or_else(|error| panic!("engine/cards/cards.json is not a valid card file: {error}"));
+    for (card, id) in CARDS_WITH_CODE {
+        assert_eq!(
+            file.cards[card].id, id,
+            "card {card} of the catalog is not the card its Rust code is for"
+        );
+    }
     file.cards
 });
 
@@ -76,12 +83,26 @@ impl Card {
     pub fn implemented_effects(&self) -> &Effects {
         self.effects.as_ref().expect("only implemented cards are played")
     }
+
+    /// Whether its effect data has a production box, which is fixed Production or Production
+    /// per Tag or Tile. A card that is not implemented has none.
+    pub fn has_production_box(&self) -> bool {
+        self.effects.as_ref().is_some_and(|effects| {
+            effects.production != Resources::default() || effects.production_per.is_some()
+        })
+    }
+
+    /// The Production change at `index` among those its Player chooses from.
+    pub fn production_alternative(&self, index: usize) -> Resources {
+        self.implemented_effects().production_choice[index]
+    }
 }
 
 /// The simple effects of a card, which are carried out in this order: Resources, Production
 /// (fixed, then per Tag or Tile), Temperature and Oxygen steps, Terraform Rating, cards
-/// drawn, and then the Tiles one at a time. For the cards described this way the order never
-/// changes the outcome; a card whose effects depend on their order gets its own Rust code.
+/// drawn, the Production change the Player chooses, and then the Tiles one at a time. For the
+/// cards described this way the order never changes the outcome; a card whose effects depend
+/// on their order gets its own Rust code.
 #[derive(Debug, Default, Serialize, Deserialize)]
 #[serde(default, deny_unknown_fields)]
 pub struct Effects {
@@ -93,6 +114,9 @@ pub struct Effects {
     /// Tags count ("including this").
     #[serde(skip_serializing_if = "Option::is_none")]
     pub production_per: Option<ProductionPer>,
+    /// Production changes the Player chooses one of, such as 1 plant Production step or 2 energy
+    /// Production steps (Artificial Photosynthesis). Empty for a card with no such choice.
+    pub production_choice: Vec<Resources>,
     /// Temperature steps raised.
     pub temperature: i32,
     /// Oxygen steps raised.

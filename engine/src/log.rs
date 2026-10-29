@@ -80,6 +80,11 @@ pub enum LogEvent {
         player: usize,
         count: i32,
     },
+    /// Robotic Workforce copies the production box of `card`.
+    CopiedProductionBox {
+        player: usize,
+        card: usize,
+    },
     SoldPatents {
         player: usize,
         cards: usize,
@@ -261,6 +266,9 @@ impl LogEvent {
             }
             LogEvent::DrewCards { player, count } => {
                 format!("{} draws {}.", player_name(player), counted(count, "card", "cards"))
+            }
+            LogEvent::CopiedProductionBox { player, card } => {
+                format!("{} copies the production box of {}.", player_name(player), CARD_CATALOG[card].name)
             }
             LogEvent::SoldPatents { player, cards } => format!(
                 "{} sells {} for {}.",

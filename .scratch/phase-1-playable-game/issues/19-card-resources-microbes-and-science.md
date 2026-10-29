@@ -29,4 +29,4 @@ If a card turns out to need machinery from another ticket, move it to that ticke
 - [ ] #134 Extreme-Cold Fungus
 - [ ] #157 Nitrite Reducing Bacteria
 - [ ] #170 Aerobraked Ammonia Asteroid
-- [ ] #185 Olympus Conference
+- [ ] #185 Olympus Conference — Research (ticket 12) counts as playing 2 science Tags, so it triggers this twice

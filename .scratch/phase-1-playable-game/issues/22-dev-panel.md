@@ -18,3 +18,15 @@ With the state editor, the user can give a Player Resources or Production, set G
 - [ ] The full-view switch shows all hands and the deck order.
 - [ ] Each kind of state edit above works and produces a Scenario that can be saved and reloaded.
 - [ ] A saved Scenario can be used directly in a scenario test.
+
+## Comments
+
+### 2026-10-29 — notes from tickets 11 and 12 (Claude)
+
+- **Scenarios refuse** a Greenery on an Area reserved for Oceans and an Ocean on land, so they
+  can't yet describe a position after Mangrove (ticket 11) or Artificial Lake (ticket 12). The
+  state editor will need them: allow one per card played that puts one there (Oceans belong to
+  nobody, so one Ocean on land per Artificial Lake played by anyone).
+- **Scenarios don't check** that Cities keep apart, so they accept a position after Urbanized Area
+  (ticket 12), but also Cities next to each other that no rule allows. The fuzzer's
+  `tiles_only_on_legal_areas` says what is legal, and the state editor could reuse its rules.

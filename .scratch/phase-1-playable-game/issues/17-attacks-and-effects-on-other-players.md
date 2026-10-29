@@ -35,8 +35,8 @@ If a card turns out to need machinery from another ticket, move it to that ticke
 - [ ] #125 Hackers
 - [ ] #129 Zeppelins — effect data `"production_per"` from ticket 11; it counts Cities on Mars only, while `TilesInPlay` counts off Mars too
 - [ ] #160 Power Supply Consortium
-- [ ] #178 Heat Trappers
-- [ ] #183 Biomass Combustors
+- [ ] #178 Heat Trappers — Robotic Workforce (ticket 12) copies this box, and its Player picks whose Production to lower again (FAQ)
+- [ ] #183 Biomass Combustors — Robotic Workforce (ticket 12) copies this box, and its Player picks whose Production to lower again (FAQ)
 - [ ] #188 Flooding
 - [ ] #189 Energy Saving — effect data `"production_per"` from ticket 11
 - [x] #198 Immigration Shuttles — done in ticket 08 (to test the central rules)

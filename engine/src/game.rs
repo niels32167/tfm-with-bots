@@ -17,7 +17,7 @@ use crate::deck::Deck;
 use crate::draft::{DraftPass, Drafting};
 use crate::log::LogEvent;
 use crate::milestones_and_awards::{AWARD_COSTS, Award, MAX_MILESTONES_CLAIMED, MILESTONE_COST, Milestone};
-use crate::playing_cards::{CardTiles, Payment};
+use crate::playing_cards::{CardTiles, Payment, ProductionChange};
 use crate::random::RandomNumbers;
 use crate::replay::{Replay, Start};
 use crate::resources::{Resource, Resources};
@@ -206,6 +206,8 @@ pub enum DecisionKind {
     Area,
     /// Choose how to pay for the card being played.
     Payment,
+    /// Choose the Production change the card being played makes.
+    Production,
     /// Keep one of the cards being drafted, and pass the rest on.
     Draft,
     /// Buy one more of the cards dealt, or be done, in the setup or a Research phase.
@@ -231,6 +233,11 @@ pub enum DecisionOption {
     Pay {
         card: usize,
         payment: Payment,
+    },
+    /// Make this Production change for `card`, which is being played.
+    ChangeProduction {
+        card: usize,
+        change: ProductionChange,
     },
     UseStandardProject(StandardProject),
     ClaimMilestone(Milestone),
@@ -311,6 +318,9 @@ pub struct Game {
     pub placing: Option<Placement>,
     /// The card the current Player is playing, while the Game waits on how they pay for it.
     pub paying_for: Option<usize>,
+    /// The card the current Player is playing, while the Game waits on the Production change it
+    /// makes.
+    pub choosing_production: Option<usize>,
     /// The card whose Tiles the current Player is placing, while it has any left to place.
     pub placing_for: Option<CardTiles>,
     /// How many cards the current Player has sold so far, while they are selling patents.
@@ -369,6 +379,7 @@ impl Game {
             actions_this_turn: 0,
             placing: None,
             paying_for: None,
+            choosing_production: None,
             placing_for: None,
             selling: None,
             waiting_bonus: None,
@@ -387,18 +398,22 @@ impl Game {
         if self.phase == Phase::Over {
             return None;
         }
-        let (kind, options) = match (self.placing, self.paying_for, self.selling, self.phase) {
+        let waiting = (self.placing, self.paying_for, self.choosing_production, self.selling, self.phase);
+        let (kind, options) = match waiting {
             (Some(placement), ..) => (DecisionKind::Area, self.area_options(placement)),
             (None, Some(card), ..) => (DecisionKind::Payment, self.payment_options(card)),
-            (None, None, Some(sold), _) => (DecisionKind::SellPatents, self.selling_options(sold)),
-            (None, None, None, Phase::Draft) => (DecisionKind::Draft, self.drafting_options()),
-            (None, None, None, Phase::Setup | Phase::Research) => {
+            (None, None, Some(card), ..) => {
+                (DecisionKind::Production, self.production_options(self.current_player, card))
+            }
+            (None, None, None, Some(sold), _) => (DecisionKind::SellPatents, self.selling_options(sold)),
+            (None, None, None, None, Phase::Draft) => (DecisionKind::Draft, self.drafting_options()),
+            (None, None, None, None, Phase::Setup | Phase::Research) => {
                 (DecisionKind::BuyCards, self.buying_options())
             }
-            (None, None, None, Phase::FinalGreenery) => {
+            (None, None, None, None, Phase::FinalGreenery) => {
                 (DecisionKind::FinalGreenery, vec![DecisionOption::ConvertPlants, DecisionOption::Done])
             }
-            (None, None, None, _) => (DecisionKind::Action, self.action_options()),
+            (None, None, None, None, _) => (DecisionKind::Action, self.action_options()),
         };
         Some(Decision {
             player: self.current_player,
@@ -544,6 +559,9 @@ impl Game {
             DecisionOption::Pay { card, payment } => {
                 self.paying_for = None;
                 self.play_card(player, card, payment);
+            }
+            DecisionOption::ChangeProduction { card, change } => {
+                self.change_production_as_chosen(player, card, change)
             }
             DecisionOption::DraftCard(card) => self.draft(card),
             DecisionOption::BuyCard(card) => self.buy(card),

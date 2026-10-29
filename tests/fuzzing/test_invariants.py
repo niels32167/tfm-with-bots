@@ -102,7 +102,8 @@ def test_global_parameters_off_their_tracks_break_an_invariant():
 @pytest.mark.parametrize(
     ("area_id", "tile", "owner", "problem"),
     [
-        ("C1", "ocean", None, "the Ocean on C1 is not on an Area reserved for Oceans"),
+        ("C1", "ocean", None, "1 Ocean lies on an Area reserved for nothing, but 0 cards that put one there were played"),
+        ("E3", "ocean", None, "the Ocean on E3 is not on an Area reserved for Oceans or for nothing"),
         ("A4", "city", 0, "the City on A4 is not on an Area of Mars that is reserved for nothing"),
         ("E3", "greenery", 0, "the Greenery on E3 is not on an Area of Mars that is reserved for nothing"),
         (
@@ -185,6 +186,106 @@ def test_mangroves_area_decision_offering_land_breaks_an_invariant():
     assert problems(view, decision) == [
         "the Area Decision for a Greenery on an Area reserved for Oceans offers C4, where it may not go",
         "the Area Decision for a Greenery on an Area reserved for Oceans leaves out A4, where it may go",
+    ]
+
+
+def test_artificial_lakes_ocean_on_land_breaks_no_invariant():
+    game = scenario(player(hand=["artificial_lake"]), player(), temperature=-6)
+    pick(game, "Play Artificial Lake")
+    assert problems(*position(game)) == []
+
+    pick(game, area="J1")
+
+    assert problems(*position(game)) == []
+
+
+def test_more_oceans_on_land_than_cards_that_put_one_there_break_an_invariant():
+    game = scenario(player(hand=["artificial_lake"]), player(), temperature=-6)
+    pick(game, "Play Artificial Lake")
+    pick(game, area="J1")
+    view, decision = position(game)
+    put(view, "C1", "ocean")
+
+    assert problems(view, decision) == [
+        "2 Oceans lie on Areas reserved for nothing, but 1 card that puts one there was played"
+    ]
+
+
+def test_artificial_lakes_area_decision_offering_an_area_reserved_for_oceans_breaks_an_invariant():
+    game = scenario(player(hand=["artificial_lake"]), player(), temperature=-6)
+    pick(game, "Play Artificial Lake")
+    view, decision = position(game)
+    decision["options"].append(area_option("A2", "ocean", on="land"))
+    decision["options"] = [option for option in decision["options"] if option["details"]["area"] != "J1"]
+
+    assert problems(view, decision) == [
+        "the Area Decision for an Ocean on an Area reserved for nothing offers A2, where it may not go",
+        "the Area Decision for an Ocean on an Area reserved for nothing leaves out J1, where it may go",
+    ]
+
+
+# C4 is the one Area next to both C3 and C5.
+TWO_CITIES = [city("C3", owner=1), city("C5", owner=0)]
+
+
+def test_urbanized_areas_city_next_to_two_cities_breaks_no_invariant():
+    holding = player(hand=["urbanized_area"], production={"energy": 1})
+    game = scenario(holding, player(), tiles=TWO_CITIES)
+    pick(game, "Play Urbanized Area")
+    assert problems(*position(game)) == []
+
+    pick(game, area="C4")
+
+    assert problems(*position(game)) == []
+
+
+def test_a_city_next_to_two_cities_without_urbanized_area_breaks_an_invariant():
+    view, decision = position(scenario(tiles=TWO_CITIES))
+    put(view, "C4", "city", 0)
+
+    assert problems(view, decision) == [
+        "the Cities on C3 and C4 are next to each other",
+        "the Cities on C4 and C5 are next to each other",
+    ]
+
+
+def test_urbanized_area_lets_only_its_own_city_lie_next_to_other_cities():
+    holding = player(hand=["urbanized_area"], production={"energy": 1})
+    game = scenario(holding, player(), tiles=TWO_CITIES)
+    pick(game, "Play Urbanized Area")
+    pick(game, area="C4")
+    view, decision = position(game)
+    put(view, "D4", "city", 1)  # next to C3 and C4
+
+    assert problems(view, decision) == ["the Cities on C3 and D4 are next to each other"]
+
+
+def test_urbanized_areas_area_decision_offering_an_area_next_to_one_city_breaks_an_invariant():
+    holding = player(hand=["urbanized_area"], production={"energy": 1})
+    game = scenario(holding, player(), tiles=TWO_CITIES)
+    pick(game, "Play Urbanized Area")
+    view, decision = position(game)
+    decision["options"].append(area_option("C2", "city", on="next_to_two_cities"))
+
+    assert problems(view, decision) == [
+        "the Area Decision for a City next to at least 2 Cities offers C2, where it may not go"
+    ]
+
+
+def test_robotic_workforce_offering_a_card_it_may_not_copy_breaks_an_invariant():
+    played = ["mine", "geothermal_power"]
+    game = scenario(player(hand=["robotic_workforce"], played_cards=played), player(played_cards=["power_plant"]))
+    pick(game, "Play Robotic Workforce")
+    view, decision = position(game)
+    assert problems(view, decision) == []
+    # Research has no building Tag, and the Power Plant card is the other Player's.
+    copy = decision["options"][0]
+    for card in ("research", "power_plant"):
+        decision["options"].append({**copy, "details": {"type": "copy_production_box", "card": card}})
+
+    assert problems(view, decision) == [
+        "Robotic Workforce offers to copy the production box of Research, not a building card of Player 1's",
+        "Robotic Workforce offers to copy the production box of Power Plant, not a building card of Player 1's",
     ]
 
 

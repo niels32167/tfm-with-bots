@@ -9,6 +9,7 @@ game log and the scores. Tests never look inside the engine.
     assert player_board(game, 0)["terraform_rating"] == 21
 """
 
+import json
 from typing import Any
 
 import tm_engine
@@ -71,6 +72,12 @@ PROJECT_CARDS = [card["id"] for card in tm_engine.card_catalog() if card["type"]
 
 # Every card's printed name, by catalog id.
 CARD_NAMES = {card["id"]: card["name"] for card in tm_engine.card_catalog()}
+
+
+def has_printed_production_box(card: dict[str, Any]) -> bool:
+    """Whether a card of the card catalog is printed with a production box, the brown box of
+    Production changes, as its face draws it."""
+    return "production-box" in json.dumps(card["face"])
 
 # The Tags counted on a player board, in the card list's order: every Tag but the Event Tag,
 # since no Tag on a played Event counts.

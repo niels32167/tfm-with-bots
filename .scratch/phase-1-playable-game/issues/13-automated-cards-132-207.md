@@ -49,4 +49,4 @@ If a card turns out to need machinery from another ticket, move it to that ticke
 - [ ] #197 Terraforming Ganymede
 - [ ] #203 Soletta
 - [x] #205 Rad-Chem Factory — done in ticket 08 (to test the central rules)
-- [ ] #207 Medical Lab — effect data `"production_per"` from ticket 11
+- [ ] #207 Medical Lab — effect data `"production_per"` from ticket 11; Robotic Workforce (ticket 12) recounts the building Tags when it copies this box: add that test

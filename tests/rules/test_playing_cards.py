@@ -8,6 +8,7 @@ from tests.helpers import (
     city,
     final_scores,
     greenery,
+    has_printed_production_box,
     offered,
     options,
     pick,
@@ -89,3 +90,15 @@ def test_no_card_places_two_cities_or_two_greeneries_so_one_area_for_each_is_eno
         placements = card.get("effects", {}).get("tiles", [])
         kinds = [placement if isinstance(placement, str) else placement["tile"] for placement in placements]
         assert kinds.count("city") <= 1 and kinds.count("greenery") <= 1, card["id"]
+
+
+def test_every_implemented_building_card_has_its_printed_production_box_as_production_data():
+    """Robotic Workforce copies a building card's production box as its fixed and per-Tag
+    Production data, so a card whose production box is carried out otherwise must be taught to
+    Robotic Workforce (see docs/rules-notes.md)."""
+    for card in tm_engine.card_catalog():
+        if "building" not in card["tags"] or card["type"] == "event" or "effects" not in card:
+            continue
+        effects = card["effects"]
+        has_production_data = any(effects["production"].values()) or "production_per" in effects
+        assert has_production_data == has_printed_production_box(card), card["name"]

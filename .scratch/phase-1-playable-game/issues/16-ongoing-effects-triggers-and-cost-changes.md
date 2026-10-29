@@ -25,7 +25,7 @@ If a card turns out to need machinery from another ticket, move it to that ticke
 - [ ] #038 Rover Construction
 - [ ] #070 Earth Catapult
 - [ ] #071 Advanced Alloys
-- [ ] #073 Mars University
+- [ ] #073 Mars University — Research (ticket 12) counts as playing 2 science Tags, so it triggers this twice
 - [ ] #079 Quantum Extractor
 - [ ] #094 Mass Converter
 - [ ] #105 Earth Office
@@ -34,4 +34,4 @@ If a card turns out to need machinery from another ticket, move it to that ticke
 - [ ] #153 Adaptation Technology
 - [ ] #156 Standard Technology
 - [ ] #166 Shuttles
-- [ ] #200 Immigrant City
+- [ ] #200 Immigrant City — Robotic Workforce (ticket 12) copies only its lower production box (-1 energy, -2 MegaCredits), not its effect's (FAQ)

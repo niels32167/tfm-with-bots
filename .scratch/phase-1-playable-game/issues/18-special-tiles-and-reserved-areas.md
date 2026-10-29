@@ -22,8 +22,8 @@ If a card turns out to need machinery from another ticket, move it to that ticke
 - [ ] #017 Noctis City
 - [ ] #021 Phobos Space Haven
 - [ ] #044 Natural Preserve
-- [ ] #064 Mining Area
-- [ ] #067 Mining Rights
+- [ ] #064 Mining Area — Robotic Workforce (ticket 12) copies the Production this card's Tile gave, steel or titanium (FAQ)
+- [ ] #067 Mining Rights — Robotic Workforce (ticket 12) copies the Production this card's Tile gave, steel or titanium (FAQ)
 - [ ] #081 Ganymede Colony
 - [ ] #085 Commercial District
 - [ ] #097 Nuclear Zone

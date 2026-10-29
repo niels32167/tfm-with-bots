@@ -21,6 +21,14 @@ const PICKED_IN_THE_BAR = new Set(["claim_milestone", "fund_award"]);
 const PICKED_IN_THE_HAND = new Set(["play_card", "sell_card"]);
 const PICKED_IN_THE_PANEL = new Set(["draft_card", "buy_card"]);
 
+// How the status text names the Areas a Tile goes on when they are not the usual ones, by the
+// Area Options' "on".
+const OTHER_AREAS: Record<string, string> = {
+  ocean_areas: " on an Area reserved for Oceans",
+  land: " on an Area reserved for nothing",
+  next_to_two_cities: " next to at least 2 Cities",
+};
+
 /** The current Decision, with its Options as buttons, like Board Game Arena's title bar. A
  * payment Decision gets the payment picker instead. */
 export function StatusBar({ game, cards, error, disabled, onPick }: Props) {
@@ -77,8 +85,16 @@ function statusText(game: GameUpdate, cards: Card[]): string {
   if (paidFor) return `${who} must choose how to pay for ${paidFor.name} (${paidFor.cost} MegaCredits):`;
   if (decision?.kind === "area") {
     const tile = decision.options[0]?.details.tile as TileType;
-    const where = decision.options[0]?.details.on === "ocean_areas" ? " on an Area reserved for Oceans" : "";
+    const where = OTHER_AREAS[decision.options[0]?.details.on as string] ?? "";
     return `${who} must choose where to place the ${TILE_NAMES[tile]}${where}: click a highlighted Area on Mars.`;
+  }
+  if (decision?.kind === "production") {
+    const details = decision.options[0]?.details;
+    if (details?.type === "copy_production_box") {
+      return `${who} must choose which of their building cards' production box Robotic Workforce copies:`;
+    }
+    const card = cards.find((each) => each.id === details?.card);
+    return `${who} must choose how ${card?.name} changes their Production:`;
   }
   if (decision?.kind === "final_greenery") {
     return `${who} may convert plants into a Greenery before final scoring, or be done:`;

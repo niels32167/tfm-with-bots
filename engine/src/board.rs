@@ -247,7 +247,14 @@ pub enum Areas {
     #[default]
     Usual,
     /// Any free Area reserved for Oceans, whatever is next to it, as for Mangrove's Greenery.
-    OceanAreas,
+    #[serde(rename = "ocean_areas")]
+    ReservedForOceans,
+    /// Any free Area on Mars reserved for nothing, whatever is next to it, as for Artificial
+    /// Lake's Ocean.
+    Land,
+    /// Any free Area on Mars reserved for nothing and next to at least 2 Cities, as for
+    /// Urbanized Area's City.
+    NextToTwoCities,
 }
 
 impl Areas {
@@ -355,7 +362,11 @@ impl Board {
     /// Every Area where `player` may make `placement`, in board order.
     pub fn areas_for(&self, placement: Placement, player: usize) -> Vec<usize> {
         match (placement.on, placement.tile) {
-            (Areas::OceanAreas, _) | (Areas::Usual, TileKind::Ocean) => self.free_ocean_areas().collect(),
+            (Areas::ReservedForOceans, _) | (Areas::Usual, TileKind::Ocean) => {
+                self.free_ocean_areas().collect()
+            }
+            (Areas::Land, _) => self.free_land().collect(),
+            (Areas::NextToTwoCities, _) => self.next_to_two_cities().collect(),
             (Areas::Usual, TileKind::Greenery) => {
                 // A Greenery must go next to one of its owner's Tiles if it can.
                 let next_to_own: Vec<usize> =
@@ -370,12 +381,13 @@ impl Board {
     /// quicker, as it stops at the first one.
     pub fn has_area_for(&self, placement: Placement) -> bool {
         match (placement.on, placement.tile) {
-            (Areas::OceanAreas, _) | (Areas::Usual, TileKind::Ocean) => {
+            (Areas::ReservedForOceans, _) | (Areas::Usual, TileKind::Ocean) => {
                 self.free_ocean_areas().next().is_some()
             }
             // With no free Area next to its owner's Tiles, a Greenery may go on any free land.
-            (Areas::Usual, TileKind::Greenery) => self.free_land().next().is_some(),
+            (Areas::Land, _) | (Areas::Usual, TileKind::Greenery) => self.free_land().next().is_some(),
             (Areas::Usual, TileKind::City) => self.city_areas().next().is_some(),
+            (Areas::NextToTwoCities, _) => self.next_to_two_cities().next().is_some(),
         }
     }
 
@@ -391,6 +403,10 @@ impl Board {
 
     fn city_areas(&self) -> impl Iterator<Item = usize> {
         self.free_land().filter(|&area| !self.next_to_a_city(area))
+    }
+
+    fn next_to_two_cities(&self) -> impl Iterator<Item = usize> {
+        self.free_land().filter(|&area| self.adjacent(area, TileKind::City) >= 2)
     }
 
     fn next_to_a_city(&self, area: usize) -> bool {

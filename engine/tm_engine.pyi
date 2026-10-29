@@ -19,10 +19,13 @@ def card_catalog() -> list[dict[str, Any]]:
     for the GUI. Implemented cards also have "effects": what they do when played, with any of
     "resources" and "production" (amounts of the six Resources, below zero to lose),
     "production_per" (Production raised per Tag or Tile, such as {"resource": "megacredits",
-    "steps": 1, "per": 1, "of": {"tag": "earth"}}), "temperature" and "oxygen" (steps raised),
-    "terraform_rating", "draw" (cards) and "tiles" (a list such as ["ocean", "ocean"], with
-    {"tile": "greenery", "on": "ocean_areas"} for a Tile that goes on other Areas than usual).
-    Cards without "effects" are never offered. Each call returns a new list."""
+    "steps": 1, "per": 1, "of": {"tag": "earth"}}), "production_choice" (Production changes
+    the Player chooses one of, such as [{"plants": 1}, {"energy": 2}]), "temperature" and
+    "oxygen" (steps raised), "terraform_rating", "draw" (cards) and "tiles" (a list such as
+    ["ocean", "ocean"], with {"tile": "greenery", "on": "ocean_areas"} for a Tile that goes on
+    other Areas than usual: "ocean_areas", "land" or "next_to_two_cities"). Cards without
+    "effects" are never offered; a few cards also have Rust code of their own (Robotic
+    Workforce). Each call returns a new list."""
 
 class Game:
     """A Game of Terraforming Mars, always either over or waiting on one Decision."""
@@ -96,8 +99,14 @@ class Game:
         being played, with details {"type": "payment", "card": "mine", "megacredits": 2,
         "steel": 1, "titanium": 0}; it comes only when there is more than one way), "area"
         (where to place a Tile, with details {"type": "area", "area": "C3", "tile": "city"}, plus
-        "on": "ocean_areas" for a Tile that goes on any free Area reserved for Oceans instead of
-        its usual Areas, as Mangrove's Greenery does),
+        "on" for a Tile that goes on other Areas than usual: "ocean_areas", any free Area reserved
+        for Oceans, as Mangrove's Greenery does; "land", any free Area reserved for nothing, as
+        Artificial Lake's Ocean does; "next_to_two_cities", free land next to at least 2 Cities,
+        as Urbanized Area's City does), "production" (the Production change the card being
+        played makes: {"type": "choose_production", "card": "artificial_photosynthesis",
+        "production": {...}} with all six Resources, or the building card whose production box
+        Robotic Workforce copies, {"type": "copy_production_box", "card": "mine"}; it comes only
+        when there is more than one change to choose from),
         "final_greenery" (convert 8 plants into a Greenery once more, or be done, after
         the final Production phase), "draft" (keep one of the cards being drafted and pass the
         rest on, with details {"type": "draft_card", "card": "mine"}), "buy_cards" (buy one more

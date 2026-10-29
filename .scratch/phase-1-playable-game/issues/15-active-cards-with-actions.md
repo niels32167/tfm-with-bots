@@ -21,20 +21,20 @@ If a card turns out to need machinery from another ticket, move it to that ticke
 - [ ] #006 Inventors' Guild
 - [ ] #007 Martian Rails
 - [ ] #012 Water Import from Europa
-- [ ] #013 Space Elevator
+- [ ] #013 Space Elevator — Robotic Workforce (ticket 12) copies its lower panel's production box, so keep that box as `production` data
 - [ ] #014 Development Center
-- [ ] #015 Equatorial Magnetizer
-- [ ] #069 Electro Catapult
+- [ ] #015 Equatorial Magnetizer — its production box is part of its action, which Robotic Workforce (ticket 12) doesn't copy: narrow `test_every_implemented_building_card_has_its_printed_production_box_as_production_data` for it
+- [ ] #069 Electro Catapult — Robotic Workforce (ticket 12) copies its lower panel's production box, so keep that box as `production` data
 - [ ] #076 Space Mirrors
 - [ ] #101 Ironworks
 - [ ] #103 Steelworks
 - [ ] #104 Ore Processor
 - [ ] #110 Business Network
-- [ ] #123 Industrial Center
+- [ ] #123 Industrial Center — its production box is part of its action, which Robotic Workforce (ticket 12) doesn't copy: narrow `test_every_implemented_building_card_has_its_printed_production_box_as_production_data` for it
 - [ ] #154 Caretaker Contract
 - [ ] #177 Water Splitting Plant
 - [ ] #187 Aquifer Pumping
 - [ ] #194 Power Infrastructure
 - [ ] #199 Restricted Area
-- [ ] #202 Underground Detonations
-- [ ] #208 AI Central
+- [ ] #202 Underground Detonations — its production box is part of its action, which Robotic Workforce (ticket 12) doesn't copy: narrow `test_every_implemented_building_card_has_its_printed_production_box_as_production_data` for it
+- [ ] #208 AI Central — Robotic Workforce (ticket 12) copies its lower panel's production box, so keep that box as `production` data

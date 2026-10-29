@@ -15,9 +15,9 @@ use crate::game::{
     Decision, DecisionKind, DecisionOption, Game, HEAT_PER_TEMPERATURE_STEP, PLANTS_PER_GREENERY, Phase,
     StandardProject,
 };
-use crate::log::player_name;
+use crate::log::{listed, player_name};
 use crate::milestones_and_awards::{Award, MILESTONE_COST, Milestone};
-use crate::playing_cards::Payment;
+use crate::playing_cards::{Payment, ProductionChange};
 use crate::resources::{Resource, Resources};
 use crate::scoring::Score;
 
@@ -63,6 +63,15 @@ pub enum OptionDetails {
         card: &'static str,
         #[serde(flatten)]
         payment: Payment,
+    },
+    /// One of the Production changes the card being played lets its Player choose.
+    ChooseProduction {
+        card: &'static str,
+        production: Resources,
+    },
+    /// One of the Player's building cards whose production box Robotic Workforce may copy.
+    CopyProductionBox {
+        card: &'static str,
     },
     StandardProject {
         project: String,
@@ -375,6 +384,7 @@ fn decision_view(decision: &Decision) -> DecisionView {
             DecisionKind::Action => "action",
             DecisionKind::Area => "area",
             DecisionKind::Payment => "payment",
+            DecisionKind::Production => "production",
             DecisionKind::Draft => "draft",
             DecisionKind::BuyCards => "buy_cards",
             DecisionKind::SellPatents => "sell_patents",
@@ -408,6 +418,12 @@ fn label(option: &DecisionOption) -> String {
             format!("Sell {} ({})", CARD_CATALOG[*card].name, Resource::MegaCredits.counted(PATENT_VALUE))
         }
         DecisionOption::Pay { payment, .. } => format!("Pay {}", payment.text()),
+        DecisionOption::ChangeProduction { card, change: ProductionChange::Alternative(index) } => {
+            production_change(CARD_CATALOG[*card].production_alternative(*index))
+        }
+        DecisionOption::ChangeProduction { change: ProductionChange::CopyBox(copied), .. } => {
+            format!("Copy the production box of {}", CARD_CATALOG[*copied].name)
+        }
         DecisionOption::UseStandardProject(StandardProject::SellPatents) => {
             format!("Sell Patents ({} per card)", Resource::MegaCredits.counted(PATENT_VALUE))
         }
@@ -433,6 +449,18 @@ fn label(option: &DecisionOption) -> String {
     }
 }
 
+/// A Production change as a label writes it: "Raise energy Production by 2", or "Lower
+/// MegaCredit Production by 1 and raise energy Production by 1".
+fn production_change(by: Resources) -> String {
+    let changes = Resource::ALL.into_iter().filter(|&resource| by[resource] != 0).map(|resource| {
+        let verb = if by[resource] < 0 { "lower" } else { "raise" };
+        format!("{verb} {} Production by {}", resource.name(), by[resource].abs())
+    });
+    let text = listed(changes);
+    let mut letters = text.chars();
+    letters.next().map(|first| first.to_uppercase().chain(letters).collect()).unwrap_or_default()
+}
+
 fn details(option: &DecisionOption) -> OptionDetails {
     match option {
         DecisionOption::PlayCard(card) => {
@@ -448,6 +476,14 @@ fn details(option: &DecisionOption) -> OptionDetails {
         }
         DecisionOption::Pay { card, payment } => {
             OptionDetails::Payment { card: &CARD_CATALOG[*card].id, payment: *payment }
+        }
+        DecisionOption::ChangeProduction { card, change: ProductionChange::Alternative(index) } => {
+            let printed_card = &CARD_CATALOG[*card];
+            let production = printed_card.production_alternative(*index);
+            OptionDetails::ChooseProduction { card: &printed_card.id, production }
+        }
+        DecisionOption::ChangeProduction { change: ProductionChange::CopyBox(copied), .. } => {
+            OptionDetails::CopyProductionBox { card: &CARD_CATALOG[*copied].id }
         }
         DecisionOption::UseStandardProject(project) => {
             OptionDetails::StandardProject { project: project.id(), cost: project.cost() }
