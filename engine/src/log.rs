@@ -80,6 +80,16 @@ pub enum LogEvent {
         player: usize,
         count: i32,
     },
+    /// The Player looks at the top `cards` cards of the deck to keep some of them.
+    LookedAtCards {
+        player: usize,
+        cards: usize,
+    },
+    KeptCards {
+        player: usize,
+        kept: usize,
+        discarded: usize,
+    },
     /// Robotic Workforce copies the production box of `card`.
     CopiedProductionBox {
         player: usize,
@@ -267,6 +277,16 @@ impl LogEvent {
             LogEvent::DrewCards { player, count } => {
                 format!("{} draws {}.", player_name(player), counted(count, "card", "cards"))
             }
+            LogEvent::LookedAtCards { player, cards } => format!(
+                "{} looks at the top {} of the deck.",
+                player_name(player),
+                counted(cards as i32, "card", "cards")
+            ),
+            LogEvent::KeptCards { player, kept, discarded } => format!(
+                "{} keeps {} and discards {discarded}.",
+                player_name(player),
+                counted(kept as i32, "card", "cards")
+            ),
             LogEvent::CopiedProductionBox { player, card } => {
                 format!("{} copies the production box of {}.", player_name(player), CARD_CATALOG[card].name)
             }

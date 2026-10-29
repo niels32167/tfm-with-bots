@@ -355,7 +355,8 @@
       "requirements": [{"type": "tag", "tag": "science", "min": 5}],
       "victory_points": 4,
       "text": "",
-      "face": {"content": {"tag": "div", "class": "content", "children": [" ", {"tag": "div", "class": "points points-big", "children": ["4"]}, " ", {"tag": "div", "class": "requirements", "children": ["5 Science"]}, " "]}}
+      "face": {"content": {"tag": "div", "class": "content", "children": [" ", {"tag": "div", "class": "points points-big", "children": ["4"]}, " ", {"tag": "div", "class": "requirements", "children": ["5 Science"]}, " "]}},
+      "effects": {}
     },
     {
       "id": "security_fleet",
@@ -475,7 +476,8 @@
       "requirements": [],
       "victory_points": null,
       "text": "(Raise your terraform rating 2 steps.)",
-      "face": {"content": {"tag": "div", "class": "content", "children": [" ", {"tag": "div", "class": "tile rating"}, " ", {"tag": "div", "class": "tile rating"}, " ", {"tag": "div", "class": "description", "children": [" (Raise your terraform rating 2 steps.) "]}, " "]}}
+      "face": {"content": {"tag": "div", "class": "content", "children": [" ", {"tag": "div", "class": "tile rating"}, " ", {"tag": "div", "class": "tile rating"}, " ", {"tag": "div", "class": "description", "children": [" (Raise your terraform rating 2 steps.) "]}, " "]}},
+      "effects": {"terraform_rating": 2}
     },
     {
       "id": "nitrogen_rich_asteroid",
@@ -488,7 +490,8 @@
       "requirements": [],
       "victory_points": null,
       "text": "(Raise your terraforming rating 2 steps and temperature 1 step. Increase your Plant production 1 step, or 4 steps if you have 3 Plant tags.)",
-      "face": {"content": {"tag": "div", "class": "content", "children": [" ", {"tag": "div", "class": "production-box production-box-size3", "children": [" ", {"tag": "div", "class": "production plant", "style": {"margin-left": "37px"}}, " OR ", {"tag": "br"}, " 3 ", {"tag": "div", "class": "tag-plant resource-tag"}, " : 4 ", {"tag": "div", "class": "plant production"}, " "]}, " ", {"tag": "br"}, " ", {"tag": "div", "class": "tile rating"}, " ", {"tag": "div", "class": "tile rating"}, " ", {"tag": "div", "class": "tile temperature-tile"}, " ", {"tag": "br"}, " ", {"tag": "div", "class": "description", "children": [" (Raise your terraforming rating 2 steps and temperature 1 step. Increase your Plant production 1 step, or 4 steps if you have 3 Plant tags.) "]}, " "]}}
+      "face": {"content": {"tag": "div", "class": "content", "children": [" ", {"tag": "div", "class": "production-box production-box-size3", "children": [" ", {"tag": "div", "class": "production plant", "style": {"margin-left": "37px"}}, " OR ", {"tag": "br"}, " 3 ", {"tag": "div", "class": "tag-plant resource-tag"}, " : 4 ", {"tag": "div", "class": "plant production"}, " "]}, " ", {"tag": "br"}, " ", {"tag": "div", "class": "tile rating"}, " ", {"tag": "div", "class": "tile rating"}, " ", {"tag": "div", "class": "tile temperature-tile"}, " ", {"tag": "br"}, " ", {"tag": "div", "class": "description", "children": [" (Raise your terraforming rating 2 steps and temperature 1 step. Increase your Plant production 1 step, or 4 steps if you have 3 Plant tags.) "]}, " "]}},
+      "effects": {"production": {"plants": 1}, "production_at_least": {"resource": "plants", "steps": 3, "at_least": 3, "of": {"tag": "plant"}}, "temperature": 1, "terraform_rating": 2}
     },
     {
       "id": "rover_construction",
@@ -829,7 +832,8 @@
       "requirements": [],
       "victory_points": null,
       "text": "(Gain 5 steel.)",
-      "face": {"content": {"tag": "div", "class": "content", "children": [" 5 ", {"tag": "div", "class": "resource steel"}, " ", {"tag": "div", "class": "description", "children": ["(Gain 5 steel.)"]}, " "]}}
+      "face": {"content": {"tag": "div", "class": "content", "children": [" 5 ", {"tag": "div", "class": "resource steel"}, " ", {"tag": "div", "class": "description", "children": ["(Gain 5 steel.)"]}, " "]}},
+      "effects": {"resources": {"steel": 5}}
     },
     {
       "id": "mining_expedition",
@@ -1000,7 +1004,8 @@
       "requirements": [],
       "victory_points": null,
       "text": "(Gain 2 plants. Raise oxygen level 1 step and place an ocean tile.)",
-      "face": {"content": {"tag": "div", "class": "content", "children": [" ", {"tag": "div", "class": "tile oxygen-tile"}, " ", {"tag": "div", "class": "tile ocean-tile"}, " ", {"tag": "br"}, " ", {"tag": "div", "class": "plant resource"}, " ", {"tag": "div", "class": "plant resource"}, " ", {"tag": "div", "class": "description", "children": [" (Gain 2 plants. Raise oxygen level 1 step and place an ocean tile.) "]}, " "]}}
+      "face": {"content": {"tag": "div", "class": "content", "children": [" ", {"tag": "div", "class": "tile oxygen-tile"}, " ", {"tag": "div", "class": "tile ocean-tile"}, " ", {"tag": "br"}, " ", {"tag": "div", "class": "plant resource"}, " ", {"tag": "div", "class": "plant resource"}, " ", {"tag": "div", "class": "description", "children": [" (Gain 2 plants. Raise oxygen level 1 step and place an ocean tile.) "]}, " "]}},
+      "effects": {"resources": {"plants": 2}, "oxygen": 1, "tiles": ["ocean"]}
     },
     {
       "id": "space_mirrors",
@@ -1040,7 +1045,8 @@
       "requirements": [],
       "victory_points": null,
       "text": "(Place 2 ocean tiles.)",
-      "face": {"content": {"tag": "div", "class": "content", "children": [" ", {"tag": "div", "class": "tile ocean-tile"}, " ", {"tag": "div", "class": "tile ocean-tile"}, " ", {"tag": "div", "class": "description", "children": ["(Place 2 ocean tiles.)"]}, " "]}}
+      "face": {"content": {"tag": "div", "class": "content", "children": [" ", {"tag": "div", "class": "tile ocean-tile"}, " ", {"tag": "div", "class": "tile ocean-tile"}, " ", {"tag": "div", "class": "description", "children": ["(Place 2 ocean tiles.)"]}, " "]}},
+      "effects": {"tiles": ["ocean", "ocean"]}
     },
     {
       "id": "quantum_extractor",
@@ -1485,7 +1491,8 @@
       "requirements": [],
       "victory_points": null,
       "text": "LOOK AT THE TOP 4 CARDS FROM THE DECK. TAKE 2 OF THEM INTO HAND AND DISCARD THE OTHER 2",
-      "face": {"content": {"tag": "div", "class": "content", "children": [" ", {"tag": "span", "style": {"font-size": "14px"}, "children": ["LOOK AT THE TOP 4 CARDS FROM THE DECK. TAKE 2 OF THEM INTO HAND AND DISCARD THE OTHER 2"]}, " "]}}
+      "face": {"content": {"tag": "div", "class": "content", "children": [" ", {"tag": "span", "style": {"font-size": "14px"}, "children": ["LOOK AT THE TOP 4 CARDS FROM THE DECK. TAKE 2 OF THEM INTO HAND AND DISCARD THE OTHER 2"]}, " "]}},
+      "effects": {"look_at": {"cards": 4, "keep": 2}}
     },
     {
       "id": "bribed_committee",
@@ -1498,7 +1505,8 @@
       "requirements": [],
       "victory_points": -2,
       "text": "(Raise your TR 2 steps.)",
-      "face": {"content": {"tag": "div", "class": "content", "children": [" ", {"tag": "div", "class": "points points-big", "children": ["-2"]}, " ", {"tag": "div", "class": "tile rating"}, " ", {"tag": "div", "class": "tile rating"}, " ", {"tag": "div", "class": "description", "children": ["(Raise your TR 2 steps.)"]}, " "]}}
+      "face": {"content": {"tag": "div", "class": "content", "children": [" ", {"tag": "div", "class": "points points-big", "children": ["-2"]}, " ", {"tag": "div", "class": "tile rating"}, " ", {"tag": "div", "class": "tile rating"}, " ", {"tag": "div", "class": "description", "children": ["(Raise your TR 2 steps.)"]}, " "]}},
+      "effects": {"terraform_rating": 2}
     },
     {
       "id": "solar_power",
@@ -1703,7 +1711,8 @@
       "requirements": [],
       "victory_points": null,
       "text": "(Place 1 ocean tile.)",
-      "face": {"content": {"tag": "div", "class": "content", "children": [" ", {"tag": "div", "class": "tile ocean-tile"}, " ", {"tag": "div", "class": "description", "children": ["(Place 1 ocean tile.)"]}, " "]}}
+      "face": {"content": {"tag": "div", "class": "content", "children": [" ", {"tag": "div", "class": "tile ocean-tile"}, " ", {"tag": "div", "class": "description", "children": ["(Place 1 ocean tile.)"]}, " "]}},
+      "effects": {"tiles": ["ocean"]}
     },
     {
       "id": "ecological_zone",
@@ -2027,7 +2036,8 @@
       "requirements": [],
       "victory_points": null,
       "text": "(Decrease your MC production 1 step. Gain 10 MC.)",
-      "face": {"content": {"tag": "div", "class": "content", "children": [" ", {"tag": "div", "class": "production-box", "children": [" ", {"tag": "div", "class": "production money", "children": ["-1"]}, " "]}, " ", {"tag": "div", "class": "resource money", "style": {"margin-left": "20px"}, "children": ["10"]}, " ", {"tag": "div", "class": "description", "children": [" (Decrease your MC production 1 step. Gain 10 MC.) "]}, " "]}}
+      "face": {"content": {"tag": "div", "class": "content", "children": [" ", {"tag": "div", "class": "production-box", "children": [" ", {"tag": "div", "class": "production money", "children": ["-1"]}, " "]}, " ", {"tag": "div", "class": "resource money", "style": {"margin-left": "20px"}, "children": ["10"]}, " ", {"tag": "div", "class": "description", "children": [" (Decrease your MC production 1 step. Gain 10 MC.) "]}, " "]}},
+      "effects": {"resources": {"megacredits": 10}, "production": {"megacredits": -1}}
     },
     {
       "id": "insulation",
@@ -2161,7 +2171,8 @@
       "requirements": [],
       "victory_points": null,
       "text": "(Place 1 ocean tile and draw 1 card.)",
-      "face": {"content": {"tag": "div", "class": "content", "children": [" ", {"tag": "div", "class": "tile ocean-tile"}, " ", {"tag": "div", "class": "resource card", "style": {"margin-left": "20px"}}, " ", {"tag": "div", "class": "description", "children": [" (Place 1 ocean tile and draw 1 card.) "]}, " "]}}
+      "face": {"content": {"tag": "div", "class": "content", "children": [" ", {"tag": "div", "class": "tile ocean-tile"}, " ", {"tag": "div", "class": "resource card", "style": {"margin-left": "20px"}}, " ", {"tag": "div", "class": "description", "children": [" (Place 1 ocean tile and draw 1 card.) "]}, " "]}},
+      "effects": {"draw": 1, "tiles": ["ocean"]}
     },
     {
       "id": "imported_ghg",
@@ -2174,7 +2185,8 @@
       "requirements": [],
       "victory_points": null,
       "text": "(Increase your heat production 1 step and gain 3 heat.)",
-      "face": {"content": {"tag": "div", "class": "content", "children": [" ", {"tag": "div", "class": "production-box", "children": [" ", {"tag": "div", "class": "heat production"}, " "]}, " ", {"tag": "div", "class": "heat resource", "style": {"margin-left": "20px"}}, " ", {"tag": "div", "class": "heat resource"}, " ", {"tag": "div", "class": "heat resource"}, " ", {"tag": "div", "class": "description", "children": [" (Increase your heat production 1 step and gain 3 heat.) "]}, " "]}}
+      "face": {"content": {"tag": "div", "class": "content", "children": [" ", {"tag": "div", "class": "production-box", "children": [" ", {"tag": "div", "class": "heat production"}, " "]}, " ", {"tag": "div", "class": "heat resource", "style": {"margin-left": "20px"}}, " ", {"tag": "div", "class": "heat resource"}, " ", {"tag": "div", "class": "heat resource"}, " ", {"tag": "div", "class": "description", "children": [" (Increase your heat production 1 step and gain 3 heat.) "]}, " "]}},
+      "effects": {"resources": {"heat": 3}, "production": {"heat": 1}}
     },
     {
       "id": "imported_nitrogen",
@@ -2241,7 +2253,8 @@
       "requirements": [],
       "victory_points": null,
       "text": "(Increase your heat production 2 steps.)",
-      "face": {"content": {"tag": "div", "class": "content", "children": [" ", {"tag": "div", "class": "production-box production-box-size2", "children": [" ", {"tag": "div", "class": "heat production"}, " ", {"tag": "div", "class": "heat production"}, " "]}, " ", {"tag": "div", "class": "description", "children": [" (Increase your heat production 2 steps.) "]}, " "]}}
+      "face": {"content": {"tag": "div", "class": "content", "children": [" ", {"tag": "div", "class": "production-box production-box-size2", "children": [" ", {"tag": "div", "class": "heat production"}, " ", {"tag": "div", "class": "heat production"}, " "]}, " ", {"tag": "div", "class": "description", "children": [" (Increase your heat production 2 steps.) "]}, " "]}},
+      "effects": {"production": {"heat": 2}}
     },
     {
       "id": "windmills",
@@ -2431,7 +2444,8 @@
       "requirements": [{"type": "temperature", "min": 2}],
       "victory_points": null,
       "text": "(Requires +2 C or warmer. Place 1 ocean tile.)",
-      "face": {"content": {"tag": "div", "class": "content", "children": [" ", {"tag": "div", "class": "requirements", "children": ["+2 C"]}, " ", {"tag": "div", "class": "tile ocean-tile"}, " ", {"tag": "div", "class": "description", "children": [" (Requires +2 C or warmer. Place 1 ocean tile.) "]}, " "]}}
+      "face": {"content": {"tag": "div", "class": "content", "children": [" ", {"tag": "div", "class": "requirements", "children": ["+2 C"]}, " ", {"tag": "div", "class": "tile ocean-tile"}, " ", {"tag": "div", "class": "description", "children": [" (Requires +2 C or warmer. Place 1 ocean tile.) "]}, " "]}},
+      "effects": {"tiles": ["ocean"]}
     },
     {
       "id": "corporate_stronghold",
@@ -2563,7 +2577,8 @@
       "requirements": [{"type": "temperature", "min": -8}],
       "victory_points": null,
       "text": "(Requires -8 C or warmer. Place 1 ocean tile.)",
-      "face": {"content": {"tag": "div", "class": "content", "children": [" ", {"tag": "div", "class": "requirements", "children": ["-8 C"]}, " ", {"tag": "div", "class": "tile ocean-tile"}, " ", {"tag": "div", "class": "description", "children": [" (Requires -8 C or warmer. Place 1 ocean tile.) "]}, " "]}}
+      "face": {"content": {"tag": "div", "class": "content", "children": [" ", {"tag": "div", "class": "requirements", "children": ["-8 C"]}, " ", {"tag": "div", "class": "tile ocean-tile"}, " ", {"tag": "div", "class": "description", "children": [" (Requires -8 C or warmer. Place 1 ocean tile.) "]}, " "]}},
+      "effects": {"tiles": ["ocean"]}
     },
     {
       "id": "invention_contest",
@@ -2576,7 +2591,8 @@
       "requirements": [],
       "victory_points": null,
       "text": "LOOK AT THE TOP 3 CARDS FROM THE DECK. TAKE 1 OF THEM INTO HAND AND DISCARD THE OTHER 2",
-      "face": {"content": {"tag": "div", "class": "content", "style": {"font-size": "14px", "font-weight": "normal"}, "children": [" LOOK AT THE TOP 3 CARDS FROM THE DECK. TAKE 1 OF THEM INTO HAND AND DISCARD THE OTHER 2 "]}}
+      "face": {"content": {"tag": "div", "class": "content", "style": {"font-size": "14px", "font-weight": "normal"}, "children": [" LOOK AT THE TOP 3 CARDS FROM THE DECK. TAKE 1 OF THEM INTO HAND AND DISCARD THE OTHER 2 "]}},
+      "effects": {"look_at": {"cards": 3, "keep": 1}}
     },
     {
       "id": "plantation",
@@ -2737,7 +2753,8 @@
       "requirements": [],
       "victory_points": null,
       "text": "(Draw two cards.)",
-      "face": {"content": {"tag": "div", "class": "content", "children": [" ", {"tag": "div", "class": "resource card"}, " ", {"tag": "div", "class": "resource card"}, " ", {"tag": "div", "class": "description", "children": ["(Draw two cards.)"]}, " "]}}
+      "face": {"content": {"tag": "div", "class": "content", "children": [" ", {"tag": "div", "class": "resource card"}, " ", {"tag": "div", "class": "resource card"}, " ", {"tag": "div", "class": "description", "children": ["(Draw two cards.)"]}, " "]}},
+      "effects": {"draw": 2}
     },
     {
       "id": "rad_chem_factory",

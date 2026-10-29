@@ -19,15 +19,17 @@ def card_catalog() -> list[dict[str, Any]]:
     for the GUI. Implemented cards also have "effects": what they do when played, with any of
     "resources" and "production" (amounts of the six Resources, below zero to lose),
     "production_per" (Production raised per Tag or Tile, such as {"resource": "megacredits",
-    "steps": 1, "per": 1, "of": {"tag": "earth"}}), "production_choice" (Production changes
-    the Player chooses one of, such as [{"plants": 1}, {"energy": 2}]), "temperature" and
-    "oxygen" (steps raised), "terraform_rating", "terraform_rating_per" (Terraform Rating raised
-    per Tag, such as {"steps": 1, "per": 1, "of": {"tag": "jovian"}}), "draw" (cards) and
-    "tiles" (a list such as ["ocean", "ocean"], with {"tile": "greenery", "on": "ocean_areas"}
-    for a Tile that goes on other Areas than usual: "ocean_areas", "land" or
-    "next_to_two_cities"). Cards without
-    "effects" are never offered; a few cards also have Rust code of their own (Robotic
-    Workforce and Insulation). Each call returns a new list."""
+    "steps": 1, "per": 1, "of": {"tag": "earth"}}), "production_at_least" (Production raised
+    only with at least so many of something, such as {"resource": "plants", "steps": 3,
+    "at_least": 3, "of": {"tag": "plant"}}), "production_choice" (Production changes the Player
+    chooses one of, such as [{"plants": 1}, {"energy": 2}]), "temperature" and "oxygen" (steps
+    raised), "terraform_rating", "terraform_rating_per" (Terraform Rating raised per Tag, such as
+    {"steps": 1, "per": 1, "of": {"tag": "jovian"}}), "draw" (cards), "look_at" (cards looked at
+    from the top of the deck, some kept and the rest discarded, such as {"cards": 4, "keep": 2})
+    and "tiles" (a list such as ["ocean", "ocean"], with {"tile": "greenery", "on":
+    "ocean_areas"} for a Tile that goes on other Areas than usual: "ocean_areas", "land" or
+    "next_to_two_cities"). Cards without "effects" are never offered; a few cards also have Rust
+    code of their own (Robotic Workforce and Insulation). Each call returns a new list."""
 
 class Game:
     """A Game of Terraforming Mars, always either over or waiting on one Decision."""
@@ -108,7 +110,9 @@ class Game:
         played makes: {"type": "choose_production", "card": "artificial_photosynthesis",
         "production": {...}} with all six Resources, or the building card whose production box
         Robotic Workforce copies, {"type": "copy_production_box", "card": "mine"}; it comes only
-        when there is more than one change to choose from),
+        when there is more than one change to choose from), "keep_cards" (keep one more of the
+        cards the card being played lets its Player look at, {"type": "keep_card", "card":
+        "mine"}; it comes only when there are more cards than they keep),
         "final_greenery" (convert 8 plants into a Greenery once more, or be done, after
         the final Production phase), "draft" (keep one of the cards being drafted and pass the
         rest on, with details {"type": "draft_card", "card": "mine"}), "buy_cards" (buy one more
@@ -156,15 +160,18 @@ class Game:
          "buying": {"dealt": [...], "bought": [...]} | None,
          "drafting": {"picking_from": [...], "kept": [...], "passing_to": int} | None,
          "passed_in_draft": [{"generation": int, "to": int, "cards": [...]}, ...] | None,
+         "keeping": {"card": card id, "looking_at": [...], "kept": [...], "keep": int} | None,
          "played_cards": [card id, ...], "tags": {"building": int, ...}}, where Resources and
         Production each hold all six Resources, cards come in card-number order, and "tags"
         counts the ten Tags in play (on played Automated and Active cards; no Tag on a played
-        Event counts). "hand", "buying", "drafting" and "passed_in_draft" are None but on the
-        viewer's own board. "buying" is the cards dealt to buy from and those bought so far, in
+        Event counts). "hand", "buying", "drafting", "passed_in_draft" and "keeping" are None but
+        on the viewer's own board. "buying" is the cards dealt to buy from and those bought so far, in
         the setup and Research phases. "drafting" is the cards being drafted, keeping one and
         passing the rest to Player "passing_to", and those kept so far, in the Draft.
         "passed_in_draft" lists every set of cards the Player passed on in the Draft this Game,
-        in the order passed. "deck_size" and "discard_size" are the numbers of cards in the deck
+        in the order passed. "keeping" is, while the Player plays a card such as Business
+        Contacts, the cards they look at and may still keep, those kept so far, and how many more
+        they keep; the rest are discarded. "deck_size" and "discard_size" are the numbers of cards in the deck
         and the discard pile, and "deck" and "discard" are None.
         It also has the "board": every Area, on Mars row by row from the
         top (A to J, skipping I) and each row from the left, then the two Areas off Mars:
@@ -184,8 +191,8 @@ class Game:
         """Everything about the Game, including what Players hide from each other.
 
         For Hotseat and the dev panel, never for an AI Controller. It has the Player
-        View's shape, with "viewer" None, every Player's "hand", "buying", "drafting" and
-        "passed_in_draft", the "deck" by catalog id from the top down, and the "discard" pile.
+        View's shape, with "viewer" None, every Player's "hand", "buying", "drafting",
+        "passed_in_draft" and "keeping", the "deck" by catalog id from the top down, and the "discard" pile.
         """
 
     @property

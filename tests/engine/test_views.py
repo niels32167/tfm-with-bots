@@ -11,6 +11,7 @@ from tests.helpers import (
     buying,
     end_the_action_phase,
     keep_the_first_cards_offered,
+    pick,
     player,
     scenario,
 )
@@ -166,3 +167,21 @@ def test_once_everyone_is_done_buying_the_log_says_how_many_cards_each_player_bo
     assert game.player_view(0)["discard_size"] == 18
     assert "Player 1 buys 1 of their 10 cards for 3 MegaCredits." in game.log
     assert log_names_none_of(game, cards_dealt(before))
+
+
+def test_while_a_player_keeps_cards_they_look_at_no_other_player_view_shows_them():
+    game = scenario(player(hand=["business_contacts"]), player(), deck=["mine", "trees", "birds", "fish"])
+    looked_at = ["fish", "mine", "trees", "birds"]
+
+    pick(game, "Play Business Contacts")
+    pick(game, type="keep_card", card="trees")
+
+    assert game.player_view(0)["players"][0]["keeping"]["looking_at"] == ["fish", "mine", "birds"]
+    assert game.full_view()["players"][0]["keeping"]["kept"] == ["trees"]
+    other = game.player_view(1)
+    assert other["players"][0]["keeping"] is None
+    # Only Business Contacts itself, which lies among the played cards.
+    assert cards_named_in({key: value for key, value in other.items() if key not in ("board", "phase")}) == {
+        "business_contacts"
+    }
+    assert log_names_none_of(game, looked_at)

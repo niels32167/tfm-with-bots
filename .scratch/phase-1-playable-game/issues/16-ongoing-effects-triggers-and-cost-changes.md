@@ -16,7 +16,7 @@ If a card turns out to need machinery from another ticket, move it to that ticke
 - [ ] Every card is playable in the GUI, and the short fuzz run stays clean with these cards in the deck.
 - [ ] Test: triggers fire for the right Player, once per qualifying event, including when the triggering card is played.
 
-**Cards in this batch (17):**
+**Cards in this batch (19):**
 
 - [ ] #020 Research Outpost
 - [ ] #023 Arctic Algae
@@ -34,4 +34,6 @@ If a card turns out to need machinery from another ticket, move it to that ticke
 - [ ] #153 Adaptation Technology
 - [ ] #156 Standard Technology
 - [ ] #166 Shuttles
+- [ ] #195 Indentured Workers — moved here from ticket 14 (2026-10-29): an Event whose effect is a cost change on the next card played this Generation
 - [ ] #200 Immigrant City — Robotic Workforce (ticket 12) copies only its lower production box (-1 energy, -2 MegaCredits), not its effect's (FAQ)
+- [ ] #206 Special Design — moved here from ticket 14 (2026-10-29): an Event whose effect is a Requirement modifier (±2 steps of Global Parameters) on the next card played this Generation

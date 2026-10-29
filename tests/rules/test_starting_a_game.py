@@ -46,6 +46,7 @@ def test_until_corporations_exist_every_player_starts_with_42_megacredits_and_te
             "passed": False,
             "drafting": None,
             "passed_in_draft": [],
+            "keeping": None,
             "played_cards": [],
             "tags": dict.fromkeys(TAGS_THAT_COUNT, 0),
         }

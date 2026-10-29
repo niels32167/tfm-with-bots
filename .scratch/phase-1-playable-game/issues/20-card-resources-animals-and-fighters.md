@@ -17,6 +17,8 @@ If a card turns out to need machinery from another ticket, move it to that ticke
 
 **Cards in this batch (17):**
 
+CEO's Favorite Project (#149, ticket 19, moved from ticket 14) adds 1 Card Resource to any card with at least 1: check that it can target this batch's animal and fighter cards too.
+
 - [ ] #019 Imported Hydrogen
 - [ ] #024 Predators
 - [ ] #026 Eos Chasma National Park

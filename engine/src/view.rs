@@ -49,6 +49,11 @@ pub enum OptionDetails {
     DraftCard {
         card: &'static str,
     },
+    /// Keep one of the cards the card being played lets its Player look at, named by its catalog
+    /// id.
+    KeepCard {
+        card: &'static str,
+    },
     /// Buy one of the cards dealt, named by its catalog id.
     BuyCard {
         card: &'static str,
@@ -194,6 +199,9 @@ pub struct PlayerBoard {
     /// The cards they have passed on in the Draft this Game, in the order passed: only in their
     /// own Player View and the full view, otherwise None.
     pub passed_in_draft: Option<Vec<DraftPassView>>,
+    /// While they play a card that lets them look at cards to keep some of them, those cards:
+    /// only in their own Player View and the full view, otherwise None.
+    pub keeping: Option<KeepingView>,
     /// The cards they have played, by catalog id in card-number order.
     pub played_cards: Vec<&'static str>,
     /// How many of each Tag they have in play, for every Tag but the Event Tag, which never counts.
@@ -215,6 +223,17 @@ pub struct DraftingView {
     pub picking_from: Vec<&'static str>,
     pub kept: Vec<&'static str>,
     pub passing_to: usize,
+}
+
+/// The cards a Player looks at while playing `card`, by catalog id in card-number order: those
+/// they may still keep, those they have kept, and how many more they `keep`. The rest are
+/// discarded.
+#[derive(Serialize)]
+pub struct KeepingView {
+    pub card: &'static str,
+    pub looking_at: Vec<&'static str>,
+    pub kept: Vec<&'static str>,
+    pub keep: usize,
 }
 
 /// Cards a Player passed on in the Draft, by catalog id in card-number order: in `generation`,
@@ -311,6 +330,14 @@ fn view(game: &Game, viewer: Option<usize>) -> View {
                     passing_to: game.passing_to(index),
                 }),
                 passed_in_draft: sees_hand(index).then(|| passed_in_draft(&game.draft_passes, index)),
+                keeping: game.keeping.filter(|_| sees_hand(index) && index == game.current_player).map(
+                    |keeping| KeepingView {
+                        card: &CARD_CATALOG[keeping.card].id,
+                        looking_at: ids(keeping.looking_at),
+                        kept: ids(keeping.kept),
+                        keep: keeping.keep,
+                    },
+                ),
                 played_cards: ids(player.played),
                 tags: Tag::COUNTED.into_iter().map(|tag| (tag, game.tags(index, tag))).collect(),
             })
@@ -386,6 +413,7 @@ fn decision_view(decision: &Decision) -> DecisionView {
             DecisionKind::Area => "area",
             DecisionKind::Payment => "payment",
             DecisionKind::Production => "production",
+            DecisionKind::KeepCards => "keep_cards",
             DecisionKind::Draft => "draft",
             DecisionKind::BuyCards => "buy_cards",
             DecisionKind::SellPatents => "sell_patents",
@@ -411,7 +439,9 @@ fn label(option: &DecisionOption) -> String {
                 Resource::MegaCredits.counted(printed_card.project_cost())
             )
         }
-        DecisionOption::DraftCard(card) => format!("Keep {}", CARD_CATALOG[*card].name),
+        DecisionOption::DraftCard(card) | DecisionOption::KeepCard(card) => {
+            format!("Keep {}", CARD_CATALOG[*card].name)
+        }
         DecisionOption::BuyCard(card) => {
             format!("Buy {} ({})", CARD_CATALOG[*card].name, Resource::MegaCredits.counted(CARD_PRICE))
         }
@@ -472,6 +502,7 @@ fn details(option: &DecisionOption) -> OptionDetails {
             OptionDetails::PlayCard { card: &printed_card.id, cost: printed_card.project_cost() }
         }
         DecisionOption::DraftCard(card) => OptionDetails::DraftCard { card: &CARD_CATALOG[*card].id },
+        DecisionOption::KeepCard(card) => OptionDetails::KeepCard { card: &CARD_CATALOG[*card].id },
         DecisionOption::BuyCard(card) => {
             OptionDetails::BuyCard { card: &CARD_CATALOG[*card].id, cost: CARD_PRICE }
         }

@@ -29,13 +29,16 @@ export function playersAreBuying(view: View): boolean {
   return view.phase === "setup" || view.phase === "research";
 }
 
-/** Whose cards the buying panel shows: the human deciding while Players draft or buy, or else the
- * one human at the screen. Null when there is nothing to show. */
+/** Whose cards the buying panel shows: the human deciding while Players draft or buy, or keep
+ * cards they look at, or else the one human at the screen. Null when there is nothing to show. */
 export function cardsShownFor(game: GameUpdate): number | null {
   const { decision, viewer, view } = game;
-  if (decision?.kind === "draft" || decision?.kind === "buy_cards") return decision.player;
-  if (viewer !== null && (view.players[viewer].drafting || view.players[viewer].buying)) return viewer;
-  return null;
+  if (decision?.kind === "draft" || decision?.kind === "buy_cards" || decision?.kind === "keep_cards") {
+    return decision.player;
+  }
+  if (viewer === null) return null;
+  const { drafting, buying, keeping } = view.players[viewer];
+  return drafting || buying || keeping ? viewer : null;
 }
 
 /** The Option of `type` for each card, by the card's id, while `player` decides. */
@@ -48,7 +51,8 @@ function optionsByCard(decision: Decision | null, player: number, type: string):
 /** Over the board in the setup and each Research phase: the cards a Player drafts from or buys
  * from, large enough to read and all in view. In the Draft, clicking one keeps it, and the cards
  * kept and passed on so far show above; buying, clicking one buys it, those bought are marked,
- * and Done is in the status bar. It can be hidden to look at the board. */
+ * and Done is in the status bar. The cards a card such as Business Contacts lets its Player look
+ * at show the same way as the Draft's. It can be hidden to look at the board. */
 export function BuyingPanel({ game, cards, disabled, onPick }: Props) {
   const catalog = useCardsById(cards);
   const [hidden, setHidden] = useState(false);
@@ -60,7 +64,14 @@ export function BuyingPanel({ game, cards, disabled, onPick }: Props) {
   if (shown === null || catalog.size === 0) return null;
   const { view, decision } = game;
   const board = view.players[shown];
-  const panel = board.drafting ? draftPanel(game, shown) : board.buying ? buyingPanel(game, shown) : null;
+  const panel = board.keeping
+    ? keepingPanel(game, shown, catalog)
+    : board.drafting
+      ? draftPanel(game, shown)
+      : board.buying
+        ? buyingPanel(game, shown)
+        : null;
+  const kept = board.keeping?.kept ?? board.drafting?.kept;
   if (panel === null) return null;
   const waitingFor = view.current_player !== null && view.current_player !== shown ? view.current_player : null;
   const passedThisGeneration = (board.passed_in_draft ?? []).filter((pass) => pass.generation === view.generation);
@@ -80,12 +91,10 @@ export function BuyingPanel({ game, cards, disabled, onPick }: Props) {
           {hidden ? "Show the cards" : "Look at the board"}
         </button>
       </header>
-      {!hidden && (board.drafting || passedThisGeneration.length > 0) && (
+      {!hidden && (kept || passedThisGeneration.length > 0) && (
         <div className="buying-panel-strip">
-          {board.drafting && (
-            <SmallCards label={`Kept (${board.drafting.kept.length})`} groups={[named(board.drafting.kept)]} />
-          )}
-          {passedThisGeneration.length > 0 && (
+          {kept && <SmallCards label={`Kept (${kept.length})`} groups={[named(kept)]} />}
+          {!board.keeping && passedThisGeneration.length > 0 && (
             <SmallCards
               label={`Passed to ${playerTitle(game, passedThisGeneration[0].to)}`}
               groups={passedThisGeneration.map((pass) => named(pass.cards))}
@@ -136,6 +145,23 @@ function draftPanel(game: GameUpdate, player: number): Panel {
     waitingFor: "keep a card",
     cards: picking_from,
     optionType: "draft_card",
+    verb: "Keep",
+  };
+}
+
+/** While `player` plays a card such as Business Contacts: the cards they look at and may still
+ * keep, discarding the rest. */
+function keepingPanel(game: GameUpdate, player: number, catalog: Map<string, Card>): Panel {
+  const { card, looking_at, kept, keep } = game.view.players[player].keeping!;
+  const name = catalog.get(card)?.name ?? card;
+  const looked = looking_at.length + kept.length;
+  return {
+    label: "Cards to keep",
+    heading: `${name}: ${whose(game, player)} top ${looked} cards from the deck`,
+    summary: `Keep ${keep} more and discard the rest · ${kept.length} kept`,
+    waitingFor: "keep cards",
+    cards: looking_at,
+    optionType: "keep_card",
     verb: "Keep",
   };
 }

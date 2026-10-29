@@ -201,8 +201,16 @@ being played, for the "when you play…" effects of ticket 16.
 
 Chosen by the user (2026-10-23).
 
-**Tests:** `tests/rules/test_tags.py::test_no_tag_on_a_played_event_counts_not_even_the_event_tag` and
-`tests/rules/test_awards.py::test_scientist_counts_science_tags_in_play_and_none_on_played_events`.
+While an Event is being played, its Tags do count for paying: titanium pays for Imported GHG,
+an Event with a space Tag, as for any card with one (see "Paying with steel and titanium"). The
+rulebook lets titanium pay for any card with a space Tag, and the open-source game does the same
+for Events.
+
+**Tests:** `tests/rules/test_tags.py::test_no_tag_on_a_played_event_counts_not_even_the_event_tag`,
+`tests/rules/test_awards.py::test_scientist_counts_science_tags_in_play_and_none_on_played_events`,
+`tests/cards/test_technology_demonstration.py::test_technology_demonstrations_tags_stop_counting_once_it_is_played`
+(an Event played during the Game) and
+`tests/cards/test_imported_ghg.py::test_imported_ghg_may_be_paid_with_titanium_for_its_space_tag`.
 
 ### Paying with steel and titanium
 
@@ -246,15 +254,17 @@ and Nitrophilic Moss, which loses 2, not to a Player with fewer than 2 (`player.
 `tests/cards/test_black_polar_dust.py::test_black_polar_dust_cannot_take_megacredit_production_below_minus_5`,
 `tests/cards/test_strip_mine.py::test_strip_mine_needs_2_energy_production_to_lower`,
 `tests/cards/test_rad_chem_factory.py::test_rad_chem_factory_needs_energy_production_to_lower`,
-`tests/cards/test_moss.py::test_moss_needs_a_plant_to_lose` and
-`tests/cards/test_nitrophilic_moss.py::test_nitrophilic_moss_needs_2_plants_to_lose`.
+`tests/cards/test_moss.py::test_moss_needs_a_plant_to_lose`,
+`tests/cards/test_nitrophilic_moss.py::test_nitrophilic_moss_needs_2_plants_to_lose` and
+`tests/cards/test_investment_loan.py::test_investment_loan_cannot_take_megacredit_production_below_minus_5`.
 
 ### The order of a card's effects
 
 **Call:** The effects written as data are carried out in a fixed order: Resources,
-Production (fixed, then per Tag or Tile), Temperature and Oxygen steps, Terraform Rating
-(fixed, then per Tag), cards drawn, the Production change the Player chooses (see "A
-Production change to choose" below), then the Tiles one at a time. A Tile that a track bonus
+Production (fixed, then per Tag or Tile, then for having at least so many), Temperature and
+Oxygen steps, Terraform Rating (fixed, then per Tag), cards drawn, cards looked at to keep some
+of (see "Looking at cards to keep some of them" below), the Production change the Player
+chooses (see "A Production change to choose" below), then the Tiles one at a time. A Tile that a track bonus
 gives along the way (the Ocean at 0 °C) is placed before the card's own Tiles. When Strip Mine's first Oxygen step reaches 8 % and that
 Temperature step reaches 0 °C, its second Oxygen step comes before the Ocean is placed.
 
@@ -278,8 +288,15 @@ places one; Black Polar Dust with 9 only changes Production.
 the rulebook lets cards that raise it be played anyway. Chosen by Claude (2026-10-23),
 following the Aquifer call.
 
-**Tests:** `tests/cards/test_lake_marineris.py::test_with_8_oceans_placed_lake_marineris_places_the_last_one`
-and `tests/cards/test_black_polar_dust.py::test_once_9_oceans_are_placed_black_polar_dust_only_changes_production`.
+The Events that place Oceans follow the same call: Ice Asteroid with 8 Oceans placed places
+one, Subterranean Reservoir with 9 places none, and Towing a Comet with 9 still gains its plants
+and raises Oxygen.
+
+**Tests:** `tests/cards/test_lake_marineris.py::test_with_8_oceans_placed_lake_marineris_places_the_last_one`,
+`tests/cards/test_black_polar_dust.py::test_once_9_oceans_are_placed_black_polar_dust_only_changes_production`,
+`tests/cards/test_ice_asteroid.py::test_with_8_oceans_placed_ice_asteroid_places_the_last_one`,
+`tests/cards/test_subterranean_reservoir.py::test_once_9_oceans_are_placed_subterranean_reservoir_is_still_offered_and_places_none`
+and `tests/cards/test_towing_a_comet.py::test_once_9_oceans_are_placed_towing_a_comet_still_gains_plants_and_raises_oxygen`.
 
 ### A card's City or Greenery needs an Area
 
@@ -524,6 +541,56 @@ Production. The Option order by Claude, on the user's instruction to make the re
 13 calls without asking.
 
 **Tests:** `tests/cards/test_insulation.py`.
+
+### Looking at cards to keep some of them
+
+**Call:** Business Contacts ("look at the top 4 cards from the deck, take 2 of them into hand and
+discard the other 2") and Invention Contest (the top 3, take 1) take their cards from the top of
+the deck once the card is paid for. The Player keeps them one at a time: a "keep_cards" Decision
+offers one Option per card they may still keep, in card-number order. Once they have kept as many
+as the card says, those go into their hand together and the rest go face down to the discard
+pile. Only that Player sees the cards (in their own Player View, and in the full view); the game
+log says how many they looked at, kept and discarded, but not which.
+
+When the deck runs out while they take the cards, the discard pile is shuffled into a new deck as
+for any draw (see "When the deck runs out"). With no more cards to look at than they keep (both
+piles nearly empty), they keep them all without a Decision.
+
+**Why:**
+- The cards say so; the rulebook puts discarded cards face down.
+- One card at a time is how the Draft picks; a Decision per pair would need a pair picker and
+  offers nothing more.
+- A Decision with no real choice changes nothing (see "The last card is kept without a
+  Decision").
+- The open-source game writes both as `drawCard: {count, keep}` effects.
+
+Chosen by the user (2026-10-29): effect data `"look_at": {"cards": 4, "keep": 2}` and one card at
+a time. The rest by Claude, on the user's instruction to make the remaining ticket 14 calls
+without asking.
+
+**Tests:** `tests/cards/test_business_contacts.py`, `tests/cards/test_invention_contest.py`,
+`tests/engine/test_views.py::test_while_a_player_keeps_cards_they_look_at_no_other_player_view_shows_them`,
+`tests/server/test_keeping_cards.py` and
+`tests/fuzzing/test_invariants.py::test_cards_looked_at_with_business_contacts_break_no_invariant`.
+
+### Nitrogen-Rich Asteroid's plant Production
+
+**Call:** Nitrogen-Rich Asteroid raises plant Production 1 step, or 4 steps if the Player has at
+least 3 plant Tags in play, counted once the card is played. It has no plant Tag of its own, and
+Tags on played Events don't count (see "Tags on played Events"). With more than 3 plant Tags it
+still gives 4. The game log shows the 4 as a raise of 1 and then of 3.
+
+**Why:**
+- The card: "Increase your plant production 1 step, or 4 steps if you have 3 plant tags."
+- The open-source game gives 1 below 3 plant Tags and 4 from 3 on
+  (`player.tags.count(Tag.PLANT) < 3`).
+
+The sources agree. Chosen by the user (2026-10-29): effect data, `"production": {"plants": 1}`
+plus `"production_at_least": {"resource": "plants", "steps": 3, "at_least": 3, "of": {"tag":
+"plant"}}`. The rest by Claude, on the user's instruction to make the remaining ticket 14 calls
+without asking.
+
+**Tests:** `tests/cards/test_nitrogen_rich_asteroid.py`.
 
 ## Card flow
 

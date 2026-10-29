@@ -16,13 +16,14 @@ If a card turns out to need machinery from another ticket, move it to that ticke
 - [ ] Every card is playable in the GUI, and the short fuzz run stays clean with these cards in the deck.
 - [ ] Test: each reserved Area is used only by its card.
 
-**Cards in this batch (11):**
+**Cards in this batch (12):**
 
 - [ ] #008 Capital — moved here from ticket 11 (2026-10-27): its City Tile is a special Tile, scored by the Oceans next to it
 - [ ] #017 Noctis City
 - [ ] #021 Phobos Space Haven
 - [ ] #044 Natural Preserve
 - [ ] #064 Mining Area — Robotic Workforce (ticket 12) copies the Production this card's Tile gave, steel or titanium (FAQ)
+- [ ] #066 Land Claim — moved here from ticket 14 (2026-10-29): an Event that reserves a non-reserved Area for its Player, so only they may place a Tile there
 - [ ] #067 Mining Rights — Robotic Workforce (ticket 12) copies the Production this card's Tile gave, steel or titanium (FAQ)
 - [ ] #081 Ganymede Colony
 - [ ] #085 Commercial District

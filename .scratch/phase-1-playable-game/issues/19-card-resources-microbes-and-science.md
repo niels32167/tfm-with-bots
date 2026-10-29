@@ -16,7 +16,7 @@ If a card turns out to need machinery from another ticket, move it to that ticke
 - [ ] Every card is playable in the GUI, and the short fuzz run stays clean with these cards in the deck.
 - [ ] Test: Card Resources count for Victory Points as printed.
 
-**Cards in this batch (12):**
+**Cards in this batch (13):**
 
 - [ ] #005 Search for Life
 - [ ] #033 Regolith Eaters
@@ -27,6 +27,7 @@ If a card turns out to need machinery from another ticket, move it to that ticke
 - [ ] #131 Decomposers
 - [ ] #133 Symbiotic Fungus
 - [ ] #134 Extreme-Cold Fungus
+- [ ] #149 CEO's Favorite Project — moved here from ticket 14 (2026-10-29): an Event that adds 1 Card Resource of any kind to a card with at least 1 on it; ticket 20 adds animals and fighters to what it can target
 - [ ] #157 Nitrite Reducing Bacteria
 - [ ] #170 Aerobraked Ammonia Asteroid
 - [ ] #185 Olympus Conference — Research (ticket 12) counts as playing 2 science Tags, so it triggers this twice

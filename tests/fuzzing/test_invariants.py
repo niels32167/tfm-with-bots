@@ -67,6 +67,25 @@ def test_positions_reached_by_the_rules_break_no_invariant():
     assert problems(*position(game)) == []
 
 
+def test_cards_looked_at_with_business_contacts_break_no_invariant():
+    game = scenario(player(hand=["business_contacts"]), player(), deck=["mine", "trees", "birds", "fish"])
+
+    pick(game, "Play Business Contacts")
+    pick(game, type="keep_card", card="trees")
+
+    assert position(game)[1]["kind"] == "keep_cards"
+    assert problems(*position(game)) == []
+
+
+def test_a_card_both_looked_at_and_in_the_deck_breaks_an_invariant():
+    game = scenario(player(hand=["business_contacts"]), player(), deck=["mine", "trees", "birds", "fish"])
+    pick(game, "Play Business Contacts")
+    view, decision = position(game)
+    view["players"][0]["keeping"]["kept"].append(view["deck"][0])
+
+    assert problems(view, decision) == [f"'{view['deck'][0]}' is in 2 places: the deck and Player 1's cards kept"]
+
+
 def test_a_negative_resource_breaks_an_invariant():
     view, decision = position(scenario())
     view["players"][1]["resources"]["heat"] = -1

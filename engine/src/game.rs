@@ -10,7 +10,7 @@ use std::fmt;
 use serde::{Deserialize, Serialize};
 
 use crate::board::{Areas, Board, BonusItem, Placement, Tile, TileKind, printed};
-use crate::card_flow::Buying;
+use crate::card_flow::{Buying, Keeping};
 use crate::card_set::CardSet;
 use crate::cards::{CARD_CATALOG, PROJECT_CARDS};
 use crate::deck::Deck;
@@ -208,6 +208,8 @@ pub enum DecisionKind {
     Payment,
     /// Choose the Production change the card being played makes.
     Production,
+    /// Keep one more of the cards the card being played lets its Player look at.
+    KeepCards,
     /// Keep one of the cards being drafted, and pass the rest on.
     Draft,
     /// Buy one more of the cards dealt, or be done, in the setup or a Research phase.
@@ -229,6 +231,8 @@ pub enum DecisionOption {
     BuyCard(usize),
     /// Sell this card from the hand, with the Sell Patents Standard Project.
     SellCard(usize),
+    /// Keep this card, one of those the card being played lets its Player look at.
+    KeepCard(usize),
     /// Pay for `card`, which is being played, this way.
     Pay {
         card: usize,
@@ -321,6 +325,9 @@ pub struct Game {
     /// The card the current Player is playing, while the Game waits on the Production change it
     /// makes.
     pub choosing_production: Option<usize>,
+    /// The cards the current Player is looking at, while the Game waits on which of them they
+    /// keep.
+    pub keeping: Option<Keeping>,
     /// The card whose Tiles the current Player is placing, while it has any left to place.
     pub placing_for: Option<CardTiles>,
     /// How many cards the current Player has sold so far, while they are selling patents.
@@ -380,6 +387,7 @@ impl Game {
             placing: None,
             paying_for: None,
             choosing_production: None,
+            keeping: None,
             placing_for: None,
             selling: None,
             waiting_bonus: None,
@@ -398,22 +406,26 @@ impl Game {
         if self.phase == Phase::Over {
             return None;
         }
-        let waiting = (self.placing, self.paying_for, self.choosing_production, self.selling, self.phase);
+        let waiting =
+            (self.placing, self.paying_for, self.choosing_production, self.keeping, self.selling, self.phase);
         let (kind, options) = match waiting {
             (Some(placement), ..) => (DecisionKind::Area, self.area_options(placement)),
             (None, Some(card), ..) => (DecisionKind::Payment, self.payment_options(card)),
             (None, None, Some(card), ..) => {
                 (DecisionKind::Production, self.production_options(self.current_player, card))
             }
-            (None, None, None, Some(sold), _) => (DecisionKind::SellPatents, self.selling_options(sold)),
-            (None, None, None, None, Phase::Draft) => (DecisionKind::Draft, self.drafting_options()),
-            (None, None, None, None, Phase::Setup | Phase::Research) => {
+            (None, None, None, Some(keeping), ..) => (DecisionKind::KeepCards, self.keeping_options(keeping)),
+            (None, None, None, None, Some(sold), _) => {
+                (DecisionKind::SellPatents, self.selling_options(sold))
+            }
+            (None, None, None, None, None, Phase::Draft) => (DecisionKind::Draft, self.drafting_options()),
+            (None, None, None, None, None, Phase::Setup | Phase::Research) => {
                 (DecisionKind::BuyCards, self.buying_options())
             }
-            (None, None, None, None, Phase::FinalGreenery) => {
+            (None, None, None, None, None, Phase::FinalGreenery) => {
                 (DecisionKind::FinalGreenery, vec![DecisionOption::ConvertPlants, DecisionOption::Done])
             }
-            (None, None, None, None, _) => (DecisionKind::Action, self.action_options()),
+            (None, None, None, None, None, _) => (DecisionKind::Action, self.action_options()),
         };
         Some(Decision {
             player: self.current_player,
@@ -566,6 +578,7 @@ impl Game {
             DecisionOption::DraftCard(card) => self.draft(card),
             DecisionOption::BuyCard(card) => self.buy(card),
             DecisionOption::SellCard(card) => self.sell(card),
+            DecisionOption::KeepCard(card) => self.keep_card(card),
             // It has no price: the Player picks the cards to sell next.
             DecisionOption::UseStandardProject(StandardProject::SellPatents) => self.selling = Some(0),
             DecisionOption::UseStandardProject(project) => {

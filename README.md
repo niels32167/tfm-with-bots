@@ -19,18 +19,17 @@ fuzzer plays Random Bot Games and checks them after every Decision, and a benchm
 measures the engine's speed. The card catalog holds the printed data of all 208 Project
 Cards and 12 Corporations, and the GUI's card gallery draws every card as the fan-made card
 list does. Players play Project Cards from their hand, paying with MegaCredits, steel and
-titanium, once the cards' Requirements are met; 88 Automated cards work so far. At setup each
-Player is dealt 10 Project Cards and buys any of them for 3 MegaCredits each (everyone starts
-with 42 MegaCredits until Corporations exist). From Generation 2 each Research phase has the
-Draft, on by default and switchable on the setup screen: each Player is dealt 4 cards, keeps one
-and passes the rest to their neighbour (clockwise in even Generations, counter-clockwise in odd
-ones) until every card is kept, then buys any of the cards kept. Without the Draft each Player
-draws 4 cards to buy from. The cards not bought go face down to the discard pile, which is
-shuffled into a new deck when the deck runs out. Drafting and buying are hidden from the other
-Players, and each Player sees the cards they passed. The hand sits in a dock at the bottom of
-the window. While most cards are not implemented, the
-setup screen's "Deal the implemented cards first" (on by default) puts the playable ones on
-top of the deck.
+titanium, once the cards' Requirements are met; 105 cards work so far, 88 Automated and 17
+Events. At setup each Player is dealt 10 Project Cards and buys any of them for 3 MegaCredits
+each (everyone starts with 42 MegaCredits until Corporations exist). From Generation 2 each
+Research phase has the Draft, on by default and switchable on the setup screen: each Player is
+dealt 4 cards, keeps one and passes the rest to their neighbour (clockwise in even Generations,
+counter-clockwise in odd ones) until every card is kept, then buys any of the cards kept.
+Without the Draft each Player draws 4 cards to buy from. The cards not bought go face down to
+the discard pile, which is shuffled into a new deck when the deck runs out. Drafting and buying
+are hidden from the other Players, and each Player sees the cards they passed. The hand sits in
+a dock at the bottom of the window. While most cards are not implemented, the setup screen's
+"Deal the implemented cards first" (on by default) puts the playable ones on top of the deck.
 
 ## How it fits together
 
@@ -108,7 +107,8 @@ engine module reads the catalog with `tm_engine.card_catalog()`.
 A card is implemented once it has `"effects"` in the card file (ADR 0009), such as
 `"effects": {"production": {"megacredits": -2, "heat": 3}, "tiles": ["ocean"]}` for Black Polar
 Dust; cards without it are never offered. Effects can gain or lose Resources, change
-Production, raise Temperature and Oxygen, raise Terraform Rating, draw cards and place Tiles.
+Production, raise Temperature and Oxygen, raise Terraform Rating, draw cards, let the Player
+look at cards to keep some of them, and place Tiles.
 Declare any new field in `engine/src/cards.rs` first, since the card file allows no unknown
 field. Each card's scenario tests live in `tests/cards/test_<id>.py`, and the coverage report
 lists the cards that have none yet (the test suite shows the count as a warning):

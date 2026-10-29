@@ -9,8 +9,8 @@ use serde::Serialize;
 use crate::board::TileKind;
 use crate::card_code::{INSULATION, ROBOTIC_WORKFORCE, insulation_change};
 use crate::cards::{
-    CARD_CATALOG, Card, CardType, Counted, Effects, Limit, Owner, ProductionPer, Requirement, Tag,
-    TerraformRatingPer, VictoryPoints,
+    CARD_CATALOG, Card, CardType, Counted, Effects, Limit, Owner, ProductionAtLeast, ProductionPer,
+    Requirement, Tag, TerraformRatingPer, VictoryPoints,
 };
 use crate::game::{DecisionOption, Game};
 use crate::log::{LogEvent, listed};
@@ -251,7 +251,13 @@ impl Game {
         self.log.push(LogEvent::PlayedCard { player, card, payment });
         let effects = CARD_CATALOG[card].implemented_effects();
         self.carry_out(player, effects);
-        // With only one Production change to make, the Player has nothing to choose.
+        self.look_at_cards(player, card);
+    }
+
+    /// `player` makes the Production change `card`, which they are playing, lets them choose, if
+    /// it has any; then its Tiles follow. With only one change to make, they have nothing to
+    /// choose.
+    pub(crate) fn choose_production_change(&mut self, player: usize, card: usize) {
         match self.production_options(player, card)[..] {
             [] => self.place_card_tiles(card),
             [DecisionOption::ChangeProduction { change, .. }] => {
@@ -320,6 +326,11 @@ impl Game {
         }
         self.change_productions(player, effects.production);
         self.change_production_per(player, effects.production_per);
+        if let Some(ProductionAtLeast { resource, steps, at_least, of }) = effects.production_at_least
+            && self.count_of(player, of) >= at_least
+        {
+            self.change_production(player, resource, steps);
+        }
         for _ in 0..effects.temperature {
             self.raise_temperature(player);
         }

@@ -1,11 +1,13 @@
 //! How Project Cards move through a Game outside of being played: the deal at setup and in
-//! each Research phase, buying the cards dealt, drawing from the deck, and the discard pile.
+//! each Research phase, buying the cards dealt, drawing from the deck, looking at cards to keep
+//! some of them, and the discard pile.
 //!
 //! Buying is simultaneous at the table. The engine asks one Player at a time, in player order
 //! from the first player (ADR 0002), and keeps what each buys hidden until all are done: nobody
 //! pays and no card moves until the last Player is done buying.
 
 use crate::card_set::CardSet;
+use crate::cards::{CARD_CATALOG, LookAt};
 use crate::deck::Deck;
 use crate::game::{DecisionOption, Game, Phase};
 use crate::log::LogEvent;
@@ -34,6 +36,17 @@ impl Buying {
     fn unbought(self) -> CardSet {
         self.dealt.without(self.bought)
     }
+}
+
+/// The cards the current Player looks at while playing `card` (Business Contacts): those they
+/// may still keep, those they have kept, and how many more they keep before the rest are
+/// discarded.
+#[derive(Clone, Copy, Debug)]
+pub struct Keeping {
+    pub card: usize,
+    pub looking_at: CardSet,
+    pub kept: CardSet,
+    pub keep: usize,
 }
 
 impl Game {
@@ -147,6 +160,53 @@ impl Game {
         let sold = self.selling.take().expect("only a Player selling patents finishes selling");
         self.log.push(LogEvent::SoldPatents { player: self.current_player, cards: sold });
         self.finish_unless_placing();
+    }
+
+    /// `player`, playing `card`, looks at the top cards of the deck it names, if it does, to keep
+    /// some of them; then the card's Production change follows. With no more cards to look at than
+    /// they keep, they keep them all without a Decision.
+    pub(crate) fn look_at_cards(&mut self, player: usize, card: usize) {
+        if let Some(LookAt { cards, keep }) = CARD_CATALOG[card].implemented_effects().look_at {
+            let looking_at = self.draw_cards(player, cards);
+            self.log.push(LogEvent::LookedAtCards { player, cards: looking_at.len() });
+            if looking_at.len() > keep as usize {
+                self.keeping =
+                    Some(Keeping { card, looking_at, kept: CardSet::default(), keep: keep as usize });
+                return;
+            }
+            self.keep_and_discard(player, looking_at, CardSet::default());
+        }
+        self.choose_production_change(player, card);
+    }
+
+    /// The current Player may keep any of the cards they are looking at.
+    pub(crate) fn keeping_options(&self, keeping: Keeping) -> Vec<DecisionOption> {
+        keeping.looking_at.iter().map(DecisionOption::KeepCard).collect()
+    }
+
+    /// The current Player keeps `card`, one of those they are looking at. Once they have kept as
+    /// many as they may, those go into their hand, the rest are discarded, and the Production
+    /// change of the card they play follows.
+    pub(crate) fn keep_card(&mut self, card: usize) {
+        let mut keeping = self.keeping.take().expect("only a Player looking at cards keeps one");
+        keeping.looking_at.remove(card);
+        keeping.kept.insert(card);
+        keeping.keep -= 1;
+        if keeping.keep > 0 {
+            self.keeping = Some(keeping);
+            return;
+        }
+        let player = self.current_player;
+        self.keep_and_discard(player, keeping.kept, keeping.looking_at);
+        self.choose_production_change(player, keeping.card);
+    }
+
+    /// `player` takes `kept` into their hand, and `discarded` go face down to the discard pile.
+    fn keep_and_discard(&mut self, player: usize, kept: CardSet, discarded: CardSet) {
+        let hand = &mut self.players[player].hand;
+        *hand = hand.union(kept);
+        self.discard = self.discard.union(discarded);
+        self.log.push(LogEvent::KeptCards { player, kept: kept.len(), discarded: discarded.len() });
     }
 
     /// `player` draws `count` cards into their hand.

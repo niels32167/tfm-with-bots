@@ -19,7 +19,7 @@ interface Props {
 // their bar, cards to play or sell in the hand, and cards to keep or buy in the buying panel.
 const PICKED_IN_THE_BAR = new Set(["claim_milestone", "fund_award"]);
 const PICKED_IN_THE_HAND = new Set(["play_card", "sell_card"]);
-const PICKED_IN_THE_PANEL = new Set(["draft_card", "buy_card"]);
+const PICKED_IN_THE_PANEL = new Set(["draft_card", "buy_card", "keep_card"]);
 
 // How the status text names the Areas a Tile goes on when they are not the usual ones, by the
 // Area Options' "on".
@@ -103,6 +103,12 @@ function statusText(game: GameUpdate, cards: Card[]): string {
     const passingTo = view.players[decision.player].drafting?.passing_to;
     const to = passingTo === undefined ? "on" : `to ${playerTitle(game, passingTo)}`;
     return `${who} must keep one of the cards above and pass the rest ${to}: click the card to keep.`;
+  }
+  if (decision?.kind === "keep_cards") {
+    const keeping = view.players[decision.player].keeping;
+    const card = cards.find((each) => each.id === keeping?.card);
+    const count = keeping?.kept.length ? `${keeping.keep} more` : `${keeping?.keep}`;
+    return `${who} must keep ${count} of the cards above for ${card?.name} and discard the rest: click a card to keep.`;
   }
   if (decision?.kind === "buy_cards") {
     const bought = view.players[decision.player].buying?.bought.length ?? 0;

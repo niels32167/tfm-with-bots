@@ -99,10 +99,11 @@ impl Card {
 }
 
 /// The simple effects of a card, which are carried out in this order: Resources, Production
-/// (fixed, then per Tag or Tile), Temperature and Oxygen steps, Terraform Rating (fixed, then
-/// per Tag), cards drawn, the Production change the Player chooses, and then the Tiles one at a
-/// time. For the cards described this way the order never changes the outcome; a card whose
-/// effects depend on their order gets its own Rust code.
+/// (fixed, then per Tag or Tile, then for having at least so many), Temperature and Oxygen
+/// steps, Terraform Rating (fixed, then per Tag), cards drawn, cards looked at to keep some of,
+/// the Production change the Player chooses, and then the Tiles one at a time. For the cards
+/// described this way the order never changes the outcome; a card whose effects depend on their
+/// order gets its own Rust code.
 #[derive(Debug, Default, Serialize, Deserialize)]
 #[serde(default, deny_unknown_fields)]
 pub struct Effects {
@@ -114,6 +115,10 @@ pub struct Effects {
     /// Tags count ("including this").
     #[serde(skip_serializing_if = "Option::is_none")]
     pub production_per: Option<ProductionPer>,
+    /// Production raised only if the Player has at least so many of something, counted once the
+    /// card is played: Nitrogen-Rich Asteroid's 3 more plant Production steps with 3 plant Tags.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub production_at_least: Option<ProductionAtLeast>,
     /// Production changes the Player chooses one of, such as 1 plant Production step or 2 energy
     /// Production steps (Artificial Photosynthesis). Empty for a card with no such choice.
     pub production_choice: Vec<Resources>,
@@ -129,6 +134,10 @@ pub struct Effects {
     pub terraform_rating_per: Option<TerraformRatingPer>,
     /// Cards drawn.
     pub draw: i32,
+    /// Cards looked at from the top of the deck, some of them kept and the rest discarded
+    /// (Business Contacts, Invention Contest).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub look_at: Option<LookAt>,
     /// The Tiles to place, in order, each on the Areas it may go on.
     pub tiles: Vec<Placement>,
 }
@@ -142,6 +151,26 @@ pub struct ProductionPer {
     pub steps: i32,
     pub per: i32,
     pub of: Counted,
+}
+
+/// `steps` of Production of `resource` once there are at least `at_least` of something, such as
+/// 3 plant Production steps with at least 3 plant Tags (Nitrogen-Rich Asteroid).
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct ProductionAtLeast {
+    pub resource: Resource,
+    pub steps: i32,
+    pub at_least: i32,
+    pub of: Counted,
+}
+
+/// Look at the top `cards` cards of the deck, take `keep` of them into the hand and discard the
+/// rest.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct LookAt {
+    pub cards: i32,
+    pub keep: i32,
 }
 
 /// `steps` of Terraform Rating for every `per` of something, such as 1 step for each jovian Tag

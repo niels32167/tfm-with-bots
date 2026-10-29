@@ -273,9 +273,10 @@ def at_most_three_milestones_and_awards(view: View, decision: Decision | None) -
 
 def every_card_in_exactly_one_place(view: View, decision: Decision | None) -> Iterator[str]:
     """Every Project Card is in exactly one place: the deck, the discard pile, a hand, a Player's
-    played cards, the cards a Player drafts from or has kept in the Draft, or the cards dealt to a
-    Player to buy from in the setup or a Research phase, among which are those they have bought.
-    The sizes shown agree with the cards."""
+    played cards, the cards a Player drafts from or has kept in the Draft, the cards dealt to a
+    Player to buy from in the setup or a Research phase, among which are those they have bought,
+    or the cards a Player looks at or has kept while playing Business Contacts or Invention
+    Contest. The sizes shown agree with the cards."""
     places: dict[str, list[str]] = {card_id: [] for card_id in PROJECT_CARDS}
     for pile, name in (("deck", "the deck"), ("discard", "the discard pile")):
         if view[f"{pile}_size"] != len(view[pile]):
@@ -300,6 +301,12 @@ def every_card_in_exactly_one_place(view: View, decision: Decision | None) -> It
                 places.setdefault(card_id, []).append(f"{name}'s cards to draft from")
             for card_id in drafting["kept"]:
                 places.setdefault(card_id, []).append(f"{name}'s cards kept in the Draft")
+        keeping = player_board["keeping"]
+        if keeping is not None:
+            for card_id in keeping["looking_at"]:
+                places.setdefault(card_id, []).append(f"{name}'s cards looked at")
+            for card_id in keeping["kept"]:
+                places.setdefault(card_id, []).append(f"{name}'s cards kept")
         if (buying is not None) != buying_phase:
             yield f"in the {view['phase']} phase, {name} is {'' if buying else 'not '}buying cards"
         if buying is None:

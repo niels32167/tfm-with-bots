@@ -278,6 +278,14 @@ def drafting(game: tm_engine.Game, player: int) -> dict[str, Any] | None:
     return player_board(game, player)["drafting"]
 
 
+def keeping(game: tm_engine.Game, player: int) -> dict[str, Any] | None:
+    """What a Player is looking at to keep some of, as that Player sees it, while they play
+    Business Contacts or Invention Contest: `{"card": ..., "looking_at": [...], "kept": [...],
+    "keep": int}`, the card they play, then by catalog id the cards they may still keep and those
+    kept so far, and how many more they keep. The rest are discarded. None otherwise."""
+    return player_board(game, player)["keeping"]
+
+
 def played_cards(game: tm_engine.Game, player: int) -> list[str]:
     """The cards a Player has played, by catalog id, as everyone sees them."""
     return player_board(game, player)["played_cards"]
