@@ -14,14 +14,26 @@ pub const ROBOTIC_WORKFORCE: usize = 85;
 /// production the same number of steps."
 pub const INSULATION: usize = 151;
 
+/// #194 Power Infrastructure: "Action: Spend any amount of energy and gain that amount of MC."
+pub const POWER_INFRASTRUCTURE: usize = 193;
+
 /// Every card with code here, and its id.
-pub const CARDS_WITH_CODE: [(usize, &str); 2] =
-    [(ROBOTIC_WORKFORCE, "robotic_workforce"), (INSULATION, "insulation")];
+pub const CARDS_WITH_CODE: [(usize, &str); 3] = [
+    (ROBOTIC_WORKFORCE, "robotic_workforce"),
+    (INSULATION, "insulation"),
+    (POWER_INFRASTRUCTURE, "power_infrastructure"),
+];
 
 /// Insulation's Production change for `steps`: that many steps of heat Production traded for as
 /// many of MegaCredit Production.
 pub fn insulation_change(steps: i32) -> Resources {
     Resources { megacredits: steps, heat: -steps, ..Resources::default() }
+}
+
+/// Power Infrastructure's Resource change for `amount`: that much energy spent for as many
+/// MegaCredits.
+pub fn energy_for_megacredits(amount: i32) -> Resources {
+    Resources { megacredits: amount, energy: -amount, ..Resources::default() }
 }
 
 impl Game {

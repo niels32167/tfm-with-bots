@@ -25,11 +25,17 @@ def card_catalog() -> list[dict[str, Any]]:
     chooses one of, such as [{"plants": 1}, {"energy": 2}]), "temperature" and "oxygen" (steps
     raised), "terraform_rating", "terraform_rating_per" (Terraform Rating raised per Tag, such as
     {"steps": 1, "per": 1, "of": {"tag": "jovian"}}), "draw" (cards), "look_at" (cards looked at
-    from the top of the deck, some kept and the rest discarded, such as {"cards": 4, "keep": 2})
-    and "tiles" (a list such as ["ocean", "ocean"], with {"tile": "greenery", "on":
-    "ocean_areas"} for a Tile that goes on other Areas than usual: "ocean_areas", "land" or
-    "next_to_two_cities"). Cards without "effects" are never offered; a few cards also have Rust
-    code of their own (Robotic Workforce and Insulation). Each call returns a new list."""
+    from the top of the deck, some kept and the rest discarded, such as {"cards": 4, "keep": 2},
+    or some bought at 3 MegaCredits each, {"cards": 1, "buy": 1}) and "tiles" (a list such as
+    ["ocean", "ocean"], with {"tile": "greenery", "on": "ocean_areas"} for a Tile that goes on
+    other Areas than usual: "ocean_areas", "land" or "next_to_two_cities"). An Active card's
+    action is "action", the same shapes again (its cost as Resources lost), plus "pay" (MegaCredits
+    that steel or titanium may pay, such as {"megacredits": 12, "titanium": true}),
+    "resources_per" (Resources gained per Tag or Tile, such as {"resource": "megacredits",
+    "amount": 1, "per": 1, "of": {"tiles_on_mars": "city"}}) and "resources_choice" (Resource
+    changes the Player chooses one of). Cards without "effects" are never offered; a few cards
+    also have Rust code of their own (Robotic Workforce, Insulation and Power Infrastructure).
+    Each call returns a new list."""
 
 class Game:
     """A Game of Terraforming Mars, always either over or waiting on one Decision."""
@@ -101,7 +107,8 @@ class Game:
 
         Kinds: "action" (an Action, End Turn or Pass), "payment" (how to pay for the card
         being played, with details {"type": "payment", "card": "mine", "megacredits": 2,
-        "steel": 1, "titanium": 0}; it comes only when there is more than one way), "area"
+        "steel": 1, "titanium": 0}, or for the action being used, with "action": true as well; it
+        comes only when there is more than one way), "area"
         (where to place a Tile, with details {"type": "area", "area": "C3", "tile": "city"}, plus
         "on" for a Tile that goes on other Areas than usual: "ocean_areas", any free Area reserved
         for Oceans, as Mangrove's Greenery does; "land", any free Area reserved for nothing, as
@@ -112,15 +119,21 @@ class Game:
         Robotic Workforce copies, {"type": "copy_production_box", "card": "mine"}; it comes only
         when there is more than one change to choose from), "keep_cards" (keep one more of the
         cards the card being played lets its Player look at, {"type": "keep_card", "card":
-        "mine"}; it comes only when there are more cards than they keep),
+        "mine"}; it comes only when there are more cards than they keep; or buy one of the cards
+        the action being used lets them look at, {"type": "buy_card", "card": "mine", "cost": 3},
+        or be done and discard them; it comes only when they can pay for one), "resources"
+        (the Resource change the action being used makes, {"type": "choose_resources", "card":
+        "electro_catapult", "resources": {...}} with all six Resources; it comes only when there
+        is more than one to choose from),
         "final_greenery" (convert 8 plants into a Greenery once more, or be done, after
         the final Production phase), "draft" (keep one of the cards being drafted and pass the
         rest on, with details {"type": "draft_card", "card": "mine"}), "buy_cards" (buy one more
         of the cards dealt or drafted, {"type": "buy_card", "card": "mine", "cost": 3}, or be
         done) and "sell_patents" (sell one more card from the hand, {"type": "sell_card", "card":
         "mine", "megacredits": 1}, or be done). Being done is {"type": "done"}. Playing a card,
-        claiming a Milestone and funding an Award are Actions, with details
-        {"type": "play_card", "card": "mine", "cost": 4},
+        using a played card's action, claiming a Milestone and funding an Award are Actions, with
+        details {"type": "play_card", "card": "mine", "cost": 4},
+        {"type": "use_action", "card": "space_elevator"},
         {"type": "claim_milestone", "milestone": "mayor", "cost": 8} and
         {"type": "fund_award", "award": "landlord", "cost": 14}.
         """
@@ -160,8 +173,10 @@ class Game:
          "buying": {"dealt": [...], "bought": [...]} | None,
          "drafting": {"picking_from": [...], "kept": [...], "passing_to": int} | None,
          "passed_in_draft": [{"generation": int, "to": int, "cards": [...]}, ...] | None,
-         "keeping": {"card": card id, "looking_at": [...], "kept": [...], "keep": int} | None,
-         "played_cards": [card id, ...], "tags": {"building": int, ...}}, where Resources and
+         "keeping": {"card": card id, "looking_at": [...], "kept": [...], "keep": int,
+                     "price": int} | None,
+         "played_cards": [card id, ...], "used_actions": [card id, ...],
+         "tags": {"building": int, ...}}, where Resources and
         Production each hold all six Resources, cards come in card-number order, and "tags" counts
         the ten Tags in play (on played Automated and Active cards; no Tag on a played Event
         counts). "hand", "buying", "drafting", "passed_in_draft" and "keeping" are None but on the
@@ -171,8 +186,11 @@ class Game:
         lists every set of cards the Player passed on in the Draft this Game, in the order passed.
         "keeping" is, while the Player plays a card such as Business Contacts, the cards they look
         at and may still keep, those kept so far, and how many more they keep; the rest are
-        discarded. "deck_size" and "discard_size" are the numbers of cards in the deck and the
-        discard pile, and "deck" and "discard" are None.
+        discarded. Using the action of Inventors' Guild or Business Network, it has the "price"
+        of each card, 3, and "keep" is how many more they may buy; otherwise "price" is 0.
+        "used_actions" is the played cards whose action the Player has used this Generation.
+        "deck_size" and "discard_size" are the numbers of cards in the deck and the discard pile,
+        and "deck" and "discard" are None.
         It also has the "board": every Area, on Mars row by row from the
         top (A to J, skipping I) and each row from the left, then the two Areas off Mars:
         {"area": "E3", "name": "Noctis City" | None, "row": 5, "position": 3,

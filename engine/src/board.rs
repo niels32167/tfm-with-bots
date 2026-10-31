@@ -337,6 +337,11 @@ impl Board {
         self.tiles.iter().flatten().filter(|tile| tile.kind == kind).count()
     }
 
+    /// How many Tiles of `kind` are on Mars, whoever owns them.
+    pub fn on_mars(&self, kind: TileKind) -> usize {
+        self.tiles[..AREAS_ON_MARS].iter().flatten().filter(|tile| tile.kind == kind).count()
+    }
+
     /// How many Tiles of `kind` are next to `area`.
     pub fn adjacent(&self, area: usize, kind: TileKind) -> usize {
         adjacent_areas(area).filter(|&next| self.tiles[next].is_some_and(|tile| tile.kind == kind)).count()

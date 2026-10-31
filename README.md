@@ -19,8 +19,9 @@ fuzzer plays Random Bot Games and checks them after every Decision, and a benchm
 measures the engine's speed. The card catalog holds the printed data of all 208 Project
 Cards and 12 Corporations, and the GUI's card gallery draws every card as the fan-made card
 list does. Players play Project Cards from their hand, paying with MegaCredits, steel and
-titanium, once the cards' Requirements are met; 105 cards work so far, 88 Automated and 17
-Events. At setup each Player is dealt 10 Project Cards and buys any of them for 3 MegaCredits
+titanium, once the cards' Requirements are met; 123 cards work so far, 88 Automated, 18 Active
+and 17 Events. An Active card's action is an Action its Player may use once per Generation. At
+setup each Player is dealt 10 Project Cards and buys any of them for 3 MegaCredits
 each (everyone starts with 42 MegaCredits until Corporations exist). From Generation 2 each
 Research phase has the Draft, on by default and switchable on the setup screen: each Player is
 dealt 4 cards, keeps one and passes the rest to their neighbour (clockwise in even Generations,
@@ -155,8 +156,10 @@ reloading the page picks it up again.
 
 Below the board are your hand and every Player's played cards, grouped into Automated,
 Active and Events; hover over a card to enlarge it. A card you can play now is outlined:
-click it to play it. When steel or titanium can pay for it, the status bar shows a payment
-picker: step the steel and titanium up or down, then **Pay** for the rest in MegaCredits.
+click it to play it. A played card whose action you can use now is outlined too: click it to
+use the action. A card whose action is used this Generation is dimmed and marked **Used**.
+When steel or titanium can pay for a card or an action, the status bar shows a payment picker:
+step the steel and titanium up or down, then **Pay** for the rest in MegaCredits.
 In the full view every hand is shown. Player boards show the cards in hand and the Tags in
 play.
 

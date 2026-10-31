@@ -185,3 +185,28 @@ def test_while_a_player_keeps_cards_they_look_at_no_other_player_view_shows_them
         "business_contacts"
     }
     assert log_names_none_of(game, looked_at)
+
+
+def test_while_a_player_looks_at_the_card_inventors_guild_offers_them_no_other_player_view_shows_it():
+    game = scenario(player(megacredits=3, played_cards=["inventors_guild"]), player(), deck=["mine", "trees"])
+
+    pick(game, "Use the action of Inventors' Guild")
+
+    assert game.player_view(0)["players"][0]["keeping"]["looking_at"] == ["mine"]
+    other = game.player_view(1)
+    assert other["players"][0]["keeping"] is None
+    assert cards_named_in({key: value for key, value in other.items() if key not in ("board", "phase")}) == {
+        "inventors_guild"
+    }
+    pick(game, "Buy Mine")
+    assert log_names_none_of(game, ["mine"])
+
+
+def test_every_player_view_shows_which_actions_each_player_has_used_this_generation():
+    game = scenario(player(steel=1, played_cards=["space_elevator"]), player())
+
+    pick(game, "Use the action of Space Elevator")
+
+    for viewer in (0, 1):
+        assert game.player_view(viewer)["players"][0]["used_actions"] == ["space_elevator"]
+        assert game.player_view(viewer)["players"][1]["used_actions"] == []

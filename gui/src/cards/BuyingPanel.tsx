@@ -93,7 +93,9 @@ export function BuyingPanel({ game, cards, disabled, onPick }: Props) {
       </header>
       {!hidden && (kept || passedThisGeneration.length > 0) && (
         <div className="buying-panel-strip">
-          {kept && <SmallCards label={`Kept (${kept.length})`} groups={[named(kept)]} />}
+          {kept && (
+            <SmallCards label={`${board.keeping?.price ? "Bought" : "Kept"} (${kept.length})`} groups={[named(kept)]} />
+          )}
           {!board.keeping && passedThisGeneration.length > 0 && (
             <SmallCards
               label={`Passed to ${playerTitle(game, passedThisGeneration[0].to)}`}
@@ -150,11 +152,23 @@ function draftPanel(game: GameUpdate, player: number): Panel {
 }
 
 /** While `player` plays a card such as Business Contacts: the cards they look at and may still
- * keep, discarding the rest. */
+ * keep, discarding the rest. Using the action of one such as Inventors' Guild, they may buy them
+ * instead. */
 function keepingPanel(game: GameUpdate, player: number, catalog: Map<string, Card>): Panel {
-  const { card, looking_at, kept, keep } = game.view.players[player].keeping!;
+  const { card, looking_at, kept, keep, price } = game.view.players[player].keeping!;
   const name = catalog.get(card)?.name ?? card;
   const looked = looking_at.length + kept.length;
+  if (price > 0) {
+    return {
+      label: "Cards to buy",
+      heading: `${name}: ${whose(game, player)} top ${looked === 1 ? "card" : `${looked} cards`} from the deck`,
+      summary: `Buy up to ${keep} for ${price} MegaCredits each, or Done to discard · ${kept.length} bought`,
+      waitingFor: "buy or discard",
+      cards: looking_at,
+      optionType: "buy_card",
+      verb: "Buy",
+    };
+  }
   return {
     label: "Cards to keep",
     heading: `${name}: ${whose(game, player)} top ${looked} cards from the deck`,

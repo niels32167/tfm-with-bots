@@ -16,9 +16,11 @@ interface Props {
 }
 
 // Options picked where they are drawn rather than as buttons here: Milestones and Awards in
-// their bar, cards to play or sell in the hand, and cards to keep or buy in the buying panel.
+// their bar, cards to play or sell in the hand, card actions on the played cards, and cards to
+// keep or buy in the buying panel.
 const PICKED_IN_THE_BAR = new Set(["claim_milestone", "fund_award"]);
 const PICKED_IN_THE_HAND = new Set(["play_card", "sell_card"]);
+const PICKED_ON_PLAYED_CARDS = new Set(["use_action"]);
 const PICKED_IN_THE_PANEL = new Set(["draft_card", "buy_card", "keep_card"]);
 
 // How the status text names the Areas a Tile goes on when they are not the usual ones, by the
@@ -35,11 +37,14 @@ export function StatusBar({ game, cards, error, disabled, onPick }: Props) {
   const { decision } = game;
   const options = decision?.options ?? [];
   const pickedElsewhere = (type: string) =>
-    PICKED_IN_THE_BAR.has(type) || PICKED_IN_THE_HAND.has(type) || PICKED_IN_THE_PANEL.has(type);
+    [PICKED_IN_THE_BAR, PICKED_IN_THE_HAND, PICKED_ON_PLAYED_CARDS, PICKED_IN_THE_PANEL].some((set) => set.has(type));
   const buttons = options.filter((option) => !pickedElsewhere(option.details.type));
   // Where else an Action can be picked; buying and selling say so in the status text.
-  const inTheBar = options.some((option) => PICKED_IN_THE_BAR.has(option.details.type));
-  const inTheHand = options.some((option) => option.details.type === "play_card");
+  const elsewhere = [
+    options.some((option) => option.details.type === "play_card") && "card in the hand",
+    options.some((option) => PICKED_ON_PLAYED_CARDS.has(option.details.type)) && "played card's action",
+    options.some((option) => PICKED_IN_THE_BAR.has(option.details.type)) && "Milestone or Award",
+  ].filter((place): place is string => Boolean(place));
   return (
     <div className="status-bar" role="status">
       <span className="status-text">{statusText(game, cards)}</span>
@@ -63,7 +68,7 @@ export function StatusBar({ game, cards, error, disabled, onPick }: Props) {
               {option.label}
             </button>
           ))}
-          {(inTheHand || inTheBar) && <span className="status-hint">{elsewhereHint(inTheHand, inTheBar)}</span>}
+          {elsewhere.length > 0 && <span className="status-hint">{elsewhereHint(elsewhere)}</span>}
         </span>
       )}
       {error && <span className="status-error">{error}</span>}
@@ -71,10 +76,10 @@ export function StatusBar({ game, cards, error, disabled, onPick }: Props) {
   );
 }
 
-/** Where else Options are picked: "or click a highlighted card in the hand, Milestone or Award". */
-function elsewhereHint(inTheHand: boolean, inTheBar: boolean): string {
-  if (inTheHand && inTheBar) return "or click a highlighted card in the hand, Milestone or Award";
-  return inTheHand ? "or click a highlighted card in the hand" : "or click a highlighted Milestone or Award";
+/** Where else Options are picked: "or click a highlighted card in the hand, played card's action,
+ * Milestone or Award". */
+function elsewhereHint(places: string[]): string {
+  return `or click a highlighted ${places.join(", ")}`;
 }
 
 function statusText(game: GameUpdate, cards: Card[]): string {
@@ -82,7 +87,15 @@ function statusText(game: GameUpdate, cards: Card[]): string {
   if (view.phase === "over" || view.current_player === null) return "The Game is over.";
   const who = playerTitle(game, view.current_player);
   const paidFor = cards.find((card) => card.id === cardBeingPaidFor(decision));
+  if (paidFor && decision?.options[0].details.action) {
+    const pay = (paidFor.effects?.action as { pay?: { megacredits: number } } | undefined)?.pay;
+    return `${who} must choose how to pay for the action of ${paidFor.name} (${pay?.megacredits} MegaCredits):`;
+  }
   if (paidFor) return `${who} must choose how to pay for ${paidFor.name} (${paidFor.cost} MegaCredits):`;
+  if (decision?.kind === "resources") {
+    const card = cards.find((each) => each.id === decision.options[0]?.details.card);
+    return `${who} must choose what the action of ${card?.name} spends:`;
+  }
   if (decision?.kind === "area") {
     const tile = decision.options[0]?.details.tile as TileType;
     const where = OTHER_AREAS[decision.options[0]?.details.on as string] ?? "";
@@ -105,6 +118,13 @@ function statusText(game: GameUpdate, cards: Card[]): string {
     return `${who} must keep one of the cards above and pass the rest ${to}: click the card to keep.`;
   }
   const keeping = decision?.kind === "keep_cards" ? view.players[decision.player].keeping : null;
+  if (keeping && keeping.price > 0) {
+    const card = cards.find((each) => each.id === keeping.card)?.name ?? "the card";
+    return (
+      `${who} may buy the card above for ${keeping.price} MegaCredits with the action of ${card}: ` +
+      "click it, or Done to discard it."
+    );
+  }
   if (keeping) {
     const card = cards.find((each) => each.id === keeping.card)?.name ?? "the card played";
     const count = keeping.kept.length > 0 ? `${keeping.keep} more` : `${keeping.keep}`;

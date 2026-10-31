@@ -6,11 +6,11 @@ use std::cmp::Reverse;
 
 use serde::Serialize;
 
-use crate::board::TileKind;
+use crate::board::{Placement, TileKind};
 use crate::card_code::{INSULATION, ROBOTIC_WORKFORCE, insulation_change};
 use crate::cards::{
-    CARD_CATALOG, Card, CardType, Counted, Effects, Limit, Owner, ProductionAtLeast, ProductionPer,
-    Requirement, Tag, TerraformRatingPer, VictoryPoints,
+    CARD_CATALOG, CardType, Counted, Effects, Limit, Owner, ProductionAtLeast, ProductionPer, Requirement,
+    ResourcesPer, Tag, TerraformRatingPer, VictoryPoints,
 };
 use crate::game::{DecisionOption, Game, Waiting};
 use crate::log::{LogEvent, listed};
@@ -30,6 +30,9 @@ pub struct Payment {
 }
 
 impl Payment {
+    /// Nothing paid, for an action that costs no MegaCredits.
+    pub const NOTHING: Payment = Payment { megacredits: 0, steel: 0, titanium: 0 };
+
     /// As labels and the game log write it: "4 MegaCredits", "2 MegaCredits and 1 steel".
     pub fn text(self) -> String {
         let parts = [
@@ -110,22 +113,26 @@ impl Game {
     pub(crate) fn can_play(&self, player: usize, card: usize) -> bool {
         let printed = &CARD_CATALOG[card];
         let Some(effects) = &printed.effects else { return false };
-        let (steel, titanium) = self.usable_cubes(player, printed);
-        let spendable =
-            self.players[player].resources.megacredits + STEEL_VALUE * steel + TITANIUM_VALUE * titanium;
+        let spendable = self.spendable(player, printed.has_tag(Tag::Building), printed.has_tag(Tag::Space));
         printed.requirements.iter().all(|requirement| self.meets(player, requirement))
             && spendable >= printed.project_cost()
             && self.can_carry_out(player, effects)
             && self.can_make_a_production_change(player, card)
     }
 
-    /// The steel and titanium `player` may put towards `printed`: steel only for a building
-    /// Tag, titanium only for a space Tag.
-    fn usable_cubes(&self, player: usize, printed: &Card) -> (i32, i32) {
+    /// The steel and titanium `player` may put towards a cost: their steel if `steel` may pay it
+    /// (a card with a building Tag, Aquifer Pumping's action), their titanium if `titanium` may (a
+    /// card with a space Tag, Water Import from Europa's action).
+    pub(crate) fn usable_cubes(&self, player: usize, steel: bool, titanium: bool) -> (i32, i32) {
         let resources = self.players[player].resources;
-        let steel = if printed.has_tag(Tag::Building) { resources.steel } else { 0 };
-        let titanium = if printed.has_tag(Tag::Space) { resources.titanium } else { 0 };
-        (steel, titanium)
+        (if steel { resources.steel } else { 0 }, if titanium { resources.titanium } else { 0 })
+    }
+
+    /// What `player` could spend on a cost that steel or titanium may pay as `usable_cubes` says:
+    /// their MegaCredits plus what those cubes are worth.
+    pub(crate) fn spendable(&self, player: usize, steel: bool, titanium: bool) -> i32 {
+        let (steel, titanium) = self.usable_cubes(player, steel, titanium);
+        self.players[player].resources.megacredits + STEEL_VALUE * steel + TITANIUM_VALUE * titanium
     }
 
     /// The Victory Points on the cards `player` has played.
@@ -159,6 +166,7 @@ impl Game {
         match what {
             Counted::Tag(tag) => self.tags(player, tag),
             Counted::TilesInPlay(kind) => self.board.in_play(kind) as i32,
+            Counted::TilesOnMars(kind) => self.board.on_mars(kind) as i32,
             Counted::CardResource(_) | Counted::Adjacent(_) => 0,
         }
     }
@@ -167,7 +175,7 @@ impl Game {
     /// with an Area for each Tile (an Ocean always, as Aquifer: see docs/rules-notes.md).
     /// Resources lost are checked against what the Player holds before paying for the card;
     /// no card yet both costs steel or titanium and loses some.
-    fn can_carry_out(&self, player: usize, effects: &Effects) -> bool {
+    pub(crate) fn can_carry_out(&self, player: usize, effects: &Effects) -> bool {
         let own = &self.players[player];
         Resource::ALL.into_iter().all(|resource| own.resources[resource] + effects.resources[resource] >= 0)
             && self.can_change_production(player, effects.production)
@@ -220,8 +228,21 @@ impl Game {
     /// taking, so it is left out (see docs/rules-notes.md).
     pub(crate) fn payments(&self, player: usize, card: usize) -> Vec<Payment> {
         let printed = &CARD_CATALOG[card];
-        let cost = printed.project_cost();
-        let (most_steel, most_titanium) = self.usable_cubes(player, printed);
+        let (steel, titanium) =
+            self.usable_cubes(player, printed.has_tag(Tag::Building), printed.has_tag(Tag::Space));
+        self.ways_to_pay(player, printed.project_cost(), steel, titanium)
+    }
+
+    /// Every way `player` may pay `cost` with up to `most_steel` steel and `most_titanium`
+    /// titanium, the most MegaCredits first, leaving out a split with a cube the others make
+    /// unneeded (see `payments`).
+    pub(crate) fn ways_to_pay(
+        &self,
+        player: usize,
+        cost: i32,
+        most_steel: i32,
+        most_titanium: i32,
+    ) -> Vec<Payment> {
         let megacredits = self.players[player].resources.megacredits;
         let mut payments = Vec::new();
         for titanium in 0..=most_titanium.min(cubes_to_pay(cost, TITANIUM_VALUE)) {
@@ -242,17 +263,15 @@ impl Game {
     /// `player` pays for `card` and plays it from their hand: it joins their played cards and
     /// its effects are carried out.
     pub(crate) fn play_card(&mut self, player: usize, card: usize, payment: Payment) {
+        self.pay(player, payment);
         let own = &mut self.players[player];
-        own.resources.megacredits -= payment.megacredits;
-        own.resources.steel -= payment.steel;
-        own.resources.titanium -= payment.titanium;
         own.hand.remove(card);
         own.played.insert(card);
         self.log.push(LogEvent::PlayedCard { player, card, payment });
         let effects = CARD_CATALOG[card].implemented_effects();
         self.carry_out(player, effects);
         // Keeping the cards looked at comes first; once it is done, the Production change follows.
-        if !self.look_at_cards(player, card) {
+        if !self.look_at_cards(player, card, effects.look_at, false) {
             self.choose_production_change(player, card);
         }
     }
@@ -307,25 +326,39 @@ impl Game {
                 return;
             };
             self.placing_for = Some(CardTiles { card, placed: placed + 1 });
-            if placement.tile == TileKind::Ocean {
-                self.place_ocean(placement.on);
-            } else {
-                self.place(placement);
-            }
+            self.place_card_tile(placement);
             if self.is_placing() {
                 return;
             }
         }
     }
 
-    /// Carries out `effects` for `player`, in the order `Effects` gives.
-    fn carry_out(&mut self, player: usize, effects: &Effects) {
-        for resource in Resource::ALL {
-            let by = effects.resources[resource];
-            if by != 0 {
-                self.players[player].resources[resource] += by;
-                self.log.push(LogEvent::ResourceChanged { player, resource, by });
-            }
+    /// `player` pays `payment`.
+    pub(crate) fn pay(&mut self, player: usize, payment: Payment) {
+        let own = &mut self.players[player].resources;
+        own.megacredits -= payment.megacredits;
+        own.steel -= payment.steel;
+        own.titanium -= payment.titanium;
+    }
+
+    /// The current Player has a card's Tile to make `placement` with. An Ocean once all 9 are
+    /// placed is skipped, as for Aquifer (see docs/rules-notes.md).
+    pub(crate) fn place_card_tile(&mut self, placement: Placement) {
+        if placement.tile == TileKind::Ocean {
+            self.place_ocean(placement.on);
+        } else {
+            self.place(placement);
+        }
+    }
+
+    /// Carries out `effects` for `player`, in the order `Effects` gives, up to the cards looked
+    /// at: what follows them is for the card or action to carry on with.
+    pub(crate) fn carry_out(&mut self, player: usize, effects: &Effects) {
+        self.change_resources(player, effects.resources);
+        if let Some(ResourcesPer { resource, amount, per, of }) = effects.resources_per {
+            let mut gained = Resources::default();
+            gained[resource] = self.for_every(player, amount, per, of);
+            self.change_resources(player, gained);
         }
         self.change_productions(player, effects.production);
         self.change_production_per(player, effects.production_per);
@@ -364,6 +397,16 @@ impl Game {
             let by = self.for_every(player, steps, per, of);
             if by != 0 {
                 self.change_production(player, resource, by);
+            }
+        }
+    }
+
+    /// Changes each of `player`'s Resources `by` so many, gained or lost.
+    pub(crate) fn change_resources(&mut self, player: usize, by: Resources) {
+        for resource in Resource::ALL {
+            if by[resource] != 0 {
+                self.players[player].resources[resource] += by[resource];
+                self.log.push(LogEvent::ResourceChanged { player, resource, by: by[resource] });
             }
         }
     }

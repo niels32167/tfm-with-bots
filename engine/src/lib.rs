@@ -3,6 +3,7 @@
 //! Python data: dicts, lists, strings, numbers and None.
 
 mod board;
+mod card_actions;
 mod card_code;
 mod card_flow;
 mod card_set;

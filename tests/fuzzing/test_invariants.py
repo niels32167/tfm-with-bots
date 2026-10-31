@@ -320,6 +320,49 @@ def test_robotic_workforce_offering_a_card_it_may_not_copy_breaks_an_invariant()
     ]
 
 
+def test_card_actions_used_and_offered_by_the_rules_break_no_invariant():
+    game = scenario(player(steel=1, heat=8, played_cards=["space_elevator", "caretaker_contract"]), player())
+    pick(game, "Use the action of Space Elevator")
+
+    assert problems(*position(game)) == []
+
+
+def test_an_action_used_twice_or_not_the_players_own_breaks_an_invariant():
+    game = scenario(player(steel=1, heat=8, played_cards=["space_elevator", "caretaker_contract"]), player())
+    pick(game, "Use the action of Space Elevator")
+    view, decision = position(game)
+    use = next(option for option in decision["options"] if option["details"]["type"] == "use_action")
+    # Mine has no action, and Space Elevator's is used.
+    for card in ("space_elevator", "mine"):
+        decision["options"].append({**use, "details": {"type": "use_action", "card": card}})
+    view["players"][1]["used_actions"] = ["caretaker_contract"]
+
+    assert problems(view, decision) == [
+        "Player 2 has used the action of 'caretaker_contract', which is not a card with an action they played",
+        "Player 1 is offered the action of 'space_elevator' again this Generation",
+        "Player 1 is offered the action of 'mine', not a card with an action they played",
+    ]
+
+
+def test_an_action_still_used_after_the_production_phase_breaks_an_invariant():
+    game = scenario(player(steel=1, played_cards=["space_elevator"]), player(), draft=False)
+    pick(game, "Use the action of Space Elevator")
+    end_the_action_phase(game)
+    view, decision = position(game)
+    assert view["phase"] == "research"
+    assert problems(view, decision) == []
+    view["players"][0]["used_actions"] = ["space_elevator"]
+
+    assert problems(view, decision) == ["in the research phase, Player 1 has used the actions of space_elevator"]
+
+
+def test_cards_bought_with_inventors_guild_break_no_invariant():
+    game = scenario(player(megacredits=3, played_cards=["inventors_guild"]), player(), deck=["mine", "trees"])
+    pick(game, "Use the action of Inventors' Guild")
+
+    assert problems(*position(game)) == []
+
+
 def test_more_than_three_milestones_claimed_or_awards_funded_break_an_invariant():
     game = scenario(
         milestones=[claimed(name, by=0) for name in ("terraformer", "mayor", "gardener")],

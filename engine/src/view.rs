@@ -45,6 +45,10 @@ pub enum OptionDetails {
         card: &'static str,
         cost: i32,
     },
+    /// Use the action of a played card, named by its catalog id.
+    UseAction {
+        card: &'static str,
+    },
     /// Keep one of the cards being drafted, named by its catalog id, and pass the rest on.
     DraftCard {
         card: &'static str,
@@ -54,7 +58,8 @@ pub enum OptionDetails {
     KeepCard {
         card: &'static str,
     },
-    /// Buy one of the cards dealt, named by its catalog id.
+    /// Buy one of the cards dealt, or one of those the action being used lets its Player look at,
+    /// named by its catalog id.
     BuyCard {
         card: &'static str,
         cost: i32,
@@ -64,9 +69,12 @@ pub enum OptionDetails {
         card: &'static str,
         megacredits: i32,
     },
-    /// One way to pay for the card being played: its MegaCredits, steel and titanium.
+    /// One way to pay for the card being played, or for the action of `card` being used if
+    /// `action` is true: its MegaCredits, steel and titanium.
     Payment {
         card: &'static str,
+        #[serde(skip_serializing_if = "std::ops::Not::not")]
+        action: bool,
         #[serde(flatten)]
         payment: Payment,
     },
@@ -78,6 +86,11 @@ pub enum OptionDetails {
     /// One of the Player's building cards whose production box Robotic Workforce may copy.
     CopyProductionBox {
         card: &'static str,
+    },
+    /// One of the Resource changes the action of `card`, being used, lets its Player choose.
+    ChooseResources {
+        card: &'static str,
+        resources: Resources,
     },
     StandardProject {
         project: String,
@@ -204,6 +217,9 @@ pub struct PlayerBoard {
     pub keeping: Option<KeepingView>,
     /// The cards they have played, by catalog id in card-number order.
     pub played_cards: Vec<&'static str>,
+    /// The played cards whose action they have used this Generation, by catalog id in card-number
+    /// order.
+    pub used_actions: Vec<&'static str>,
     /// How many of each Tag they have in play, for every Tag but the Event Tag, which never counts.
     pub tags: BTreeMap<Tag, i32>,
 }
@@ -225,15 +241,17 @@ pub struct DraftingView {
     pub passing_to: usize,
 }
 
-/// The cards a Player looks at while playing `card`, by catalog id in card-number order: those
-/// they may still keep, those they have kept, and how many more they `keep`. The rest are
-/// discarded.
+/// The cards a Player looks at while playing `card` or using its action, by catalog id in
+/// card-number order: those they may still keep, those they have kept, and how many more they
+/// `keep`. The rest are discarded. With a `price`, the MegaCredits each costs, they buy up to
+/// `keep` more instead.
 #[derive(Serialize)]
 pub struct KeepingView {
     pub card: &'static str,
     pub looking_at: Vec<&'static str>,
     pub kept: Vec<&'static str>,
     pub keep: usize,
+    pub price: i32,
 }
 
 /// Cards a Player passed on in the Draft, by catalog id in card-number order: in `generation`,
@@ -337,11 +355,13 @@ fn view(game: &Game, viewer: Option<usize>) -> View {
                             looking_at: ids(keeping.looking_at),
                             kept: ids(keeping.kept),
                             keep: keeping.keep,
+                            price: keeping.price,
                         })
                     }
                     _ => None,
                 },
                 played_cards: ids(player.played),
+                used_actions: ids(player.used_actions),
                 tags: Tag::COUNTED.into_iter().map(|tag| (tag, game.tags(index, tag))).collect(),
             })
             .collect(),
@@ -417,6 +437,7 @@ fn decision_view(decision: &Decision) -> DecisionView {
             DecisionKind::Payment => "payment",
             DecisionKind::Production => "production",
             DecisionKind::KeepCards => "keep_cards",
+            DecisionKind::Resources => "resources",
             DecisionKind::Draft => "draft",
             DecisionKind::BuyCards => "buy_cards",
             DecisionKind::SellPatents => "sell_patents",
@@ -442,6 +463,7 @@ fn label(option: &DecisionOption) -> String {
                 Resource::MegaCredits.counted(printed_card.project_cost())
             )
         }
+        DecisionOption::UseAction(card) => format!("Use the action of {}", CARD_CATALOG[*card].name),
         DecisionOption::DraftCard(card) | DecisionOption::KeepCard(card) => {
             format!("Keep {}", CARD_CATALOG[*card].name)
         }
@@ -451,7 +473,10 @@ fn label(option: &DecisionOption) -> String {
         DecisionOption::SellCard(card) => {
             format!("Sell {} ({})", CARD_CATALOG[*card].name, Resource::MegaCredits.counted(PATENT_VALUE))
         }
-        DecisionOption::Pay { payment, .. } => format!("Pay {}", payment.text()),
+        DecisionOption::Pay { payment, .. } | DecisionOption::PayForAction { payment, .. } => {
+            format!("Pay {}", payment.text())
+        }
+        DecisionOption::ChangeResources { card, change } => resource_change(change.resources(*card)),
         DecisionOption::ChangeProduction { card, change: ProductionChange::Alternative(index) } => {
             production_change(CARD_CATALOG[*card].production_alternative(*index))
         }
@@ -498,12 +523,23 @@ fn production_change(by: Resources) -> String {
     letters.next().map(|first| first.to_uppercase().chain(letters).collect()).unwrap_or_default()
 }
 
+/// A Resource change as a label writes it: "Spend 1 plant to gain 7 MegaCredits".
+fn resource_change(by: Resources) -> String {
+    let amounts = |spent: bool| {
+        let changed =
+            Resource::ALL.into_iter().filter(|&resource| by[resource] != 0 && (by[resource] < 0) == spent);
+        listed(changed.map(|resource| resource.counted(by[resource].abs())))
+    };
+    format!("Spend {} to gain {}", amounts(true), amounts(false))
+}
+
 fn details(option: &DecisionOption) -> OptionDetails {
     match option {
         DecisionOption::PlayCard(card) => {
             let printed_card = &CARD_CATALOG[*card];
             OptionDetails::PlayCard { card: &printed_card.id, cost: printed_card.project_cost() }
         }
+        DecisionOption::UseAction(card) => OptionDetails::UseAction { card: &CARD_CATALOG[*card].id },
         DecisionOption::DraftCard(card) => OptionDetails::DraftCard { card: &CARD_CATALOG[*card].id },
         DecisionOption::KeepCard(card) => OptionDetails::KeepCard { card: &CARD_CATALOG[*card].id },
         DecisionOption::BuyCard(card) => {
@@ -513,8 +549,15 @@ fn details(option: &DecisionOption) -> OptionDetails {
             OptionDetails::SellCard { card: &CARD_CATALOG[*card].id, megacredits: PATENT_VALUE }
         }
         DecisionOption::Pay { card, payment } => {
-            OptionDetails::Payment { card: &CARD_CATALOG[*card].id, payment: *payment }
+            OptionDetails::Payment { card: &CARD_CATALOG[*card].id, action: false, payment: *payment }
         }
+        DecisionOption::PayForAction { card, payment } => {
+            OptionDetails::Payment { card: &CARD_CATALOG[*card].id, action: true, payment: *payment }
+        }
+        DecisionOption::ChangeResources { card, change } => OptionDetails::ChooseResources {
+            card: &CARD_CATALOG[*card].id,
+            resources: change.resources(*card),
+        },
         DecisionOption::ChangeProduction { card, change: ProductionChange::Alternative(index) } => {
             let printed_card = &CARD_CATALOG[*card];
             let production = printed_card.production_alternative(*index);

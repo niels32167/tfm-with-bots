@@ -63,8 +63,9 @@ pub struct Card {
     pub text: String,
     /// The card's middle part as the card list draws it. Only the GUI reads it.
     pub face: serde_json::Value,
-    /// What the card does when played, as far as effect data describes it (ADR 0009). Written
-    /// by hand; a card without it is not implemented yet, and is never offered.
+    /// What the card does when played, as far as effect data describes it (ADR 0009), and its
+    /// action if it has one. Written by hand; a card without it is not implemented yet, and is
+    /// never offered.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub effects: Option<Effects>,
 }
@@ -96,19 +97,38 @@ impl Card {
     pub fn production_alternative(&self, index: usize) -> Resources {
         self.implemented_effects().production_choice[index]
     }
+
+    /// The action of an implemented card, if it has one.
+    pub fn action(&self) -> Option<&Effects> {
+        self.effects.as_ref().and_then(|effects| effects.action.as_deref())
+    }
+
+    /// The action of a card that has one, as every card whose action is used does.
+    pub fn implemented_action(&self) -> &Effects {
+        self.action().expect("only cards with an action have their action used")
+    }
 }
 
-/// The simple effects of a card, which are carried out in this order: Resources, Production
-/// (fixed, then per Tag or Tile, then for having at least so many), Temperature and Oxygen
-/// steps, Terraform Rating (fixed, then per Tag), cards drawn, cards looked at to keep some of,
-/// the Production change the Player chooses, and then the Tiles one at a time. For the cards
-/// described this way the order never changes the outcome; a card whose effects depend on their
-/// order gets its own Rust code.
+/// The simple effects of a card, or of its action, which are carried out in this order: the
+/// action's payment, Resources (fixed, then per Tag or Tile), Production (fixed, then per Tag or
+/// Tile, then for having at least so many), Temperature and Oxygen steps, Terraform Rating
+/// (fixed, then per Tag), cards drawn, cards looked at to keep or buy some of, the Production or
+/// Resource change the Player chooses, and then the Tiles one at a time. For the cards described
+/// this way the order never changes the outcome; a card whose effects depend on their order gets
+/// its own Rust code.
 #[derive(Debug, Default, Serialize, Deserialize)]
 #[serde(default, deny_unknown_fields)]
 pub struct Effects {
-    /// Resources gained, or lost below zero.
+    /// Only for an action: the MegaCredits it costs, which steel or titanium may pay as for a card
+    /// with a building or space Tag (Aquifer Pumping, Water Import from Europa).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub pay: Option<ActionCost>,
+    /// Resources gained, or lost below zero. An action's cost in Resources is written here.
     pub resources: Resources,
+    /// Resources gained for what the Player has, such as 1 MegaCredit for each City on Mars
+    /// (Martian Rails).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub resources_per: Option<ResourcesPer>,
     /// Production steps raised, or lowered below zero.
     pub production: Resources,
     /// Production raised by what the Player has, counted once the card is played, so its own
@@ -122,6 +142,9 @@ pub struct Effects {
     /// Production changes the Player chooses one of, such as 1 plant Production step or 2 energy
     /// Production steps (Artificial Photosynthesis). Empty for a card with no such choice.
     pub production_choice: Vec<Resources>,
+    /// Only for an action: Resource changes the Player chooses one of, such as 1 plant or 1 steel
+    /// for 7 MegaCredits (Electro Catapult). Empty for an action with no such choice.
+    pub resources_choice: Vec<Resources>,
     /// Temperature steps raised.
     pub temperature: i32,
     /// Oxygen steps raised.
@@ -138,8 +161,38 @@ pub struct Effects {
     /// (Business Contacts, Invention Contest).
     #[serde(skip_serializing_if = "Option::is_none")]
     pub look_at: Option<LookAt>,
-    /// The Tiles to place, in order, each on the Areas it may go on.
+    /// The Tiles to place, in order, each on the Areas it may go on. An action places at most
+    /// one.
     pub tiles: Vec<Placement>,
+    /// Only for a card when played: its action, which its Player may use once per Generation
+    /// (an Active card's red arrow). None for a card without one.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub action: Option<Box<Effects>>,
+}
+
+/// What an action costs in MegaCredits, and whether steel or titanium may pay for it, worth as
+/// much as towards a card with a building or space Tag.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct ActionCost {
+    pub megacredits: i32,
+    /// Whether steel may pay part of it.
+    #[serde(default)]
+    pub steel: bool,
+    /// Whether titanium may pay part of it.
+    #[serde(default)]
+    pub titanium: bool,
+}
+
+/// `amount` of `resource` for every `per` of something, such as 1 MegaCredit for each City on
+/// Mars (Martian Rails).
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct ResourcesPer {
+    pub resource: Resource,
+    pub amount: i32,
+    pub per: i32,
+    pub of: Counted,
 }
 
 /// `steps` of Production of `resource` for every `per` of something, such as 1 MegaCredit
@@ -164,13 +217,17 @@ pub struct ProductionAtLeast {
     pub of: Counted,
 }
 
-/// Look at the top `cards` cards of the deck, take `keep` of them into the hand and discard the
-/// rest.
+/// Look at the top `cards` cards of the deck, and either take `keep` of them into the hand or
+/// buy up to `buy` of them at the card price; the rest are discarded. One of `keep` and `buy` is
+/// written, and the other is 0.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct LookAt {
     pub cards: i32,
+    #[serde(default)]
     pub keep: i32,
+    #[serde(default)]
+    pub buy: i32,
 }
 
 /// `steps` of Terraform Rating for every `per` of something, such as 1 step for each jovian Tag
@@ -281,7 +338,7 @@ pub enum VictoryPoints {
     AtLeast { points: i32, at_least: i32, of: Counted },
 }
 
-/// What Victory Points, or Production or Terraform Rating per Tag or Tile, count.
+/// What Victory Points, or Resources, Production or Terraform Rating per Tag or Tile, count.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum Counted {
@@ -293,4 +350,7 @@ pub enum Counted {
     Adjacent(TileKind),
     /// Tiles on the board, whoever owns them.
     TilesInPlay(TileKind),
+    /// Tiles on Mars, whoever owns them: not those off Mars (Phobos Space Haven and Ganymede
+    /// Colony, ticket 18).
+    TilesOnMars(TileKind),
 }

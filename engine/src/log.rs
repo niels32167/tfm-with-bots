@@ -43,6 +43,16 @@ pub enum LogEvent {
         player: usize,
         project: StandardProject,
     },
+    /// The Player uses the action of `card`.
+    UsedAction {
+        player: usize,
+        card: usize,
+    },
+    /// The Player pays for the action they are using.
+    PaidForAction {
+        player: usize,
+        payment: Payment,
+    },
     ClaimedMilestone {
         player: usize,
         milestone: Milestone,
@@ -85,10 +95,13 @@ pub enum LogEvent {
         player: usize,
         cards: usize,
     },
+    /// The Player keeps `kept` of the cards they looked at, or buys them at `price` each, and
+    /// discards the rest.
     KeptCards {
         player: usize,
         kept: usize,
         discarded: usize,
+        price: i32,
     },
     /// Robotic Workforce copies the production box of `card`.
     CopiedProductionBox {
@@ -224,6 +237,12 @@ impl LogEvent {
                     payment.text()
                 )
             }
+            LogEvent::UsedAction { player, card } => {
+                format!("{} uses the action of {}.", player_name(player), CARD_CATALOG[card].name)
+            }
+            LogEvent::PaidForAction { player, payment } => {
+                format!("{} pays {}.", player_name(player), payment.text())
+            }
             LogEvent::UsedStandardProject { player, project } => format!(
                 "{} uses the {} Standard Project for {} MegaCredits.",
                 player_name(player),
@@ -277,15 +296,27 @@ impl LogEvent {
             LogEvent::DrewCards { player, count } => {
                 format!("{} draws {}.", player_name(player), counted(count, "card", "cards"))
             }
+            LogEvent::LookedAtCards { player, cards: 1 } => {
+                format!("{} looks at the top card of the deck.", player_name(player))
+            }
             LogEvent::LookedAtCards { player, cards } => format!(
                 "{} looks at the top {} of the deck.",
                 player_name(player),
                 counted(cards as i32, "card", "cards")
             ),
-            LogEvent::KeptCards { player, kept, discarded } => format!(
+            LogEvent::KeptCards { player, kept, discarded, price: 0 } => format!(
                 "{} keeps {} and discards {discarded}.",
                 player_name(player),
                 counted(kept as i32, "card", "cards")
+            ),
+            LogEvent::KeptCards { player, kept: 0, discarded, .. } => {
+                format!("{} buys none of them and discards {discarded}.", player_name(player))
+            }
+            LogEvent::KeptCards { player, kept, discarded, price } => format!(
+                "{} buys {} for {} and discards {discarded}.",
+                player_name(player),
+                counted(kept as i32, "card", "cards"),
+                Resource::MegaCredits.counted(price * kept as i32)
             ),
             LogEvent::CopiedProductionBox { player, card } => {
                 format!("{} copies the production box of {}.", player_name(player), CARD_CATALOG[card].name)

@@ -79,7 +79,8 @@
       "requirements": [],
       "victory_points": null,
       "text": "ACTION: LOOK AT THE TOP CARD AND EITHER BUY IT OR DISCARD IT",
-      "face": {"content": {"tag": "div", "class": "content", "children": [" ", {"tag": "div", "class": "red-arrow"}, " ", {"tag": "span", "style": {"font-size": "14px", "font-weight": "normal"}, "children": ["ACTION: LOOK AT THE TOP CARD AND EITHER BUY IT OR DISCARD IT"]}, " "]}}
+      "face": {"content": {"tag": "div", "class": "content", "children": [" ", {"tag": "div", "class": "red-arrow"}, " ", {"tag": "span", "style": {"font-size": "14px", "font-weight": "normal"}, "children": ["ACTION: LOOK AT THE TOP CARD AND EITHER BUY IT OR DISCARD IT"]}, " "]}},
+      "effects": {"action": {"look_at": {"cards": 1, "buy": 1}}}
     },
     {
       "id": "martian_rails",
@@ -92,7 +93,8 @@
       "requirements": [],
       "victory_points": null,
       "text": "(Action: Spend 1 Energy to gain 1 MC for each City tile ON MARS.)",
-      "face": {"content": {"tag": "div", "class": "content", "children": [" ", {"tag": "span", "class": "energy resource"}, " ", {"tag": "div", "class": "red-arrow"}, " ", {"tag": "span", "class": "money resource", "children": ["1"]}, " / ", {"tag": "div", "class": "tile city-tile-small", "style": {"filter": "brightness(0.8) drop-shadow(1px 0px 1px #c33) drop-shadow(-1px 0px 1px #c33) drop-shadow(0px 1px 1px #c33) drop-shadow(0px -1px 1px #c33)"}}, " * ", {"tag": "div", "class": "description", "children": [" (Action: Spend 1 Energy to gain 1 MC for each City tile ON MARS.) "]}, " "]}}
+      "face": {"content": {"tag": "div", "class": "content", "children": [" ", {"tag": "span", "class": "energy resource"}, " ", {"tag": "div", "class": "red-arrow"}, " ", {"tag": "span", "class": "money resource", "children": ["1"]}, " / ", {"tag": "div", "class": "tile city-tile-small", "style": {"filter": "brightness(0.8) drop-shadow(1px 0px 1px #c33) drop-shadow(-1px 0px 1px #c33) drop-shadow(0px 1px 1px #c33) drop-shadow(0px -1px 1px #c33)"}}, " * ", {"tag": "div", "class": "description", "children": [" (Action: Spend 1 Energy to gain 1 MC for each City tile ON MARS.) "]}, " "]}},
+      "effects": {"action": {"resources": {"energy": -1}, "resources_per": {"resource": "megacredits", "amount": 1, "per": 1, "of": {"tiles_on_mars": "city"}}}}
     },
     {
       "id": "capital",
@@ -157,7 +159,8 @@
       "requirements": [],
       "victory_points": {"points": 1, "per": 1, "of": {"tag": "jovian"}},
       "text": "(Action: Pay 12 MC to place an ocean tile. TITANIUM MAY BE USED as if playing a Space card.)\n(1 VP for each Jovian tag you have.)",
-      "face": {"content": {"tag": "div", "class": "content", "children": [" ", {"tag": "div", "class": "points points-big", "children": [" 1/", {"tag": "span", "class": "tag-jovian resource-tag"}, " "]}, " ", {"tag": "div", "class": "money resource", "children": ["12"]}, " (", {"tag": "span", "class": "resource titanium"}, ") ", {"tag": "div", "class": "red-arrow"}, " ", {"tag": "div", "class": "ocean-tile tile"}, " ", {"tag": "div", "class": "description", "children": [" (Action: Pay 12 MC to place an ocean tile. TITANIUM MAY BE USED as if playing a Space card.)", {"tag": "br"}, {"tag": "br"}, " (1 VP for each Jovian tag you have.) "]}, " "]}}
+      "face": {"content": {"tag": "div", "class": "content", "children": [" ", {"tag": "div", "class": "points points-big", "children": [" 1/", {"tag": "span", "class": "tag-jovian resource-tag"}, " "]}, " ", {"tag": "div", "class": "money resource", "children": ["12"]}, " (", {"tag": "span", "class": "resource titanium"}, ") ", {"tag": "div", "class": "red-arrow"}, " ", {"tag": "div", "class": "ocean-tile tile"}, " ", {"tag": "div", "class": "description", "children": [" (Action: Pay 12 MC to place an ocean tile. TITANIUM MAY BE USED as if playing a Space card.)", {"tag": "br"}, {"tag": "br"}, " (1 VP for each Jovian tag you have.) "]}, " "]}},
+      "effects": {"action": {"pay": {"megacredits": 12, "titanium": true}, "tiles": ["ocean"]}}
     },
     {
       "id": "space_elevator",
@@ -170,7 +173,8 @@
       "requirements": [],
       "victory_points": 2,
       "text": "(Action: Spend 1 steel to gain 5 MC.)\n(Increase your titanium production 1 step.)",
-      "face": {"content": {"tag": "div", "class": "content", "children": [" ", {"tag": "div", "class": "points points-big", "children": ["2"]}, " ", {"tag": "span", "class": "steel resource"}, " ", {"tag": "div", "class": "red-arrow"}, " ", {"tag": "span", "class": "money resource", "children": ["5"]}, " ", {"tag": "div", "class": "description", "children": [" (Action: Spend 1 steel to gain 5 MC.) "]}, " ", {"tag": "br"}, " ", {"tag": "div", "class": "production-box", "children": [" ", {"tag": "div", "class": "titanium production"}, " "]}, " ", {"tag": "div", "class": "description", "children": [" (Increase your titanium production 1 step.) "]}, " "]}}
+      "face": {"content": {"tag": "div", "class": "content", "children": [" ", {"tag": "div", "class": "points points-big", "children": ["2"]}, " ", {"tag": "span", "class": "steel resource"}, " ", {"tag": "div", "class": "red-arrow"}, " ", {"tag": "span", "class": "money resource", "children": ["5"]}, " ", {"tag": "div", "class": "description", "children": [" (Action: Spend 1 steel to gain 5 MC.) "]}, " ", {"tag": "br"}, " ", {"tag": "div", "class": "production-box", "children": [" ", {"tag": "div", "class": "titanium production"}, " "]}, " ", {"tag": "div", "class": "description", "children": [" (Increase your titanium production 1 step.) "]}, " "]}},
+      "effects": {"production": {"titanium": 1}, "action": {"resources": {"megacredits": 5, "steel": -1}}}
     },
     {
       "id": "development_center",
@@ -183,7 +187,8 @@
       "requirements": [],
       "victory_points": null,
       "text": "(Action: Spend 1 Energy to draw a card.)",
-      "face": {"content": {"tag": "div", "class": "content", "children": [" ", {"tag": "span", "class": "energy resource"}, " ", {"tag": "div", "class": "red-arrow"}, " ", {"tag": "span", "class": "card resource"}, " ", {"tag": "div", "class": "description", "children": [" (Action: Spend 1 Energy to draw a card.) "]}, " "]}}
+      "face": {"content": {"tag": "div", "class": "content", "children": [" ", {"tag": "span", "class": "energy resource"}, " ", {"tag": "div", "class": "red-arrow"}, " ", {"tag": "span", "class": "card resource"}, " ", {"tag": "div", "class": "description", "children": [" (Action: Spend 1 Energy to draw a card.) "]}, " "]}},
+      "effects": {"action": {"resources": {"energy": -1}, "draw": 1}}
     },
     {
       "id": "equatorial_magnetizer",
@@ -196,7 +201,8 @@
       "requirements": [],
       "victory_points": null,
       "text": "(Action: Decrease your Energy production 1 step to increase your terraform rating 1 step.)",
-      "face": {"content": {"tag": "div", "class": "content", "children": [" ", {"tag": "div", "class": "production-box production-box-size1a", "children": [" ", {"tag": "div", "class": "production-prefix", "children": [{"tag": "div", "class": "minus"}]}, " ", {"tag": "div", "class": "energy production"}, " "]}, " ", {"tag": "span", "class": "red-arrow", "style": {"margin-left": "5px"}}, " ", {"tag": "div", "class": "rating tile"}, " ", {"tag": "div", "class": "description", "children": [" (Action: Decrease your Energy production 1 step to increase your terraform rating 1 step.) "]}, " "]}}
+      "face": {"content": {"tag": "div", "class": "content", "children": [" ", {"tag": "div", "class": "production-box production-box-size1a", "children": [" ", {"tag": "div", "class": "production-prefix", "children": [{"tag": "div", "class": "minus"}]}, " ", {"tag": "div", "class": "energy production"}, " "]}, " ", {"tag": "span", "class": "red-arrow", "style": {"margin-left": "5px"}}, " ", {"tag": "div", "class": "rating tile"}, " ", {"tag": "div", "class": "description", "children": [" (Action: Decrease your Energy production 1 step to increase your terraform rating 1 step.) "]}, " "]}},
+      "effects": {"action": {"production": {"energy": -1}, "terraform_rating": 1}}
     },
     {
       "id": "domed_crater",
@@ -926,7 +932,8 @@
       "requirements": [{"type": "oxygen", "max": 8}],
       "victory_points": 1,
       "text": "(Action: Spend 1 plant or 1 steel to gain 7MC.)\n(Oxygen must be 8% or less. Decrease your energy production 1 step.)",
-      "face": {"content": {"tag": "div", "class": "content", "children": [" ", {"tag": "div", "class": "points points-big", "children": ["1"]}, " ", {"tag": "div", "class": "requirements requirements-max", "children": ["max 8% O2"]}, " ", {"tag": "div", "class": "resource plant"}, " / ", {"tag": "div", "class": "resource steel"}, " ", {"tag": "div", "class": "red-arrow"}, " ", {"tag": "div", "class": "resource money", "children": ["7"]}, " ", {"tag": "br"}, " ", {"tag": "div", "class": "description", "style": {"margin-top": "-5px", "margin-bottom": "2px"}, "children": [" (Action: Spend 1 plant or 1 steel to gain 7MC.) "]}, " ", {"tag": "div", "class": "production-box production-box-size1a", "children": [" ", {"tag": "div", "class": "production-prefix", "children": [{"tag": "div", "class": "minus"}]}, " ", {"tag": "div", "class": "energy production"}, " "]}, " ", {"tag": "div", "class": "description", "style": {"text-align": "left"}, "children": [" (Oxygen must be 8% or less. Decrease your energy production 1 step.) "]}, " "]}}
+      "face": {"content": {"tag": "div", "class": "content", "children": [" ", {"tag": "div", "class": "points points-big", "children": ["1"]}, " ", {"tag": "div", "class": "requirements requirements-max", "children": ["max 8% O2"]}, " ", {"tag": "div", "class": "resource plant"}, " / ", {"tag": "div", "class": "resource steel"}, " ", {"tag": "div", "class": "red-arrow"}, " ", {"tag": "div", "class": "resource money", "children": ["7"]}, " ", {"tag": "br"}, " ", {"tag": "div", "class": "description", "style": {"margin-top": "-5px", "margin-bottom": "2px"}, "children": [" (Action: Spend 1 plant or 1 steel to gain 7MC.) "]}, " ", {"tag": "div", "class": "production-box production-box-size1a", "children": [" ", {"tag": "div", "class": "production-prefix", "children": [{"tag": "div", "class": "minus"}]}, " ", {"tag": "div", "class": "energy production"}, " "]}, " ", {"tag": "div", "class": "description", "style": {"text-align": "left"}, "children": [" (Oxygen must be 8% or less. Decrease your energy production 1 step.) "]}, " "]}},
+      "effects": {"production": {"energy": -1}, "action": {"resources_choice": [{"megacredits": 7, "plants": -1}, {"megacredits": 7, "steel": -1}]}}
     },
     {
       "id": "earth_catapult",
@@ -1018,7 +1025,8 @@
       "requirements": [],
       "victory_points": null,
       "text": "(Action: Spend 7 MC to increase your energy production 1 step.)",
-      "face": {"content": {"tag": "div", "class": "content", "children": [" ", {"tag": "div", "class": "resource money", "children": ["7"]}, " ", {"tag": "div", "class": "red-arrow"}, " ", {"tag": "div", "class": "production-box", "children": [" ", {"tag": "div", "class": "energy production"}, " "]}, " ", {"tag": "div", "class": "description", "children": [" (Action: Spend 7 MC to increase your energy production 1 step.) "]}, " "]}}
+      "face": {"content": {"tag": "div", "class": "content", "children": [" ", {"tag": "div", "class": "resource money", "children": ["7"]}, " ", {"tag": "div", "class": "red-arrow"}, " ", {"tag": "div", "class": "production-box", "children": [" ", {"tag": "div", "class": "energy production"}, " "]}, " ", {"tag": "div", "class": "description", "children": [" (Action: Spend 7 MC to increase your energy production 1 step.) "]}, " "]}},
+      "effects": {"action": {"resources": {"megacredits": -7}, "production": {"energy": 1}}}
     },
     {
       "id": "solar_wind_power",
@@ -1358,7 +1366,8 @@
       "requirements": [],
       "victory_points": null,
       "text": "(Action: Spend 4 energy to gain 1 steel and raise oxygen 1 step.)",
-      "face": {"content": {"tag": "div", "class": "content", "children": [" 4 ", {"tag": "span", "class": "energy resource"}, " ", {"tag": "div", "class": "red-arrow"}, " ", {"tag": "div", "class": "steel resource"}, " ", {"tag": "div", "class": "tile oxygen-tile"}, " ", {"tag": "div", "class": "description", "children": [" (Action: Spend 4 energy to gain 1 steel and raise oxygen 1 step.) "]}, " "]}}
+      "face": {"content": {"tag": "div", "class": "content", "children": [" 4 ", {"tag": "span", "class": "energy resource"}, " ", {"tag": "div", "class": "red-arrow"}, " ", {"tag": "div", "class": "steel resource"}, " ", {"tag": "div", "class": "tile oxygen-tile"}, " ", {"tag": "div", "class": "description", "children": [" (Action: Spend 4 energy to gain 1 steel and raise oxygen 1 step.) "]}, " "]}},
+      "effects": {"action": {"resources": {"steel": 1, "energy": -4}, "oxygen": 1}}
     },
     {
       "id": "power_grid",
@@ -1385,7 +1394,8 @@
       "requirements": [],
       "victory_points": null,
       "text": "(Action: Spend 4 energy to gain 2 steel and increase oxygen 1 step.)",
-      "face": {"content": {"tag": "div", "class": "content", "children": [" 4 ", {"tag": "span", "class": "energy resource"}, " ", {"tag": "div", "class": "red-arrow"}, " ", {"tag": "div", "class": "steel resource"}, " ", {"tag": "div", "class": "resource steel"}, " ", {"tag": "div", "class": "tile oxygen-tile", "style": {"margin-left": "0px"}}, " ", {"tag": "div", "class": "description", "children": [" (Action: Spend 4 energy to gain 2 steel and increase oxygen 1 step.) "]}, " "]}}
+      "face": {"content": {"tag": "div", "class": "content", "children": [" 4 ", {"tag": "span", "class": "energy resource"}, " ", {"tag": "div", "class": "red-arrow"}, " ", {"tag": "div", "class": "steel resource"}, " ", {"tag": "div", "class": "resource steel"}, " ", {"tag": "div", "class": "tile oxygen-tile", "style": {"margin-left": "0px"}}, " ", {"tag": "div", "class": "description", "children": [" (Action: Spend 4 energy to gain 2 steel and increase oxygen 1 step.) "]}, " "]}},
+      "effects": {"action": {"resources": {"steel": 2, "energy": -4}, "oxygen": 1}}
     },
     {
       "id": "ore_processor",
@@ -1398,7 +1408,8 @@
       "requirements": [],
       "victory_points": null,
       "text": "(Action: Spend 4 energy to gain 1 titanium and increase oxygen 1 step.)",
-      "face": {"content": {"tag": "div", "class": "content", "children": [" 4 ", {"tag": "span", "class": "energy resource"}, " ", {"tag": "div", "class": "red-arrow"}, " ", {"tag": "div", "class": "titanium resource"}, " ", {"tag": "div", "class": "tile oxygen-tile"}, " ", {"tag": "div", "class": "description", "children": [" (Action: Spend 4 energy to gain 1 titanium and increase oxygen 1 step.) "]}, " "]}}
+      "face": {"content": {"tag": "div", "class": "content", "children": [" 4 ", {"tag": "span", "class": "energy resource"}, " ", {"tag": "div", "class": "red-arrow"}, " ", {"tag": "div", "class": "titanium resource"}, " ", {"tag": "div", "class": "tile oxygen-tile"}, " ", {"tag": "div", "class": "description", "children": [" (Action: Spend 4 energy to gain 1 titanium and increase oxygen 1 step.) "]}, " "]}},
+      "effects": {"action": {"resources": {"titanium": 1, "energy": -4}, "oxygen": 1}}
     },
     {
       "id": "earth_office",
@@ -1478,7 +1489,8 @@
       "requirements": [],
       "victory_points": null,
       "text": "(Decrease your MC production 1 step.)",
-      "face": {"content": {"tag": "div", "class": "content", "children": [" ", {"tag": "div", "class": "red-arrow"}, " ", {"tag": "span", "style": {"font-size": "14px"}, "children": ["ACTION: LOOK AT THE TOP CARD AND EITHER BUY IT OR DISCARD IT"]}, " ", {"tag": "br"}, {"tag": "br"}, " ", {"tag": "div", "class": "production-box", "children": [" ", {"tag": "div", "class": "production money", "children": ["-1"]}, " "]}, " ", {"tag": "div", "class": "description", "children": [" (Decrease your MC production 1 step.) "]}, " "]}}
+      "face": {"content": {"tag": "div", "class": "content", "children": [" ", {"tag": "div", "class": "red-arrow"}, " ", {"tag": "span", "style": {"font-size": "14px"}, "children": ["ACTION: LOOK AT THE TOP CARD AND EITHER BUY IT OR DISCARD IT"]}, " ", {"tag": "br"}, {"tag": "br"}, " ", {"tag": "div", "class": "production-box", "children": [" ", {"tag": "div", "class": "production money", "children": ["-1"]}, " "]}, " ", {"tag": "div", "class": "description", "children": [" (Decrease your MC production 1 step.) "]}, " "]}},
+      "effects": {"production": {"megacredits": -1}, "action": {"look_at": {"cards": 1, "buy": 1}}}
     },
     {
       "id": "business_contacts",
@@ -2077,7 +2089,8 @@
       "requirements": [{"type": "temperature", "min": 0}],
       "victory_points": null,
       "text": "(Action: Spend 8 heat to increase your terraform rating 1 step.)\n(Requires 0 C or warmer.)",
-      "face": {"content": {"tag": "div", "class": "content", "children": [" ", {"tag": "div", "class": "requirements", "children": ["0 C"]}, " 8 ", {"tag": "span", "class": "heat resource"}, " ", {"tag": "div", "class": "red-arrow"}, " ", {"tag": "span", "class": "rating tile"}, " ", {"tag": "div", "class": "description", "children": [" (Action: Spend 8 heat to increase your terraform rating 1 step.) "]}, " ", {"tag": "br"}, " ", {"tag": "div", "class": "description", "children": ["(Requires 0 C or warmer.)"]}, " "]}}
+      "face": {"content": {"tag": "div", "class": "content", "children": [" ", {"tag": "div", "class": "requirements", "children": ["0 C"]}, " 8 ", {"tag": "span", "class": "heat resource"}, " ", {"tag": "div", "class": "red-arrow"}, " ", {"tag": "span", "class": "rating tile"}, " ", {"tag": "div", "class": "description", "children": [" (Action: Spend 8 heat to increase your terraform rating 1 step.) "]}, " ", {"tag": "br"}, " ", {"tag": "div", "class": "description", "children": ["(Requires 0 C or warmer.)"]}, " "]}},
+      "effects": {"action": {"resources": {"heat": -8}, "terraform_rating": 1}}
     },
     {
       "id": "designed_microorganisms",
@@ -2390,7 +2403,8 @@
       "requirements": [{"type": "oceans", "min": 2}],
       "victory_points": null,
       "text": "(Action: Spend 3 Energy to raise oxygen 1 step.)\n(Requires 2 ocean tiles.)",
-      "face": {"content": {"tag": "div", "class": "content", "children": [" ", {"tag": "div", "class": "requirements", "children": ["2 Oceans"]}, " ", {"tag": "div", "class": "energy resource"}, " ", {"tag": "div", "class": "energy resource"}, " ", {"tag": "div", "class": "energy resource"}, " ", {"tag": "div", "class": "red-arrow"}, " ", {"tag": "div", "class": "tile oxygen-tile"}, " ", {"tag": "div", "class": "description", "children": [" (Action: Spend 3 Energy to raise oxygen 1 step.) ", {"tag": "br"}, {"tag": "br"}, {"tag": "br"}, {"tag": "br"}, " (Requires 2 ocean tiles.) "]}, " "]}}
+      "face": {"content": {"tag": "div", "class": "content", "children": [" ", {"tag": "div", "class": "requirements", "children": ["2 Oceans"]}, " ", {"tag": "div", "class": "energy resource"}, " ", {"tag": "div", "class": "energy resource"}, " ", {"tag": "div", "class": "energy resource"}, " ", {"tag": "div", "class": "red-arrow"}, " ", {"tag": "div", "class": "tile oxygen-tile"}, " ", {"tag": "div", "class": "description", "children": [" (Action: Spend 3 Energy to raise oxygen 1 step.) ", {"tag": "br"}, {"tag": "br"}, {"tag": "br"}, {"tag": "br"}, " (Requires 2 ocean tiles.) "]}, " "]}},
+      "effects": {"action": {"resources": {"energy": -3}, "oxygen": 1}}
     },
     {
       "id": "heat_trappers",
@@ -2525,7 +2539,8 @@
       "requirements": [],
       "victory_points": null,
       "text": "(Action: Spend 8 MC to place 1 ocean tile. STEEL MAY BE USED as if you were playing a Building card.)",
-      "face": {"content": {"tag": "div", "class": "content", "children": [" ", {"tag": "div", "class": "money resource", "children": ["8"]}, " ( ", {"tag": "div", "class": "resource steel"}, " ) ", {"tag": "div", "class": "red-arrow"}, " ", {"tag": "div", "class": "ocean-tile tile"}, " ", {"tag": "div", "class": "description", "children": [" (Action: Spend 8 MC to place 1 ocean tile. STEEL MAY BE USED as if you were playing a Building card.) "]}, " "]}}
+      "face": {"content": {"tag": "div", "class": "content", "children": [" ", {"tag": "div", "class": "money resource", "children": ["8"]}, " ( ", {"tag": "div", "class": "resource steel"}, " ) ", {"tag": "div", "class": "red-arrow"}, " ", {"tag": "div", "class": "ocean-tile tile"}, " ", {"tag": "div", "class": "description", "children": [" (Action: Spend 8 MC to place 1 ocean tile. STEEL MAY BE USED as if you were playing a Building card.) "]}, " "]}},
+      "effects": {"action": {"pay": {"megacredits": 8, "steel": true}, "tiles": ["ocean"]}}
     },
     {
       "id": "flooding",
@@ -2619,7 +2634,8 @@
       "requirements": [],
       "victory_points": null,
       "text": "(Action: Spend any amount of Energy and gain that amount of MC.)",
-      "face": {"content": {"tag": "div", "class": "content", "children": [" X ", {"tag": "div", "class": "energy resource"}, " ", {"tag": "div", "class": "red-arrow"}, " ", {"tag": "div", "class": "money resource", "children": ["X"]}, " ", {"tag": "div", "class": "description", "children": [" (Action: Spend any amount of Energy and gain that amount of MC.) "]}, " "]}}
+      "face": {"content": {"tag": "div", "class": "content", "children": [" X ", {"tag": "div", "class": "energy resource"}, " ", {"tag": "div", "class": "red-arrow"}, " ", {"tag": "div", "class": "money resource", "children": ["X"]}, " ", {"tag": "div", "class": "description", "children": [" (Action: Spend any amount of Energy and gain that amount of MC.) "]}, " "]}},
+      "effects": {"action": {}}
     },
     {
       "id": "indentured_workers",
@@ -2726,7 +2742,8 @@
       "requirements": [],
       "victory_points": null,
       "text": "(Action: Spend 10MC to increase your heat production 2 steps.)",
-      "face": {"content": {"tag": "div", "class": "content", "children": [" ", {"tag": "div", "class": "money resource", "children": ["10"]}, " ", {"tag": "div", "class": "red-arrow", "style": {"margin-left": "5px"}}, "   ", {"tag": "div", "class": "production-box production-box-size2", "children": [" ", {"tag": "div", "class": "heat production"}, " ", {"tag": "div", "class": "heat production"}, " "]}, " ", {"tag": "div", "class": "description", "children": [" (Action: Spend 10MC to increase your heat production 2 steps.) "]}, " "]}}
+      "face": {"content": {"tag": "div", "class": "content", "children": [" ", {"tag": "div", "class": "money resource", "children": ["10"]}, " ", {"tag": "div", "class": "red-arrow", "style": {"margin-left": "5px"}}, "   ", {"tag": "div", "class": "production-box production-box-size2", "children": [" ", {"tag": "div", "class": "heat production"}, " ", {"tag": "div", "class": "heat production"}, " "]}, " ", {"tag": "div", "class": "description", "children": [" (Action: Spend 10MC to increase your heat production 2 steps.) "]}, " "]}},
+      "effects": {"action": {"resources": {"megacredits": -10}, "production": {"heat": 2}}}
     },
     {
       "id": "soletta",
@@ -2808,7 +2825,8 @@
       "requirements": [{"type": "tag", "tag": "science", "min": 3}],
       "victory_points": 1,
       "text": "(Action: Draw 2 cards.)\n(Requires 3 Science tags to play. Decrease your Energy production 1 step.)",
-      "face": {"content": {"tag": "div", "class": "content", "children": [" ", {"tag": "div", "class": "points points-big", "children": ["1"]}, " ", {"tag": "div", "class": "requirements", "children": ["3 Science"]}, " ", {"tag": "div", "class": "red-arrow"}, " ", {"tag": "span", "class": "card resource"}, {"tag": "span", "class": "card resource"}, " ", {"tag": "div", "class": "description", "children": ["(Action: Draw 2 cards.)"]}, " ", {"tag": "div", "class": "production-box production-box-size1a", "style": {"margin-right": "135px", "margin-top": "10px"}, "children": [" ", {"tag": "div", "class": "production-prefix", "children": [{"tag": "div", "class": "minus"}]}, " ", {"tag": "div", "class": "energy production"}, " "]}, " ", {"tag": "div", "class": "description", "style": {"position": "absolute", "text-align": "left", "margin-top": "-53px", "margin-left": "85px"}, "children": [" (Requires 3 Science tags to play. Decrease your Energy production 1 step.) "]}, " "]}}
+      "face": {"content": {"tag": "div", "class": "content", "children": [" ", {"tag": "div", "class": "points points-big", "children": ["1"]}, " ", {"tag": "div", "class": "requirements", "children": ["3 Science"]}, " ", {"tag": "div", "class": "red-arrow"}, " ", {"tag": "span", "class": "card resource"}, {"tag": "span", "class": "card resource"}, " ", {"tag": "div", "class": "description", "children": ["(Action: Draw 2 cards.)"]}, " ", {"tag": "div", "class": "production-box production-box-size1a", "style": {"margin-right": "135px", "margin-top": "10px"}, "children": [" ", {"tag": "div", "class": "production-prefix", "children": [{"tag": "div", "class": "minus"}]}, " ", {"tag": "div", "class": "energy production"}, " "]}, " ", {"tag": "div", "class": "description", "style": {"position": "absolute", "text-align": "left", "margin-top": "-53px", "margin-left": "85px"}, "children": [" (Requires 3 Science tags to play. Decrease your Energy production 1 step.) "]}, " "]}},
+      "effects": {"production": {"energy": -1}, "action": {"draw": 2}}
     },
     {
       "id": "credicor",

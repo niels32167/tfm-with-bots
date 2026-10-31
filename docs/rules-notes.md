@@ -260,11 +260,13 @@ and Nitrophilic Moss, which loses 2, not to a Player with fewer than 2 (`player.
 
 ### The order of a card's effects
 
-**Call:** The effects written as data are carried out in a fixed order: Resources, Production
-(fixed, then per Tag or Tile, then for having at least so many), Temperature and Oxygen steps,
-Terraform Rating (fixed, then per Tag), cards drawn, cards looked at to keep some of (see
-"Looking at cards to keep some of them" below), the Production change the Player chooses (see
-"A Production change to choose" below), then the Tiles one at a time. A Tile that a track bonus
+**Call:** The effects written as data are carried out in a fixed order: Resources (fixed, then
+per Tag or Tile), Production (fixed, then per Tag or Tile, then for having at least so many),
+Temperature and Oxygen steps, Terraform Rating (fixed, then per Tag), cards drawn, cards looked
+at to keep or buy some of (see "Looking at cards to keep some of them" and "Buying the card
+looked at" below), the Production or Resource change the Player chooses (see "A Production
+change to choose" and "A Resource change to choose for an action" below), then the Tiles one at
+a time. An action is paid for first (see "Card actions" below). A Tile that a track bonus
 gives along the way (the Ocean at 0 °C) is placed before the card's own Tiles. When Strip
 Mine's first Oxygen step reaches 8 % and that Temperature step reaches 0 °C, its second Oxygen
 step comes before the Ocean is placed.
@@ -484,10 +486,16 @@ effect or action, can be copied (Mining Guild, ticket 21). Each ticket's card li
 `tests/rules/test_playing_cards.py::test_every_implemented_building_card_has_its_printed_production_box_as_production_data`
 fails for a building card whose production box isn't Production data.
 
+The same goes for a card's action (ticket 15): Robotic Workforce copies the production box of
+Space Elevator, Electro Catapult and AI Central, printed apart from their action, but not the
+one that is part of Equatorial Magnetizer's or Underground Detonations' action. Those are the
+action's Production data, which the test above allows.
+
 **Tests:** `tests/cards/test_robotic_workforce.py`, among them
 `test_robotic_workforce_copies_only_the_production_box_not_the_cards_other_effects` and
 `test_robotic_workforce_offers_every_card_in_card_number_order_even_two_with_the_same_box`;
-`tests/cards/test_medical_lab.py::test_robotic_workforce_copying_medical_lab_counts_the_building_tags_again`, and
+`tests/cards/test_medical_lab.py::test_robotic_workforce_copying_medical_lab_counts_the_building_tags_again`,
+`tests/cards/test_equatorial_magnetizer.py::test_robotic_workforce_cannot_copy_equatorial_magnetizer_whose_production_box_is_its_action`, and
 `tests/fuzzing/test_invariants.py::test_robotic_workforce_offering_a_card_it_may_not_copy_breaks_an_invariant`.
 
 ### Research's two science Tags
@@ -595,6 +603,131 @@ plus `"production_at_least": {"resource": "plants", "steps": 3, "at_least": 3, "
 without asking.
 
 **Tests:** `tests/cards/test_nitrogen_rich_asteroid.py`.
+
+### Card actions
+
+**Call:** The action of a played Active card (its red arrow) is an Action its Player may take
+once per Generation, from the Generation the card is played in. Only the Player who played the
+card may use it. The Action Decision offers each usable action after the cards to play, in
+card-number order. An action counts as one of the Turn's two Actions and ends once its Tile, if
+any, is placed. Every action is unused again after the Production phase, which ends the
+Generation; the Player View shows each Player's "used_actions", and the GUI marks those cards
+"Used".
+
+An action is offered only if its Player can carry it out in full: pay its MegaCredits (with steel
+or titanium where it allows them), lose the Resources it spends, lower the Production it lowers
+(Equatorial Magnetizer needs energy Production), and make at least one of its Resource changes
+(Electro Catapult needs a plant or a steel, Power Infrastructure some energy). The order of an
+action's effects is its payment, then the order of a card's effects (see "The order of a card's
+effects").
+
+**Why:**
+- The rulebook makes the action on a blue card an Action, usable once each Generation, marked
+  with a Player marker until the Generation ends.
+- The open-source game keeps a set of used actions per Player, cleared at the end of each
+  Generation, and offers an action only when `canAct` holds, which checks what it spends.
+
+Chosen by the user (2026-10-31): actions are effect data, an `"action"` block in the same shapes
+as a card's effects (`engine/cards/cards.json`), with Rust code only for Power Infrastructure;
+the Game's waiting fields became one enum first; the GUI offers actions on the played cards. The
+rest by Claude, on the user's instruction to make the remaining ticket 15 calls without asking.
+
+**Tests:** `tests/rules/test_card_actions.py`, among them
+`test_each_cards_action_can_be_used_only_once_per_generation` and
+`test_a_used_action_is_available_again_in_the_next_generation`; and
+`tests/fuzzing/test_invariants.py::test_an_action_used_twice_or_not_the_players_own_breaks_an_invariant`.
+
+### Actions that raise a Global Parameter at its maximum
+
+**Call:** An action that raises Oxygen or places an Ocean stays open once that Global Parameter
+is at its maximum, as Asteroid and Aquifer do (above). Ironworks, Steelworks and Ore Processor
+at 14 % Oxygen spend their energy and gain their steel or titanium; Water Splitting Plant spends
+its energy for nothing; Water Import from Europa and Aquifer Pumping once 9 Oceans are placed
+are paid for and place none.
+
+**Why:** The rulebook: "You may still play cards and actions that increase the parameter". The
+open-source game doesn't block these actions at the maximum. Chosen by Claude (2026-10-31),
+following the Asteroid call, on the user's instruction to make the remaining ticket 15 calls
+without asking.
+
+**Tests:** `tests/cards/test_ironworks.py::test_at_maximum_oxygen_ironworks_action_is_still_offered_and_only_gains_the_steel`,
+`tests/cards/test_water_splitting_plant.py::test_water_splitting_plants_action_is_offered_at_maximum_oxygen_like_asteroid_at_maximum_temperature`
+and `tests/cards/test_water_import_from_europa.py::test_once_9_oceans_are_placed_water_import_from_europas_action_is_still_offered_and_places_none`.
+
+### Paying for an action with steel or titanium
+
+**Call:** Water Import from Europa's action costs 12 MegaCredits, which titanium may pay at 3
+each, and Aquifer Pumping's 8, which steel may pay at 2 each. They are paid as cards are (see
+"Paying with steel and titanium"): a payment Decision with one Option per split, the most
+MegaCredits first, only when there is more than one way, and no split with a cube the others
+make unneeded. No other action lets steel or titanium pay, so Space Mirrors and Underground
+Detonations need their MegaCredits.
+
+**Why:** The cards: "TITANIUM MAY BE USED as if playing a Space card" and "STEEL MAY BE USED as
+if you were playing a Building card". The open-source game writes both as
+`spend: {megacredits, canUseTitanium}` / `canUseSteel`. Chosen by Claude (2026-10-31), on the
+user's instruction to make the remaining ticket 15 calls without asking.
+
+**Tests:** `tests/cards/test_water_import_from_europa.py::test_titanium_may_pay_for_water_import_from_europas_action_at_3_megacredits_each`,
+`tests/cards/test_aquifer_pumping.py::test_steel_may_pay_for_aquifer_pumpings_action_at_2_megacredits_each`
+and `tests/server/test_card_actions.py`.
+
+### A Resource change to choose for an action
+
+**Call:** Electro Catapult's action spends 1 plant or 1 steel for 7 MegaCredits. With both, a
+"resources" Decision offers the two, plant first; with only one, it is spent without a
+Decision. Power Infrastructure's action spends 1 up to all of its Player's energy for as many
+MegaCredits, one Option per amount, the fewest first; with 1 energy it is spent without a
+Decision.
+
+**Why:**
+- The cards: "Spend 1 plant or 1 steel to gain 7 MC" and "Spend any amount of energy and gain
+  that amount of MC".
+- The open-source game offers Electro Catapult's two as `or` behaviours with `autoSelect`, and
+  asks Power Infrastructure for an amount from 1 to the Player's energy (`canAct`: energy > 0).
+- Spending 0 energy would only use up the action, an Option that only does worse (as for
+  Insulation).
+
+Chosen by Claude (2026-10-31), on the user's instruction to make the remaining ticket 15 calls
+without asking.
+
+**Tests:** `tests/cards/test_electro_catapult.py` and `tests/cards/test_power_infrastructure.py`.
+
+### Buying the card looked at
+
+**Call:** Inventors' Guild's and Business Network's action ("look at the top card and either buy
+it or discard it") takes the top card of the deck, as for "Looking at cards to keep some of
+them". The "keep_cards" Decision offers to buy it for 3 MegaCredits, the price of a card bought
+in a Research phase, or Done, which discards it face down. The price is paid when it is bought.
+With fewer than 3 MegaCredits, the card is looked at and discarded without a Decision; with
+the deck and the discard pile both empty, the action looks at none. Only that Player sees the
+card; the game log says whether they bought it, but not which card it was.
+
+**Why:**
+- The rulebook: buying a card always costs 3 MegaCredits.
+- The open-source game writes the action as `drawCard: {count: 1, pay: true}`, which lets the
+  Player buy the card if they can pay for it.
+- A Decision whose only Option is Done changes nothing (see "The last card is kept without a
+  Decision").
+
+Chosen by Claude (2026-10-31), on the user's instruction to make the remaining ticket 15 calls
+without asking.
+
+**Tests:** `tests/cards/test_inventors_guild.py`, `tests/cards/test_business_network.py` and
+`tests/engine/test_views.py::test_while_a_player_looks_at_the_card_inventors_guild_offers_them_no_other_player_view_shows_it`.
+
+### Martian Rails' Cities on Mars
+
+**Call:** Martian Rails' action gains 1 MegaCredit for each City on Mars, whoever owns it. The
+Cities off Mars (Phobos Space Haven and Ganymede Colony, ticket 18) don't count. With no City on
+Mars it is still offered, and spends its energy for nothing.
+
+**Why:** The card: "gain 1 MC for each City tile ON MARS", printed with the red border for every
+Player's Tiles. The open-source game counts `cities: {where: 'onmars'}` of all Players and only
+checks the energy. Chosen by Claude (2026-10-31), on the user's instruction to make the remaining
+ticket 15 calls without asking.
+
+**Tests:** `tests/cards/test_martian_rails.py`.
 
 ## Card flow
 

@@ -31,6 +31,7 @@ def test_business_contacts_looks_at_the_top_4_cards_and_offers_to_keep_any_of_th
         "looking_at": ["fish", "mine", "trees", "birds"],
         "kept": [],
         "keep": 2,
+        "price": 0,
     }
     assert "Player 1 looks at the top 4 cards of the deck." in game.log
 
@@ -72,7 +73,7 @@ def test_with_only_1_card_left_to_draw_business_contacts_keeps_it_without_a_deci
     pick(game, "Play Business Contacts")
 
     assert hand(game, 0) == ["mine"]
-    assert "Player 1 looks at the top 1 card of the deck." in game.log
+    assert "Player 1 looks at the top card of the deck." in game.log
     assert "Player 1 keeps 1 card and discards 0." in game.log
     assert game.decision["kind"] == "action"
 

@@ -17,6 +17,7 @@ def test_invention_contest_keeps_1_of_the_top_3_cards_and_discards_the_other_2()
         "looking_at": ["mine", "trees", "birds"],
         "kept": [],
         "keep": 1,
+        "price": 0,
     }
     pick(game, "Keep Birds")
 

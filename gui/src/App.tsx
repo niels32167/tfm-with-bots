@@ -129,7 +129,7 @@ export function App() {
           <PlayerBoards game={game} cards={server.cards} />
           <GameLog log={log} />
         </aside>
-        <PlayedCards game={game} cards={server.cards} />
+        <PlayedCards game={game} cards={server.cards} disabled={picking} onPick={server.pick} />
       </div>
       <HandDock
         game={game}

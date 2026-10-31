@@ -1190,13 +1190,36 @@ input[aria-invalid="true"] {
   opacity: 0.6;
 }
 
-.small-card.being-paid-for {
+.small-card.being-paid-for,
+.small-card.action-under-way {
   outline: 6px dashed var(--accent);
   outline-offset: 2px;
 }
 
 .small-card.not-implemented {
   opacity: 0.45;
+}
+
+/* A played card whose action is used this Generation: dimmed, with a badge at the top between its
+ * cost and Tags, which stays in view when the cards overlap. */
+.small-card.used-action > :not(.used-action-badge) {
+  opacity: 0.5;
+}
+
+.used-action-badge {
+  position: absolute;
+  top: 6px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 1;
+  padding: 2px 12px;
+  border-radius: 12px;
+  background: var(--text-dim);
+  color: var(--background);
+  font-size: 1.4rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
 }
 
 .played-groups {
@@ -1212,6 +1235,7 @@ input[aria-invalid="true"] {
 }
 
 .small-card.stacked {
+  position: relative;
   transform-origin: center top;
 }
 

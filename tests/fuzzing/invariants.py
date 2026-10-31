@@ -253,6 +253,31 @@ def robotic_workforce_copies_only_your_building_cards(view: View, decision: Deci
             )
 
 
+def card_actions_used_once_per_generation(view: View, decision: Decision | None) -> Iterator[str]:
+    """A Player has used only the actions of cards they played, and only in the Action phase: the
+    Production phase ends the Generation, and every action with it. An Action Decision offers
+    only the actions of the deciding Player's own played cards that they haven't used yet."""
+    for player_board in view["players"]:
+        name, used = player_board["name"], player_board["used_actions"]
+        if used and view["phase"] != "action":
+            yield f"in the {view['phase']} phase, {name} has used the actions of {', '.join(used)}"
+        for card_id in used:
+            if card_id not in player_board["played_cards"] or "action" not in CARDS[card_id].get("effects", {}):
+                yield f"{name} has used the action of '{card_id}', which is not a card with an action they played"
+    if decision is None:
+        return
+    player_board = view["players"][decision["player"]]
+    for option in decision["options"]:
+        details = option["details"]
+        if details["type"] != "use_action":
+            continue
+        card_id = details["card"]
+        if card_id not in player_board["played_cards"] or "action" not in CARDS[card_id].get("effects", {}):
+            yield f"{player_board['name']} is offered the action of '{card_id}', not a card with an action they played"
+        elif card_id in player_board["used_actions"]:
+            yield f"{player_board['name']} is offered the action of '{card_id}' again this Generation"
+
+
 def at_most_three_milestones_and_awards(view: View, decision: Decision | None) -> Iterator[str]:
     """At most three Milestones are claimed and three Awards funded, and the prices of the
     next ones follow: 8 for a Milestone, and 8, 14 and 20 for the Awards."""
@@ -276,7 +301,8 @@ def every_card_in_exactly_one_place(view: View, decision: Decision | None) -> It
     played cards, the cards a Player drafts from or has kept in the Draft, the cards dealt to a
     Player to buy from in the setup or a Research phase, among which are those they have bought,
     or the cards a Player looks at or has kept while playing Business Contacts or Invention
-    Contest. The sizes shown agree with the cards."""
+    Contest, or using the action of Inventors' Guild or Business Network. The sizes shown agree
+    with the cards."""
     places: dict[str, list[str]] = {card_id: [] for card_id in PROJECT_CARDS}
     for pile, name in (("deck", "the deck"), ("discard", "the discard pile")):
         if view[f"{pile}_size"] != len(view[pile]):
@@ -431,6 +457,7 @@ AFTER_EVERY_DECISION: tuple[Check, ...] = (
     tiles_only_on_legal_areas,
     only_legal_areas_offered,
     robotic_workforce_copies_only_your_building_cards,
+    card_actions_used_once_per_generation,
     at_most_three_milestones_and_awards,
     every_card_in_exactly_one_place,
     every_decision_has_an_option,

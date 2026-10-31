@@ -48,11 +48,14 @@ export interface PlayerBoard {
   /** Every set of cards they passed on in the Draft this Game, in the order passed: only the
    * viewer's own, or everyone's in the full view; otherwise null. */
   passed_in_draft: DraftPass[] | null;
-  /** While they play a card such as Business Contacts, the cards they look at to keep some of:
-   * only the viewer's own, or everyone's in the full view; otherwise null. */
+  /** While they play a card such as Business Contacts, or use the action of one such as
+   * Inventors' Guild, the cards they look at to keep or buy some of: only the viewer's own, or
+   * everyone's in the full view; otherwise null. */
   keeping: Keeping | null;
   /** The cards played by catalog id, in card-number order, Events included. */
   played_cards: string[];
+  /** The played cards whose action they have used this Generation, by catalog id. */
+  used_actions: string[];
   /** How many of each Tag are in play. No Tag on a played Event counts, the Event Tag included. */
   tags: Record<CountedTag, number>;
 }
@@ -72,12 +75,14 @@ export interface Drafting {
 }
 
 /** Cards by catalog id, in card-number order, that `card` lets its Player look at: those they may
- * still keep and those kept so far. They keep `keep` more, and the rest are discarded. */
+ * still keep and those kept so far. They keep `keep` more, and the rest are discarded. With a
+ * `price` (Inventors' Guild's action), they may buy up to `keep` more at that price instead. */
 export interface Keeping {
   card: string;
   looking_at: string[];
   kept: string[];
   keep: number;
+  price: number;
 }
 
 /** Cards a Player passed on in the Draft, by catalog id in card-number order. */

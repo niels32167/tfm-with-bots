@@ -10,6 +10,7 @@ use std::fmt;
 use serde::{Deserialize, Serialize};
 
 use crate::board::{Areas, Board, BonusItem, Placement, Tile, TileKind, printed};
+use crate::card_actions::ResourceChange;
 use crate::card_flow::{Buying, Keeping};
 use crate::card_set::CardSet;
 use crate::cards::{CARD_CATALOG, PROJECT_CARDS};
@@ -90,6 +91,8 @@ pub struct Player {
     pub hand: CardSet,
     /// The cards they have played, Events included.
     pub played: CardSet,
+    /// The played cards whose action they have used this Generation.
+    pub used_actions: CardSet,
     /// In the setup or a Research phase, what they are buying from.
     pub buying: Buying,
     /// In the Draft, what they are drafting.
@@ -105,6 +108,7 @@ impl Player {
             passed: false,
             hand: CardSet::default(),
             played: CardSet::default(),
+            used_actions: CardSet::default(),
             buying: Buying::default(),
             drafting: Drafting::default(),
         }
@@ -208,8 +212,11 @@ pub enum DecisionKind {
     Payment,
     /// Choose the Production change the card being played makes.
     Production,
-    /// Keep one more of the cards the card being played lets its Player look at.
+    /// Keep or buy one more of the cards the card being played, or the action being used, lets its
+    /// Player look at.
     KeepCards,
+    /// Choose the Resource change the action being used makes.
+    Resources,
     /// Keep one of the cards being drafted, and pass the rest on.
     Draft,
     /// Buy one more of the cards dealt, or be done, in the setup or a Research phase.
@@ -225,9 +232,12 @@ pub enum DecisionKind {
 pub enum DecisionOption {
     /// Play this Project Card from the hand, by its index in the card catalog.
     PlayCard(usize),
+    /// Use the action of this played card.
+    UseAction(usize),
     /// Keep this card, one of those being drafted, and pass the rest on.
     DraftCard(usize),
-    /// Buy this card, one of those dealt, in the setup or a Research phase.
+    /// Buy this card, one of those dealt in the setup or a Research phase, or one of those the
+    /// action being used lets its Player look at.
     BuyCard(usize),
     /// Sell this card from the hand, with the Sell Patents Standard Project.
     SellCard(usize),
@@ -243,6 +253,16 @@ pub enum DecisionOption {
         card: usize,
         change: ProductionChange,
     },
+    /// Pay for the action of `card`, which is being used, this way.
+    PayForAction {
+        card: usize,
+        payment: Payment,
+    },
+    /// Make this Resource change for the action of `card`, which is being used.
+    ChangeResources {
+        card: usize,
+        change: ResourceChange,
+    },
     UseStandardProject(StandardProject),
     ClaimMilestone(Milestone),
     /// Fund `award` for `cost`, the price of the next Award funded.
@@ -256,7 +276,8 @@ pub enum DecisionOption {
     ConvertHeat,
     EndTurn,
     Pass,
-    /// Finished buying cards, selling them, or converting plants in the final Greenery conversion.
+    /// Finished buying cards, those dealt or those looked at, selling them, or converting plants in
+    /// the final Greenery conversion.
     Done,
     /// Make the placement under way on this Area.
     PlaceTile {
@@ -274,8 +295,12 @@ pub enum Waiting {
     Payment(usize),
     /// The Production change this card, which they are playing, makes.
     Production(usize),
-    /// Which of the cards they are looking at they keep.
+    /// Which of the cards they are looking at they keep or buy.
     KeepCards(Keeping),
+    /// How they pay for the action of this card, which they are using.
+    ActionPayment(usize),
+    /// The Resource change the action of this card, which they are using, makes.
+    Resources(usize),
     /// Which card they sell next with Sell Patents, having sold this many so far.
     SellPatents(usize),
 }
@@ -413,7 +438,16 @@ impl Game {
             (Some(Waiting::Production(card)), _) => {
                 (DecisionKind::Production, self.production_options(self.current_player, card))
             }
-            (Some(Waiting::KeepCards(keeping)), _) => (DecisionKind::KeepCards, keeping.options()),
+            (Some(Waiting::KeepCards(keeping)), _) => {
+                let megacredits = self.players[self.current_player].resources.megacredits;
+                (DecisionKind::KeepCards, keeping.options(megacredits))
+            }
+            (Some(Waiting::ActionPayment(card)), _) => {
+                (DecisionKind::Payment, self.action_payment_options(card))
+            }
+            (Some(Waiting::Resources(card)), _) => {
+                (DecisionKind::Resources, self.resource_change_options(self.current_player, card))
+            }
             (Some(Waiting::SellPatents(sold)), _) => (DecisionKind::SellPatents, self.selling_options(sold)),
             (None, Phase::Draft) => (DecisionKind::Draft, self.drafting_options()),
             (None, Phase::Setup | Phase::Research) => (DecisionKind::BuyCards, self.buying_options()),
@@ -466,6 +500,7 @@ impl Game {
             .iter()
             .filter(|&card| self.can_play(self.current_player, card))
             .map(DecisionOption::PlayCard)
+            .chain(self.usable_actions().map(DecisionOption::UseAction))
             .collect();
         for project in StandardProject::ALL {
             let can_use = match project {
@@ -570,7 +605,15 @@ impl Game {
             DecisionOption::ChangeProduction { card, change } => {
                 self.change_production_as_chosen(player, card, change)
             }
+            DecisionOption::UseAction(card) => self.use_action(player, card),
+            DecisionOption::PayForAction { card, payment } => self.carry_out_action(player, card, payment),
+            DecisionOption::ChangeResources { card, change } => {
+                self.change_resources_as_chosen(player, card, change)
+            }
             DecisionOption::DraftCard(card) => self.draft(card),
+            DecisionOption::BuyCard(card) if matches!(self.waiting, Some(Waiting::KeepCards(_))) => {
+                self.keep_card(card)
+            }
             DecisionOption::BuyCard(card) => self.buy(card),
             DecisionOption::SellCard(card) => self.sell(card),
             DecisionOption::KeepCard(card) => self.keep_card(card),
@@ -636,6 +679,9 @@ impl Game {
             }
             DecisionOption::Done if matches!(self.waiting, Some(Waiting::SellPatents(_))) => {
                 self.finish_selling()
+            }
+            DecisionOption::Done if matches!(self.waiting, Some(Waiting::KeepCards(_))) => {
+                self.done_keeping()
             }
             DecisionOption::Done if self.phase == Phase::FinalGreenery => {
                 self.log.push(LogEvent::DoneConvertingPlants { player });
@@ -705,10 +751,12 @@ impl Game {
     }
 
     /// Each Player's energy turns into heat, then every Resource gains its Production,
-    /// and MegaCredits also gain Terraform Rating.
+    /// and MegaCredits also gain Terraform Rating. It ends the Generation, so every card action
+    /// is unused again.
     fn production_phase(&mut self) {
         self.log.push(LogEvent::ProductionPhase);
         for (index, player) in self.players.iter_mut().enumerate() {
+            player.used_actions = CardSet::default();
             let energy = player.resources.energy;
             if energy > 0 {
                 player.resources.heat += energy;

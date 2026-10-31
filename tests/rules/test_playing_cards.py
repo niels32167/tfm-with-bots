@@ -92,13 +92,21 @@ def test_no_card_places_two_cities_or_two_greeneries_so_one_area_for_each_is_eno
         assert kinds.count("city") <= 1 and kinds.count("greenery") <= 1, card["id"]
 
 
+# The building cards whose printed production box is part of their action.
+PRODUCTION_BOX_IN_THE_ACTION = ("equatorial_magnetizer", "underground_detonations")
+
+
 def test_every_implemented_building_card_has_its_printed_production_box_as_production_data():
     """Robotic Workforce copies a building card's production box as its fixed and per-Tag
     Production data, so a card whose production box is carried out otherwise must be taught to
-    Robotic Workforce (see docs/rules-notes.md)."""
+    Robotic Workforce (see docs/rules-notes.md). The production boxes that are part of a card's
+    action, which Robotic Workforce doesn't copy, are those of the cards named here."""
     for card in tm_engine.card_catalog():
         if "building" not in card["tags"] or card["type"] == "event" or "effects" not in card:
             continue
         effects = card["effects"]
         has_production_data = any(effects["production"].values()) or "production_per" in effects
-        assert has_production_data == has_printed_production_box(card), card["name"]
+        in_its_action = card["id"] in PRODUCTION_BOX_IN_THE_ACTION
+        assert any(effects.get("action", {}).get("production", {}).values()) == in_its_action, card["name"]
+        assert not (has_production_data and in_its_action), f"{card['name']} has two production boxes"
+        assert (has_production_data or in_its_action) == has_printed_production_box(card), card["name"]
