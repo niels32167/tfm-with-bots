@@ -49,6 +49,13 @@ pub struct Keeping {
     pub keep: usize,
 }
 
+impl Keeping {
+    /// The Player may keep any of the cards they are looking at.
+    pub fn options(self) -> Vec<DecisionOption> {
+        self.looking_at.iter().map(DecisionOption::KeepCard).collect()
+    }
+}
+
 impl Game {
     /// The setup buy: each Player is dealt their cards to buy from, before Generation 1.
     pub(crate) fn begin_setup(&mut self) {
@@ -163,25 +170,21 @@ impl Game {
     }
 
     /// `player`, playing `card`, looks at the top cards of the deck it names, if it does, to keep
-    /// some of them; then the card's Production change follows. With no more cards to look at than
-    /// they keep, they keep them all without a Decision.
-    pub(crate) fn look_at_cards(&mut self, player: usize, card: usize) {
-        if let Some(LookAt { cards, keep }) = CARD_CATALOG[card].implemented_effects().look_at {
-            let looking_at = self.draw_cards(player, cards);
-            self.log.push(LogEvent::LookedAtCards { player, cards: looking_at.len() });
-            if looking_at.len() > keep as usize {
-                self.keeping =
-                    Some(Keeping { card, looking_at, kept: CardSet::default(), keep: keep as usize });
-                return;
-            }
-            self.keep_and_discard(player, looking_at, CardSet::default());
+    /// some of them. Returns whether the Game now waits on which they keep; with no more cards to
+    /// look at than they keep, they keep them all without a Decision.
+    pub(crate) fn look_at_cards(&mut self, player: usize, card: usize) -> bool {
+        let Some(LookAt { cards, keep }) = CARD_CATALOG[card].implemented_effects().look_at else {
+            return false;
+        };
+        let looking_at = self.draw_cards(player, cards);
+        self.log.push(LogEvent::LookedAtCards { player, cards: looking_at.len() });
+        let keep = keep as usize;
+        if looking_at.len() > keep {
+            self.keeping = Some(Keeping { card, looking_at, kept: CardSet::default(), keep });
+            return true;
         }
-        self.choose_production_change(player, card);
-    }
-
-    /// The current Player may keep any of the cards they are looking at.
-    pub(crate) fn keeping_options(&self, keeping: Keeping) -> Vec<DecisionOption> {
-        keeping.looking_at.iter().map(DecisionOption::KeepCard).collect()
+        self.keep_and_discard(player, looking_at, CardSet::default());
+        false
     }
 
     /// The current Player keeps `card`, one of those they are looking at. Once they have kept as

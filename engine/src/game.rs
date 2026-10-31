@@ -414,7 +414,7 @@ impl Game {
             (None, None, Some(card), ..) => {
                 (DecisionKind::Production, self.production_options(self.current_player, card))
             }
-            (None, None, None, Some(keeping), ..) => (DecisionKind::KeepCards, self.keeping_options(keeping)),
+            (None, None, None, Some(keeping), ..) => (DecisionKind::KeepCards, keeping.options()),
             (None, None, None, None, Some(sold), _) => {
                 (DecisionKind::SellPatents, self.selling_options(sold))
             }

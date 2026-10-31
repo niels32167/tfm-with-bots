@@ -65,6 +65,34 @@ def test_with_only_2_cards_left_to_draw_business_contacts_keeps_both_without_a_d
     assert game.decision["kind"] == "action"
 
 
+def test_with_only_1_card_left_to_draw_business_contacts_keeps_it_without_a_decision():
+    elsewhere = [card for card in PROJECT_CARDS if card not in ("business_contacts", "mine")]
+    game = scenario(player(hand=["business_contacts"]), player(hand=elsewhere))
+
+    pick(game, "Play Business Contacts")
+
+    assert hand(game, 0) == ["mine"]
+    assert "Player 1 looks at the top 1 card of the deck." in game.log
+    assert "Player 1 keeps 1 card and discards 0." in game.log
+    assert game.decision["kind"] == "action"
+
+
+def test_when_the_deck_runs_out_business_contacts_takes_the_rest_from_the_reshuffled_discard_pile():
+    # 2 cards in the deck and 3 in the discard pile: the look takes both, then 2 of the reshuffled 3.
+    deck, discarded = ["mine", "trees"], ["birds", "fish", "lichen"]
+    elsewhere = [card for card in PROJECT_CARDS if card not in ("business_contacts", *deck, *discarded)]
+    game = scenario(player(hand=["business_contacts"]), player(hand=elsewhere), deck=deck, discard=discarded)
+
+    pick(game, "Play Business Contacts")
+
+    looking_at = keeping(game, 0)["looking_at"]
+    assert len(looking_at) == 4
+    assert {"mine", "trees"} <= set(looking_at)
+    assert "The deck has run out, so the discard pile is shuffled into a new deck of 3 cards." in game.log
+    assert len(game.full_view()["deck"]) == 1
+    assert game.full_view()["discard"] == []
+
+
 def test_business_contacts_earth_tag_stops_counting_once_it_is_played():
     game = scenario(player(hand=["business_contacts"]), player(), deck=TOP_OF_THE_DECK)
 

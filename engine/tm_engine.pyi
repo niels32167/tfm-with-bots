@@ -162,17 +162,17 @@ class Game:
          "passed_in_draft": [{"generation": int, "to": int, "cards": [...]}, ...] | None,
          "keeping": {"card": card id, "looking_at": [...], "kept": [...], "keep": int} | None,
          "played_cards": [card id, ...], "tags": {"building": int, ...}}, where Resources and
-        Production each hold all six Resources, cards come in card-number order, and "tags"
-        counts the ten Tags in play (on played Automated and Active cards; no Tag on a played
-        Event counts). "hand", "buying", "drafting", "passed_in_draft" and "keeping" are None but
-        on the viewer's own board. "buying" is the cards dealt to buy from and those bought so far, in
-        the setup and Research phases. "drafting" is the cards being drafted, keeping one and
-        passing the rest to Player "passing_to", and those kept so far, in the Draft.
-        "passed_in_draft" lists every set of cards the Player passed on in the Draft this Game,
-        in the order passed. "keeping" is, while the Player plays a card such as Business
-        Contacts, the cards they look at and may still keep, those kept so far, and how many more
-        they keep; the rest are discarded. "deck_size" and "discard_size" are the numbers of cards in the deck
-        and the discard pile, and "deck" and "discard" are None.
+        Production each hold all six Resources, cards come in card-number order, and "tags" counts
+        the ten Tags in play (on played Automated and Active cards; no Tag on a played Event
+        counts). "hand", "buying", "drafting", "passed_in_draft" and "keeping" are None but on the
+        viewer's own board. "buying" is the cards dealt to buy from and those bought so far, in the
+        setup and Research phases. "drafting" is the cards being drafted, keeping one and passing
+        the rest to Player "passing_to", and those kept so far, in the Draft. "passed_in_draft"
+        lists every set of cards the Player passed on in the Draft this Game, in the order passed.
+        "keeping" is, while the Player plays a card such as Business Contacts, the cards they look
+        at and may still keep, those kept so far, and how many more they keep; the rest are
+        discarded. "deck_size" and "discard_size" are the numbers of cards in the deck and the
+        discard pile, and "deck" and "discard" are None.
         It also has the "board": every Area, on Mars row by row from the
         top (A to J, skipping I) and each row from the left, then the two Areas off Mars:
         {"area": "E3", "name": "Noctis City" | None, "row": 5, "position": 3,
@@ -190,9 +190,9 @@ class Game:
     def full_view(self) -> dict[str, Any]:
         """Everything about the Game, including what Players hide from each other.
 
-        For Hotseat and the dev panel, never for an AI Controller. It has the Player
-        View's shape, with "viewer" None, every Player's "hand", "buying", "drafting",
-        "passed_in_draft" and "keeping", the "deck" by catalog id from the top down, and the "discard" pile.
+        For Hotseat and the dev panel, never for an AI Controller. It has the Player View's shape,
+        with "viewer" None, every Player's "hand", "buying", "drafting", "passed_in_draft" and
+        "keeping", the "deck" by catalog id from the top down, and the "discard" pile.
         """
 
     @property

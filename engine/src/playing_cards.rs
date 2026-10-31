@@ -251,7 +251,10 @@ impl Game {
         self.log.push(LogEvent::PlayedCard { player, card, payment });
         let effects = CARD_CATALOG[card].implemented_effects();
         self.carry_out(player, effects);
-        self.look_at_cards(player, card);
+        // Keeping the cards looked at comes first; once it is done, the Production change follows.
+        if !self.look_at_cards(player, card) {
+            self.choose_production_change(player, card);
+        }
     }
 
     /// `player` makes the Production change `card`, which they are playing, lets them choose, if

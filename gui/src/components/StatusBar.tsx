@@ -104,11 +104,11 @@ function statusText(game: GameUpdate, cards: Card[]): string {
     const to = passingTo === undefined ? "on" : `to ${playerTitle(game, passingTo)}`;
     return `${who} must keep one of the cards above and pass the rest ${to}: click the card to keep.`;
   }
-  if (decision?.kind === "keep_cards") {
-    const keeping = view.players[decision.player].keeping;
-    const card = cards.find((each) => each.id === keeping?.card);
-    const count = keeping?.kept.length ? `${keeping.keep} more` : `${keeping?.keep}`;
-    return `${who} must keep ${count} of the cards above for ${card?.name} and discard the rest: click a card to keep.`;
+  const keeping = decision?.kind === "keep_cards" ? view.players[decision.player].keeping : null;
+  if (keeping) {
+    const card = cards.find((each) => each.id === keeping.card)?.name ?? "the card played";
+    const count = keeping.kept.length > 0 ? `${keeping.keep} more` : `${keeping.keep}`;
+    return `${who} must keep ${count} of the cards above for ${card} and discard the rest: click a card to keep.`;
   }
   if (decision?.kind === "buy_cards") {
     const bought = view.players[decision.player].buying?.bought.length ?? 0;

@@ -260,13 +260,14 @@ and Nitrophilic Moss, which loses 2, not to a Player with fewer than 2 (`player.
 
 ### The order of a card's effects
 
-**Call:** The effects written as data are carried out in a fixed order: Resources,
-Production (fixed, then per Tag or Tile, then for having at least so many), Temperature and
-Oxygen steps, Terraform Rating (fixed, then per Tag), cards drawn, cards looked at to keep some
-of (see "Looking at cards to keep some of them" below), the Production change the Player
-chooses (see "A Production change to choose" below), then the Tiles one at a time. A Tile that a track bonus
-gives along the way (the Ocean at 0 °C) is placed before the card's own Tiles. When Strip Mine's first Oxygen step reaches 8 % and that
-Temperature step reaches 0 °C, its second Oxygen step comes before the Ocean is placed.
+**Call:** The effects written as data are carried out in a fixed order: Resources, Production
+(fixed, then per Tag or Tile, then for having at least so many), Temperature and Oxygen steps,
+Terraform Rating (fixed, then per Tag), cards drawn, cards looked at to keep some of (see
+"Looking at cards to keep some of them" below), the Production change the Player chooses (see
+"A Production change to choose" below), then the Tiles one at a time. A Tile that a track bonus
+gives along the way (the Ocean at 0 °C) is placed before the card's own Tiles. When Strip
+Mine's first Oxygen step reaches 8 % and that Temperature step reaches 0 °C, its second Oxygen
+step comes before the Ocean is placed.
 
 **Why:** The rulebook doesn't order a card's effects. The Player chooses the order of
 simultaneous effects, but when one order is never worse the engine applies it without a
@@ -571,14 +572,17 @@ without asking.
 **Tests:** `tests/cards/test_business_contacts.py`, `tests/cards/test_invention_contest.py`,
 `tests/engine/test_views.py::test_while_a_player_keeps_cards_they_look_at_no_other_player_view_shows_them`,
 `tests/server/test_keeping_cards.py` and
-`tests/fuzzing/test_invariants.py::test_cards_looked_at_with_business_contacts_break_no_invariant`.
+`tests/fuzzing/test_invariants.py::test_cards_looked_at_with_business_contacts_break_no_invariant`;
+the deck running out mid-look and too few cards in
+`test_when_the_deck_runs_out_business_contacts_takes_the_rest_from_the_reshuffled_discard_pile`
+and `test_with_only_1_card_left_to_draw_business_contacts_keeps_it_without_a_decision`.
 
 ### Nitrogen-Rich Asteroid's plant Production
 
 **Call:** Nitrogen-Rich Asteroid raises plant Production 1 step, or 4 steps if the Player has at
-least 3 plant Tags in play, counted once the card is played. It has no plant Tag of its own, and
-Tags on played Events don't count (see "Tags on played Events"). With more than 3 plant Tags it
-still gives 4. The game log shows the 4 as a raise of 1 and then of 3.
+least 3 plant Tags in play. With more than 3 plant Tags it still gives 4. The game log shows the 4
+as a raise of 1 and then of 3. (When the Tags are counted doesn't matter for this card: it has no
+plant Tag of its own, and no Event has one.)
 
 **Why:**
 - The card: "Increase your plant production 1 step, or 4 steps if you have 3 plant tags."
