@@ -14,7 +14,7 @@ use crate::cards::{CARD_CATALOG, Tag};
 use crate::draft::DraftPass;
 use crate::game::{
     Decision, DecisionKind, DecisionOption, Game, HEAT_PER_TEMPERATURE_STEP, PLANTS_PER_GREENERY, Phase,
-    StandardProject,
+    StandardProject, Waiting,
 };
 use crate::log::{listed, player_name};
 use crate::milestones_and_awards::{Award, MILESTONE_COST, Milestone};
@@ -330,14 +330,17 @@ fn view(game: &Game, viewer: Option<usize>) -> View {
                     passing_to: game.passing_to(index),
                 }),
                 passed_in_draft: sees_hand(index).then(|| passed_in_draft(&game.draft_passes, index)),
-                keeping: game.keeping.filter(|_| sees_hand(index) && index == game.current_player).map(
-                    |keeping| KeepingView {
-                        card: &CARD_CATALOG[keeping.card].id,
-                        looking_at: ids(keeping.looking_at),
-                        kept: ids(keeping.kept),
-                        keep: keeping.keep,
-                    },
-                ),
+                keeping: match game.waiting {
+                    Some(Waiting::KeepCards(keeping)) if sees_hand(index) && index == game.current_player => {
+                        Some(KeepingView {
+                            card: &CARD_CATALOG[keeping.card].id,
+                            looking_at: ids(keeping.looking_at),
+                            kept: ids(keeping.kept),
+                            keep: keeping.keep,
+                        })
+                    }
+                    _ => None,
+                },
                 played_cards: ids(player.played),
                 tags: Tag::COUNTED.into_iter().map(|tag| (tag, game.tags(index, tag))).collect(),
             })

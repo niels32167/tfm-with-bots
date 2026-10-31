@@ -265,6 +265,21 @@ pub enum DecisionOption {
     },
 }
 
+/// What the current Player's Decision is about, other than the one their Phase asks for.
+#[derive(Clone, Copy, Debug)]
+pub enum Waiting {
+    /// The Area for this Tile, on the Areas it may go on.
+    Area(Placement),
+    /// How they pay for this card, which they are playing.
+    Payment(usize),
+    /// The Production change this card, which they are playing, makes.
+    Production(usize),
+    /// Which of the cards they are looking at they keep.
+    KeepCards(Keeping),
+    /// Which card they sell next with Sell Patents, having sold this many so far.
+    SellPatents(usize),
+}
+
 #[derive(Clone, Debug)]
 pub struct Decision {
     pub player: usize,
@@ -317,21 +332,11 @@ pub struct Game {
     pub current_player: usize,
     /// How many Actions the current Player has taken in this Turn.
     pub actions_this_turn: u32,
-    /// The Tile the current Player must place next, and the Areas it may go on, if the Game is
-    /// waiting on an Area for it.
-    pub placing: Option<Placement>,
-    /// The card the current Player is playing, while the Game waits on how they pay for it.
-    pub paying_for: Option<usize>,
-    /// The card the current Player is playing, while the Game waits on the Production change it
-    /// makes.
-    pub choosing_production: Option<usize>,
-    /// The cards the current Player is looking at, while the Game waits on which of them they
-    /// keep.
-    pub keeping: Option<Keeping>,
+    /// What the current Player's Decision is about, while it is not the one their Phase asks
+    /// for (an Action, a Draft pick, a buy, a final Greenery).
+    pub waiting: Option<Waiting>,
     /// The card whose Tiles the current Player is placing, while it has any left to place.
     pub placing_for: Option<CardTiles>,
-    /// How many cards the current Player has sold so far, while they are selling patents.
-    pub selling: Option<usize>,
     /// The Area of a Tile whose placement bonus waits until the Tile being placed is down:
     /// a Greenery's waits for the Ocean its 0 °C step gave (see docs/rules-notes.md).
     pub waiting_bonus: Option<usize>,
@@ -384,12 +389,8 @@ impl Game {
             first_player: 0,
             current_player: 0,
             actions_this_turn: 0,
-            placing: None,
-            paying_for: None,
-            choosing_production: None,
-            keeping: None,
+            waiting: None,
             placing_for: None,
-            selling: None,
             waiting_bonus: None,
             claimed_milestones: [None; Milestone::ALL.len()],
             funded_awards: [None; Award::ALL.len()],
@@ -406,26 +407,20 @@ impl Game {
         if self.phase == Phase::Over {
             return None;
         }
-        let waiting =
-            (self.placing, self.paying_for, self.choosing_production, self.keeping, self.selling, self.phase);
-        let (kind, options) = match waiting {
-            (Some(placement), ..) => (DecisionKind::Area, self.area_options(placement)),
-            (None, Some(card), ..) => (DecisionKind::Payment, self.payment_options(card)),
-            (None, None, Some(card), ..) => {
+        let (kind, options) = match (self.waiting, self.phase) {
+            (Some(Waiting::Area(placement)), _) => (DecisionKind::Area, self.area_options(placement)),
+            (Some(Waiting::Payment(card)), _) => (DecisionKind::Payment, self.payment_options(card)),
+            (Some(Waiting::Production(card)), _) => {
                 (DecisionKind::Production, self.production_options(self.current_player, card))
             }
-            (None, None, None, Some(keeping), ..) => (DecisionKind::KeepCards, keeping.options()),
-            (None, None, None, None, Some(sold), _) => {
-                (DecisionKind::SellPatents, self.selling_options(sold))
-            }
-            (None, None, None, None, None, Phase::Draft) => (DecisionKind::Draft, self.drafting_options()),
-            (None, None, None, None, None, Phase::Setup | Phase::Research) => {
-                (DecisionKind::BuyCards, self.buying_options())
-            }
-            (None, None, None, None, None, Phase::FinalGreenery) => {
+            (Some(Waiting::KeepCards(keeping)), _) => (DecisionKind::KeepCards, keeping.options()),
+            (Some(Waiting::SellPatents(sold)), _) => (DecisionKind::SellPatents, self.selling_options(sold)),
+            (None, Phase::Draft) => (DecisionKind::Draft, self.drafting_options()),
+            (None, Phase::Setup | Phase::Research) => (DecisionKind::BuyCards, self.buying_options()),
+            (None, Phase::FinalGreenery) => {
                 (DecisionKind::FinalGreenery, vec![DecisionOption::ConvertPlants, DecisionOption::Done])
             }
-            (None, None, None, None, None, _) => (DecisionKind::Action, self.action_options()),
+            (None, _) => (DecisionKind::Action, self.action_options()),
         };
         Some(Decision {
             player: self.current_player,
@@ -566,10 +561,10 @@ impl Game {
         match option {
             DecisionOption::PlayCard(card) => match self.payments(player, card)[..] {
                 [only_way] => self.play_card(player, card, only_way),
-                _ => self.paying_for = Some(card),
+                _ => self.wait_on(Waiting::Payment(card)),
             },
             DecisionOption::Pay { card, payment } => {
-                self.paying_for = None;
+                self.waiting = None;
                 self.play_card(player, card, payment);
             }
             DecisionOption::ChangeProduction { card, change } => {
@@ -580,7 +575,9 @@ impl Game {
             DecisionOption::SellCard(card) => self.sell(card),
             DecisionOption::KeepCard(card) => self.keep_card(card),
             // It has no price: the Player picks the cards to sell next.
-            DecisionOption::UseStandardProject(StandardProject::SellPatents) => self.selling = Some(0),
+            DecisionOption::UseStandardProject(StandardProject::SellPatents) => {
+                self.wait_on(Waiting::SellPatents(0))
+            }
             DecisionOption::UseStandardProject(project) => {
                 self.players[player].resources.megacredits -= project.cost();
                 self.log.push(LogEvent::UsedStandardProject { player, project });
@@ -591,10 +588,10 @@ impl Game {
                     StandardProject::PowerPlant => self.change_production(player, Resource::Energy, 1),
                     StandardProject::Asteroid => self.raise_temperature(player),
                     StandardProject::Aquifer => self.place_ocean(Areas::Usual),
-                    StandardProject::Greenery => self.placing = Some(Placement::usual(TileKind::Greenery)),
+                    StandardProject::Greenery => self.place(Placement::usual(TileKind::Greenery)),
                     StandardProject::City => {
                         self.change_production(player, Resource::MegaCredits, 1);
-                        self.placing = Some(Placement::usual(TileKind::City));
+                        self.place(Placement::usual(TileKind::City));
                     }
                 }
                 self.finish_unless_placing();
@@ -614,7 +611,7 @@ impl Game {
             DecisionOption::ConvertPlants => {
                 self.players[player].resources.plants -= PLANTS_PER_GREENERY;
                 self.log.push(LogEvent::ConvertedPlants { player });
-                self.placing = Some(Placement::usual(TileKind::Greenery));
+                self.place(Placement::usual(TileKind::Greenery));
                 self.finish_unless_placing();
             }
             DecisionOption::ConvertHeat => {
@@ -624,7 +621,7 @@ impl Game {
                 self.finish_unless_placing();
             }
             DecisionOption::PlaceTile { placement, area } => {
-                self.placing = None;
+                self.waiting = None;
                 self.place_tile(player, placement.tile, area);
                 self.finish_unless_placing();
             }
@@ -637,7 +634,9 @@ impl Game {
                 self.log.push(LogEvent::Passed { player });
                 self.end_turn();
             }
-            DecisionOption::Done if self.selling.is_some() => self.finish_selling(),
+            DecisionOption::Done if matches!(self.waiting, Some(Waiting::SellPatents(_))) => {
+                self.finish_selling()
+            }
             DecisionOption::Done if self.phase == Phase::FinalGreenery => {
                 self.log.push(LogEvent::DoneConvertingPlants { player });
                 self.offer_final_greenery_from(self.index_in_player_order() + 1);
@@ -649,14 +648,31 @@ impl Game {
     /// Unless a Tile is still to be placed, a card's included: the current Action ends, or in
     /// the final Greenery conversion, the current Player may convert again.
     pub(crate) fn finish_unless_placing(&mut self) {
-        if self.placing.is_none() {
+        if !self.is_placing() {
             self.place_next_card_tile();
         }
-        match (self.placing, self.phase) {
-            (Some(_), _) => {}
-            (None, Phase::FinalGreenery) => self.offer_final_greenery_from(self.index_in_player_order()),
-            (None, _) => self.finish_action(),
+        match (self.is_placing(), self.phase) {
+            (true, _) => {}
+            (false, Phase::FinalGreenery) => self.offer_final_greenery_from(self.index_in_player_order()),
+            (false, _) => self.finish_action(),
         }
+    }
+
+    /// The Game now waits on the current Player's Decision about `waiting`. It waits on one
+    /// thing at a time: nothing sets up a second Decision while one is waiting.
+    pub(crate) fn wait_on(&mut self, waiting: Waiting) {
+        assert!(self.waiting.is_none(), "{waiting:?} while {:?} is waiting", self.waiting);
+        self.waiting = Some(waiting);
+    }
+
+    /// The current Player must make `placement` next.
+    pub(crate) fn place(&mut self, placement: Placement) {
+        self.wait_on(Waiting::Area(placement));
+    }
+
+    /// Whether the Game waits on an Area for a Tile.
+    pub(crate) fn is_placing(&self) -> bool {
+        matches!(self.waiting, Some(Waiting::Area(_)))
     }
 
     fn finish_action(&mut self) {
@@ -816,7 +832,7 @@ impl Game {
     /// Area).
     pub(crate) fn place_ocean(&mut self, on: Areas) {
         if self.board.oceans() < MAX_OCEANS {
-            self.placing = Some(Placement { tile: TileKind::Ocean, on });
+            self.place(Placement { tile: TileKind::Ocean, on });
         } else {
             self.log.push(LogEvent::OceansAlreadyAtMaximum);
         }
@@ -837,7 +853,7 @@ impl Game {
             TileKind::Greenery => self.raise_oxygen(player),
             TileKind::City => {}
         }
-        if self.placing.is_some() {
+        if self.is_placing() {
             self.waiting_bonus = Some(area);
             return;
         }

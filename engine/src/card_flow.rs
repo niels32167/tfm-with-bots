@@ -9,7 +9,7 @@
 use crate::card_set::CardSet;
 use crate::cards::{CARD_CATALOG, LookAt};
 use crate::deck::Deck;
-use crate::game::{DecisionOption, Game, Phase};
+use crate::game::{DecisionOption, Game, Phase, Waiting};
 use crate::log::LogEvent;
 
 /// How many Project Cards each Player is dealt at setup.
@@ -156,7 +156,9 @@ impl Game {
         own.hand.remove(card);
         own.resources.megacredits += PATENT_VALUE;
         self.discard.insert(card);
-        self.selling = self.selling.map(|sold| sold + 1);
+        if let Some(Waiting::SellPatents(sold)) = &mut self.waiting {
+            *sold += 1;
+        }
         if own.hand.is_empty() {
             self.finish_selling();
         }
@@ -164,7 +166,9 @@ impl Game {
 
     /// The current Player is done selling patents, which ends the Action.
     pub(crate) fn finish_selling(&mut self) {
-        let sold = self.selling.take().expect("only a Player selling patents finishes selling");
+        let Some(Waiting::SellPatents(sold)) = self.waiting.take() else {
+            panic!("only a Player selling patents finishes selling")
+        };
         self.log.push(LogEvent::SoldPatents { player: self.current_player, cards: sold });
         self.finish_unless_placing();
     }
@@ -180,7 +184,7 @@ impl Game {
         self.log.push(LogEvent::LookedAtCards { player, cards: looking_at.len() });
         let keep = keep as usize;
         if looking_at.len() > keep {
-            self.keeping = Some(Keeping { card, looking_at, kept: CardSet::default(), keep });
+            self.wait_on(Waiting::KeepCards(Keeping { card, looking_at, kept: CardSet::default(), keep }));
             return true;
         }
         self.keep_and_discard(player, looking_at, CardSet::default());
@@ -191,12 +195,14 @@ impl Game {
     /// many as they may, those go into their hand, the rest are discarded, and the Production
     /// change of the card they play follows.
     pub(crate) fn keep_card(&mut self, card: usize) {
-        let mut keeping = self.keeping.take().expect("only a Player looking at cards keeps one");
+        let Some(Waiting::KeepCards(mut keeping)) = self.waiting.take() else {
+            panic!("only a Player looking at cards keeps one")
+        };
         keeping.looking_at.remove(card);
         keeping.kept.insert(card);
         keeping.keep -= 1;
         if keeping.keep > 0 {
-            self.keeping = Some(keeping);
+            self.waiting = Some(Waiting::KeepCards(keeping));
             return;
         }
         let player = self.current_player;

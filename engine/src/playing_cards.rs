@@ -12,7 +12,7 @@ use crate::cards::{
     CARD_CATALOG, Card, CardType, Counted, Effects, Limit, Owner, ProductionAtLeast, ProductionPer,
     Requirement, Tag, TerraformRatingPer, VictoryPoints,
 };
-use crate::game::{DecisionOption, Game};
+use crate::game::{DecisionOption, Game, Waiting};
 use crate::log::{LogEvent, listed};
 use crate::resources::{Resource, Resources};
 
@@ -266,7 +266,7 @@ impl Game {
             [DecisionOption::ChangeProduction { change, .. }] => {
                 self.change_production_as_chosen(player, card, change)
             }
-            _ => self.choosing_production = Some(card),
+            _ => self.wait_on(Waiting::Production(card)),
         }
     }
 
@@ -277,7 +277,7 @@ impl Game {
         card: usize,
         change: ProductionChange,
     ) {
-        self.choosing_production = None;
+        self.waiting = None;
         match change {
             ProductionChange::Alternative(index) => {
                 self.change_productions(player, CARD_CATALOG[card].production_alternative(index))
@@ -310,9 +310,9 @@ impl Game {
             if placement.tile == TileKind::Ocean {
                 self.place_ocean(placement.on);
             } else {
-                self.placing = Some(placement);
+                self.place(placement);
             }
-            if self.placing.is_some() {
+            if self.is_placing() {
                 return;
             }
         }
