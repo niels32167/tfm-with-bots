@@ -122,6 +122,25 @@
   filter: drop-shadow(0px 0px 1px black);
 }
 
+/* A cost lowered by discounts, with the printed cost struck through just below it. */
+.printed-card .price.discounted {
+  position: relative;
+  color: #1d6b2a;
+}
+
+.printed-card .price .printed-price {
+  position: absolute;
+  top: 46px;
+  left: 0;
+  width: 50px;
+  padding: 1px 0;
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.85);
+  font-size: 18px;
+  line-height: 18px;
+  color: #6b1d1d;
+}
+
 .printed-card .number {
   position: relative;
   float: left;

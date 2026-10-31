@@ -70,6 +70,17 @@ pub struct Resources {
     pub heat: i32,
 }
 
+impl Resources {
+    /// Each amount `times` over.
+    pub fn times(self, times: i32) -> Resources {
+        let mut multiplied = self;
+        for resource in Resource::ALL {
+            multiplied[resource] *= times;
+        }
+        multiplied
+    }
+}
+
 impl Index<Resource> for Resources {
     type Output = i32;
 

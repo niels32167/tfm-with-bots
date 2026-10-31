@@ -10,6 +10,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::board::{Placement, TileKind};
 use crate::card_code::CARDS_WITH_CODE;
+use crate::card_set::CardSet;
 use crate::resources::{Resource, Resources};
 
 const CARD_FILE: &str = include_str!("../cards/cards.json");
@@ -168,7 +169,114 @@ pub struct Effects {
     /// (an Active card's red arrow). None for a card without one.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub action: Option<Box<Effects>>,
+    /// Only for an Active card: MegaCredits off every card its Player plays from then on, or only
+    /// off those with a Tag (Space Station's 2 off each card with a space Tag).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub discount: Option<Discount>,
+    /// Only for an Active card: how many MegaCredits more each steel and each titanium pays for
+    /// its Player from then on, towards whatever they may pay for (Advanced Alloys).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub cube_values: Option<CubeValues>,
+    /// Only for an Active card: how many steps easier each of its Player's Requirements on a
+    /// Global Parameter is to meet from then on (Adaptation Technology).
+    #[serde(skip_serializing_if = "is_zero")]
+    pub requirement_steps: i32,
+    /// Only for an Event: what it changes about the next card its Player plays this Generation
+    /// (Indentured Workers, Special Design).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub next_card: Option<NextCard>,
+    /// Only for an Active card: what its Player gains from then on, each time something happens
+    /// (Arctic Algae's 2 plants when anyone places an Ocean). Empty for a card without one.
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub when: Vec<Trigger>,
 }
+
+/// What a card's Player gains each time something happens, as `on` says, for as long as the card
+/// is in play. A card whose gain is a Decision (Mars University) has its own Rust code.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct Trigger {
+    pub on: TriggerCondition,
+    #[serde(default)]
+    pub resources: Resources,
+    #[serde(default)]
+    pub production: Resources,
+}
+
+/// What sets a card's Trigger off.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case", deny_unknown_fields)]
+pub enum TriggerCondition {
+    /// A Tile of this kind placed by the card's Player, or by anyone.
+    TilePlaced { tile: TileKind, by: Owner },
+    /// The card's Player plays a card of this type (any, if left out) with this Tag (any, if
+    /// left out).
+    CardPlayed {
+        #[serde(default, rename = "type", skip_serializing_if = "Option::is_none")]
+        card_type: Option<CardType>,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        tag: Option<Tag>,
+    },
+    /// The card's Player plays this Tag: once for each such Tag on the card they play.
+    TagPlayed(Tag),
+    /// The card's Player pays for a Standard Project, Sell Patents excepted.
+    StandardProject,
+}
+
+/// What an Event changes about the next card its Player plays this Generation: MegaCredits off
+/// its cost, and how many steps easier its Requirements on a Global Parameter are to meet.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(default, deny_unknown_fields)]
+pub struct NextCard {
+    #[serde(skip_serializing_if = "is_zero")]
+    pub discount: i32,
+    #[serde(skip_serializing_if = "is_zero")]
+    pub requirement_steps: i32,
+}
+
+fn is_zero(value: &i32) -> bool {
+    *value == 0
+}
+
+/// MegaCredits added to what a steel cube and a titanium cube pay.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(default, deny_unknown_fields)]
+pub struct CubeValues {
+    pub steel: i32,
+    pub titanium: i32,
+}
+
+/// MegaCredits off the cost of each card played, or only of each card with `tag`. A card's own
+/// discount never applies to itself, as it is paid for before it is in play.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct Discount {
+    pub megacredits: i32,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub tag: Option<Tag>,
+}
+
+/// The cards with each kind of ongoing effect, so that the Game looks only at a Player's played
+/// cards among them.
+pub struct CardsWith {
+    pub discount: CardSet,
+    pub cube_values: CardSet,
+    pub requirement_steps: CardSet,
+    pub triggers: CardSet,
+}
+
+/// Read from the card catalog the first time it is needed, like the catalog itself.
+pub static CARDS_WITH: LazyLock<CardsWith> = LazyLock::new(|| {
+    let having = |has: fn(&Effects) -> bool| -> CardSet {
+        (0..PROJECT_CARDS).filter(|&card| CARD_CATALOG[card].effects.as_ref().is_some_and(has)).collect()
+    };
+    CardsWith {
+        discount: having(|effects| effects.discount.is_some()),
+        cube_values: having(|effects| effects.cube_values.is_some()),
+        requirement_steps: having(|effects| effects.requirement_steps != 0),
+        triggers: having(|effects| !effects.when.is_empty()),
+    }
+});
 
 /// What an action costs in MegaCredits, and whether steel or titanium may pay for it, worth as
 /// much as towards a card with a building or space Tag.

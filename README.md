@@ -19,8 +19,10 @@ fuzzer plays Random Bot Games and checks them after every Decision, and a benchm
 measures the engine's speed. The card catalog holds the printed data of all 208 Project
 Cards and 12 Corporations, and the GUI's card gallery draws every card as the fan-made card
 list does. Players play Project Cards from their hand, paying with MegaCredits, steel and
-titanium, once the cards' Requirements are met; 123 cards work so far, 88 Automated, 18 Active
-and 17 Events. An Active card's action is an Action its Player may use once per Generation. At
+titanium, once the cards' Requirements are met; 142 cards work so far, 88 Automated, 35 Active
+and 19 Events. An Active card's action is an Action its Player may use once per Generation, and
+its ongoing effects lower card costs, raise what steel and titanium pay, ease Requirements or
+gain its Player something each time a Tile, card or Tag sets them off. At
 setup each Player is dealt 10 Project Cards and buys any of them for 3 MegaCredits
 each (everyone starts with 42 MegaCredits until Corporations exist). From Generation 2 each
 Research phase has the Draft, on by default and switchable on the setup screen: each Player is
@@ -109,7 +111,9 @@ A card is implemented once it has `"effects"` in the card file (ADR 0009), such 
 `"effects": {"production": {"megacredits": -2, "heat": 3}, "tiles": ["ocean"]}` for Black Polar
 Dust; cards without it are never offered. Effects can gain or lose Resources, change
 Production, raise Temperature and Oxygen, raise Terraform Rating, draw cards, let the Player
-look at cards to keep some of them, and place Tiles.
+look at cards to keep some of them, and place Tiles; an Active card can also have an action,
+discounts, steel and titanium values, Requirement steps and Triggers (`"when"`), and an Event an
+effect on the next card played.
 Declare any new field in `engine/src/cards.rs` first, since the card file allows no unknown
 field. Each card's scenario tests live in `tests/cards/test_<id>.py`, and the coverage report
 lists the cards that have none yet (the test suite shows the count as a warning):

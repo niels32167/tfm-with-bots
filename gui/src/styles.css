@@ -753,6 +753,13 @@ input[aria-invalid="true"] {
   color: #241a05;
 }
 
+.badge.next-card {
+  background: rgba(214, 79, 61, 0.3);
+  color: var(--text);
+  text-transform: none;
+  letter-spacing: 0;
+}
+
 .badge.full-view {
   background: rgba(72, 113, 182, 0.35);
   color: var(--text);
@@ -1383,13 +1390,15 @@ input[aria-invalid="true"] {
   transform: translateY(-225px) scale(1.5);
 }
 
-.small-card.sellable {
+.small-card.sellable,
+.small-card.discardable {
   cursor: pointer;
   outline: 6px solid var(--mercury);
   outline-offset: 2px;
 }
 
-.small-card.sellable:disabled {
+.small-card.sellable:disabled,
+.small-card.discardable:disabled {
   cursor: default;
   opacity: 0.6;
 }

@@ -20,6 +20,16 @@ The Beginner Corporation is left out: it isn't on the card list, and it belongs 
 - [ ] The GUI shows each Player's Corporation with its ability.
 - [ ] The fuzzer plays with random Corporations.
 
+Hand-off from ticket 16 (2026-10-31): many abilities fit its effect data forms. Discounts (Teractor's
+Earth cards, Thorgate's power cards) are `"discount"`; Phobolog's titanium is `"cube_values"`;
+Inventrix's Requirements are `"requirement_steps"`; Interplanetary Cinematics' Events, Saturn
+Systems' jovian Tags, Point Luna's Earth Tags and Tharsis Republic's Cities are `"when"` Triggers.
+Some need more than the forms hold today: Saturn Systems counts any Player's Tag (`tag_played` has
+no `by`), Tharsis Republic only Cities on Mars, Credicor a cost of 20 or more (Standard Projects
+included), Thorgate's Power Plant Standard Project and Helion's heat as MegaCredits the payment
+layer. `cards::CARDS_WITH` only looks at Project Cards (`0..PROJECT_CARDS`): extend it, and the
+Player's played cards, to their Corporation.
+
 ## Comments
 
 ### 2026-10-29 — note from ticket 12 (Claude)

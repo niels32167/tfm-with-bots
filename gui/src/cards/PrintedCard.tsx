@@ -13,8 +13,9 @@ const TYPE_CLASSES: Record<CardType, string> = {
 
 /** A card drawn as the fan-made card list draws it (ADR 0005), 248 by 318 pixels: the
  * frame, title, cost, Tags and number come from the card's printed data, and its middle part
- * and the title's style from its face. */
-export function PrintedCard({ card }: { card: Card }) {
+ * and the title's style from its face. With a `cost` other than the printed one (a discount),
+ * it shows that cost, with the printed one struck through beside it. */
+export function PrintedCard({ card, cost }: { card: Card; cost?: number }) {
   const typeClass = TYPE_CLASSES[card.type];
   const tags = card.tags.map((tag, position) => (
     <div key={position} className={`tag tag${position + 1} tag-${tag}`} title={`${tag} Tag`} />
@@ -35,7 +36,14 @@ export function PrintedCard({ card }: { card: Card }) {
       <div className={`title background-color-${typeClass}`} style={styleOf(card.face.title_style)}>
         {card.name}
       </div>
-      <div className="price">{card.cost}</div>
+      {cost === undefined || cost === card.cost ? (
+        <div className="price">{card.cost}</div>
+      ) : (
+        <div className="price discounted" title={`Printed cost ${card.cost} MegaCredits, ${cost} after discounts`}>
+          {cost}
+          <s className="printed-price">{card.cost}</s>
+        </div>
+      )}
       {tags}
       <div className="number">#{String(card.number).padStart(3, "0")}</div>
       {card.corporate_era && <div className="corporate-icon project-icon" title="Corporate Era" />}

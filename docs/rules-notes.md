@@ -269,7 +269,10 @@ change to choose" and "A Resource change to choose for an action" below), then t
 a time. An action is paid for first (see "Card actions" below). A Tile that a track bonus
 gives along the way (the Ocean at 0 °C) is placed before the card's own Tiles. When Strip
 Mine's first Oxygen step reaches 8 % and that Temperature step reaches 0 °C, its second Oxygen
-step comes before the Ocean is placed.
+step comes before the Ocean is placed. Triggers on the card played come once it is paid for,
+before its effects, and Mars University's discard after them (see "Triggers" and "Mars University's
+discard" below); Immigrant City lowers its Production after its City (see "Immigrant City's own
+City" below).
 
 **Why:** The rulebook doesn't order a card's effects. The Player chooses the order of
 simultaneous effects, but when one order is never worse the engine applies it without a
@@ -728,6 +731,214 @@ checks the energy. Chosen by Claude (2026-10-31), on the user's instruction to m
 ticket 15 calls without asking.
 
 **Tests:** `tests/cards/test_martian_rails.py`.
+
+### Discounts
+
+**Call:** A card's discount ("when you play a card, you pay 1 MC less for it") takes MegaCredits
+off the cost of every card its Player plays from then on: Research Outpost 1, Earth Catapult and
+Anti-Gravity Technology 2 off every card; Space Station, Quantum Extractor, Mass Converter and
+Shuttles 2 off each card with a space Tag; Earth Office 3 off each card with an Earth Tag.
+- Discounts add up, and with Indentured Workers' (below), but never take a cost below 0.
+- An Event's Tags count while it is played, so Space Station makes Ice Asteroid 2 cheaper.
+- A card's own discount doesn't apply to itself: it is paid for before it is in play.
+- Only cards played are cheaper: not Standard Projects, card actions or cards bought.
+- Steel and titanium pay towards the discounted cost.
+
+The Option to play a card, its label and the Player View's "card_costs" give the discounted cost;
+the GUI shows it on the hand's cards, with the printed cost struck through.
+
+**Why:**
+- The cards say "when you play a card", and the rulebook lets nothing make a cost negative.
+- The open-source game sums the `cardDiscount` of the cards on the Player's tableau, which doesn't
+  hold the card being paid for, and never lowers a cost below 0.
+- The open-source game counts Space Station's discount per space Tag and Mass Converter's per card.
+  No card in the v1 set has two space Tags or two Earth Tags, so both give the same costs here.
+
+The sources agree. Chosen by the user (2026-10-31): discounts are effect data, `"discount":
+{"megacredits": 2, "tag": "space"}`, and the GUI shows the discounted cost on the cards. The rest
+by Claude, on the user's instruction to make the remaining ticket 16 calls without asking.
+
+**Tests:** `tests/rules/test_cost_changes.py`, among them `test_discounts_add_up` and
+`test_no_card_has_two_tags_a_discount_counts_so_a_discount_per_card_and_per_tag_are_the_same`;
+the card files of the eight cards, among them
+`tests/cards/test_space_station.py::test_space_station_makes_an_event_with_a_space_tag_cheaper_too`
+and `tests/cards/test_earth_office.py::test_earth_office_takes_a_cost_down_to_0_and_no_further`;
+and `tests/fuzzing/test_invariants.py::test_a_cost_the_discounts_do_not_leave_breaks_an_invariant`.
+
+### What steel and titanium are worth with Advanced Alloys
+
+**Call:** With Advanced Alloys in play, each steel its Player has pays 3 MegaCredits and each
+titanium 4, wherever steel or titanium may pay: for cards with a building or space Tag, and for the
+actions of Aquifer Pumping and Water Import from Europa. The payment Decision follows "Paying with
+steel and titanium" with these values: Mine (4) with 2 steel offers 4 MegaCredits, 1 MegaCredit and
+1 steel, or 2 steel.
+
+**Why:** The card: "Each titanium you have is worth 1 MC extra. Each steel you have is worth 1 MC
+extra." The open-source game raises the Player's steel and titanium values, which every payment
+reads, the two actions' included. Chosen by Claude (2026-10-31), on the user's instruction to make
+the remaining ticket 16 calls without asking.
+
+**Tests:** `tests/cards/test_advanced_alloys.py`.
+
+### Requirement steps: Adaptation Technology and Special Design
+
+**Call:** Adaptation Technology makes each of its Player's Requirements on a Global Parameter 2
+steps easier to meet from then on; Special Design does the same for the next card they play this
+Generation. A step is 2 °C of Temperature, 1 % of Oxygen or 1 Ocean, so with either card Breathing
+Filters (7 % Oxygen or more) is offered at 5 % and Archaebacteria (−18 °C or colder) at −14 °C.
+- "+2 or -2 steps, your choice" is always taken in the Player's favour, with no Decision: the other
+  way only makes the card harder to play.
+- Both together make 4 steps.
+- Requirements on Tags, Production or Tiles don't change.
+
+**Why:**
+- The cards: "Your global requirements are +2 or -2 steps, your choice in each case" and "The next
+  card you play this generation is +2 or -2 steps in global requirements, your choice."
+- The open-source game adds both cards' `globalParameterRequirementBonus` together and widens
+  minimums and maximums alike.
+- An Option that only does worse is never offered (see "When the 0 °C Ocean is placed").
+
+The sources agree. Chosen by Claude (2026-10-31), on the user's instruction to make the remaining
+ticket 16 calls without asking.
+
+**Tests:** `tests/cards/test_adaptation_technology.py` (one case for each Global Parameter's
+minimum and maximum) and `tests/cards/test_special_design.py`, among them
+`test_special_design_and_adaptation_technology_add_up_to_4_steps`.
+
+### An Event's effect on the next card played
+
+**Call:** Indentured Workers ("the next card you play this generation costs 8 MC less") and Special
+Design (2 Requirement steps, above) wait on the next card their Player plays this Generation,
+whatever it is:
+- that card uses the effect up, even when it gains nothing from it (Mine after Special Design);
+- the effect is lost if no card is played before the Production phase ends the Generation;
+- Special Design played right after Indentured Workers costs 0 and uses it up, and then waits on
+  the card after it itself;
+- Standard Projects and card actions neither gain from it nor use it up.
+
+Everyone sees which Event waits on a Player's next card (the Player View's "next_card"); the GUI
+shows it on the player board.
+
+**Why:**
+- The cards name "the next card you play this generation".
+- The open-source game gives the effect only while the Event is the Player's `lastCardPlayed`,
+  which the next card played replaces.
+
+The sources agree. Chosen by Claude (2026-10-31), on the user's instruction to make the remaining
+ticket 16 calls without asking (effect data, `"next_card": {"discount": 8}`, chosen by the user).
+
+**Tests:** `tests/cards/test_indentured_workers.py`, `tests/cards/test_special_design.py` and
+`tests/fuzzing/test_invariants.py::test_an_effect_on_the_next_card_that_is_no_such_event_or_outlasts_the_action_phase_breaks_an_invariant`.
+
+### Triggers
+
+**Call:** A card's Trigger ("when anyone places an ocean tile, gain 2 plants") gives its own Player
+the gain, whoever sets it off, once for each thing that sets it off:
+- a Tile: once per Tile placed, by anyone or only by the Player as the card says, the 0 °C Ocean
+  included (Arctic Algae, Rover Construction, Immigrant City);
+- a card the Player plays: once per card of that type and Tag (Optimal Aerobraking's space Event,
+  Media Group's Event), once it is paid for and before its own effects;
+- a Tag the Player plays: once per such Tag on the card played, so Research sets off Mars
+  University twice, and an Event's Tags count (Special Design's science Tag);
+- a Standard Project the Player pays for, Sell Patents excepted (Standard Technology).
+
+A card in play counts itself: Immigrant City's own City and Mars University's own science Tag set
+them off, as their cards say ("including this"). No other card's Trigger matches the card itself:
+Media Group is no Event and Optimal Aerobraking no space Event. When several Triggers fire at once,
+each Player's, they are carried out in player number order, each Player's cards in card-number
+order. The order never changes the outcome, as each only gains its Player something, so no Player
+is asked to order them (see "When the 0 °C Ocean is placed"). The game log says "Player 2's Arctic
+Algae takes effect." before what it gains.
+
+**Why:**
+- The cards; the rulebook carries out a card's effect each time its condition is met.
+- The open-source game calls `onTilePlaced` for every Player's cards on any Tile placed,
+  `onCardPlayed` for the Player's own cards with the card just played on their tableau, and counts
+  `cardTagCount` of the Tag for Mars University.
+
+The sources agree. Chosen by the user (2026-10-31): Triggers are effect data, `"when": [{"on":
+{"tile_placed": {"tile": "ocean", "by": "anyone"}}, "resources": {"plants": 2}}]`, with Rust code
+only for Mars University's Decision and Immigrant City's order. The rest by Claude, on the user's
+instruction to make the remaining ticket 16 calls without asking.
+
+**Tests:** `tests/rules/test_triggers.py`, among them
+`test_a_trigger_fires_for_its_cards_player_not_for_the_player_who_sets_it_off`,
+`test_a_trigger_fires_once_for_each_tile_that_sets_it_off`,
+`test_a_card_played_sets_off_its_own_trigger_when_it_matches_immigrant_citys_own_city` and
+`test_only_active_cards_have_a_trigger_and_one_that_its_own_play_sets_off_says_so`; and the card
+files of the seven cards.
+
+### Immigrant City's own City
+
+**Call:** Immigrant City places its City first, which its own Trigger counts (+1 MegaCredit
+Production step), and lowers its Player's Production (−1 energy, −2 MegaCredits) after it. So it
+can be played at −4 MegaCredit Production, ending at −5, but not at −5. While its City is being
+placed, its Player's Production is still as it was. Robotic Workforce copies only its production
+box, which needs −3 MegaCredit Production or more (see "Robotic Workforce").
+
+**Why:**
+- The Player orders simultaneous effects, and when one order is never worse the engine applies it
+  without a Decision (see "When the 0 °C Ocean is placed"). City first lets the card be played in
+  more positions and changes nothing else.
+- The open-source game places the City before lowering the Production and offers the card down to
+  −4 MegaCredit Production (`bespokeCanPlay`: `production.megacredits >= -4`).
+
+The sources agree. Chosen by Claude (2026-10-31), on the user's instruction to make the remaining
+ticket 16 calls without asking. The card has Rust code for this (`card_code::IMMIGRANT_CITY`).
+
+**Tests:** `tests/cards/test_immigrant_city.py`, among them
+`test_immigrant_city_can_be_played_at_minus_4_megacredit_production_thanks_to_its_own_city` and
+`test_robotic_workforce_copies_only_immigrant_citys_production_box`.
+
+### Mars University's discard
+
+**Call:** Each science Tag the Player plays lets them discard a card from their hand to draw one,
+once the card's other effects are done, its Tiles included. A "discard_to_draw" Decision offers one
+Option per card in hand ("Discard Mine to draw a card"), in card-number order, and Done to keep the
+hand. Research asks twice, one after the other. With an empty hand there is no Decision. The card
+goes face down to the discard pile before the draw, so with the deck empty it may be drawn back
+(see "When the deck runs out"); the game log says "Player 1 discards a card to draw one." without
+naming either card.
+
+**Why:**
+- The card: "you may discard a card from hand to draw a card", so keeping the hand is an Option.
+- The open-source game defers the discard until the card's other effects are done and offers
+  "Do nothing"; with no card in hand it asks nothing.
+- Discarding last never gives the Player less to go on: they see the whole card's outcome, cards
+  drawn from a placement bonus included.
+
+Chosen by the user (2026-10-31): after the card's effects, one Decision per science Tag. The
+details by Claude, on the user's instruction to make the remaining ticket 16 calls without asking.
+
+**Tests:** `tests/cards/test_mars_university.py`, among them
+`test_mars_university_is_set_off_once_for_each_science_tag_so_twice_by_research` and
+`test_mars_university_comes_after_the_cards_tiles`; `tests/server/test_discard_to_draw.py`.
+
+### Standard Technology
+
+**Call:** Standard Technology gives its Player 3 MegaCredits once they have paid for a Standard
+Project: Power Plant, Asteroid, Aquifer, Greenery or City, not Sell Patents. It doesn't help pay:
+Power Plant still needs 11 MegaCredits. Other Players' Standard Projects give nothing.
+
+**Why:** The card: "After you pay for a standard project, except selling patents, you gain 3 MC."
+The open-source game gives the 3 MegaCredits in `onStandardProject`, after paying, for the
+Player's own projects other than Sell Patents. Chosen by Claude (2026-10-31), on the user's
+instruction to make the remaining ticket 16 calls without asking.
+
+**Tests:** `tests/cards/test_standard_technology.py`.
+
+### Research Outpost's City
+
+**Call:** Research Outpost places its City on any free Area on Mars reserved for nothing that has no
+Tile of any kind next to it, an Ocean included. The card is offered only while there is such an
+Area (see "A card's City or Greenery needs an Area").
+
+**Why:** The card: "Place a city tile NEXT TO NO OTHER TILE." The open-source game places it with
+`city: {on: 'isolated'}`, free land with no Tile next to it. Chosen by Claude (2026-10-31), on the
+user's instruction to make the remaining ticket 16 calls without asking.
+
+**Tests:** `tests/cards/test_research_outpost.py` and
+`tests/fuzzing/test_invariants.py::test_research_outposts_area_decision_offering_an_area_next_to_a_tile_breaks_an_invariant`.
 
 ## Card flow
 

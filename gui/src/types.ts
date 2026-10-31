@@ -38,6 +38,9 @@ export interface PlayerBoard {
   /** The cards in hand by catalog id, in card-number order: only the viewer's own, or every
    * hand in the full view; otherwise null. */
   hand: string[] | null;
+  /** What they would pay now for each card in their hand, by catalog id, once their discounts
+   * are taken off: with the hand, otherwise null. */
+  card_costs: Record<string, number> | null;
   /** In the setup or a Research phase, the cards dealt to them to buy from and those of them
    * they have bought so far (nothing is paid until every Player is done): only the viewer's own,
    * or everyone's in the full view; otherwise null. */
@@ -56,6 +59,9 @@ export interface PlayerBoard {
   played_cards: string[];
   /** The played cards whose action they have used this Generation, by catalog id. */
   used_actions: string[];
+  /** The Event they played whose effect waits on the next card they play this Generation
+   * (Indentured Workers, Special Design), by catalog id, or null. */
+  next_card: string | null;
   /** How many of each Tag are in play. No Tag on a played Event counts, the Event Tag included. */
   tags: Record<CountedTag, number>;
 }

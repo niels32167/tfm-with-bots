@@ -28,11 +28,11 @@ CEO's Favorite Project (#149, ticket 19, moved from ticket 14) adds 1 Card Resou
 - [ ] #054 Small Animals
 - [ ] #072 Birds
 - [ ] #074 Viral Enhancers — the open-source game offers Nitrophilic Moss (ticket 13, "lose 2 plants") with only 1 plant while Viral Enhancers is in play, as its plant Tag gains a plant first; Moss (#122, lose 1) likewise with none. Decide whether the plant loss is checked before or after the "when you play" effect, and update "Production at its limit" in docs/rules-notes.md
-- [ ] #128 Ecological Zone
+- [ ] #128 Ecological Zone — a `"when"` Trigger (ticket 16) on several Tags with a Card Resource gain, as Decomposers (ticket 19)
 - [ ] #143 Large Convoy
-- [ ] #147 Herbivores
+- [ ] #147 Herbivores — a `"when"` Trigger (ticket 16): `{"tile_placed": {"tile": "greenery", "by": "you"}}`, with a Card Resource gain
 - [ ] #163 Imported Nitrogen
-- [ ] #172 Pets
+- [ ] #172 Pets — a `"when"` Trigger (ticket 16): `{"tile_placed": {"tile": "city", "by": "anyone"}}`, with a Card Resource gain
 - [ ] #173 Protected Habitats
 - [ ] #184 Livestock
 - [ ] #190 Local Heat Trapping

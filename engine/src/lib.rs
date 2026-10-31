@@ -20,6 +20,7 @@ mod replay;
 mod resources;
 mod scenario;
 mod scoring;
+mod triggers;
 mod view;
 
 use pyo3::exceptions::PyValueError;

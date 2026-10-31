@@ -85,6 +85,11 @@ export function PlayerBoards({ game, cards }: Props) {
               <span className="hand-size" title="Cards in hand">
                 Hand {board.hand_size}
               </span>
+              {board.next_card && (
+                <span className="badge next-card" title={`${catalog.get(board.next_card)?.name}: the next card they play this Generation`}>
+                  Next card: {nextCardEffect(catalog.get(board.next_card))}
+                </span>
+              )}
               {COUNTED_TAGS.filter((tag) => board.tags[tag] > 0).map((tag) => (
                 <span key={tag} className="tag-count" title={`${board.tags[tag]} ${tag} Tags in play`}>
                   <img src={`/card-list/images/tags/${tag}.png`} alt={`${tag} Tags`} />
@@ -104,6 +109,17 @@ export function PlayerBoards({ game, cards }: Props) {
       })}
     </section>
   );
+}
+
+/** What an Event such as Indentured Workers changes about the next card played: "−8 MegaCredits",
+ * "±2 steps on global Requirements". */
+function nextCardEffect(card: Card | undefined): string {
+  const effect = card?.effects?.next_card as { discount?: number; requirement_steps?: number } | undefined;
+  const parts = [
+    effect?.discount && `−${effect.discount} MegaCredits`,
+    effect?.requirement_steps && `±${effect.requirement_steps} steps on global Requirements`,
+  ];
+  return parts.filter(Boolean).join(", ");
 }
 
 interface PassedInDraftProps {

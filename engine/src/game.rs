@@ -23,6 +23,7 @@ use crate::random::RandomNumbers;
 use crate::replay::{Replay, Start};
 use crate::resources::{Resource, Resources};
 use crate::scoring::{Score, final_scores, funded_award_places, winners};
+use crate::triggers::Happened;
 
 pub const MIN_PLAYERS: usize = 2;
 pub const MAX_PLAYERS: usize = 5;
@@ -93,6 +94,9 @@ pub struct Player {
     pub played: CardSet,
     /// The played cards whose action they have used this Generation.
     pub used_actions: CardSet,
+    /// The Event they have played whose effect waits on the next card they play this Generation
+    /// (Indentured Workers, Special Design), if any.
+    pub next_card: Option<usize>,
     /// In the setup or a Research phase, what they are buying from.
     pub buying: Buying,
     /// In the Draft, what they are drafting.
@@ -109,6 +113,7 @@ impl Player {
             hand: CardSet::default(),
             played: CardSet::default(),
             used_actions: CardSet::default(),
+            next_card: None,
             buying: Buying::default(),
             drafting: Drafting::default(),
         }
@@ -223,6 +228,8 @@ pub enum DecisionKind {
     BuyCards,
     /// Sell one more card from the hand, or be done, with the Sell Patents Standard Project.
     SellPatents,
+    /// Discard a card from the hand to draw one, or be done (Mars University).
+    DiscardToDraw,
     /// Convert plants into a Greenery once more, or be done, in the final Greenery conversion.
     FinalGreenery,
 }
@@ -241,6 +248,8 @@ pub enum DecisionOption {
     BuyCard(usize),
     /// Sell this card from the hand, with the Sell Patents Standard Project.
     SellCard(usize),
+    /// Discard this card from the hand to draw one (Mars University).
+    DiscardCard(usize),
     /// Keep this card, one of those the card being played lets its Player look at.
     KeepCard(usize),
     /// Pay for `card`, which is being played, this way.
@@ -303,6 +312,8 @@ pub enum Waiting {
     Resources(usize),
     /// Which card they sell next with Sell Patents, having sold this many so far.
     SellPatents(usize),
+    /// Whether, and which card, they discard from their hand to draw one (Mars University).
+    DiscardToDraw,
 }
 
 #[derive(Clone, Debug)]
@@ -362,6 +373,9 @@ pub struct Game {
     pub waiting: Option<Waiting>,
     /// The card whose Tiles the current Player is placing, while it has any left to place.
     pub placing_for: Option<CardTiles>,
+    /// How many more times the current Player may discard a card from their hand to draw one
+    /// (Mars University), once the card they are playing is done.
+    pub discards_to_draw: u32,
     /// The Area of a Tile whose placement bonus waits until the Tile being placed is down:
     /// a Greenery's waits for the Ocean its 0 °C step gave (see docs/rules-notes.md).
     pub waiting_bonus: Option<usize>,
@@ -416,6 +430,7 @@ impl Game {
             actions_this_turn: 0,
             waiting: None,
             placing_for: None,
+            discards_to_draw: 0,
             waiting_bonus: None,
             claimed_milestones: [None; Milestone::ALL.len()],
             funded_awards: [None; Award::ALL.len()],
@@ -449,6 +464,9 @@ impl Game {
                 (DecisionKind::Resources, self.resource_change_options(self.current_player, card))
             }
             (Some(Waiting::SellPatents(sold)), _) => (DecisionKind::SellPatents, self.selling_options(sold)),
+            (Some(Waiting::DiscardToDraw), _) => {
+                (DecisionKind::DiscardToDraw, self.discard_to_draw_options())
+            }
             (None, Phase::Draft) => (DecisionKind::Draft, self.drafting_options()),
             (None, Phase::Setup | Phase::Research) => (DecisionKind::BuyCards, self.buying_options()),
             (None, Phase::FinalGreenery) => {
@@ -616,6 +634,7 @@ impl Game {
             }
             DecisionOption::BuyCard(card) => self.buy(card),
             DecisionOption::SellCard(card) => self.sell(card),
+            DecisionOption::DiscardCard(card) => self.discard_to_draw(Some(card)),
             DecisionOption::KeepCard(card) => self.keep_card(card),
             // It has no price: the Player picks the cards to sell next.
             DecisionOption::UseStandardProject(StandardProject::SellPatents) => {
@@ -624,6 +643,7 @@ impl Game {
             DecisionOption::UseStandardProject(project) => {
                 self.players[player].resources.megacredits -= project.cost();
                 self.log.push(LogEvent::UsedStandardProject { player, project });
+                self.set_off(Happened::StandardProject { player });
                 match project {
                     StandardProject::SellPatents => {
                         unreachable!("Sell Patents begins with the cards to sell")
@@ -683,6 +703,9 @@ impl Game {
             DecisionOption::Done if matches!(self.waiting, Some(Waiting::KeepCards(_))) => {
                 self.done_keeping()
             }
+            DecisionOption::Done if matches!(self.waiting, Some(Waiting::DiscardToDraw)) => {
+                self.discard_to_draw(None)
+            }
             DecisionOption::Done if self.phase == Phase::FinalGreenery => {
                 self.log.push(LogEvent::DoneConvertingPlants { player });
                 self.offer_final_greenery_from(self.index_in_player_order() + 1);
@@ -691,16 +714,19 @@ impl Game {
         }
     }
 
-    /// Unless a Tile is still to be placed, a card's included: the current Action ends, or in
-    /// the final Greenery conversion, the current Player may convert again.
+    /// Unless a Tile is still to be placed, a card's included, or Mars University lets the
+    /// current Player discard a card to draw one: the current Action ends, or in the final
+    /// Greenery conversion, the current Player may convert again.
     pub(crate) fn finish_unless_placing(&mut self) {
         if !self.is_placing() {
             self.place_next_card_tile();
         }
-        match (self.is_placing(), self.phase) {
-            (true, _) => {}
-            (false, Phase::FinalGreenery) => self.offer_final_greenery_from(self.index_in_player_order()),
-            (false, _) => self.finish_action(),
+        if self.is_placing() || self.offer_discard_to_draw() {
+            return;
+        }
+        match self.phase {
+            Phase::FinalGreenery => self.offer_final_greenery_from(self.index_in_player_order()),
+            _ => self.finish_action(),
         }
     }
 
@@ -752,11 +778,12 @@ impl Game {
 
     /// Each Player's energy turns into heat, then every Resource gains its Production,
     /// and MegaCredits also gain Terraform Rating. It ends the Generation, so every card action
-    /// is unused again.
+    /// is unused again, and an effect on the next card played this Generation is lost.
     fn production_phase(&mut self) {
         self.log.push(LogEvent::ProductionPhase);
         for (index, player) in self.players.iter_mut().enumerate() {
             player.used_actions = CardSet::default();
+            player.next_card = None;
             let energy = player.resources.energy;
             if energy > 0 {
                 player.resources.heat += energy;
@@ -901,6 +928,7 @@ impl Game {
             TileKind::Greenery => self.raise_oxygen(player),
             TileKind::City => {}
         }
+        self.set_off(Happened::TilePlaced { player, tile });
         if self.is_placing() {
             self.waiting_bonus = Some(area);
             return;

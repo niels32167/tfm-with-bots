@@ -356,6 +356,77 @@ def test_an_action_still_used_after_the_production_phase_breaks_an_invariant():
     assert problems(view, decision) == ["in the research phase, Player 1 has used the actions of space_elevator"]
 
 
+def test_research_outposts_city_next_to_no_other_tile_breaks_no_invariant():
+    game = scenario(player(hand=["research_outpost"]), player(), tiles=[city("C3", owner=1)])
+    pick(game, "Play Research Outpost")
+    assert problems(*position(game)) == []
+
+    pick(game, area="J1")
+
+    assert problems(*position(game)) == []
+
+
+def test_research_outposts_area_decision_offering_an_area_next_to_a_tile_breaks_an_invariant():
+    game = scenario(player(hand=["research_outpost"]), player(), tiles=[city("C3", owner=1)])
+    pick(game, "Play Research Outpost")
+    view, decision = position(game)
+    decision["options"].append(area_option("C2", "city", on="next_to_no_other_tile"))
+
+    assert problems(view, decision) == [
+        "the Area Decision for a City next to no other Tile offers C2, where it may not go"
+    ]
+
+
+def test_discounted_costs_and_an_effect_on_the_next_card_reached_by_the_rules_break_no_invariant():
+    holding = player(megacredits=20, hand=["indentured_workers", "satellites", "mine"], played_cards=["space_station"])
+    game = scenario(holding, player())
+    pick(game, "Play Indentured Workers")
+
+    assert problems(*position(game)) == []
+
+
+def test_a_cost_the_discounts_do_not_leave_breaks_an_invariant():
+    game = scenario(player(megacredits=20, hand=["satellites", "mine"], played_cards=["space_station"]), player())
+    view, decision = position(game)
+    view["players"][0]["card_costs"]["mine"] = 2
+    play = next(option for option in decision["options"] if option["details"].get("card") == "satellites")
+    play["details"]["cost"] = 10
+
+    assert problems(view, decision) == [
+        "Player 1's Mine costs 2, not 4",
+        "Play Satellites (8 MegaCredits) is offered at 10, not at 8",
+    ]
+
+
+def test_an_effect_on_the_next_card_that_is_no_such_event_or_outlasts_the_action_phase_breaks_an_invariant():
+    game = scenario(player(hand=["mine"], played_cards=["sponsors", "special_design"]), player(), draft=False)
+    end_the_action_phase(game)
+    view, decision = position(game)
+    view["players"][0]["next_card"] = "special_design"
+    view["players"][1]["next_card"] = "sponsors"
+
+    assert problems(view, decision) == [
+        "in the research phase, Player 1's next card still waits on 'special_design'",
+        "Player 2's next card waits on 'sponsors', not an Event with such an effect they played",
+        "in the research phase, Player 2's next card still waits on 'sponsors'",
+    ]
+
+
+def test_mars_universitys_decision_leaving_out_a_card_in_hand_breaks_an_invariant():
+    game = scenario(player(megacredits=8, hand=["mars_university", "mine", "trees"]), player())
+    pick(game, "Play Mars University")
+    view, decision = position(game)
+    assert problems(view, decision) == []
+    del decision["options"][0]
+
+    assert problems(view, decision) == [
+        (
+            "Mars University's Decision offers [{'type': 'discard_card', 'card': 'trees'}, {'type': 'done'}], "
+            "not every card in the hand and Done"
+        )
+    ]
+
+
 def test_cards_bought_with_inventors_guild_break_no_invariant():
     game = scenario(player(megacredits=3, played_cards=["inventors_guild"]), player(), deck=["mine", "trees"])
     pick(game, "Use the action of Inventors' Guild")

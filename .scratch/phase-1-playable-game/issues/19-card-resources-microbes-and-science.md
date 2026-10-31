@@ -24,10 +24,10 @@ If a card turns out to need machinery from another ticket, move it to that ticke
 - [ ] #035 Ants
 - [ ] #049 Tardigrades
 - [ ] #095 Physics Complex
-- [ ] #131 Decomposers
+- [ ] #131 Decomposers — a Trigger in ticket 16's `"when"` form, but `{"tag_played": ...}` takes one Tag and a Trigger gains only Resources and Production: extend both (several Tags, a Card Resource gain), and the card's "including this" makes its own Tags count, as Mars University's do
 - [ ] #133 Symbiotic Fungus
 - [ ] #134 Extreme-Cold Fungus
 - [ ] #149 CEO's Favorite Project — moved here from ticket 14 (2026-10-29): an Event that adds 1 Card Resource of any kind to a card with at least 1 on it; ticket 20 adds animals and fighters to what it can target
 - [ ] #157 Nitrite Reducing Bacteria
 - [ ] #170 Aerobraked Ammonia Asteroid
-- [ ] #185 Olympus Conference — Research (ticket 12) counts as playing 2 science Tags, so it triggers this twice
+- [ ] #185 Olympus Conference — Research (ticket 12) counts as playing 2 science Tags, so it triggers this twice. A `{"tag_played": "science"}` Trigger like Mars University's (ticket 16), with a Decision of its own: with both in play, the two are due on the same science Tag, so order them by the simultaneous-effects rule ("When the 0 °C Ocean is placed" in docs/rules-notes.md), asking the user if no order dominates

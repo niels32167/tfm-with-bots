@@ -30,6 +30,11 @@ impl CardSet {
         CardSet { bits: std::array::from_fn(|word| self.bits[word] | other.bits[word]) }
     }
 
+    /// The cards in both this set and `other`.
+    pub fn intersection(self, other: CardSet) -> CardSet {
+        CardSet { bits: std::array::from_fn(|word| self.bits[word] & other.bits[word]) }
+    }
+
     /// The cards in this set but not in `other`.
     pub fn without(self, other: CardSet) -> CardSet {
         CardSet { bits: std::array::from_fn(|word| self.bits[word] & !other.bits[word]) }

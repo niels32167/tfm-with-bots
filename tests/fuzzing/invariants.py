@@ -62,7 +62,23 @@ OTHER_AREAS = {
     "ocean_areas": " on an Area reserved for Oceans",
     "land": " on an Area reserved for nothing",
     "next_to_two_cities": " next to at least 2 Cities",
+    "next_to_no_other_tile": " next to no other Tile",
 }
+# The MegaCredits off each card its Player plays, as printed on the cards with such an effect:
+# off every card, or only off those with a Tag.
+DISCOUNTS = {
+    "research_outpost": (1, None),
+    "space_station": (2, "space"),
+    "earth_catapult": (2, None),
+    "quantum_extractor": (2, "space"),
+    "mass_converter": (2, "space"),
+    "earth_office": (3, "earth"),
+    "anti_gravity_technology": (2, None),
+    "shuttles": (2, "space"),
+}
+# The Events printed with an effect on the next card played this Generation, and what they take
+# off its cost.
+NEXT_CARD_DISCOUNTS = {"indentured_workers": 8, "special_design": 0}
 
 
 def no_negative_resources(view: View, decision: Decision | None) -> Iterator[str]:
@@ -206,7 +222,8 @@ def legal_areas(view: View, tile: str, player: int, on: str = "usual") -> set[st
     Tiles, or on any free land if there is no such Area. A Tile `on` other Areas goes on:
     - "ocean_areas" (Mangrove's Greenery): any free Area reserved for Oceans;
     - "land" (Artificial Lake's Ocean): any free land, an Area reserved for nothing;
-    - "next_to_two_cities" (Urbanized Area's City): any free land next to at least 2 Cities."""
+    - "next_to_two_cities" (Urbanized Area's City): any free land next to at least 2 Cities;
+    - "next_to_no_other_tile" (Research Outpost's City): any free land next to no Tile."""
     tiles = tiles_on_the_board(view)
     if on == "ocean_areas" or (tile == "ocean" and on == "usual"):
         return {area_id for area_id in OCEAN_AREAS if area_id not in tiles}
@@ -222,6 +239,8 @@ def legal_areas(view: View, tile: str, player: int, on: str = "usual") -> set[st
         return free_land
     if on == "next_to_two_cities":
         return {area_id for area_id in free_land if cities_next_to(area_id) >= 2}
+    if on == "next_to_no_other_tile":
+        return {area_id for area_id in free_land if not next_to(area_id, lambda each: True)}
     if tile == "city":
         return {area_id for area_id in free_land if not next_to(area_id, lambda each: each["type"] == "city")}
     next_to_own = {area_id for area_id in free_land if next_to(area_id, lambda each: each["owner"] == player)}
@@ -276,6 +295,57 @@ def card_actions_used_once_per_generation(view: View, decision: Decision | None)
             yield f"{player_board['name']} is offered the action of '{card_id}', not a card with an action they played"
         elif card_id in player_board["used_actions"]:
             yield f"{player_board['name']} is offered the action of '{card_id}' again this Generation"
+
+
+def cards_cost_what_the_discounts_leave(view: View, decision: Decision | None) -> Iterator[str]:
+    """The costs shown for the cards in each hand, and the Options to play a card, are what
+    `card_cost` gives. Only an Event with an effect on the next card waits on it, in the Action
+    phase, among the Player's played cards."""
+    for player, player_board in enumerate(view["players"]):
+        name, played, next_card = player_board["name"], player_board["played_cards"], player_board["next_card"]
+        if next_card is not None and (next_card not in NEXT_CARD_DISCOUNTS or next_card not in played):
+            yield f"{name}'s next card waits on '{next_card}', not an Event with such an effect they played"
+        if next_card is not None and view["phase"] != "action":
+            yield f"in the {view['phase']} phase, {name}'s next card still waits on '{next_card}'"
+        for card_id, shown in player_board["card_costs"].items():
+            cost = card_cost(view, player, card_id)
+            if shown != cost:
+                yield f"{name}'s {CARDS[card_id]['name']} costs {shown}, not {cost}"
+    if decision is None:
+        return
+    for option in decision["options"]:
+        details = option["details"]
+        if details["type"] != "play_card":
+            continue
+        cost = card_cost(view, decision["player"], details["card"])
+        if details["cost"] != cost:
+            yield f"{option['label']} is offered at {details['cost']}, not at {cost}"
+
+
+def card_cost(view: View, player: int, card_id: str) -> int:
+    """What `player` pays for `card_id`: its printed cost less the discounts of their played
+    cards and of the Event they played for their next card, never below 0."""
+    player_board = view["players"][player]
+    card, played = CARDS[card_id], player_board["played_cards"]
+    discount = sum(
+        amount
+        for discounting, (amount, tag) in DISCOUNTS.items()
+        if discounting in played and (tag is None or tag in card["tags"])
+    )
+    discount += NEXT_CARD_DISCOUNTS.get(player_board["next_card"], 0)
+    return max(0, card["cost"] - discount)
+
+
+def discard_to_draw_offers_every_card_in_hand(view: View, decision: Decision | None) -> Iterator[str]:
+    """Mars University's Decision offers to discard each card in the deciding Player's hand, or to
+    be done."""
+    if decision is None or decision["kind"] != "discard_to_draw":
+        return
+    hand = view["players"][decision["player"]]["hand"]
+    offered = [option["details"] for option in decision["options"]]
+    wanted = [{"type": "discard_card", "card": card_id} for card_id in hand] + [{"type": "done"}]
+    if offered != wanted:
+        yield f"Mars University's Decision offers {offered}, not every card in the hand and Done"
 
 
 def at_most_three_milestones_and_awards(view: View, decision: Decision | None) -> Iterator[str]:
@@ -458,6 +528,8 @@ AFTER_EVERY_DECISION: tuple[Check, ...] = (
     only_legal_areas_offered,
     robotic_workforce_copies_only_your_building_cards,
     card_actions_used_once_per_generation,
+    cards_cost_what_the_discounts_leave,
+    discard_to_draw_offers_every_card_in_hand,
     at_most_three_milestones_and_awards,
     every_card_in_exactly_one_place,
     every_decision_has_an_option,

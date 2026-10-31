@@ -55,7 +55,7 @@ def test_the_full_view_shows_every_hand_and_the_deck_order_and_otherwise_what_ev
         own_view = game.player_view(viewer)
         assert (own_view["deck"], own_view["discard"]) == (None, None)
         for index, board in enumerate(own_view["players"]):
-            for hidden in ("hand", "passed_in_draft"):
+            for hidden in ("hand", "card_costs", "passed_in_draft"):
                 board[hidden] = full_view["players"][index][hidden]
         assert full_view == {**own_view, "viewer": None, "deck": full_view["deck"], "discard": []}
 
@@ -210,3 +210,13 @@ def test_every_player_view_shows_which_actions_each_player_has_used_this_generat
     for viewer in (0, 1):
         assert game.player_view(viewer)["players"][0]["used_actions"] == ["space_elevator"]
         assert game.player_view(viewer)["players"][1]["used_actions"] == []
+
+
+def test_only_the_player_sees_what_their_cards_cost_and_everyone_sees_what_waits_on_their_next_card():
+    game = scenario(player(megacredits=10, hand=["special_design", "mine"]), player())
+
+    pick(game, "Play Special Design")
+
+    assert game.player_view(1)["players"][0]["card_costs"] is None
+    assert game.player_view(1)["players"][0]["next_card"] == "special_design"
+    assert game.player_view(0)["players"][0]["card_costs"] == {"mine": 4}

@@ -255,6 +255,9 @@ pub enum Areas {
     /// Any free Area on Mars reserved for nothing and next to at least 2 Cities, as for
     /// Urbanized Area's City.
     NextToTwoCities,
+    /// Any free Area on Mars reserved for nothing and next to no Tile at all, as for Research
+    /// Outpost's City.
+    NextToNoOtherTile,
 }
 
 impl Areas {
@@ -372,6 +375,7 @@ impl Board {
             }
             (Areas::Land, _) => self.free_land().collect(),
             (Areas::NextToTwoCities, _) => self.next_to_two_cities().collect(),
+            (Areas::NextToNoOtherTile, _) => self.next_to_no_tile().collect(),
             (Areas::Usual, TileKind::Greenery) => {
                 // A Greenery must go next to one of its owner's Tiles if it can.
                 let next_to_own: Vec<usize> =
@@ -393,6 +397,7 @@ impl Board {
             (Areas::Land, _) | (Areas::Usual, TileKind::Greenery) => self.free_land().next().is_some(),
             (Areas::Usual, TileKind::City) => self.city_areas().next().is_some(),
             (Areas::NextToTwoCities, _) => self.next_to_two_cities().next().is_some(),
+            (Areas::NextToNoOtherTile, _) => self.next_to_no_tile().next().is_some(),
         }
     }
 
@@ -412,6 +417,10 @@ impl Board {
 
     fn next_to_two_cities(&self) -> impl Iterator<Item = usize> {
         self.free_land().filter(|&area| self.adjacent(area, TileKind::City) >= 2)
+    }
+
+    fn next_to_no_tile(&self) -> impl Iterator<Item = usize> {
+        self.free_land().filter(|&area| adjacent_areas(area).all(|next| self.tiles[next].is_none()))
     }
 
     fn next_to_a_city(&self, area: usize) -> bool {

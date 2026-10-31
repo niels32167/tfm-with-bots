@@ -18,12 +18,18 @@ interface Props {
   onFold: (folded: boolean) => void;
 }
 
-/** The Options picked by clicking a card in the hand: playing it, or selling it with Sell
- * Patents, by the card's id. */
+/** The Options picked by clicking a card in the hand, by type: how the card's button is labelled
+ * and outlined, and the hint the hand shows while they are offered. */
+export const HAND_OPTIONS: Record<string, { verb: string; className: string; hint: string }> = {
+  play_card: { verb: "Play", className: "playable", hint: "Click a highlighted card to play it" },
+  sell_card: { verb: "Sell", className: "sellable", hint: "Click a card to sell it" },
+  discard_card: { verb: "Discard", className: "discardable", hint: "Click a card to discard it and draw one" },
+};
+
+/** The Options picked by clicking a card in the hand: playing it, selling it with Sell
+ * Patents, or discarding it to draw one with Mars University, by the card's id. */
 export function handOptions(decision: Decision | null): Map<string, DecisionOption> {
-  const options = decision?.options.filter(
-    (option) => option.details.type === "play_card" || option.details.type === "sell_card",
-  );
+  const options = decision?.options.filter((option) => option.details.type in HAND_OPTIONS);
   return new Map(options?.map((option) => [option.details.card as string, option]));
 }
 
@@ -44,6 +50,7 @@ export function HandDock({ game, cards, disabled, onPick, folded, onFold }: Prop
   const options = handOptions(decision);
   const payingFor = cardBeingPaidFor(decision);
   const selling = decision?.kind === "sell_patents";
+  const costs = view.players[shown].card_costs ?? {};
 
   return (
     <section className="hand-dock" aria-label="Hand" style={{ borderTopColor: PLAYER_COLOURS[shown] }}>
@@ -68,9 +75,7 @@ export function HandDock({ game, cards, disabled, onPick, folded, onFold }: Prop
           </h2>
         )}
         {!folded && options.size > 0 && (
-          <span className="hand-dock-hint">
-            {selling ? "Click a card to sell it" : "Click a highlighted card to play it"}
-          </span>
+          <span className="hand-dock-hint">{HAND_OPTIONS[[...options.values()][0].details.type].hint}</span>
         )}
         <button className="link-button hand-dock-fold" onClick={() => onFold(!folded)}>
           {folded ? "Show the hand ▴" : "Fold ▾"}
@@ -83,16 +88,16 @@ export function HandDock({ game, cards, disabled, onPick, folded, onFold }: Prop
             if (!card) return null;
             const option = options.get(id);
             if (decision && option) {
-              const sell = option.details.type === "sell_card";
+              const { verb, className } = HAND_OPTIONS[option.details.type];
               return (
                 <div key={id} className="hand-slot">
                   <button
-                    className={`small-card in-dock ${sell ? "sellable" : "playable"}`}
+                    className={`small-card in-dock ${className}`}
                     disabled={disabled}
-                    aria-label={`${sell ? "Sell" : "Play"} ${card.name}`}
+                    aria-label={`${verb} ${card.name}`}
                     onClick={() => onPick(decision.sequence, option.index)}
                   >
-                    <PrintedCard card={card} />
+                    <PrintedCard card={card} cost={costs[id]} />
                   </button>
                 </div>
               );
@@ -102,7 +107,7 @@ export function HandDock({ game, cards, disabled, onPick, folded, onFold }: Prop
             return (
               <div key={id} className="hand-slot">
                 <div className={`small-card in-dock ${state}`} tabIndex={0} aria-label={card.name} title={note}>
-                  <PrintedCard card={card} />
+                  <PrintedCard card={card} cost={costs[id]} />
                 </div>
               </div>
             );

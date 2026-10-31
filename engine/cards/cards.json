@@ -269,7 +269,8 @@
       "requirements": [],
       "victory_points": null,
       "text": "(Effect: When you play a card, you pay 1 MC less for it.)\n(Place a city tile NEXT TO NO OTHER TILE.)",
-      "face": {"content": {"tag": "div", "class": "content", "children": [" : ", {"tag": "span", "class": "money resource", "children": ["-1"]}, " ", {"tag": "div", "class": "description", "children": [" (Effect: When you play a card, you pay 1 MC less for it.) "]}, " ", {"tag": "br"}, " ", {"tag": "div", "class": "tile city-tile"}, " ", {"tag": "div", "class": "description", "children": [" (Place a city tile NEXT TO NO OTHER TILE.) "]}, " "]}}
+      "face": {"content": {"tag": "div", "class": "content", "children": [" : ", {"tag": "span", "class": "money resource", "children": ["-1"]}, " ", {"tag": "div", "class": "description", "children": [" (Effect: When you play a card, you pay 1 MC less for it.) "]}, " ", {"tag": "br"}, " ", {"tag": "div", "class": "tile city-tile"}, " ", {"tag": "div", "class": "description", "children": [" (Place a city tile NEXT TO NO OTHER TILE.) "]}, " "]}},
+      "effects": {"discount": {"megacredits": 1}, "tiles": [{"tile": "city", "on": "next_to_no_other_tile"}]}
     },
     {
       "id": "phobos_space_haven",
@@ -309,7 +310,8 @@
       "requirements": [{"type": "temperature", "max": -12}],
       "victory_points": null,
       "text": "(Effect: When anyone places an ocean tile, gain 2 Plants.)\n(It must be -12 C or colder to play. Gain 1 Plant.)",
-      "face": {"content": {"tag": "div", "class": "content", "children": [" ", {"tag": "div", "class": "requirements requirements-max", "children": ["max -12 C"]}, " ", {"tag": "div", "class": "tile ocean-tile red-outline"}, " : ", {"tag": "div", "class": "resource plant"}, " ", {"tag": "div", "class": "resource plant"}, " ", {"tag": "br"}, " ", {"tag": "div", "class": "description", "children": [" (Effect: When anyone places an ocean tile, gain 2 Plants.) "]}, " ", {"tag": "div", "class": "resource plant"}, " ", {"tag": "div", "class": "description", "children": [" (It must be -12 C or colder to play. Gain 1 Plant.) "]}, " "]}}
+      "face": {"content": {"tag": "div", "class": "content", "children": [" ", {"tag": "div", "class": "requirements requirements-max", "children": ["max -12 C"]}, " ", {"tag": "div", "class": "tile ocean-tile red-outline"}, " : ", {"tag": "div", "class": "resource plant"}, " ", {"tag": "div", "class": "resource plant"}, " ", {"tag": "br"}, " ", {"tag": "div", "class": "description", "children": [" (Effect: When anyone places an ocean tile, gain 2 Plants.) "]}, " ", {"tag": "div", "class": "resource plant"}, " ", {"tag": "div", "class": "description", "children": [" (It must be -12 C or colder to play. Gain 1 Plant.) "]}, " "]}},
+      "effects": {"resources": {"plants": 1}, "when": [{"on": {"tile_placed": {"tile": "ocean", "by": "anyone"}}, "resources": {"plants": 2}}]}
     },
     {
       "id": "predators",
@@ -335,7 +337,8 @@
       "requirements": [],
       "victory_points": 1,
       "text": "(Effect: When you play a Space card, you pay 2 MC less for it.)",
-      "face": {"content": {"tag": "div", "class": "content", "children": [" ", {"tag": "div", "class": "points points-big", "children": ["1"]}, " ", {"tag": "div", "class": "resource-tag tag-space"}, " : ", {"tag": "div", "class": "money resource", "children": ["-2"]}, " ", {"tag": "div", "class": "description", "children": [" (Effect: When you play a Space card, you pay 2 MC less for it.) "]}, " "]}}
+      "face": {"content": {"tag": "div", "class": "content", "children": [" ", {"tag": "div", "class": "points points-big", "children": ["1"]}, " ", {"tag": "div", "class": "resource-tag tag-space"}, " : ", {"tag": "div", "class": "money resource", "children": ["-2"]}, " ", {"tag": "div", "class": "description", "children": [" (Effect: When you play a Space card, you pay 2 MC less for it.) "]}, " "]}},
+      "effects": {"discount": {"megacredits": 2, "tag": "space"}}
     },
     {
       "id": "eos_chasma_national_park",
@@ -416,7 +419,8 @@
       "requirements": [],
       "victory_points": null,
       "text": "(Effect: When you play a Space Event, you gain 3 MC and 3 heat.)",
-      "face": {"content": {"tag": "div", "class": "content", "children": [" ", {"tag": "div", "class": "resource-tag tag-space"}, " ", {"tag": "div", "class": "resource-tag tag-event"}, " : ", {"tag": "div", "class": "resource money", "children": ["3"]}, " ", {"tag": "div", "class": "resource heat", "style": {"margin-right": "0px"}}, " ", {"tag": "div", "class": "resource heat", "style": {"margin-right": "0px"}}, " ", {"tag": "div", "class": "resource heat"}, " ", {"tag": "div", "class": "description", "children": [" (Effect: When you play a Space Event, you gain 3 MC and 3 heat.) "]}, " "]}}
+      "face": {"content": {"tag": "div", "class": "content", "children": [" ", {"tag": "div", "class": "resource-tag tag-space"}, " ", {"tag": "div", "class": "resource-tag tag-event"}, " : ", {"tag": "div", "class": "resource money", "children": ["3"]}, " ", {"tag": "div", "class": "resource heat", "style": {"margin-right": "0px"}}, " ", {"tag": "div", "class": "resource heat", "style": {"margin-right": "0px"}}, " ", {"tag": "div", "class": "resource heat"}, " ", {"tag": "div", "class": "description", "children": [" (Effect: When you play a Space Event, you gain 3 MC and 3 heat.) "]}, " "]}},
+      "effects": {"when": [{"on": {"card_played": {"type": "event", "tag": "space"}}, "resources": {"megacredits": 3, "heat": 3}}]}
     },
     {
       "id": "underground_city",
@@ -510,7 +514,8 @@
       "requirements": [],
       "victory_points": 1,
       "text": "(Effect: When any City tile is placed, gain 2 MC.)",
-      "face": {"content": {"tag": "div", "class": "content", "children": [" ", {"tag": "div", "class": "points points-big", "children": ["1"]}, " ", {"tag": "div", "class": "tile city-tile", "style": {"filter": "brightness(0.8) drop-shadow(1px 0px 1px #c33) drop-shadow(-1px 0px 1px #c33) drop-shadow(0px 1px 1px #c33) drop-shadow(0px -1px 1px #c33)"}}, " : ", {"tag": "div", "class": "money resource", "children": ["2"]}, " ", {"tag": "div", "class": "description", "children": [" (Effect: When any City tile is placed, gain 2 MC.) "]}, " "]}}
+      "face": {"content": {"tag": "div", "class": "content", "children": [" ", {"tag": "div", "class": "points points-big", "children": ["1"]}, " ", {"tag": "div", "class": "tile city-tile", "style": {"filter": "brightness(0.8) drop-shadow(1px 0px 1px #c33) drop-shadow(-1px 0px 1px #c33) drop-shadow(0px 1px 1px #c33) drop-shadow(0px -1px 1px #c33)"}}, " : ", {"tag": "div", "class": "money resource", "children": ["2"]}, " ", {"tag": "div", "class": "description", "children": [" (Effect: When any City tile is placed, gain 2 MC.) "]}, " "]}},
+      "effects": {"when": [{"on": {"tile_placed": {"tile": "city", "by": "anyone"}}, "resources": {"megacredits": 2}}]}
     },
     {
       "id": "deimos_down",
@@ -946,7 +951,8 @@
       "requirements": [],
       "victory_points": 2,
       "text": "(Effect: When you play a card, you pay 2 MC less for it.)",
-      "face": {"content": {"tag": "div", "class": "content", "children": [" ", {"tag": "div", "class": "points points-big", "children": ["2"]}, " : ", {"tag": "span", "class": "money resource", "children": ["-2"]}, " ", {"tag": "div", "class": "description", "children": [" (Effect: When you play a card, you pay 2 MC less for it.) "]}, " "]}}
+      "face": {"content": {"tag": "div", "class": "content", "children": [" ", {"tag": "div", "class": "points points-big", "children": ["2"]}, " : ", {"tag": "span", "class": "money resource", "children": ["-2"]}, " ", {"tag": "div", "class": "description", "children": [" (Effect: When you play a card, you pay 2 MC less for it.) "]}, " "]}},
+      "effects": {"discount": {"megacredits": 2}}
     },
     {
       "id": "advanced_alloys",
@@ -959,7 +965,8 @@
       "requirements": [],
       "victory_points": null,
       "text": "(Effect: Each titanium you have is worth 1 MC extra. Each steel you have is worth 1 MC extra. )",
-      "face": {"content": {"tag": "div", "class": "content", "children": [" ", {"tag": "div", "class": "resource titanium"}, " : + ", {"tag": "div", "class": "resource money", "children": ["1"]}, " ", {"tag": "br"}, " ", {"tag": "div", "class": "resource steel"}, " : + ", {"tag": "div", "class": "resource money", "children": ["1"]}, " ", {"tag": "div", "class": "description", "children": [" (Effect: Each titanium you have is worth 1 MC extra. Each steel you have is worth 1 MC extra. ) "]}, " "]}}
+      "face": {"content": {"tag": "div", "class": "content", "children": [" ", {"tag": "div", "class": "resource titanium"}, " : + ", {"tag": "div", "class": "resource money", "children": ["1"]}, " ", {"tag": "br"}, " ", {"tag": "div", "class": "resource steel"}, " : + ", {"tag": "div", "class": "resource money", "children": ["1"]}, " ", {"tag": "div", "class": "description", "children": [" (Effect: Each titanium you have is worth 1 MC extra. Each steel you have is worth 1 MC extra. ) "]}, " "]}},
+      "effects": {"cube_values": {"steel": 1, "titanium": 1}}
     },
     {
       "id": "birds",
@@ -985,7 +992,8 @@
       "requirements": [],
       "victory_points": 1,
       "text": "(Effect: When you play a Science tag, including this, you may discard a card from hand to draw a card.)",
-      "face": {"content": {"tag": "div", "class": "content", "children": [" ", {"tag": "div", "class": "points points-big", "children": ["1"]}, " ", {"tag": "div", "class": "resource-tag tag-science"}, " : - ", {"tag": "span", "class": "card resource"}, " + ", {"tag": "span", "class": "card resource"}, " ", {"tag": "div", "class": "description", "children": [" (Effect: When you play a Science tag, including this, you may discard a card from hand to draw a card.) "]}, " "]}}
+      "face": {"content": {"tag": "div", "class": "content", "children": [" ", {"tag": "div", "class": "points points-big", "children": ["1"]}, " ", {"tag": "div", "class": "resource-tag tag-science"}, " : - ", {"tag": "span", "class": "card resource"}, " + ", {"tag": "span", "class": "card resource"}, " ", {"tag": "div", "class": "description", "children": [" (Effect: When you play a Science tag, including this, you may discard a card from hand to draw a card.) "]}, " "]}},
+      "effects": {"when": [{"on": {"tag_played": "science"}}]}
     },
     {
       "id": "viral_enhancers",
@@ -1067,7 +1075,8 @@
       "requirements": [{"type": "tag", "tag": "science", "min": 4}],
       "victory_points": null,
       "text": "(Effect: When you play a Space card, you pay 2 MC less for it.)\n(Requires 4 science tags. Increase your energy production 4 steps.)",
-      "face": {"content": {"tag": "div", "class": "content", "children": [" ", {"tag": "div", "class": "requirements", "children": ["4 Science"]}, " ", {"tag": "div", "class": "resource-tag tag-space"}, " : ", {"tag": "div", "class": "money resource", "children": ["-2"]}, " ", {"tag": "div", "class": "description", "children": [" (Effect: When you play a Space card, you pay 2 MC less for it.) "]}, " ", {"tag": "div", "class": "production-box production-box-size1a", "style": {"margin-top": "10px"}, "children": [" 4 ", {"tag": "div", "class": "energy production"}, " "]}, " ", {"tag": "div", "class": "description", "children": [" (Requires 4 science tags. Increase your energy production 4 steps.) "]}, " "]}}
+      "face": {"content": {"tag": "div", "class": "content", "children": [" ", {"tag": "div", "class": "requirements", "children": ["4 Science"]}, " ", {"tag": "div", "class": "resource-tag tag-space"}, " : ", {"tag": "div", "class": "money resource", "children": ["-2"]}, " ", {"tag": "div", "class": "description", "children": [" (Effect: When you play a Space card, you pay 2 MC less for it.) "]}, " ", {"tag": "div", "class": "production-box production-box-size1a", "style": {"margin-top": "10px"}, "children": [" 4 ", {"tag": "div", "class": "energy production"}, " "]}, " ", {"tag": "div", "class": "description", "children": [" (Requires 4 science tags. Increase your energy production 4 steps.) "]}, " "]}},
+      "effects": {"production": {"energy": 4}, "discount": {"megacredits": 2, "tag": "space"}}
     },
     {
       "id": "giant_ice_asteroid",
@@ -1273,7 +1282,8 @@
       "requirements": [{"type": "tag", "tag": "science", "min": 5}],
       "victory_points": null,
       "text": "(Effect: When you play a Space card, you pay 2 MC less for it.)\n(Requires 5 science tags. Increase your energy production 6 steps.)",
-      "face": {"content": {"tag": "div", "class": "content", "children": [" ", {"tag": "div", "class": "requirements", "children": ["5 Science"]}, " ", {"tag": "div", "class": "resource-tag tag-space"}, " : ", {"tag": "div", "class": "money resource", "children": ["-2"]}, " ", {"tag": "div", "class": "description", "children": [" (Effect: When you play a Space card, you pay 2 MC less for it.) "]}, " ", {"tag": "div", "class": "production-box production-box-size1a", "style": {"margin-top": "10px"}, "children": [" 6 ", {"tag": "div", "class": "energy production"}, " "]}, " ", {"tag": "div", "class": "description", "children": [" (Requires 5 science tags. Increase your energy production 6 steps.) "]}, " "]}}
+      "face": {"content": {"tag": "div", "class": "content", "children": [" ", {"tag": "div", "class": "requirements", "children": ["5 Science"]}, " ", {"tag": "div", "class": "resource-tag tag-space"}, " : ", {"tag": "div", "class": "money resource", "children": ["-2"]}, " ", {"tag": "div", "class": "description", "children": [" (Effect: When you play a Space card, you pay 2 MC less for it.) "]}, " ", {"tag": "div", "class": "production-box production-box-size1a", "style": {"margin-top": "10px"}, "children": [" 6 ", {"tag": "div", "class": "energy production"}, " "]}, " ", {"tag": "div", "class": "description", "children": [" (Requires 5 science tags. Increase your energy production 6 steps.) "]}, " "]}},
+      "effects": {"production": {"energy": 6}, "discount": {"megacredits": 2, "tag": "space"}}
     },
     {
       "id": "physics_complex",
@@ -1422,7 +1432,8 @@
       "requirements": [],
       "victory_points": null,
       "text": "(Effect: When you play an Earth card, you pay 3 MC less for it.)",
-      "face": {"content": {"tag": "div", "class": "content", "children": [" ", {"tag": "div", "class": "resource-tag tag-earth"}, " : ", {"tag": "div", "class": "money resource", "children": ["-3"]}, " ", {"tag": "div", "class": "description", "children": [" (Effect: When you play an Earth card, you pay 3 MC less for it.) "]}, " "]}}
+      "face": {"content": {"tag": "div", "class": "content", "children": [" ", {"tag": "div", "class": "resource-tag tag-earth"}, " : ", {"tag": "div", "class": "money resource", "children": ["-3"]}, " ", {"tag": "div", "class": "description", "children": [" (Effect: When you play an Earth card, you pay 3 MC less for it.) "]}, " "]}},
+      "effects": {"discount": {"megacredits": 3, "tag": "earth"}}
     },
     {
       "id": "acquired_company",
@@ -1476,7 +1487,8 @@
       "requirements": [],
       "victory_points": null,
       "text": "(Effect: After you play an event card, you gain 3MC.)",
-      "face": {"content": {"tag": "div", "class": "content", "children": [" ", {"tag": "div", "class": "resource-tag tag-event"}, " : ", {"tag": "div", "class": "money resource", "children": ["3"]}, " ", {"tag": "div", "class": "description", "children": [" (Effect: After you play an event card, you gain 3MC.) "]}, " "]}}
+      "face": {"content": {"tag": "div", "class": "content", "children": [" ", {"tag": "div", "class": "resource-tag tag-event"}, " : ", {"tag": "div", "class": "money resource", "children": ["3"]}, " ", {"tag": "div", "class": "description", "children": [" (Effect: After you play an event card, you gain 3MC.) "]}, " "]}},
+      "effects": {"when": [{"on": {"card_played": {"type": "event"}}, "resources": {"megacredits": 3}}]}
     },
     {
       "id": "business_network",
@@ -2035,7 +2047,8 @@
       "requirements": [{"type": "tag", "tag": "science", "min": 7}],
       "victory_points": 3,
       "text": "(Effect: When you play a card, you pay 2 MC less for it.)\n(Requires 7 science tags.)",
-      "face": {"content": {"tag": "div", "class": "content", "children": [" ", {"tag": "div", "class": "points points-big", "children": ["3"]}, " ", {"tag": "div", "class": "requirements", "children": ["7 Science"]}, " : ", {"tag": "span", "class": "money resource", "children": ["-2"]}, " ", {"tag": "div", "class": "description", "children": [" (Effect: When you play a card, you pay 2 MC less for it.) "]}, " ", {"tag": "br"}, {"tag": "br"}, " ", {"tag": "div", "class": "description", "children": ["(Requires 7 science tags.)"]}, " "]}}
+      "face": {"content": {"tag": "div", "class": "content", "children": [" ", {"tag": "div", "class": "points points-big", "children": ["3"]}, " ", {"tag": "div", "class": "requirements", "children": ["7 Science"]}, " : ", {"tag": "span", "class": "money resource", "children": ["-2"]}, " ", {"tag": "div", "class": "description", "children": [" (Effect: When you play a card, you pay 2 MC less for it.) "]}, " ", {"tag": "br"}, {"tag": "br"}, " ", {"tag": "div", "class": "description", "children": ["(Requires 7 science tags.)"]}, " "]}},
+      "effects": {"discount": {"megacredits": 2}}
     },
     {
       "id": "investment_loan",
@@ -2076,7 +2089,8 @@
       "requirements": [],
       "victory_points": 1,
       "text": "(Effect: Your global requirements are +2 or -2 steps, your choice in each case.)",
-      "face": {"content": {"tag": "div", "class": "content", "children": [" ", {"tag": "div", "class": "points points-big", "children": ["1"]}, " ", {"tag": "div", "class": "tile globals-box", "children": ["Temp / O2 / Ocean"]}, " : +/- 2 ", {"tag": "div", "class": "description", "children": [" (Effect: Your global requirements are +2 or -2 steps, your choice in each case.) "]}, " "]}}
+      "face": {"content": {"tag": "div", "class": "content", "children": [" ", {"tag": "div", "class": "points points-big", "children": ["1"]}, " ", {"tag": "div", "class": "tile globals-box", "children": ["Temp / O2 / Ocean"]}, " : +/- 2 ", {"tag": "div", "class": "description", "children": [" (Effect: Your global requirements are +2 or -2 steps, your choice in each case.) "]}, " "]}},
+      "effects": {"requirement_steps": 2}
     },
     {
       "id": "caretaker_contract",
@@ -2117,7 +2131,8 @@
       "requirements": [],
       "victory_points": null,
       "text": "(Effect: After you pay for a standard project, except selling patents, you gain 3 MC.)",
-      "face": {"content": {"tag": "div", "class": "content", "children": [" ", {"tag": "div", "class": "tile globals-box", "children": ["Standard projects"]}, " : ", {"tag": "div", "class": "money resource", "children": ["3"]}, " ", {"tag": "div", "class": "description", "children": [" (Effect: After you pay for a standard project, except selling patents, you gain 3 MC.) "]}, " "]}}
+      "face": {"content": {"tag": "div", "class": "content", "children": [" ", {"tag": "div", "class": "tile globals-box", "children": ["Standard projects"]}, " : ", {"tag": "div", "class": "money resource", "children": ["3"]}, " ", {"tag": "div", "class": "description", "children": [" (Effect: After you pay for a standard project, except selling patents, you gain 3 MC.) "]}, " "]}},
+      "effects": {"when": [{"on": "standard_project", "resources": {"megacredits": 3}}]}
     },
     {
       "id": "nitrite_reducing_bacteria",
@@ -2253,7 +2268,8 @@
       "requirements": [{"type": "oxygen", "min": 5}],
       "victory_points": 1,
       "text": "(Effect: When you play a Space card, you pay 2 MC less for it.)\n(Requires 5% oxygen. Decrease your Energy production 1 step and increase your MC production 2 steps.)",
-      "face": {"content": {"tag": "div", "class": "content", "children": [" ", {"tag": "div", "class": "points points-big", "children": ["1"]}, " ", {"tag": "div", "class": "requirements", "children": ["5% O2"]}, " ", {"tag": "div", "class": "resource-tag tag-space"}, " : ", {"tag": "div", "class": "money resource", "children": ["-2"]}, " ", {"tag": "div", "class": "description", "children": [" (Effect: When you play a Space card, you pay 2 MC less for it.) "]}, " ", {"tag": "div", "class": "production-box production-box-size1a", "style": {"margin-top": "10px", "margin-right": "130px"}, "children": [" ", {"tag": "div", "class": "production-prefix", "children": [{"tag": "div", "class": "minus"}]}, " ", {"tag": "div", "class": "energy production"}, " ", {"tag": "div", "class": "production-prefix", "children": [{"tag": "div", "class": "plus"}]}, " ", {"tag": "div", "class": "money production", "children": ["2"]}, " "]}, " ", {"tag": "div", "class": "description", "style": {"position": "absolute", "margin-top": "-90px", "text-align": "left", "margin-left": "86px"}, "children": [" (Requires 5% oxygen. Decrease your Energy production 1 step and increase your MC production 2 steps.) "]}, " "]}}
+      "face": {"content": {"tag": "div", "class": "content", "children": [" ", {"tag": "div", "class": "points points-big", "children": ["1"]}, " ", {"tag": "div", "class": "requirements", "children": ["5% O2"]}, " ", {"tag": "div", "class": "resource-tag tag-space"}, " : ", {"tag": "div", "class": "money resource", "children": ["-2"]}, " ", {"tag": "div", "class": "description", "children": [" (Effect: When you play a Space card, you pay 2 MC less for it.) "]}, " ", {"tag": "div", "class": "production-box production-box-size1a", "style": {"margin-top": "10px", "margin-right": "130px"}, "children": [" ", {"tag": "div", "class": "production-prefix", "children": [{"tag": "div", "class": "minus"}]}, " ", {"tag": "div", "class": "energy production"}, " ", {"tag": "div", "class": "production-prefix", "children": [{"tag": "div", "class": "plus"}]}, " ", {"tag": "div", "class": "money production", "children": ["2"]}, " "]}, " ", {"tag": "div", "class": "description", "style": {"position": "absolute", "margin-top": "-90px", "text-align": "left", "margin-left": "86px"}, "children": [" (Requires 5% oxygen. Decrease your Energy production 1 step and increase your MC production 2 steps.) "]}, " "]}},
+      "effects": {"production": {"energy": -1, "megacredits": 2}, "discount": {"megacredits": 2, "tag": "space"}}
     },
     {
       "id": "import_of_advanced_ghg",
@@ -2648,7 +2664,8 @@
       "requirements": [],
       "victory_points": -1,
       "text": "(The next card you play this generation costs 8 MC less.)",
-      "face": {"content": {"tag": "div", "class": "content", "children": [" ", {"tag": "div", "class": "points points-big", "children": ["-1"]}, " ", {"tag": "span", "style": {"font-size": "14px"}, "children": ["NEXT CARD: "]}, " ", {"tag": "div", "class": "resource money", "children": ["-8"]}, " ", {"tag": "div", "class": "description", "children": [" (The next card you play this generation costs 8 MC less.) "]}, " "]}}
+      "face": {"content": {"tag": "div", "class": "content", "children": [" ", {"tag": "div", "class": "points points-big", "children": ["-1"]}, " ", {"tag": "span", "style": {"font-size": "14px"}, "children": ["NEXT CARD: "]}, " ", {"tag": "div", "class": "resource money", "children": ["-8"]}, " ", {"tag": "div", "class": "description", "children": [" (The next card you play this generation costs 8 MC less.) "]}, " "]}},
+      "effects": {"next_card": {"discount": 8}}
     },
     {
       "id": "lagrange_observatory",
@@ -2716,7 +2733,8 @@
       "requirements": [],
       "victory_points": null,
       "text": "(Effect: When a City tile is placed, including this, increase your MC production 1 step.)\n(Decrease your Energy production 1 step and decrease your MC production 2 steps. Place a City tile.)",
-      "face": {"content": {"tag": "div", "class": "content", "children": [" ", {"tag": "div", "class": "tile city-tile red-outline"}, " :  ", {"tag": "div", "class": "production-box", "children": [" ", {"tag": "div", "class": "production money", "children": ["1"]}, " "]}, " ", {"tag": "div", "class": "description", "children": [" (Effect: When a City tile is placed, including this, increase your MC production 1 step.) "]}, " ", {"tag": "br"}, " ", {"tag": "div", "class": "production-box production-box-size2a", "children": [" ", {"tag": "div", "class": "production-prefix", "children": [{"tag": "div", "class": "minus"}]}, " ", {"tag": "div", "class": "production energy"}, " ", {"tag": "div", "class": "production money", "children": ["-2"]}, " "]}, " ", {"tag": "div", "class": "tile city-tile"}, " ", {"tag": "div", "class": "description", "children": [" (Decrease your Energy production 1 step and decrease your MC production 2 steps. Place a City tile.) "]}, " "]}}
+      "face": {"content": {"tag": "div", "class": "content", "children": [" ", {"tag": "div", "class": "tile city-tile red-outline"}, " :  ", {"tag": "div", "class": "production-box", "children": [" ", {"tag": "div", "class": "production money", "children": ["1"]}, " "]}, " ", {"tag": "div", "class": "description", "children": [" (Effect: When a City tile is placed, including this, increase your MC production 1 step.) "]}, " ", {"tag": "br"}, " ", {"tag": "div", "class": "production-box production-box-size2a", "children": [" ", {"tag": "div", "class": "production-prefix", "children": [{"tag": "div", "class": "minus"}]}, " ", {"tag": "div", "class": "production energy"}, " ", {"tag": "div", "class": "production money", "children": ["-2"]}, " "]}, " ", {"tag": "div", "class": "tile city-tile"}, " ", {"tag": "div", "class": "description", "children": [" (Decrease your Energy production 1 step and decrease your MC production 2 steps. Place a City tile.) "]}, " "]}},
+      "effects": {"production": {"energy": -1, "megacredits": -2}, "tiles": ["city"], "when": [{"on": {"tile_placed": {"tile": "city", "by": "anyone"}}, "production": {"megacredits": 1}}]}
     },
     {
       "id": "energy_tapping",
@@ -2798,7 +2816,8 @@
       "requirements": [],
       "victory_points": null,
       "text": "(The next card you play this generation is +2 or -2 steps in global requirements, your choice.)",
-      "face": {"content": {"tag": "div", "class": "content", "children": [" ", {"tag": "div", "class": "tile globals-box", "children": ["Temp / O2 / Ocean"]}, " : +/- 2 ", {"tag": "div", "class": "description", "children": [" (The next card you play this generation is +2 or -2 steps in global requirements, your choice.) "]}, " "]}}
+      "face": {"content": {"tag": "div", "class": "content", "children": [" ", {"tag": "div", "class": "tile globals-box", "children": ["Temp / O2 / Ocean"]}, " : +/- 2 ", {"tag": "div", "class": "description", "children": [" (The next card you play this generation is +2 or -2 steps in global requirements, your choice.) "]}, " "]}},
+      "effects": {"next_card": {"requirement_steps": 2}}
     },
     {
       "id": "medical_lab",

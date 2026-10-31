@@ -1,4 +1,5 @@
 import { CARD_PRICE, playersAreBuying } from "../cards/BuyingPanel";
+import { HAND_OPTIONS } from "../cards/HandDock";
 import { TILE_NAMES } from "../format";
 import { playerTitle } from "../players";
 import type { Card, TileType } from "../types";
@@ -16,10 +17,10 @@ interface Props {
 }
 
 // Options picked where they are drawn rather than as buttons here: Milestones and Awards in
-// their bar, cards to play or sell in the hand, card actions on the played cards, and cards to
-// keep or buy in the buying panel.
+// their bar, cards to play, sell or discard in the hand, card actions on the played cards, and
+// cards to keep or buy in the buying panel.
 const PICKED_IN_THE_BAR = new Set(["claim_milestone", "fund_award"]);
-const PICKED_IN_THE_HAND = new Set(["play_card", "sell_card"]);
+const PICKED_IN_THE_HAND = new Set(Object.keys(HAND_OPTIONS));
 const PICKED_ON_PLAYED_CARDS = new Set(["use_action"]);
 const PICKED_IN_THE_PANEL = new Set(["draft_card", "buy_card", "keep_card"]);
 
@@ -29,6 +30,7 @@ const OTHER_AREAS: Record<string, string> = {
   ocean_areas: " on an Area reserved for Oceans",
   land: " on an Area reserved for nothing",
   next_to_two_cities: " next to at least 2 Cities",
+  next_to_no_other_tile: " next to no other Tile",
 };
 
 /** The current Decision, with its Options as buttons, like Board Game Arena's title bar. A
@@ -91,7 +93,10 @@ function statusText(game: GameUpdate, cards: Card[]): string {
     const pay = (paidFor.effects?.action as { pay?: { megacredits: number } } | undefined)?.pay;
     return `${who} must choose how to pay for the action of ${paidFor.name} (${pay?.megacredits} MegaCredits):`;
   }
-  if (paidFor) return `${who} must choose how to pay for ${paidFor.name} (${paidFor.cost} MegaCredits):`;
+  if (paidFor) {
+    const cost = (decision && view.players[decision.player].card_costs?.[paidFor.id]) ?? paidFor.cost;
+    return `${who} must choose how to pay for ${paidFor.name} (${cost} MegaCredits):`;
+  }
   if (decision?.kind === "resources") {
     const card = cards.find((each) => each.id === decision.options[0]?.details.card);
     return `${who} must choose what the action of ${card?.name} spends:`;
@@ -141,6 +146,9 @@ function statusText(game: GameUpdate, cards: Card[]): string {
     const sale = decision.options.find((option) => option.details.type === "sell_card");
     const then = decision.options.some((option) => option.details.type === "done") ? ", then Done:" : ".";
     return `${who} may sell cards from the hand for ${sale?.details.megacredits} MegaCredit each: click them${then}`;
+  }
+  if (decision?.kind === "discard_to_draw") {
+    return `${who} may discard a card from the hand to draw one (Mars University): click it, or Done to keep the hand.`;
   }
   if (view.phase === "draft") return `${who} (Random Bot) is drafting cards…`;
   if (playersAreBuying(view)) return `${who} (Random Bot) is buying cards…`;

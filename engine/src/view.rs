@@ -64,6 +64,10 @@ pub enum OptionDetails {
         card: &'static str,
         cost: i32,
     },
+    /// Discard a card from the hand, named by its catalog id, to draw one (Mars University).
+    DiscardCard {
+        card: &'static str,
+    },
     /// Sell a card from the hand with Sell Patents, named by its catalog id, for `megacredits`.
     SellCard {
         card: &'static str,
@@ -203,6 +207,9 @@ pub struct PlayerBoard {
     /// The cards in their hand, by catalog id in card-number order: only in their own Player
     /// View and the full view, otherwise None.
     pub hand: Option<Vec<&'static str>>,
+    /// What they would pay now for each card in their hand, by catalog id, once their discounts
+    /// are taken off: only with their hand, otherwise None.
+    pub card_costs: Option<BTreeMap<&'static str, i32>>,
     /// In the setup or a Research phase, what they are buying from: only in their own Player View
     /// and the full view, otherwise None.
     pub buying: Option<BuyingView>,
@@ -220,6 +227,9 @@ pub struct PlayerBoard {
     /// The played cards whose action they have used this Generation, by catalog id in card-number
     /// order.
     pub used_actions: Vec<&'static str>,
+    /// The Event they played whose effect waits on the next card they play this Generation
+    /// (Indentured Workers, Special Design), by catalog id, or None.
+    pub next_card: Option<&'static str>,
     /// How many of each Tag they have in play, for every Tag but the Event Tag, which never counts.
     pub tags: BTreeMap<Tag, i32>,
 }
@@ -338,6 +348,13 @@ fn view(game: &Game, viewer: Option<usize>) -> View {
                 passed: player.passed,
                 hand_size: player.hand.len(),
                 hand: sees_hand(index).then(|| ids(player.hand)),
+                card_costs: sees_hand(index).then(|| {
+                    player
+                        .hand
+                        .iter()
+                        .map(|card| (CARD_CATALOG[card].id.as_str(), game.card_cost(index, card)))
+                        .collect()
+                }),
                 buying: (sees_hand(index) && game.phase.is_buying()).then(|| BuyingView {
                     dealt: ids(player.buying.dealt),
                     bought: ids(player.buying.bought),
@@ -362,6 +379,7 @@ fn view(game: &Game, viewer: Option<usize>) -> View {
                 },
                 played_cards: ids(player.played),
                 used_actions: ids(player.used_actions),
+                next_card: player.next_card.map(|card| CARD_CATALOG[card].id.as_str()),
                 tags: Tag::COUNTED.into_iter().map(|tag| (tag, game.tags(index, tag))).collect(),
             })
             .collect(),
@@ -425,10 +443,10 @@ fn board_view(board: &Board) -> Vec<AreaView> {
 }
 
 pub fn decision(game: &Game) -> Option<DecisionView> {
-    game.decision().map(|decision| decision_view(&decision))
+    game.decision().map(|decision| decision_view(game, &decision))
 }
 
-fn decision_view(decision: &Decision) -> DecisionView {
+fn decision_view(game: &Game, decision: &Decision) -> DecisionView {
     DecisionView {
         player: decision.player,
         kind: match decision.kind {
@@ -441,6 +459,7 @@ fn decision_view(decision: &Decision) -> DecisionView {
             DecisionKind::Draft => "draft",
             DecisionKind::BuyCards => "buy_cards",
             DecisionKind::SellPatents => "sell_patents",
+            DecisionKind::DiscardToDraw => "discard_to_draw",
             DecisionKind::FinalGreenery => "final_greenery",
         },
         sequence: decision.sequence,
@@ -448,20 +467,19 @@ fn decision_view(decision: &Decision) -> DecisionView {
             .options
             .iter()
             .enumerate()
-            .map(|(index, option)| OptionView { index, label: label(option), details: details(option) })
+            .map(|(index, option)| {
+                let cost = |card: usize| game.card_cost(decision.player, card);
+                OptionView { index, label: label(option, cost), details: details(option, cost) }
+            })
             .collect(),
     }
 }
 
-fn label(option: &DecisionOption) -> String {
+/// An Option's label. `cost` is what the Player deciding pays for a card.
+fn label(option: &DecisionOption, cost: impl Fn(usize) -> i32) -> String {
     match option {
         DecisionOption::PlayCard(card) => {
-            let printed_card = &CARD_CATALOG[*card];
-            format!(
-                "Play {} ({})",
-                printed_card.name,
-                Resource::MegaCredits.counted(printed_card.project_cost())
-            )
+            format!("Play {} ({})", CARD_CATALOG[*card].name, Resource::MegaCredits.counted(cost(*card)))
         }
         DecisionOption::UseAction(card) => format!("Use the action of {}", CARD_CATALOG[*card].name),
         DecisionOption::DraftCard(card) | DecisionOption::KeepCard(card) => {
@@ -473,6 +491,7 @@ fn label(option: &DecisionOption) -> String {
         DecisionOption::SellCard(card) => {
             format!("Sell {} ({})", CARD_CATALOG[*card].name, Resource::MegaCredits.counted(PATENT_VALUE))
         }
+        DecisionOption::DiscardCard(card) => format!("Discard {} to draw a card", CARD_CATALOG[*card].name),
         DecisionOption::Pay { payment, .. } | DecisionOption::PayForAction { payment, .. } => {
             format!("Pay {}", payment.text())
         }
@@ -533,11 +552,11 @@ fn resource_change(by: Resources) -> String {
     format!("Spend {} to gain {}", amounts(true), amounts(false))
 }
 
-fn details(option: &DecisionOption) -> OptionDetails {
+/// An Option's details. `cost` is what the Player deciding pays for a card.
+fn details(option: &DecisionOption, cost: impl Fn(usize) -> i32) -> OptionDetails {
     match option {
         DecisionOption::PlayCard(card) => {
-            let printed_card = &CARD_CATALOG[*card];
-            OptionDetails::PlayCard { card: &printed_card.id, cost: printed_card.project_cost() }
+            OptionDetails::PlayCard { card: &CARD_CATALOG[*card].id, cost: cost(*card) }
         }
         DecisionOption::UseAction(card) => OptionDetails::UseAction { card: &CARD_CATALOG[*card].id },
         DecisionOption::DraftCard(card) => OptionDetails::DraftCard { card: &CARD_CATALOG[*card].id },
@@ -548,6 +567,7 @@ fn details(option: &DecisionOption) -> OptionDetails {
         DecisionOption::SellCard(card) => {
             OptionDetails::SellCard { card: &CARD_CATALOG[*card].id, megacredits: PATENT_VALUE }
         }
+        DecisionOption::DiscardCard(card) => OptionDetails::DiscardCard { card: &CARD_CATALOG[*card].id },
         DecisionOption::Pay { card, payment } => {
             OptionDetails::Payment { card: &CARD_CATALOG[*card].id, action: false, payment: *payment }
         }

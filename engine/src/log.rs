@@ -103,6 +103,15 @@ pub enum LogEvent {
         discarded: usize,
         price: i32,
     },
+    /// The effect of `card`, one of `player`'s played cards, is set off.
+    TriggerTakesEffect {
+        player: usize,
+        card: usize,
+    },
+    /// The Player discards a card face down to draw one (Mars University).
+    DiscardedToDraw {
+        player: usize,
+    },
     /// Robotic Workforce copies the production box of `card`.
     CopiedProductionBox {
         player: usize,
@@ -318,6 +327,12 @@ impl LogEvent {
                 counted(kept as i32, "card", "cards"),
                 Resource::MegaCredits.counted(price * kept as i32)
             ),
+            LogEvent::TriggerTakesEffect { player, card } => {
+                format!("{}'s {} takes effect.", player_name(player), CARD_CATALOG[card].name)
+            }
+            LogEvent::DiscardedToDraw { player } => {
+                format!("{} discards a card to draw one.", player_name(player))
+            }
             LogEvent::CopiedProductionBox { player, card } => {
                 format!("{} copies the production box of {}.", player_name(player), CARD_CATALOG[card].name)
             }

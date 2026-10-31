@@ -198,6 +198,7 @@ impl Scenario {
                 hand: cards_named(&player.hand, &mut named_cards)?.into_iter().collect(),
                 played: cards_named(&player.played_cards, &mut named_cards)?.into_iter().collect(),
                 used_actions: CardSet::default(),
+                next_card: None,
                 buying: Buying::default(),
                 drafting: Drafting::default(),
             });

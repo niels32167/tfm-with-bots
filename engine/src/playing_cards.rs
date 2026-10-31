@@ -7,18 +7,19 @@ use std::cmp::Reverse;
 use serde::Serialize;
 
 use crate::board::{Placement, TileKind};
-use crate::card_code::{INSULATION, ROBOTIC_WORKFORCE, insulation_change};
+use crate::card_code::{IMMIGRANT_CITY, INSULATION, ROBOTIC_WORKFORCE, insulation_change};
 use crate::cards::{
-    CARD_CATALOG, CardType, Counted, Effects, Limit, Owner, ProductionAtLeast, ProductionPer, Requirement,
-    ResourcesPer, Tag, TerraformRatingPer, VictoryPoints,
+    CARD_CATALOG, CARDS_WITH, CardType, Counted, CubeValues, Effects, Limit, NextCard, Owner,
+    ProductionAtLeast, ProductionPer, Requirement, ResourcesPer, Tag, TerraformRatingPer, VictoryPoints,
 };
-use crate::game::{DecisionOption, Game, Waiting};
+use crate::game::{DecisionOption, Game, TEMPERATURE_STEP, Waiting};
 use crate::log::{LogEvent, listed};
 use crate::resources::{Resource, Resources};
+use crate::triggers::Happened;
 
-/// What a steel cube pays towards a card with a building Tag.
+/// What a steel cube pays towards a card with a building Tag, unless a card raises it.
 pub const STEEL_VALUE: i32 = 2;
-/// What a titanium cube pays towards a card with a space Tag.
+/// What a titanium cube pays towards a card with a space Tag, unless a card raises it.
 pub const TITANIUM_VALUE: i32 = 3;
 
 /// How a card is paid for.
@@ -81,20 +82,39 @@ impl Game {
             .sum()
     }
 
-    /// Whether `requirement` holds for `player`.
+    /// Whether `requirement` holds for `player`. A Requirement on a Global Parameter is as many
+    /// steps easier to meet as their cards make it (see `requirement_steps`).
     pub fn meets(&self, player: usize, requirement: &Requirement) -> bool {
-        let within = |value: i32, limit: Limit| match limit {
-            Limit::Min(min) => value >= min,
-            Limit::Max(max) => value <= max,
+        // Easier in the Player's favour, which is always their better choice of +2 or -2 steps.
+        let within = |value: i32, limit: Limit, step: i32| match limit {
+            Limit::Min(min) => value >= min - self.requirement_steps(player) * step,
+            Limit::Max(max) => value <= max + self.requirement_steps(player) * step,
         };
         match *requirement {
-            Requirement::Oxygen(limit) => within(self.oxygen, limit),
-            Requirement::Temperature(limit) => within(self.temperature, limit),
-            Requirement::Oceans(limit) => within(self.board.oceans() as i32, limit),
+            Requirement::Oxygen(limit) => within(self.oxygen, limit, 1),
+            Requirement::Temperature(limit) => within(self.temperature, limit, TEMPERATURE_STEP),
+            Requirement::Oceans(limit) => within(self.board.oceans() as i32, limit, 1),
             Requirement::Tag { tag, min } => self.tags(player, tag) >= min,
             Requirement::Production { resource, min } => self.players[player].production[resource] >= min,
             Requirement::Tiles { tile, owner, min } => self.tiles_counted(player, tile, owner) >= min,
         }
+    }
+
+    /// How many steps easier `player`'s Requirements on a Global Parameter are to meet: those
+    /// their played cards give (Adaptation Technology), and those an Event gives the next card
+    /// they play (Special Design).
+    fn requirement_steps(&self, player: usize) -> i32 {
+        let own = &self.players[player];
+        let ongoing = own.played.intersection(CARDS_WITH.requirement_steps).iter();
+        let steps: i32 = ongoing.map(|card| CARD_CATALOG[card].implemented_effects().requirement_steps).sum();
+        steps + self.next_card_effect(player).requirement_steps
+    }
+
+    /// What the Event `player` played last changes about the next card they play this Generation,
+    /// if anything.
+    pub(crate) fn next_card_effect(&self, player: usize) -> NextCard {
+        let event = self.players[player].next_card;
+        event.and_then(|card| CARD_CATALOG[card].implemented_effects().next_card).unwrap_or_default()
     }
 
     /// How many Tiles of `kind` `owner` names: `player`'s own, or anyone's.
@@ -113,10 +133,14 @@ impl Game {
     pub(crate) fn can_play(&self, player: usize, card: usize) -> bool {
         let printed = &CARD_CATALOG[card];
         let Some(effects) = &printed.effects else { return false };
-        let spendable = self.spendable(player, printed.has_tag(Tag::Building), printed.has_tag(Tag::Space));
         printed.requirements.iter().all(|requirement| self.meets(player, requirement))
-            && spendable >= printed.project_cost()
-            && self.can_carry_out(player, effects)
+            && self.spendable(player, printed.has_tag(Tag::Building), printed.has_tag(Tag::Space))
+                >= self.card_cost(player, card)
+            && if card == IMMIGRANT_CITY {
+                self.can_carry_out_immigrant_city(player)
+            } else {
+                self.can_carry_out(player, effects)
+            }
             && self.can_make_a_production_change(player, card)
     }
 
@@ -132,7 +156,20 @@ impl Game {
     /// their MegaCredits plus what those cubes are worth.
     pub(crate) fn spendable(&self, player: usize, steel: bool, titanium: bool) -> i32 {
         let (steel, titanium) = self.usable_cubes(player, steel, titanium);
-        self.players[player].resources.megacredits + STEEL_VALUE * steel + TITANIUM_VALUE * titanium
+        let values = self.cube_values(player);
+        self.players[player].resources.megacredits + values.steel * steel + values.titanium * titanium
+    }
+
+    /// What one steel and one titanium of `player`'s pay: `STEEL_VALUE` and `TITANIUM_VALUE`, plus
+    /// what their played cards add (Advanced Alloys).
+    pub(crate) fn cube_values(&self, player: usize) -> CubeValues {
+        let mut values = CubeValues { steel: STEEL_VALUE, titanium: TITANIUM_VALUE };
+        for card in self.players[player].played.intersection(CARDS_WITH.cube_values).iter() {
+            let added = CARD_CATALOG[card].implemented_effects().cube_values.unwrap_or_default();
+            values.steel += added.steel;
+            values.titanium += added.titanium;
+        }
+        values
     }
 
     /// The Victory Points on the cards `player` has played.
@@ -230,7 +267,20 @@ impl Game {
         let printed = &CARD_CATALOG[card];
         let (steel, titanium) =
             self.usable_cubes(player, printed.has_tag(Tag::Building), printed.has_tag(Tag::Space));
-        self.ways_to_pay(player, printed.project_cost(), steel, titanium)
+        self.ways_to_pay(player, self.card_cost(player, card), steel, titanium)
+    }
+
+    /// What `player` pays for `card` now: its printed cost less the discounts of their played
+    /// cards and of an Event they played for their next card, but never below 0.
+    pub fn card_cost(&self, player: usize, card: usize) -> i32 {
+        let printed = &CARD_CATALOG[card];
+        let discounts =
+            self.players[player].played.intersection(CARDS_WITH.discount).iter().filter_map(|discounting| {
+                let discount = CARD_CATALOG[discounting].implemented_effects().discount?;
+                discount.tag.is_none_or(|tag| printed.has_tag(tag)).then_some(discount.megacredits)
+            });
+        let discount = discounts.sum::<i32>() + self.next_card_effect(player).discount;
+        (printed.project_cost() - discount).max(0)
     }
 
     /// Every way `player` may pay `cost` with up to `most_steel` steel and `most_titanium`
@@ -244,12 +294,13 @@ impl Game {
         most_titanium: i32,
     ) -> Vec<Payment> {
         let megacredits = self.players[player].resources.megacredits;
+        let values = self.cube_values(player);
         let mut payments = Vec::new();
-        for titanium in 0..=most_titanium.min(cubes_to_pay(cost, TITANIUM_VALUE)) {
-            for steel in 0..=most_steel.min(cubes_to_pay(cost, STEEL_VALUE)) {
-                let covered = STEEL_VALUE * steel + TITANIUM_VALUE * titanium;
-                let unneeded = (steel > 0 && covered - STEEL_VALUE >= cost)
-                    || (titanium > 0 && covered - TITANIUM_VALUE >= cost);
+        for titanium in 0..=most_titanium.min(cubes_to_pay(cost, values.titanium)) {
+            for steel in 0..=most_steel.min(cubes_to_pay(cost, values.steel)) {
+                let covered = values.steel * steel + values.titanium * titanium;
+                let unneeded = (steel > 0 && covered - values.steel >= cost)
+                    || (titanium > 0 && covered - values.titanium >= cost);
                 let payment = Payment { megacredits: (cost - covered).max(0), steel, titanium };
                 if !unneeded && payment.megacredits <= megacredits {
                     payments.push(payment);
@@ -261,15 +312,21 @@ impl Game {
     }
 
     /// `player` pays for `card` and plays it from their hand: it joins their played cards and
-    /// its effects are carried out.
+    /// its effects are carried out. It uses up the effect an Event had on the next card played,
+    /// and an Event with such an effect waits on the card after it.
     pub(crate) fn play_card(&mut self, player: usize, card: usize, payment: Payment) {
         self.pay(player, payment);
         let own = &mut self.players[player];
         own.hand.remove(card);
         own.played.insert(card);
+        own.next_card = CARD_CATALOG[card].implemented_effects().next_card.map(|_| card);
         self.log.push(LogEvent::PlayedCard { player, card, payment });
+        self.set_off(Happened::CardPlayed { player, card });
         let effects = CARD_CATALOG[card].implemented_effects();
-        self.carry_out(player, effects);
+        // Immigrant City lowers its Production only once its City is placed.
+        if card != IMMIGRANT_CITY {
+            self.carry_out(player, effects);
+        }
         // Keeping the cards looked at comes first; once it is done, the Production change follows.
         if !self.look_at_cards(player, card, effects.look_at, false) {
             self.choose_production_change(player, card);
@@ -321,8 +378,12 @@ impl Game {
     /// once all 9 are placed is skipped, as for Aquifer (see docs/rules-notes.md).
     pub(crate) fn place_next_card_tile(&mut self) {
         while let Some(CardTiles { card, placed }) = self.placing_for {
-            let Some(&placement) = CARD_CATALOG[card].implemented_effects().tiles.get(placed) else {
+            let effects = CARD_CATALOG[card].implemented_effects();
+            let Some(&placement) = effects.tiles.get(placed) else {
                 self.placing_for = None;
+                if card == IMMIGRANT_CITY {
+                    self.finish_immigrant_city();
+                }
                 return;
             };
             self.placing_for = Some(CardTiles { card, placed: placed + 1 });

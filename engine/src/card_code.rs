@@ -3,7 +3,7 @@
 //! checks against the card's id when it is read.
 
 use crate::cards::{CARD_CATALOG, CardType, Tag};
-use crate::game::Game;
+use crate::game::{DecisionOption, Game, Waiting};
 use crate::log::LogEvent;
 use crate::resources::Resources;
 
@@ -17,11 +17,25 @@ pub const INSULATION: usize = 151;
 /// #194 Power Infrastructure: "Action: Spend any amount of energy and gain that amount of MC."
 pub const POWER_INFRASTRUCTURE: usize = 193;
 
+/// #200 Immigrant City: "When a City tile is placed, including this, increase your MC production
+/// 1 step. Decrease your Energy production 1 step and decrease your MC production 2 steps. Place
+/// a City tile." Its City is placed before its Production is lowered, so the step its own City
+/// gives counts (see docs/rules-notes.md). Its effect data is only that Production change, its
+/// City and its Trigger.
+pub const IMMIGRANT_CITY: usize = 199;
+
+/// #073 Mars University: "When you play a Science tag, including this, you may discard a card
+/// from hand to draw a card." Its Trigger is effect data; each science Tag played lets its Player
+/// discard once, after the card's other effects (see docs/rules-notes.md).
+pub const MARS_UNIVERSITY: usize = 72;
+
 /// Every card with code here, and its id.
-pub const CARDS_WITH_CODE: [(usize, &str); 3] = [
+pub const CARDS_WITH_CODE: [(usize, &str); 5] = [
     (ROBOTIC_WORKFORCE, "robotic_workforce"),
     (INSULATION, "insulation"),
     (POWER_INFRASTRUCTURE, "power_infrastructure"),
+    (IMMIGRANT_CITY, "immigrant_city"),
+    (MARS_UNIVERSITY, "mars_university"),
 ];
 
 /// Insulation's Production change for `steps`: that many steps of heat Production traded for as
@@ -58,6 +72,60 @@ impl Game {
         let effects = CARD_CATALOG[card].implemented_effects();
         self.change_productions(player, effects.production);
         self.change_production_per(player, effects.production_per);
+    }
+
+    /// Whether `player` can carry out Immigrant City: place its City, then lower their Production
+    /// as printed once its own City has raised their MegaCredit Production 1 step.
+    pub(crate) fn can_carry_out_immigrant_city(&self, player: usize) -> bool {
+        let effects = CARD_CATALOG[IMMIGRANT_CITY].implemented_effects();
+        let mut production = effects.production;
+        production.megacredits += 1;
+        self.can_change_production(player, production)
+            && effects.tiles.iter().all(|&placement| self.can_take_action_placing(Some(placement)))
+    }
+
+    /// Offers the current Player, done with the card they played, to discard a card to draw one
+    /// with Mars University if a discard is due, and returns whether the Game now waits on it.
+    /// Without a card in their hand, they have nothing to discard, and the discards due are
+    /// dropped.
+    pub(crate) fn offer_discard_to_draw(&mut self) -> bool {
+        if self.discards_to_draw == 0 {
+            return false;
+        }
+        if self.players[self.current_player].hand.is_empty() {
+            self.discards_to_draw = 0;
+            return false;
+        }
+        self.wait_on(Waiting::DiscardToDraw);
+        true
+    }
+
+    /// The current Player may discard any card from their hand to draw one, or be done.
+    pub(crate) fn discard_to_draw_options(&self) -> Vec<DecisionOption> {
+        let hand = self.players[self.current_player].hand.iter().map(DecisionOption::DiscardCard);
+        hand.chain([DecisionOption::Done]).collect()
+    }
+
+    /// The current Player discards `card` face down, if they chose one, and draws a card. Then the
+    /// next discard due follows, or the Action ends.
+    pub(crate) fn discard_to_draw(&mut self, card: Option<usize>) {
+        self.waiting = None;
+        self.discards_to_draw -= 1;
+        if let Some(card) = card {
+            let player = self.current_player;
+            self.players[player].hand.remove(card);
+            self.discard.insert(card);
+            self.log.push(LogEvent::DiscardedToDraw { player });
+            self.draw(player, 1);
+        }
+        self.finish_unless_placing();
+    }
+
+    /// Once Immigrant City's City is placed, the current Player lowers their Production as
+    /// printed.
+    pub(crate) fn finish_immigrant_city(&mut self) {
+        let production = CARD_CATALOG[IMMIGRANT_CITY].implemented_effects().production;
+        self.change_productions(self.current_player, production);
     }
 
     /// How many steps of heat Production `player` may trade with Insulation: from 1 up to all of

@@ -33,9 +33,19 @@ def card_catalog() -> list[dict[str, Any]]:
     that steel or titanium may pay, such as {"megacredits": 12, "titanium": true}),
     "resources_per" (Resources gained per Tag or Tile, such as {"resource": "megacredits",
     "amount": 1, "per": 1, "of": {"tiles_on_mars": "city"}}) and "resources_choice" (Resource
-    changes the Player chooses one of). Cards without "effects" are never offered; a few cards
-    also have Rust code of their own (Robotic Workforce, Insulation and Power Infrastructure).
-    Each call returns a new list."""
+    changes the Player chooses one of). An Active card's ongoing effects are "discount"
+    (MegaCredits off each card its Player plays, or only those with a Tag: {"megacredits": 2,
+    "tag": "space"}), "cube_values" (MegaCredits more that each steel and titanium pays: {"steel":
+    1, "titanium": 1}), "requirement_steps" (how many steps easier its Player's Requirements on a
+    Global Parameter are) and "when" (Triggers: what its Player gains each time something happens,
+    such as [{"on": {"tile_placed": {"tile": "ocean", "by": "anyone"}}, "resources": {"plants":
+    2}}], "on" being {"tile_placed": {"tile", "by": "you" | "anyone"}}, {"card_played": {"type",
+    "tag"}} (either may be left out), {"tag_played": "science"} (once per such Tag) or
+    "standard_project" (any but Sell Patents), with "resources" and "production" gained). An
+    Event's "next_card" ({"discount": 8} or {"requirement_steps": 2}) changes the next card its
+    Player plays this Generation. Cards without "effects" are never offered; a few cards also have
+    Rust code of their own (Robotic Workforce, Insulation, Power Infrastructure, Immigrant City and
+    Mars University). Each call returns a new list."""
 
 class Game:
     """A Game of Terraforming Mars, always either over or waiting on one Decision."""
@@ -113,7 +123,8 @@ class Game:
         "on" for a Tile that goes on other Areas than usual: "ocean_areas", any free Area reserved
         for Oceans, as Mangrove's Greenery does; "land", any free Area reserved for nothing, as
         Artificial Lake's Ocean does; "next_to_two_cities", free land next to at least 2 Cities,
-        as Urbanized Area's City does), "production" (the Production change the card being
+        as Urbanized Area's City does; "next_to_no_other_tile", free land next to no Tile, as
+        Research Outpost's City does), "production" (the Production change the card being
         played makes: {"type": "choose_production", "card": "artificial_photosynthesis",
         "production": {...}} with all six Resources, or the building card whose production box
         Robotic Workforce copies, {"type": "copy_production_box", "card": "mine"}; it comes only
@@ -130,9 +141,11 @@ class Game:
         rest on, with details {"type": "draft_card", "card": "mine"}), "buy_cards" (buy one more
         of the cards dealt or drafted, {"type": "buy_card", "card": "mine", "cost": 3}, or be
         done) and "sell_patents" (sell one more card from the hand, {"type": "sell_card", "card":
-        "mine", "megacredits": 1}, or be done). Being done is {"type": "done"}. Playing a card,
+        "mine", "megacredits": 1}, or be done) and "discard_to_draw" (discard a card from the hand
+        to draw one, {"type": "discard_card", "card": "mine"}, or be done, once for each science
+        Tag played with Mars University in play). Being done is {"type": "done"}. Playing a card,
         using a played card's action, claiming a Milestone and funding an Award are Actions, with
-        details {"type": "play_card", "card": "mine", "cost": 4},
+        details {"type": "play_card", "card": "mine", "cost": 4} (the cost after discounts),
         {"type": "use_action", "card": "space_elevator"},
         {"type": "claim_milestone", "milestone": "mayor", "cost": 8} and
         {"type": "fund_award", "award": "landlord", "cost": 14}.
@@ -170,12 +183,14 @@ class Game:
         Player's board:
         {"name": "Player 1", "resources": {...}, "production": {...}, "terraform_rating": int,
          "passed": bool, "hand_size": int, "hand": [card id, ...] | None,
+         "card_costs": {card id: int} | None,
          "buying": {"dealt": [...], "bought": [...]} | None,
          "drafting": {"picking_from": [...], "kept": [...], "passing_to": int} | None,
          "passed_in_draft": [{"generation": int, "to": int, "cards": [...]}, ...] | None,
          "keeping": {"card": card id, "looking_at": [...], "kept": [...], "keep": int,
                      "price": int} | None,
          "played_cards": [card id, ...], "used_actions": [card id, ...],
+         "next_card": card id | None,
          "tags": {"building": int, ...}}, where Resources and
         Production each hold all six Resources, cards come in card-number order, and "tags" counts
         the ten Tags in play (on played Automated and Active cards; no Tag on a played Event
@@ -189,6 +204,10 @@ class Game:
         discarded. Using the action of Inventors' Guild or Business Network, it has the "price"
         of each card, 3, and "keep" is how many more they may buy; otherwise "price" is 0.
         "used_actions" is the played cards whose action the Player has used this Generation.
+        "card_costs" is what the Player would pay now for each card in their hand, once their
+        discounts are taken off; it is None where "hand" is. "next_card" is the Event the Player
+        played whose effect waits on the next card they play this Generation (Indentured Workers,
+        Special Design), or None.
         "deck_size" and "discard_size" are the numbers of cards in the deck and the discard pile,
         and "deck" and "discard" are None.
         It also has the "board": every Area, on Mars row by row from the
@@ -209,8 +228,9 @@ class Game:
         """Everything about the Game, including what Players hide from each other.
 
         For Hotseat and the dev panel, never for an AI Controller. It has the Player View's shape,
-        with "viewer" None, every Player's "hand", "buying", "drafting", "passed_in_draft" and
-        "keeping", the "deck" by catalog id from the top down, and the "discard" pile.
+        with "viewer" None, every Player's "hand", "card_costs", "buying", "drafting",
+        "passed_in_draft" and "keeping", the "deck" by catalog id from the top down, and the
+        "discard" pile.
         """
 
     @property
