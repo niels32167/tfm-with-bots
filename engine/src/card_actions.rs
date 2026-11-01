@@ -143,7 +143,7 @@ impl Game {
     /// The action of `card` places its Tile, if it has one, and then ends.
     pub(crate) fn finish_card_action(&mut self, card: usize) {
         if let Some(&placement) = CARD_CATALOG[card].implemented_action().tiles.first() {
-            self.place_card_tile(placement);
+            self.place_card_tile(card, placement);
         }
         self.finish_unless_placing();
     }

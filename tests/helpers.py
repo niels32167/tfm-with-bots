@@ -23,6 +23,12 @@ ROW_LENGTHS = {"A": 5, "B": 6, "C": 7, "D": 8, "E": 9, "F": 8, "G": 7, "H": 6, "
 AREAS_ON_MARS = [f"{row}{position}" for row, length in ROW_LENGTHS.items() for position in range(1, length + 1)]
 OCEAN_AREAS = ["A2", "A4", "A5", "B6", "D8", "E4", "E5", "E6", "F6", "F7", "F8", "J5"]
 NOCTIS_CITY = "E3"
+# The Areas reserved for a card's City, on Mars and off it, by the card's id.
+RESERVED_FOR_CARDS = {
+    NOCTIS_CITY: "noctis_city",
+    "phobos_space_haven": "phobos_space_haven",
+    "ganymede_colony": "ganymede_colony",
+}
 # Every Area on Mars that is reserved for nothing, in board order.
 LAND_AREAS = [name for name in AREAS_ON_MARS if name not in OCEAN_AREAS and name != NOCTIS_CITY]
 
@@ -111,6 +117,13 @@ def greenery(area: str, owner: int) -> dict[str, Any]:
 def city(area: str, owner: int) -> dict[str, Any]:
     """A City Tile owned by Player `owner` (indexed from 0), for a Scenario's `tiles`."""
     return {"area": area, "tile": "city", "owner": owner}
+
+
+def special(area: str, card: str, owner: int) -> dict[str, Any]:
+    """The special Tile of `card` (a catalog id) owned by Player `owner`, for a Scenario's `tiles`,
+    e.g. `special("C4", "nuclear_zone", owner=0)`. Capital's is a City."""
+    tile = "city" if card == "capital" else "special"
+    return {"area": area, "tile": tile, "card": card, "owner": owner}
 
 
 def claimed(milestone: str, by: int) -> dict[str, Any]:

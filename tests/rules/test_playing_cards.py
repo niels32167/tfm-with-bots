@@ -93,7 +93,11 @@ def test_no_card_places_two_cities_or_two_greeneries_so_one_area_for_each_is_eno
 
 
 # The building cards whose printed production box is part of their action.
-PRODUCTION_BOX_IN_THE_ACTION = ("equatorial_magnetizer", "underground_detonations")
+PRODUCTION_BOX_IN_THE_ACTION = ("equatorial_magnetizer", "industrial_center", "underground_detonations")
+
+# The building cards whose printed production box raises the Production their Tile's Area gives,
+# which their Rust code carries out and teaches Robotic Workforce.
+PRODUCTION_BOX_FROM_THE_TILE = ("mining_area", "mining_rights")
 
 
 def test_every_implemented_building_card_has_its_printed_production_box_as_production_data():
@@ -101,7 +105,8 @@ def test_every_implemented_building_card_has_its_printed_production_box_as_produ
     Production data and the Production it lowers on any Player (Heat Trappers), so a card whose
     production box is carried out otherwise must be taught to Robotic Workforce (see
     docs/rules-notes.md). The production boxes that are part of a card's action, which Robotic
-    Workforce doesn't copy, are those of the cards named here."""
+    Workforce doesn't copy, are those of the cards named here, as are those that come from a card's
+    Tile."""
     for card in tm_engine.card_catalog():
         if "building" not in card["tags"] or card["type"] == "event" or "effects" not in card:
             continue
@@ -113,4 +118,6 @@ def test_every_implemented_building_card_has_its_printed_production_box_as_produ
         in_its_action = card["id"] in PRODUCTION_BOX_IN_THE_ACTION
         assert any(effects.get("action", {}).get("production", {}).values()) == in_its_action, card["name"]
         assert not (has_production_data and in_its_action), f"{card['name']} has two production boxes"
-        assert (has_production_data or in_its_action) == has_printed_production_box(card), card["name"]
+        from_the_tile = card["id"] in PRODUCTION_BOX_FROM_THE_TILE
+        assert not (has_production_data and from_the_tile), f"{card['name']} has two production boxes"
+        assert (has_production_data or in_its_action or from_the_tile) == has_printed_production_box(card), card["name"]

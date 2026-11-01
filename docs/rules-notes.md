@@ -1030,6 +1030,101 @@ the remaining ticket 17 calls without asking.
 `tests/cards/test_greenhouses.py`, `tests/cards/test_energy_saving.py` and
 `tests/cards/test_zeppelins.py`.
 
+### Special Tiles
+
+**Call:**
+- A **special Tile** is printed with its card's symbol and belongs to the card's Player. With no
+  placement restriction printed ("Place this tile": Commercial District, Nuclear Zone, Restricted
+  Area), it goes on any free Area on Mars reserved for nothing, next to a City too. Others go where
+  their card says: Natural Preserve next to no other Tile, Industrial Center next to a City (whoever
+  owns it; Capital's counts), Lava Flows on one of the four volcanoes, Mohole Area on a free Area
+  reserved for Oceans (it is no Ocean: Oceans don't rise, and it takes the Area from the Oceans),
+  Mining Rights on land with a steel or titanium placement bonus, and Mining Area on such land next
+  to another of its Player's Tiles.
+- **Capital's City** is a special Tile and a City: City rules place it (never next to another
+  City), and it counts as a City everywhere, for Mayor, Martian Rails, Rover Construction, Immigrant
+  City, Commercial District and a City's Greeneries in the final scoring. It scores 1 more Victory
+  Point for each Ocean next to it.
+- A special Tile is one of its owner's Tiles: a Greenery goes next to it if it can, Mining Area may
+  go next to it, it counts for Landlord, Natural Preserve and Research Outpost's City can't go next
+  to it, and Flooding may take 4 MegaCredits from its owner. Placing one collects the Area's
+  placement bonus and 2 MegaCredits per Ocean next to it, as any Tile does.
+- **Mining Area and Mining Rights** raise the Production of the steel or titanium their Area's
+  placement bonus gives, without a Decision: no Area of the Tharsis board has both. Robotic
+  Workforce copies that step of Production.
+- **Commercial District** scores 1 Victory Point for each City next to its Tile, whoever owns it.
+
+**Why:**
+- The rulebook calls these "special tiles" with no placement rule of their own beyond the card's,
+  and a Greenery goes "next to another tile that you own". The open-source game places them `on:
+  'land'`, `'isolated'`, `'volcanic'` or `'ocean'`, Industrial Center next to `Board.isCitySpace`
+  (which includes Capital), Capital `on: 'city'`, and Mining Area next to a Player's non-Ocean Tile;
+  its Mining cards offer steel or titanium only on an Area with both (Ares only).
+- Robotic Workforce copying the Mining cards' Production: the ticket quotes the FAQ, and the
+  open-source game's `productionBox` for them is the bonus Resource. The *Comprehensive FAQ* could
+  not be checked: the PDF and BoardGameGeek refuse the download.
+- Landlord counts every owned Tile but Oceans in the open-source game (`Landlord.ts`), special Tiles
+  and the Cities off Mars included, as the engine already did.
+
+Chosen by the user (2026-11-01): each special Tile drawn with its card's symbol on the board.
+The rest by Claude (2026-11-01), on the user's instruction to make the remaining ticket 18 calls
+without asking: special Tiles as effect data (`"special"`, with `"on"` for the card's Areas; the
+card being played prints its symbol on the Tile), and Rust code only for the Mining cards'
+Production.
+
+**Tests:** the card files `tests/cards/test_nuclear_zone.py`, `test_restricted_area.py`,
+`test_commercial_district.py`, `test_capital.py`, `test_natural_preserve.py`, `test_mohole_area.py`,
+`test_lava_flows.py`, `test_industrial_center.py`, `test_mining_rights.py` and `test_mining_area.py`,
+among them `tests/cards/test_nuclear_zone.py::test_nuclear_zones_tile_counts_as_its_owners_tile_for_a_greenery`,
+`tests/cards/test_natural_preserve.py::test_flooding_may_remove_4_megacredits_from_the_owner_of_a_special_tile_next_to_its_ocean`
+and `tests/cards/test_mining_rights.py::test_robotic_workforce_copies_the_production_mining_rights_tile_gave`.
+
+### The Areas reserved for a card's City
+
+**Call:**
+- **Noctis City's Area** (E3) takes nothing but Noctis City's City, which goes there "disregarding
+  normal placement restrictions", next to another City too. A City placed later still keeps away
+  from it. Placing it collects the Area's 2 plants and the MegaCredits for Oceans next to it.
+- **Phobos Space Haven's and Ganymede Colony's Areas** are off Mars and take nothing but their
+  cards' Cities. They have no placement bonus and nothing next to them. Their Cities are Cities in
+  play (Greenhouses, Energy Saving, Mayor, Landlord, and Rover Construction and Immigrant City when
+  placed) but not on Mars (Martian Rails, Zeppelins).
+- No other Tile is ever offered a reserved Area, and each reserved Area's card offers only it.
+
+**Why:** The cards ("Place a City tile ON THE RESERVED AREA") and the board. The open-source game
+places Noctis City on `noctisCitySpaceId` without the City rule, and Phobos Space Haven and Ganymede
+Colony on their `SpaceName`s, which `getCitiesOnMars` leaves out. Chosen by Claude (2026-11-01), on
+the user's instruction to make the remaining ticket 18 calls without asking.
+
+**Tests:** `tests/rules/test_reserved_areas.py` (each reserved Area used only by its card, in
+scenarios and in 40 random Games), `tests/cards/test_noctis_city.py`,
+`tests/cards/test_phobos_space_haven.py` and `tests/cards/test_ganymede_colony.py`,
+`tests/rules/test_milestones.py::test_mayor_counts_capitals_city_and_the_cities_off_mars`,
+`tests/rules/test_awards.py::test_landlord_counts_special_tiles_and_the_cities_off_mars`, and the
+fuzz invariant `each_reserved_area_used_only_by_its_card`.
+
+### Land Claim
+
+**Call:** Land Claim asks its Player, with an Area Decision ("Claim A1"), for a free Area on Mars
+reserved for nothing that nobody has claimed, and marks it with their marker. From then on only they
+may place a Tile there, an Ocean on land included (Artificial Lake); they still follow the Tile's
+own placement rules, and collect the Area's placement bonus as usual. The marker is no Tile: it
+counts for nothing next to it, nor for Landlord. A Greenery that could go next to its owner's Tiles
+only on another Player's claimed Area goes on any other free land instead. With no Area to claim,
+Land Claim is not offered. The game log says "Player 1 claims A1 with Land Claim."
+
+**Why:** The card: "Place your marker on a non-reserved area. Only you may place a tile here." The
+open-source game claims from `getNonReservedLandSpaces` and leaves claimed Areas out of every other
+Player's land, and its Landlord skips the claimed Area (the comment in `Landlord.ts`). Chosen by the
+user (2026-11-01): the claim is a marker, not a Tile, shown as a ring in the Player's colour. The
+rest by Claude, on the user's instruction to make the remaining ticket 18 calls without asking:
+effect data `"claim_area": true`, and at most one claim on the board, as there is one Land Claim.
+
+**Tests:** `tests/cards/test_land_claim.py`, among them
+`test_a_claimed_area_is_kept_from_every_other_tile_an_ocean_on_land_included`, and the fuzz
+invariant tests in `tests/fuzzing/test_invariants.py`, among them
+`test_a_tile_on_land_another_player_claimed_breaks_an_invariant`.
+
 ## Card flow
 
 ### What setup cards cost until Corporations exist (temporary)

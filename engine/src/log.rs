@@ -2,7 +2,7 @@
 //! plain-language lines only when someone reads the log. Events are plain values,
 //! so the log adds little to the cost of copying a Game.
 
-use crate::board::{BonusItem, TileKind, area_label};
+use crate::board::{BonusItem, Placement, area_label};
 use crate::card_flow::{CARD_PRICE, PATENT_VALUE, RESEARCH_CARDS, SETUP_CARDS};
 use crate::cards::CARD_CATALOG;
 use crate::game::{
@@ -167,7 +167,11 @@ pub enum LogEvent {
     OxygenAlreadyAtMaximum,
     PlacedTile {
         player: usize,
-        tile: TileKind,
+        placement: Placement,
+        area: usize,
+    },
+    ClaimedArea {
+        player: usize,
         area: usize,
     },
     OceansRaised {
@@ -406,8 +410,15 @@ impl LogEvent {
             LogEvent::OxygenAlreadyAtMaximum => {
                 "Oxygen is already at its maximum, so it does not rise.".to_string()
             }
-            LogEvent::PlacedTile { player, tile, area } => {
-                format!("{} places {} on {}.", player_name(player), tile.with_article(), area_label(area))
+            LogEvent::PlacedTile { player, placement, area } => {
+                let tile = match placement.special {
+                    Some(special) => special.name(),
+                    None => placement.tile.with_article(),
+                };
+                format!("{} places {tile} on {}.", player_name(player), area_label(area))
+            }
+            LogEvent::ClaimedArea { player, area } => {
+                format!("{} claims {} with Land Claim.", player_name(player), area_label(area))
             }
             LogEvent::OceansRaised { player, oceans } => {
                 format!(

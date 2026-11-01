@@ -1,6 +1,11 @@
 import type { TileType } from "./types";
 
-export const TILE_NAMES: Record<TileType, string> = { ocean: "Ocean", greenery: "Greenery", city: "City" };
+export const TILE_NAMES: Record<TileType, string> = {
+  ocean: "Ocean",
+  greenery: "Greenery",
+  city: "City",
+  special: "special Tile",
+};
 
 /** A number with a real minus sign when it is negative: "8", "0", "−5". */
 export function formatNumber(value: number): string {

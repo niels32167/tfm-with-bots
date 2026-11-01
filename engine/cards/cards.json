@@ -109,7 +109,8 @@
       "requirements": [{"type": "oceans", "min": 4}],
       "victory_points": {"points": 1, "per": 1, "of": {"adjacent": "ocean"}},
       "text": "(Requires 4 ocean tiles. Place this tile. Decrease your Energy production 2 steps and increase your MC production 5 steps. 1 ADDITIONAL VP FOR EACH OCEAN TILE ADJACENT TO THIS CITY TILE.",
-      "face": {"content": {"tag": "div", "class": "content", "children": [" ", {"tag": "div", "class": "points", "children": [" 1/", {"tag": "span", "class": "resource ocean-resource"}, " "]}, " ", {"tag": "div", "class": "requirements", "children": ["4 Oceans"]}, " ", {"tag": "div", "class": "production-box production-box-size2a", "children": [" ", {"tag": "div", "class": "production-prefix", "children": [{"tag": "div", "class": "minus"}]}, " ", {"tag": "div", "class": "energy production"}, " ", {"tag": "div", "class": "energy production"}, " ", {"tag": "br"}, " ", {"tag": "div", "class": "production-prefix", "children": [{"tag": "div", "class": "plus"}]}, " ", {"tag": "div", "class": "money production", "children": ["5"]}, " "]}, " ", {"tag": "div", "class": "tile city-tile", "style": {"margin-top": "-10px", "width": "60px", "height": "69px", "background-size": "60px 69px", "filter": "none"}}, " ", {"tag": "div", "class": "description", "style": {"text-align": "left"}, "children": [" (Requires 4 ocean tiles. Place this tile. Decrease your Energy production 2 steps and increase your MC production 5 steps.", {"tag": "br"}, " ", {"tag": "div", "style": {"font-size": "9px", "line-height": "12px", "margin-top": "10px"}, "children": [" 1 ADDITIONAL VP FOR EACH ", {"tag": "br"}, "OCEAN TILE ADJACENT ", {"tag": "br"}, " TO THIS CITY TILE. "]}, " "]}, " "]}}
+      "face": {"content": {"tag": "div", "class": "content", "children": [" ", {"tag": "div", "class": "points", "children": [" 1/", {"tag": "span", "class": "resource ocean-resource"}, " "]}, " ", {"tag": "div", "class": "requirements", "children": ["4 Oceans"]}, " ", {"tag": "div", "class": "production-box production-box-size2a", "children": [" ", {"tag": "div", "class": "production-prefix", "children": [{"tag": "div", "class": "minus"}]}, " ", {"tag": "div", "class": "energy production"}, " ", {"tag": "div", "class": "energy production"}, " ", {"tag": "br"}, " ", {"tag": "div", "class": "production-prefix", "children": [{"tag": "div", "class": "plus"}]}, " ", {"tag": "div", "class": "money production", "children": ["5"]}, " "]}, " ", {"tag": "div", "class": "tile city-tile", "style": {"margin-top": "-10px", "width": "60px", "height": "69px", "background-size": "60px 69px", "filter": "none"}}, " ", {"tag": "div", "class": "description", "style": {"text-align": "left"}, "children": [" (Requires 4 ocean tiles. Place this tile. Decrease your Energy production 2 steps and increase your MC production 5 steps.", {"tag": "br"}, " ", {"tag": "div", "style": {"font-size": "9px", "line-height": "12px", "margin-top": "10px"}, "children": [" 1 ADDITIONAL VP FOR EACH ", {"tag": "br"}, "OCEAN TILE ADJACENT ", {"tag": "br"}, " TO THIS CITY TILE. "]}, " "]}, " "]}},
+      "effects": {"production": {"energy": -2, "megacredits": 5}, "tiles": ["city"]}
     },
     {
       "id": "asteroid",
@@ -234,7 +235,8 @@
       "requirements": [],
       "victory_points": null,
       "text": "(Decrease your Energy production 1 step and increase your MC production 3 steps. Place a city ON THE RESERVED AREA, disregarding normal placement restrictions.)",
-      "face": {"content": {"tag": "div", "class": "content", "children": [" ", {"tag": "div", "class": "production-box production-box-size1a", "children": [" ", {"tag": "div", "class": "production-prefix", "children": [{"tag": "div", "class": "minus"}]}, " ", {"tag": "div", "class": "energy production"}, " ", {"tag": "div", "class": "production-prefix", "children": [{"tag": "div", "class": "plus"}]}, " ", {"tag": "div", "class": "money production", "children": ["3"]}, " "]}, " ", {"tag": "div", "class": "tile city-tile", "style": {"margin-left": "20px"}}, " ", {"tag": "br"}, " ", {"tag": "div", "class": "description", "children": [" (Decrease your Energy production 1 step and increase your MC production 3 steps. Place a city ON THE RESERVED AREA, disregarding normal placement restrictions.) "]}, " "]}}
+      "face": {"content": {"tag": "div", "class": "content", "children": [" ", {"tag": "div", "class": "production-box production-box-size1a", "children": [" ", {"tag": "div", "class": "production-prefix", "children": [{"tag": "div", "class": "minus"}]}, " ", {"tag": "div", "class": "energy production"}, " ", {"tag": "div", "class": "production-prefix", "children": [{"tag": "div", "class": "plus"}]}, " ", {"tag": "div", "class": "money production", "children": ["3"]}, " "]}, " ", {"tag": "div", "class": "tile city-tile", "style": {"margin-left": "20px"}}, " ", {"tag": "br"}, " ", {"tag": "div", "class": "description", "children": [" (Decrease your Energy production 1 step and increase your MC production 3 steps. Place a city ON THE RESERVED AREA, disregarding normal placement restrictions.) "]}, " "]}},
+      "effects": {"production": {"energy": -1, "megacredits": 3}, "tiles": [{"tile": "city", "on": "noctis_city"}]}
     },
     {
       "id": "methane_from_titan",
@@ -288,7 +290,8 @@
       "requirements": [],
       "victory_points": 3,
       "text": "(Increase your titanium production 1 step and place a City tile ON THE RESERVED AREA.)",
-      "face": {"content": {"tag": "div", "class": "content", "children": [" ", {"tag": "div", "class": "points points-big", "children": ["3"]}, " ", {"tag": "div", "class": "production-box", "children": [" ", {"tag": "div", "class": "titanium production"}, " "]}, " ", {"tag": "div", "class": "tile city-tile", "style": {"margin-left": "20px"}}, " ", {"tag": "div", "class": "description", "children": [" (Increase your titanium production 1 step and place a City tile ON THE RESERVED AREA.) "]}, " "]}}
+      "face": {"content": {"tag": "div", "class": "content", "children": [" ", {"tag": "div", "class": "points points-big", "children": ["3"]}, " ", {"tag": "div", "class": "production-box", "children": [" ", {"tag": "div", "class": "titanium production"}, " "]}, " ", {"tag": "div", "class": "tile city-tile", "style": {"margin-left": "20px"}}, " ", {"tag": "div", "class": "description", "children": [" (Increase your titanium production 1 step and place a City tile ON THE RESERVED AREA.) "]}, " "]}},
+      "effects": {"production": {"titanium": 1}, "tiles": [{"tile": "city", "on": "phobos_space_haven"}]}
     },
     {
       "id": "black_polar_dust",
@@ -603,7 +606,8 @@
       "requirements": [{"type": "oxygen", "max": 4}],
       "victory_points": 1,
       "text": "(Oxygen must be 4% or less. Place this tile NEXT TO NO OTHER TILE. Increase your MC production 1 step.)",
-      "face": {"content": {"tag": "div", "class": "content", "children": [" ", {"tag": "div", "class": "points points-big", "children": ["1"]}, " ", {"tag": "div", "class": "requirements requirements-max", "children": ["max 4% O2"]}, " ", {"tag": "div", "class": "production-box", "children": [" ", {"tag": "div", "class": "money production", "children": ["1"]}, " "]}, " ", {"tag": "div", "class": "tile special-tile", "style": {"font-size": "24px", "margin-left": "20px"}, "children": [" ♂ "]}, " * ", {"tag": "div", "class": "description", "children": [" (Oxygen must be 4% or less. Place this tile NEXT TO NO OTHER TILE. Increase your MC production 1 step.) "]}, " "]}}
+      "face": {"content": {"tag": "div", "class": "content", "children": [" ", {"tag": "div", "class": "points points-big", "children": ["1"]}, " ", {"tag": "div", "class": "requirements requirements-max", "children": ["max 4% O2"]}, " ", {"tag": "div", "class": "production-box", "children": [" ", {"tag": "div", "class": "money production", "children": ["1"]}, " "]}, " ", {"tag": "div", "class": "tile special-tile", "style": {"font-size": "24px", "margin-left": "20px"}, "children": [" ♂ "]}, " * ", {"tag": "div", "class": "description", "children": [" (Oxygen must be 4% or less. Place this tile NEXT TO NO OTHER TILE. Increase your MC production 1 step.) "]}, " "]}},
+      "effects": {"production": {"megacredits": 1}, "tiles": [{"tile": "special", "on": "next_to_no_other_tile"}]}
     },
     {
       "id": "nuclear_power",
@@ -878,7 +882,8 @@
       "requirements": [],
       "victory_points": null,
       "text": "(Place this tile on an area with a steel or titanium placement bonus, adjacent to another of your tiles. Increase your production of that resource 1 step.)",
-      "face": {"content": {"tag": "div", "class": "content", "children": [" ", {"tag": "div", "class": "tile special-tile", "children": ["⚒"]}, " *", {"tag": "br"}, " ", {"tag": "div", "class": "production-box production-box-size3", "children": [" ", {"tag": "div", "class": "steel production"}, " OR ", {"tag": "div", "class": "titanium production"}, " "]}, " * ", {"tag": "div", "class": "description", "children": [" (Place this tile on an area with a steel or titanium placement bonus, adjacent to another of your tiles. Increase your production of that resource 1 step.) "]}, " "]}}
+      "face": {"content": {"tag": "div", "class": "content", "children": [" ", {"tag": "div", "class": "tile special-tile", "children": ["⚒"]}, " *", {"tag": "br"}, " ", {"tag": "div", "class": "production-box production-box-size3", "children": [" ", {"tag": "div", "class": "steel production"}, " OR ", {"tag": "div", "class": "titanium production"}, " "]}, " * ", {"tag": "div", "class": "description", "children": [" (Place this tile on an area with a steel or titanium placement bonus, adjacent to another of your tiles. Increase your production of that resource 1 step.) "]}, " "]}},
+      "effects": {"tiles": [{"tile": "special", "on": "steel_or_titanium_bonus_next_to_own_tile"}]}
     },
     {
       "id": "building_industries",
@@ -905,7 +910,8 @@
       "requirements": [],
       "victory_points": null,
       "text": "PLACE YOUR MARKER ON A NON-RESERVED AREA. ONLY YOU MAY PLACE A TILE HERE.",
-      "face": {"content": {"tag": "div", "class": "content", "style": {"font-size": "14px", "font-weight": "normal"}, "children": [" PLACE YOUR MARKER ON A NON-RESERVED AREA. ONLY YOU MAY PLACE A TILE HERE. "]}}
+      "face": {"content": {"tag": "div", "class": "content", "style": {"font-size": "14px", "font-weight": "normal"}, "children": [" PLACE YOUR MARKER ON A NON-RESERVED AREA. ONLY YOU MAY PLACE A TILE HERE. "]}},
+      "effects": {"claim_area": true}
     },
     {
       "id": "mining_rights",
@@ -918,7 +924,8 @@
       "requirements": [],
       "victory_points": null,
       "text": "(Place this tile on an area with a steel or titanium placement bonus. Increase that production 1 step.)",
-      "face": {"content": {"tag": "div", "class": "content", "children": [" ", {"tag": "div", "class": "tile special-tile", "children": ["⚒"]}, " *", {"tag": "br"}, " ", {"tag": "div", "class": "production-box production-box-size3", "children": [" ", {"tag": "div", "class": "steel production"}, " OR ", {"tag": "div", "class": "titanium production"}, " "]}, " * ", {"tag": "div", "class": "description", "children": [" (Place this tile on an area with a steel or titanium placement bonus. Increase that production 1 step.) "]}, " "]}}
+      "face": {"content": {"tag": "div", "class": "content", "children": [" ", {"tag": "div", "class": "tile special-tile", "children": ["⚒"]}, " *", {"tag": "br"}, " ", {"tag": "div", "class": "production-box production-box-size3", "children": [" ", {"tag": "div", "class": "steel production"}, " OR ", {"tag": "div", "class": "titanium production"}, " "]}, " * ", {"tag": "div", "class": "description", "children": [" (Place this tile on an area with a steel or titanium placement bonus. Increase that production 1 step.) "]}, " "]}},
+      "effects": {"tiles": [{"tile": "special", "on": "steel_or_titanium_bonus"}]}
     },
     {
       "id": "sponsors",
@@ -1111,7 +1118,8 @@
       "requirements": [],
       "victory_points": {"points": 1, "per": 1, "of": {"tag": "jovian"}},
       "text": "(Place a city tile ON THE RESERVED AREA. 1 VP per Jovian tag you have.)",
-      "face": {"content": {"tag": "div", "class": "content", "children": [" ", {"tag": "div", "class": "points points-big", "children": [" 1/", {"tag": "span", "class": "resource-tag tag-jovian"}, " "]}, " ", {"tag": "div", "class": "tile city-tile"}, " * ", {"tag": "div", "class": "description", "children": [" (Place a city tile ON THE RESERVED AREA. 1 VP per Jovian tag you have.) "]}, " "]}}
+      "face": {"content": {"tag": "div", "class": "content", "children": [" ", {"tag": "div", "class": "points points-big", "children": [" 1/", {"tag": "span", "class": "resource-tag tag-jovian"}, " "]}, " ", {"tag": "div", "class": "tile city-tile"}, " * ", {"tag": "div", "class": "description", "children": [" (Place a city tile ON THE RESERVED AREA. 1 VP per Jovian tag you have.) "]}, " "]}},
+      "effects": {"tiles": [{"tile": "city", "on": "ganymede_colony"}]}
     },
     {
       "id": "callisto_penal_mines",
@@ -1166,7 +1174,8 @@
       "requirements": [],
       "victory_points": {"points": 1, "per": 1, "of": {"adjacent": "city"}},
       "text": "(Decrease your energy production 1 step and increase your MC production 4 steps.)\n(Place this tile. 1 VP PER ADJACENT CITY TILE.)",
-      "face": {"content": {"tag": "div", "class": "content", "children": [" ", {"tag": "div", "class": "points big", "children": [" 1/ ", {"tag": "div", "class": "tile city-tile-small"}, " "]}, " ", {"tag": "div", "class": "production-box production-box-size1a", "children": [" ", {"tag": "div", "class": "production-prefix", "children": [{"tag": "div", "class": "minus"}]}, " ", {"tag": "div", "class": "energy production"}, " ", {"tag": "div", "class": "production-prefix", "children": [{"tag": "div", "class": "plus"}]}, " ", {"tag": "div", "class": "money production", "children": ["4"]}, " "]}, " ", {"tag": "div", "class": "description", "style": {"margin-top": "-5px"}, "children": [" (Decrease your energy production 1 step and increase your MC production 4 steps.) "]}, " ", {"tag": "div", "class": "tile special-tile", "children": ["€"]}, " ", {"tag": "div", "class": "description", "style": {"text-align": "left"}, "children": [" (Place this tile. 1 VP PER", {"tag": "br"}, " ADJACENT CITY TILE.) "]}, " "]}}
+      "face": {"content": {"tag": "div", "class": "content", "children": [" ", {"tag": "div", "class": "points big", "children": [" 1/ ", {"tag": "div", "class": "tile city-tile-small"}, " "]}, " ", {"tag": "div", "class": "production-box production-box-size1a", "children": [" ", {"tag": "div", "class": "production-prefix", "children": [{"tag": "div", "class": "minus"}]}, " ", {"tag": "div", "class": "energy production"}, " ", {"tag": "div", "class": "production-prefix", "children": [{"tag": "div", "class": "plus"}]}, " ", {"tag": "div", "class": "money production", "children": ["4"]}, " "]}, " ", {"tag": "div", "class": "description", "style": {"margin-top": "-5px"}, "children": [" (Decrease your energy production 1 step and increase your MC production 4 steps.) "]}, " ", {"tag": "div", "class": "tile special-tile", "children": ["€"]}, " ", {"tag": "div", "class": "description", "style": {"text-align": "left"}, "children": [" (Place this tile. 1 VP PER", {"tag": "br"}, " ADJACENT CITY TILE.) "]}, " "]}},
+      "effects": {"production": {"energy": -1, "megacredits": 4}, "tiles": ["special"]}
     },
     {
       "id": "robotic_workforce",
@@ -1332,7 +1341,8 @@
       "requirements": [],
       "victory_points": -2,
       "text": "(Place this tile and raise temperature 2 steps.)",
-      "face": {"content": {"tag": "div", "class": "content", "children": [" ", {"tag": "div", "class": "points points-big", "children": ["-2"]}, " ", {"tag": "div", "class": "tile special-tile", "children": ["☢"]}, " ", {"tag": "br"}, " ", {"tag": "div", "class": "tile temperature-tile"}, " ", {"tag": "div", "class": "tile temperature-tile"}, " ", {"tag": "div", "class": "description", "children": [" (Place this tile and raise temperature 2 steps.) "]}, " "]}}
+      "face": {"content": {"tag": "div", "class": "content", "children": [" ", {"tag": "div", "class": "points points-big", "children": ["-2"]}, " ", {"tag": "div", "class": "tile special-tile", "children": ["☢"]}, " ", {"tag": "br"}, " ", {"tag": "div", "class": "tile temperature-tile"}, " ", {"tag": "div", "class": "tile temperature-tile"}, " ", {"tag": "div", "class": "description", "children": [" (Place this tile and raise temperature 2 steps.) "]}, " "]}},
+      "effects": {"temperature": 2, "tiles": ["special"]}
     },
     {
       "id": "tropical_resort",
@@ -1695,7 +1705,8 @@
       "requirements": [],
       "victory_points": null,
       "text": "(Action: Spend 7 MC to increase your steel production 1 step.)\n(Place this tile adjacent to a city tile.)",
-      "face": {"content": {"tag": "div", "class": "content", "children": [" ", {"tag": "div", "class": "money resource", "children": ["7"]}, " ", {"tag": "div", "class": "red-arrow"}, " ", {"tag": "div", "class": "production-box", "children": [" ", {"tag": "div", "class": "steel production"}, " "]}, " ", {"tag": "div", "class": "description", "children": [" (Action: Spend 7 MC to increase your steel production 1 step.) "]}, " ", {"tag": "br"}, " ", {"tag": "div", "class": "tile special-tile", "style": {"font-size": "17px"}, "children": [" 🏭 "]}, " * ", {"tag": "div", "class": "description", "children": [" (Place this tile adjacent to a city tile.) "]}, " "]}}
+      "face": {"content": {"tag": "div", "class": "content", "children": [" ", {"tag": "div", "class": "money resource", "children": ["7"]}, " ", {"tag": "div", "class": "red-arrow"}, " ", {"tag": "div", "class": "production-box", "children": [" ", {"tag": "div", "class": "steel production"}, " "]}, " ", {"tag": "div", "class": "description", "children": [" (Action: Spend 7 MC to increase your steel production 1 step.) "]}, " ", {"tag": "br"}, " ", {"tag": "div", "class": "tile special-tile", "style": {"font-size": "17px"}, "children": [" 🏭 "]}, " * ", {"tag": "div", "class": "description", "children": [" (Place this tile adjacent to a city tile.) "]}, " "]}},
+      "effects": {"tiles": [{"tile": "special", "on": "next_to_a_city"}], "action": {"resources": {"megacredits": -7}, "production": {"steel": 1}}}
     },
     {
       "id": "hired_raiders",
@@ -1928,7 +1939,8 @@
       "requirements": [],
       "victory_points": null,
       "text": "(Raise temperature 2 steps and place this tile ON EITHER THARSIS THOLUS, ASCRAEUS MONS, PAVONIS MONS OR ARSIA MONS.)",
-      "face": {"content": {"tag": "div", "class": "content", "children": [" ", {"tag": "div", "class": "tile temperature-tile"}, " ", {"tag": "div", "class": "tile temperature-tile"}, " ", {"tag": "br"}, " ", {"tag": "div", "class": "tile special-tile", "style": {"font-size": "18px"}, "children": [" 🌋 "]}, " * ", {"tag": "div", "class": "description", "children": [" (Raise temperature 2 steps and place this tile ON EITHER THARSIS THOLUS, ASCRAEUS MONS, PAVONIS MONS OR ARSIA MONS.) "]}, " "]}}
+      "face": {"content": {"tag": "div", "class": "content", "children": [" ", {"tag": "div", "class": "tile temperature-tile"}, " ", {"tag": "div", "class": "tile temperature-tile"}, " ", {"tag": "br"}, " ", {"tag": "div", "class": "tile special-tile", "style": {"font-size": "18px"}, "children": [" 🌋 "]}, " * ", {"tag": "div", "class": "description", "children": [" (Raise temperature 2 steps and place this tile ON EITHER THARSIS THOLUS, ASCRAEUS MONS, PAVONIS MONS OR ARSIA MONS.) "]}, " "]}},
+      "effects": {"temperature": 2, "tiles": [{"tile": "special", "on": "volcanoes"}]}
     },
     {
       "id": "power_plant",
@@ -1955,7 +1967,8 @@
       "requirements": [],
       "victory_points": null,
       "text": "(Increase your heat production 4 steps. Place this tile ON AN AREA RESERVED FOR OCEAN.)",
-      "face": {"content": {"tag": "div", "class": "content", "children": [" ", {"tag": "div", "class": "production-box production-box-size1a", "children": [" 4 ", {"tag": "div", "class": "heat production"}, " "]}, " ", {"tag": "br"}, " ", {"tag": "div", "class": "tile special-tile", "children": ["♨"]}, " * ", {"tag": "div", "class": "description", "children": [" (Increase your heat production 4 steps. Place this tile ON AN AREA RESERVED FOR OCEAN.) "]}, " "]}}
+      "face": {"content": {"tag": "div", "class": "content", "children": [" ", {"tag": "div", "class": "production-box production-box-size1a", "children": [" 4 ", {"tag": "div", "class": "heat production"}, " "]}, " ", {"tag": "br"}, " ", {"tag": "div", "class": "tile special-tile", "children": ["♨"]}, " * ", {"tag": "div", "class": "description", "children": [" (Increase your heat production 4 steps. Place this tile ON AN AREA RESERVED FOR OCEAN.) "]}, " "]}},
+      "effects": {"production": {"heat": 4}, "tiles": [{"tile": "special", "on": "ocean_areas"}]}
     },
     {
       "id": "large_convoy",
@@ -2741,7 +2754,8 @@
       "requirements": [],
       "victory_points": null,
       "text": "(Action: Spend 2 MC to draw a card.)\n(Place this tile.)",
-      "face": {"content": {"tag": "div", "class": "content", "children": [" ", {"tag": "div", "class": "money resource", "children": ["2"]}, " ", {"tag": "div", "class": "red-arrow"}, " ", {"tag": "div", "class": "card resource"}, " ", {"tag": "div", "class": "description", "children": [" (Action: Spend 2 MC to draw a card.) "]}, " ", {"tag": "br"}, " ", {"tag": "div", "class": "tile special-tile", "style": {"font-size": "24px"}, "children": [" ⃠ "]}, " ", {"tag": "div", "class": "description", "children": ["(Place this tile.)"]}, " "]}}
+      "face": {"content": {"tag": "div", "class": "content", "children": [" ", {"tag": "div", "class": "money resource", "children": ["2"]}, " ", {"tag": "div", "class": "red-arrow"}, " ", {"tag": "div", "class": "card resource"}, " ", {"tag": "div", "class": "description", "children": [" (Action: Spend 2 MC to draw a card.) "]}, " ", {"tag": "br"}, " ", {"tag": "div", "class": "tile special-tile", "style": {"font-size": "24px"}, "children": [" ⃠ "]}, " ", {"tag": "div", "class": "description", "children": ["(Place this tile.)"]}, " "]}},
+      "effects": {"tiles": ["special"], "action": {"resources": {"megacredits": -2}, "draw": 1}}
     },
     {
       "id": "immigrant_city",

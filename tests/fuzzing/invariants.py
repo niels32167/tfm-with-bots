@@ -20,8 +20,10 @@ import tm_engine
 from tests.helpers import (
     ADJACENT_AREAS,
     LAND_AREAS,
+    NOCTIS_CITY,
     OCEAN_AREAS,
     PROJECT_CARDS,
+    RESERVED_FOR_CARDS,
     RESOURCES,
     has_printed_production_box,
 )
@@ -44,7 +46,7 @@ MILESTONE_VICTORY_POINTS = 5
 # How the game log names each Resource: an amount of it, and its Production.
 AMOUNT_NAMES = {name: name for name in RESOURCES} | {"megacredits": "MegaCredits"}
 PRODUCTION_NAMES = {name: name for name in RESOURCES} | {"megacredits": "MegaCredit", "plants": "plant"}
-TILE_NAMES = {"ocean": "Ocean", "greenery": "Greenery", "city": "City"}
+TILE_NAMES = {"ocean": "Ocean", "greenery": "Greenery", "city": "City", "special": "special Tile"}
 # The six parts of a final score, which add up to its total.
 SCORE_PARTS = ("terraform_rating", "milestones", "awards", "greeneries", "cities", "cards")
 
@@ -56,6 +58,15 @@ GREENERY_ON_AN_OCEAN_AREA_CARDS = ("mangrove", "protected_valley")
 OCEAN_ON_LAND_CARDS = ("artificial_lake",)
 # The cards printed with "Place a city tile ADJACENT TO AT LEAST 2 OTHER CITY TILES".
 CITY_NEXT_TO_CITIES_CARDS = ("urbanized_area",)
+# The card printed with "Place this tile ON AN AREA RESERVED FOR OCEAN".
+SPECIAL_TILE_ON_AN_OCEAN_AREA_CARDS = ("mohole_area",)
+# The four volcanoes: Tharsis Tholus, Ascraeus Mons, Pavonis Mons and Arsia Mons.
+VOLCANOES = ("B2", "C1", "D1", "E1")
+# The land whose placement bonus has steel or titanium, as printed on the Tharsis board.
+STEEL_OR_TITANIUM_LAND = ("A1", "B2", "C7", "D1", "H1", "H6", "J1", "J2")
+# The building cards whose printed production box is part of their action, which Robotic Workforce
+# doesn't copy.
+PRODUCTION_BOX_IN_THE_ACTION = ("equatorial_magnetizer", "industrial_center", "underground_detonations")
 # How the fuzzer's messages describe a Tile that goes on other Areas than usual, by the Area
 # Decision's "on".
 OTHER_AREAS = {
@@ -63,6 +74,13 @@ OTHER_AREAS = {
     "land": " on an Area reserved for nothing",
     "next_to_two_cities": " next to at least 2 Cities",
     "next_to_no_other_tile": " next to no other Tile",
+    "next_to_a_city": " next to a City",
+    "volcanoes": " on a volcano",
+    "steel_or_titanium_bonus": " on a steel or titanium bonus",
+    "steel_or_titanium_bonus_next_to_own_tile": " on a steel or titanium bonus next to its owner's Tile",
+    "noctis_city": " on Noctis City's Area",
+    "phobos_space_haven": " on Phobos Space Haven's Area",
+    "ganymede_colony": " on Ganymede Colony's Area",
 }
 # The MegaCredits off each card its Player plays, as printed on the cards with such an effect:
 # off every card, or only off those with a Tag.
@@ -116,17 +134,21 @@ def global_parameters_within_range(view: View, decision: Decision | None) -> Ite
 
 
 def tiles_only_on_legal_areas(view: View, decision: Decision | None) -> Iterator[str]:
-    """Oceans lie on Areas reserved for Oceans and belong to nobody. Greeneries and Cities
-    lie on Areas of Mars reserved for nothing, belong to a Player, and no two Cities touch.
-    The exceptions, each allowed once for every card played that makes it:
+    """Oceans lie on Areas reserved for Oceans and belong to nobody. Greeneries, Cities and
+    special Tiles lie on Areas of Mars reserved for nothing, belong to a Player, and no two
+    Cities touch. A special Tile is one of its owner's played cards. The exceptions, each allowed
+    once for every card played that makes it:
     - a Player's Greenery on an Area reserved for Oceans (Mangrove);
     - an Ocean on an Area reserved for nothing (Artificial Lake);
-    - a Player's City next to at least 2 other Cities (Urbanized Area)."""
+    - a Player's City next to at least 2 other Cities (Urbanized Area);
+    - Mohole Area's Tile on an Area reserved for Oceans;
+    - a City on the Area reserved for its card (see `each_reserved_area_used_only_by_its_card`),
+      which for Noctis City may touch other Cities."""
     tiles = tiles_on_the_board(view)
     greeneries_on_ocean_areas: Counter[int] = Counter()
     oceans_on_land = 0
     for area_id, tile in tiles.items():
-        name, owner = TILE_NAMES[tile["type"]], tile["owner"]
+        name, owner = tile_name(tile["type"], tile.get("card")), tile["owner"]
         if tile["type"] == "ocean":
             if area_id in LAND_AREAS:
                 oceans_on_land += 1
@@ -139,10 +161,12 @@ def tiles_only_on_legal_areas(view: View, decision: Decision | None) -> Iterator
         if tile["type"] == "greenery" and area_id in OCEAN_AREAS:
             if owned_by_a_player:
                 greeneries_on_ocean_areas[owner] += 1
-        elif area_id not in LAND_AREAS:
+        elif area_id not in LAND_AREAS and not exception_to_land(area_id, tile):
             yield f"the {name} on {area_id} is not on an Area of Mars that is reserved for nothing"
         if not owned_by_a_player:
             yield f"the {name} on {area_id} belongs to no Player in the Game"
+        elif "card" in tile and tile["card"] not in view["players"][owner]["played_cards"]:
+            yield f"the {name} on {area_id} belongs to Player {owner + 1}, who has not played its card"
     for owner, greeneries in sorted(greeneries_on_ocean_areas.items()):
         cards = cards_played(view, owner, GREENERY_ON_AN_OCEAN_AREA_CARDS)
         if greeneries > cards:
@@ -161,17 +185,27 @@ def tiles_only_on_legal_areas(view: View, decision: Decision | None) -> Iterator
     yield from cities_apart(view, tiles)
 
 
+def exception_to_land(area_id: str, tile: dict[str, Any]) -> bool:
+    """Whether `tile` may lie on `area_id`, which is not land, because its card puts it there:
+    Mohole Area's Tile on an Area reserved for Oceans, or a City on the Area reserved for it."""
+    if tile.get("card") in SPECIAL_TILE_ON_AN_OCEAN_AREA_CARDS:
+        return area_id in OCEAN_AREAS
+    return tile["type"] == "city" and "card" not in tile and area_id in RESERVED_FOR_CARDS
+
+
 def cities_apart(view: View, tiles: dict[str, dict[str, Any]]) -> Iterator[str]:
-    """No two Cities touch, unless one of them is the City a Player placed next to at least 2
+    """No two Cities touch, unless one is Noctis City's, or one is the City a Player placed next to at least 2
     other Cities with a card that puts one there (Urbanized Area): a Player may have one such
     City for each of those cards they played. Every pair of touching Cities left over is
     reported, for the choice of such Cities that leaves the fewest."""
     cities = {area_id for area_id, tile in tiles.items() if tile["type"] == "city"}
+    # Noctis City's City disregards the normal placement restrictions. A City placed next to it
+    # later breaks them, but this can't tell which came first; Area Decisions are checked instead.
     touching = [
         (area_id, next_area)
         for area_id in sorted(cities)
         for next_area in ADJACENT_AREAS.get(area_id, [])
-        if next_area > area_id and next_area in cities
+        if next_area > area_id and next_area in cities and NOCTIS_CITY not in (area_id, next_area)
     ]
     if not touching:
         return
@@ -196,20 +230,79 @@ def cities_apart(view: View, tiles: dict[str, dict[str, Any]]) -> Iterator[str]:
         yield f"the Cities on {area_id} and {next_area} are next to each other"
 
 
+def special_tiles_where_their_cards_put_them(view: View, decision: Decision | None) -> Iterator[str]:
+    """Each special Tile lies where its card puts it, as far as later Tiles can't change it: Lava
+    Flows' on a volcano, the Mining cards' on land with a steel or titanium bonus, Mining Area's next
+    to another of its owner's Tiles, Industrial Center's next to a City and Mohole Area's on an Area
+    reserved for Oceans. (Natural Preserve's was next to no Tile only when placed.)"""
+    tiles = tiles_on_the_board(view)
+
+    def next_to(area_id: str, wanted: Callable[[dict[str, Any]], bool]) -> bool:
+        return any(wanted(tiles[next_area]) for next_area in ADJACENT_AREAS.get(area_id, []) if next_area in tiles)
+
+    for area_id, tile in tiles.items():
+        card, owner = tile.get("card"), tile["owner"]
+        where = {
+            "lava_flows": ("on a volcano", area_id in VOLCANOES),
+            "mining_rights": ("on a steel or titanium bonus", area_id in STEEL_OR_TITANIUM_LAND),
+            "mining_area": (
+                "on a steel or titanium bonus next to another of its owner's Tiles",
+                area_id in STEEL_OR_TITANIUM_LAND
+                and next_to(area_id, lambda each, owner=owner: each["owner"] == owner),
+            ),
+            "industrial_center": ("next to a City", next_to(area_id, lambda each: each["type"] == "city")),
+            "mohole_area": ("on an Area reserved for Oceans", area_id in OCEAN_AREAS),
+        }.get(card)
+        if where is not None and not where[1]:
+            yield f"the {tile_name(tile['type'], card)} on {area_id} is not {where[0]}"
+
+
+def each_reserved_area_used_only_by_its_card(view: View, decision: Decision | None) -> Iterator[str]:
+    """A City on an Area reserved for a card's City is owned by a Player who played the card. An
+    Area claimed with Land Claim is land, claimed by a Player who played
+    Land Claim, and holds no other Player's Tile."""
+    for entry in view["board"]:
+        area_id, tile, claimant = entry["area"], entry["tile"], entry["claimed_by"]
+        card = RESERVED_FOR_CARDS.get(area_id)
+        # Any other Tile there is off land, which `tiles_only_on_legal_areas` reports.
+        if card is not None and tile is not None and tile["type"] == "city" and "card" not in tile:
+            owner = tile["owner"]
+            if owner not in range(len(view["players"])) or card not in view["players"][owner]["played_cards"]:
+                yield f"the City on {area_id} is not {CARDS[card]['name']}'s: its owner has not played the card"
+        if claimant is None:
+            continue
+        if area_id not in LAND_AREAS:
+            yield f"{area_id} is claimed with Land Claim, but is not an Area of Mars reserved for nothing"
+        if claimant not in range(len(view["players"])) or "land_claim" not in view["players"][claimant]["played_cards"]:
+            yield f"{area_id} is claimed by Player {claimant + 1}, who has not played Land Claim"
+        if tile is not None and tile["owner"] not in (None, claimant):
+            name = tile_name(tile["type"], tile.get("card"))
+            yield (
+                f"the {name} on {area_id} belongs to Player {tile['owner'] + 1}, "
+                f"but Player {claimant + 1} claimed the Area"
+            )
+
+
 def cards_played(view: View, player: int, cards: tuple[str, ...]) -> int:
     """How many of `cards` `player` has played."""
     return sum(1 for card_id in view["players"][player]["played_cards"] if card_id in cards)
 
 
 def only_legal_areas_offered(view: View, decision: Decision | None) -> Iterator[str]:
-    """A choose-an-Area Decision offers exactly the Areas where its Tile may go."""
+    """A choose-an-Area Decision offers exactly the Areas where its Tile may go, or that Land
+    Claim may claim."""
     if decision is None or decision["kind"] != "area" or not decision["options"]:
         return
     details = decision["options"][0]["details"]
-    tile, on = details["tile"], details.get("on", "usual")
     offered = {option["details"]["area"] for option in decision["options"]}
-    legal = legal_areas(view, tile, decision["player"], on)
-    article_and_name = f"{'an' if tile == 'ocean' else 'a'} {TILE_NAMES[tile]}{OTHER_AREAS.get(on, '')}"
+    if details["type"] == "claim_area":
+        legal = claimable_areas(view)
+        article_and_name = "Land Claim"
+    else:
+        tile, on = details["tile"], details.get("on", "usual")
+        legal = legal_areas(view, tile, decision["player"], on)
+        name = tile_name(tile, details.get("card"))
+        article_and_name = f"{'an' if tile == 'ocean' else 'a'} {name}{OTHER_AREAS.get(on, '')}"
     for area_id in sorted(offered - legal):
         yield f"the Area Decision for {article_and_name} offers {area_id}, where it may not go"
     for area_id in sorted(legal - offered):
@@ -223,11 +316,23 @@ def legal_areas(view: View, tile: str, player: int, on: str = "usual") -> set[st
     - "ocean_areas" (Mangrove's Greenery): any free Area reserved for Oceans;
     - "land" (Artificial Lake's Ocean): any free land, an Area reserved for nothing;
     - "next_to_two_cities" (Urbanized Area's City): any free land next to at least 2 Cities;
-    - "next_to_no_other_tile" (Research Outpost's City): any free land next to no Tile."""
+    - "next_to_no_other_tile" (Research Outpost's City): any free land next to no Tile;
+    - "next_to_a_city" (Industrial Center's Tile): any free land next to a City;
+    - "volcanoes" (Lava Flows' Tile): any free volcano;
+    - "steel_or_titanium_bonus" (Mining Rights' Tile): any free land with such a bonus;
+    - "steel_or_titanium_bonus_next_to_own_tile" (Mining Area's): the same, next to its owner's Tile;
+    - a card's reserved Area (Noctis City, Phobos Space Haven, Ganymede Colony): that Area, if free.
+    A special Tile goes on any free land otherwise. Land claimed by another Player is never free."""
     tiles = tiles_on_the_board(view)
+    if on in RESERVED_FOR_CARDS.values():
+        (area_id,) = [area_id for area_id, card in RESERVED_FOR_CARDS.items() if card == on]
+        return set() if area_id in tiles else {area_id}
     if on == "ocean_areas" or (tile == "ocean" and on == "usual"):
         return {area_id for area_id in OCEAN_AREAS if area_id not in tiles}
-    free_land = {area_id for area_id in LAND_AREAS if area_id not in tiles}
+    claimed_by_others = {
+        entry["area"] for entry in view["board"] if entry["claimed_by"] not in (None, player)
+    }
+    free_land = {area_id for area_id in LAND_AREAS if area_id not in tiles and area_id not in claimed_by_others}
 
     def next_to(area_id: str, wanted: Callable[[dict[str, Any]], bool]) -> bool:
         return any(wanted(tiles[next_area]) for next_area in ADJACENT_AREAS[area_id] if next_area in tiles)
@@ -235,8 +340,17 @@ def legal_areas(view: View, tile: str, player: int, on: str = "usual") -> set[st
     def cities_next_to(area_id: str) -> int:
         return sum(1 for next_area in ADJACENT_AREAS[area_id] if tiles.get(next_area, {}).get("type") == "city")
 
-    if on == "land":
+    if on == "land" or (tile == "special" and on == "usual"):
         return free_land
+    if on == "next_to_a_city":
+        return {area_id for area_id in free_land if cities_next_to(area_id) >= 1}
+    if on == "volcanoes":
+        return free_land & set(VOLCANOES)
+    if on == "steel_or_titanium_bonus":
+        return free_land & set(STEEL_OR_TITANIUM_LAND)
+    if on == "steel_or_titanium_bonus_next_to_own_tile":
+        mining_land = free_land & set(STEEL_OR_TITANIUM_LAND)
+        return {area_id for area_id in mining_land if next_to(area_id, lambda each: each["owner"] == player)}
     if on == "next_to_two_cities":
         return {area_id for area_id in free_land if cities_next_to(area_id) >= 2}
     if on == "next_to_no_other_tile":
@@ -247,9 +361,19 @@ def legal_areas(view: View, tile: str, player: int, on: str = "usual") -> set[st
     return next_to_own or free_land
 
 
+def claimable_areas(view: View) -> set[str]:
+    """The Areas Land Claim may claim: free land that nobody has claimed."""
+    return {
+        entry["area"]
+        for entry in view["board"]
+        if entry["area"] in LAND_AREAS and entry["tile"] is None and entry["claimed_by"] is None
+    }
+
+
 def robotic_workforce_copies_only_your_building_cards(view: View, decision: Decision | None) -> Iterator[str]:
     """Robotic Workforce copies only the production box of a building card the Player has
-    played: an Automated or Active card with a building Tag and a printed production box."""
+    played: an Automated or Active card with a building Tag and a printed production box that is
+    not part of its action."""
     if decision is None:
         return
     player = decision["player"]
@@ -264,6 +388,7 @@ def robotic_workforce_copies_only_your_building_cards(view: View, decision: Deci
             and card["type"] in ("automated", "active")
             and "building" in card["tags"]
             and has_printed_production_box(card)
+            and card["id"] not in PRODUCTION_BOX_IN_THE_ACTION
         )
         if not building_card:
             yield (
@@ -576,15 +701,20 @@ def parts_shown_on_the_board(view: View, player: int) -> dict[str, int]:
 
 def card_victory_points(view: View, player: int) -> int:
     """The Victory Points printed on `player`'s played cards: a fixed number, or points for
-    every so many of their Tags in play (no Tag on a played Event counts) or of the Tiles in
-    play. Card Resources (ticket 19) and Tiles of cards (ticket 18) don't exist yet, so they
-    count 0."""
+    every so many of their Tags in play (no Tag on a played Event counts), of the Tiles in
+    play, or of the Tiles next to the card's own Tile (Capital's Oceans, Commercial District's
+    Cities). Card Resources (ticket 19) don't exist yet, so they count 0."""
     played = [CARDS[card_id] for card_id in view["players"][player]["played_cards"]]
     tags = Counter(tag for card in played if card["type"] != "event" for tag in card["tags"])
-    tiles = Counter(tile["type"] for tile in tiles_on_the_board(view).values())
+    on_the_board = tiles_on_the_board(view)
+    tiles = Counter(tile["type"] for tile in on_the_board.values())
 
-    def count(of: dict[str, str]) -> int:
+    def count(card_id: str, of: dict[str, str]) -> int:
         ((kind, what),) = of.items()
+        if kind == "adjacent":
+            own_tile = [area_id for area_id, tile in on_the_board.items() if tile.get("card") == card_id]
+            next_to = [next_area for area_id in own_tile for next_area in ADJACENT_AREAS.get(area_id, [])]
+            return sum(1 for next_area in next_to if on_the_board.get(next_area, {}).get("type") == what)
         return {"tag": tags[what], "tiles_in_play": tiles[what]}.get(kind, 0)
 
     points = 0
@@ -593,8 +723,8 @@ def card_victory_points(view: View, player: int) -> int:
         if isinstance(printed, int):
             points += printed
         elif printed is not None and "per" in printed:
-            points += printed["points"] * (count(printed["of"]) // printed["per"])
-        elif printed is not None and count(printed["of"]) >= printed["at_least"]:
+            points += printed["points"] * (count(card["id"], printed["of"]) // printed["per"])
+        elif printed is not None and count(card["id"], printed["of"]) >= printed["at_least"]:
             points += printed["points"]
     return points
 
@@ -602,6 +732,12 @@ def card_victory_points(view: View, player: int) -> int:
 def counted(count: int, thing: str, things: str | None = None) -> str:
     """"1 Award", "0 Milestones", or with `things` for an irregular plural, "2 Greeneries"."""
     return f"{count} {thing if count == 1 else things or thing + 's'}"
+
+
+def tile_name(kind: str, card: str | None = None) -> str:
+    """How messages name a Tile of `kind`: "City", or for the special Tile of `card`, "Nuclear
+    Zone Tile"."""
+    return f"{CARDS[card]['name']} Tile" if card else TILE_NAMES[kind]
 
 
 def tiles_on_the_board(view: View) -> dict[str, dict[str, Any]]:
@@ -614,6 +750,8 @@ AFTER_EVERY_DECISION: tuple[Check, ...] = (
     production_within_its_limits,
     global_parameters_within_range,
     tiles_only_on_legal_areas,
+    special_tiles_where_their_cards_put_them,
+    each_reserved_area_used_only_by_its_card,
     only_legal_areas_offered,
     robotic_workforce_copies_only_your_building_cards,
     card_actions_used_once_per_generation,

@@ -13,6 +13,7 @@ from tests.helpers import (
     player_board,
     resources,
     scenario,
+    special,
     terraformed_mars,
 )
 
@@ -126,6 +127,13 @@ def test_landlord_goes_to_whoever_owns_the_most_tiles_and_oceans_belong_to_nobod
     game = scenario(player(), player(), player(), awards=[funded("landlord", by=2)], **terraformed_mars(tiles=tiles))
 
     assert award_points(game) == [5, 2, 0]
+
+
+def test_landlord_counts_special_tiles_and_the_cities_off_mars():
+    tiles = [city("phobos_space_haven", 0), special("C4", "nuclear_zone", 0), greenery("J1", 1), greenery("J3", 1)]
+    game = scenario(player(), player(), awards=[funded("landlord", by=1)], **terraformed_mars(tiles=tiles))
+
+    assert award(game, "landlord")["counts"] == [2, 2]
 
 
 def test_banker_goes_to_the_highest_megacredit_production_even_below_zero():

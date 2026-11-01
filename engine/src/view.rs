@@ -6,7 +6,9 @@ use std::collections::BTreeMap;
 
 use serde::Serialize;
 
-use crate::board::{AREA_COUNT, Areas, Board, TileKind, area_id, area_label, printed, row_and_position};
+use crate::board::{
+    AREA_COUNT, Areas, Board, SpecialTile, TileKind, area_id, area_label, printed, row_and_position,
+};
 use crate::card_code::insulation_change;
 use crate::card_flow::{CARD_PRICE, PATENT_VALUE};
 use crate::card_set::CardSet;
@@ -144,6 +146,13 @@ pub enum OptionDetails {
         tile: TileKind,
         #[serde(skip_serializing_if = "Areas::is_usual")]
         on: Areas,
+        /// For a special Tile, the card whose symbol it is printed with.
+        #[serde(skip_serializing_if = "Option::is_none")]
+        card: Option<SpecialTile>,
+    },
+    /// An Area to claim with Land Claim.
+    ClaimArea {
+        area: String,
     },
 }
 
@@ -206,6 +215,8 @@ pub struct AreaView {
     /// The placement bonus, one entry per item: "steel", "titanium", "plant" or "card".
     pub bonus: Vec<&'static str>,
     pub tile: Option<TileView>,
+    /// The Player who claimed it with Land Claim, if anyone has: only they may place a Tile there.
+    pub claimed_by: Option<usize>,
 }
 
 #[derive(Serialize)]
@@ -214,6 +225,9 @@ pub struct TileView {
     pub kind: TileKind,
     /// The owning Player, or None for an Ocean.
     pub owner: Option<usize>,
+    /// For a special Tile, the card whose symbol it is printed with, by catalog id.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub card: Option<SpecialTile>,
 }
 
 /// What everyone can see of a Player.
@@ -457,7 +471,12 @@ fn board_view(board: &Board) -> Vec<AreaView> {
                 position: row_and_position.map(|(_, position)| position + 1),
                 reserved: printed.reserved.map(|reservation| reservation.name()),
                 bonus: printed.bonus.iter().map(|item| item.name()).collect(),
-                tile: board.tile(area).map(|tile| TileView { kind: tile.kind, owner: tile.owner }),
+                tile: board.tile(area).map(|tile| TileView {
+                    kind: tile.kind,
+                    owner: tile.owner,
+                    card: tile.special,
+                }),
+                claimed_by: board.claim().filter(|claim| claim.area == area).map(|claim| claim.player),
             }
         })
         .collect()
@@ -559,8 +578,9 @@ fn label(game: &Game, player: usize, option: &DecisionOption) -> String {
         DecisionOption::Pass => "Pass".to_string(),
         DecisionOption::Done => "Done".to_string(),
         DecisionOption::PlaceTile { placement, area } => {
-            format!("Place the {} on {}", placement.tile.name(), area_label(*area))
+            format!("Place {} on {}", placement.tile_name(), area_label(*area))
         }
+        DecisionOption::ClaimArea(area) => format!("Claim {}", area_label(*area)),
     }
 }
 
@@ -673,8 +693,12 @@ fn details(game: &Game, player: usize, option: &DecisionOption) -> OptionDetails
         DecisionOption::EndTurn => OptionDetails::EndTurn,
         DecisionOption::Pass => OptionDetails::Pass,
         DecisionOption::Done => OptionDetails::Done,
-        DecisionOption::PlaceTile { placement, area } => {
-            OptionDetails::Area { area: area_id(*area), tile: placement.tile, on: placement.on }
-        }
+        DecisionOption::PlaceTile { placement, area } => OptionDetails::Area {
+            area: area_id(*area),
+            tile: placement.tile,
+            on: placement.on,
+            card: placement.special,
+        },
+        DecisionOption::ClaimArea(area) => OptionDetails::ClaimArea { area: area_id(*area) },
     }
 }

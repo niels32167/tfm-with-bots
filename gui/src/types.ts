@@ -141,12 +141,14 @@ export interface Award {
   counts: number[];
 }
 
-export type TileType = "ocean" | "greenery" | "city";
+export type TileType = "ocean" | "greenery" | "city" | "special";
 
 export interface Tile {
   type: TileType;
   /** The owning Player, or null for an Ocean. */
   owner: number | null;
+  /** For a special Tile, the id of the card whose symbol it is printed with (Capital's City too). */
+  card?: string;
 }
 
 export type BonusItem = "steel" | "titanium" | "plant" | "card";
@@ -164,6 +166,8 @@ export interface Area {
   reserved: string | null;
   bonus: BonusItem[];
   tile: Tile | null;
+  /** The Player who claimed it with Land Claim, if anyone has: only they may place a Tile there. */
+  claimed_by: number | null;
 }
 
 /** One Player's Player View, or the full view. */

@@ -18,6 +18,7 @@ from tests.helpers import (
     resources,
     scenario,
     skip_buying,
+    special,
 )
 
 
@@ -142,12 +143,24 @@ def test_a_scenario_cannot_put_a_tile_where_the_rules_never_allow_one():
 
     rejected(ocean("C3"), "Ocean on C3, which is not reserved for Oceans")
     rejected(city("A2", owner=0), "City on A2, which is reserved for Oceans")
-    rejected(greenery("E3", owner=0), "Greenery on E3, which is reserved for the Noctis City card")
-    rejected(city("phobos_space_haven", owner=0), "City on phobos_space_haven, which is reserved for the Phobos")
+    rejected(greenery("E3", owner=0), "Greenery on E3, which is reserved for the Noctis City card's City")
+    rejected(special("phobos_space_haven", "nuclear_zone", owner=0), "phobos_space_haven, which is reserved for the Phobos")
+    rejected(special("A2", "nuclear_zone", owner=0), "special Tile on A2, which is reserved for Oceans")
+    rejected({"area": "C3", "tile": "special", "owner": 0}, "needs the card it is printed with")
+    rejected({"area": "C3", "tile": "city", "card": "nuclear_zone", "owner": 0}, "the Nuclear Zone Tile is no City")
+    rejected({"area": "C3", "tile": "special", "card": "noctis_city", "owner": 0}, "noctis_city")
     rejected(ocean("Z9"), "no Area 'Z9'")
     rejected({"area": "A2", "tile": "ocean", "owner": 0}, "Oceans belong to nobody")
     rejected({"area": "C3", "tile": "city"}, "a City needs an owner")
     rejected(city("C3", owner=2), "owner must be one of the Players, indexed 0 to 1")
+
+
+def test_a_scenario_may_put_the_reserved_areas_cities_and_mohole_areas_tile_where_their_cards_place_them():
+    tiles = [city("E3", owner=0), city("phobos_space_haven", owner=1), special("A2", "mohole_area", owner=0)]
+
+    game = scenario(player(), player(), tiles=tiles)
+
+    assert area(game, "phobos_space_haven")["tile"] == {"type": "city", "owner": 1}
 
 
 def test_a_scenario_has_at_most_one_tile_per_area_and_at_most_9_oceans():

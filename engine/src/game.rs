@@ -9,7 +9,7 @@ use std::fmt;
 
 use serde::{Deserialize, Serialize};
 
-use crate::board::{Areas, Board, BonusItem, Placement, Tile, TileKind, printed};
+use crate::board::{Areas, Board, BonusItem, Placement, SpecialTile, Tile, TileKind, printed};
 use crate::card_actions::ResourceChange;
 use crate::card_code::FLOODING;
 use crate::card_flow::{Buying, Keeping};
@@ -213,7 +213,7 @@ impl StandardProject {
 pub enum DecisionKind {
     /// Choose an Action, end the Turn, or Pass.
     Action,
-    /// Choose the Area for a Tile.
+    /// Choose the Area for a Tile, or the Area to claim with Land Claim.
     Area,
     /// Choose how to pay for the card being played.
     Payment,
@@ -306,6 +306,8 @@ pub enum DecisionOption {
         placement: Placement,
         area: usize,
     },
+    /// Claim this Area with Land Claim.
+    ClaimArea(usize),
 }
 
 /// What the current Player's Decision is about, other than the one their Phase asks for.
@@ -329,6 +331,8 @@ pub enum Waiting {
     DiscardToDraw,
     /// Whom a card takes Production or Resources from.
     Target(Targeting),
+    /// Which Area they claim with Land Claim, which they are playing.
+    ClaimArea,
 }
 
 #[derive(Clone, Debug)]
@@ -468,6 +472,9 @@ impl Game {
         }
         let (kind, options) = match (self.waiting, self.phase) {
             (Some(Waiting::Area(placement)), _) => (DecisionKind::Area, self.area_options(placement)),
+            (Some(Waiting::ClaimArea), _) => {
+                (DecisionKind::Area, self.board.claimable_areas().map(DecisionOption::ClaimArea).collect())
+            }
             (Some(Waiting::Payment(card)), _) => (DecisionKind::Payment, self.payment_options(card)),
             (Some(Waiting::Production(card)), _) => {
                 (DecisionKind::Production, self.production_options(self.current_player, card))
@@ -545,7 +552,10 @@ impl Game {
                 StandardProject::SellPatents => !player.hand.is_empty(),
                 _ => {
                     player.resources.megacredits >= project.cost()
-                        && self.can_take_action_placing(project.tile().map(Placement::usual))
+                        && self.can_take_action_placing(
+                            self.current_player,
+                            project.tile().map(Placement::usual),
+                        )
                 }
             };
             if can_use {
@@ -581,14 +591,14 @@ impl Game {
         options
     }
 
-    /// Whether an Action that makes `placement` (or places no Tile, for None) may be taken: only
-    /// if the Tile has an Area to go on. Actions that raise a Global Parameter stay open once it
+    /// Whether `player` may take an Action that makes `placement` (or places no Tile, for None):
+    /// only if the Tile has an Area to go on. Actions that raise a Global Parameter stay open once it
     /// is at its maximum, though: Aquifer once 9 Oceans are placed (see docs/rules-notes.md).
-    pub(crate) fn can_take_action_placing(&self, placement: Option<Placement>) -> bool {
+    pub(crate) fn can_take_action_placing(&self, player: usize, placement: Option<Placement>) -> bool {
         match placement {
             None => true,
             Some(placement) if placement.tile == TileKind::Ocean && self.board.oceans() >= MAX_OCEANS => true,
-            Some(placement) => self.board.has_area_for(placement),
+            Some(placement) => self.board.has_area_for(placement, player),
         }
     }
 
@@ -614,7 +624,7 @@ impl Game {
 
     fn can_convert_plants(&self, player: usize) -> bool {
         self.players[player].resources.plants >= PLANTS_PER_GREENERY
-            && self.board.has_area_for(Placement::usual(TileKind::Greenery))
+            && self.board.has_area_for(Placement::usual(TileKind::Greenery), player)
     }
 
     /// Every way the current Player may pay for `card`.
@@ -709,7 +719,13 @@ impl Game {
             }
             DecisionOption::PlaceTile { placement, area } => {
                 self.waiting = None;
-                self.place_tile(player, placement.tile, area);
+                self.place_tile(player, placement, area);
+                self.finish_unless_placing();
+            }
+            DecisionOption::ClaimArea(area) => {
+                self.waiting = None;
+                self.board.claim_area(area, player);
+                self.log.push(LogEvent::ClaimedArea { player, area });
                 self.finish_unless_placing();
             }
             DecisionOption::EndTurn => {
@@ -767,9 +783,9 @@ impl Game {
         self.wait_on(Waiting::Area(placement));
     }
 
-    /// Whether the Game waits on an Area for a Tile.
+    /// Whether the Game waits on an Area for a Tile, or for Land Claim to claim.
     pub(crate) fn is_placing(&self) -> bool {
-        matches!(self.waiting, Some(Waiting::Area(_)))
+        matches!(self.waiting, Some(Waiting::Area(_) | Waiting::ClaimArea))
     }
 
     fn finish_action(&mut self) {
@@ -932,19 +948,20 @@ impl Game {
     /// Area).
     pub(crate) fn place_ocean(&mut self, on: Areas) {
         if self.board.oceans() < MAX_OCEANS {
-            self.place(Placement { tile: TileKind::Ocean, on });
+            self.place(Placement { tile: TileKind::Ocean, on, special: None });
         } else {
             self.log.push(LogEvent::OceansAlreadyAtMaximum);
         }
     }
 
-    /// Places `tile` for `player` on `area`. An Ocean raises their Terraform Rating, and a
+    /// Makes `placement` for `player` on `area`. An Ocean raises their Terraform Rating, and a
     /// Greenery Oxygen. Then `player` collects the placement bonus, unless that raise gave
     /// them another Tile to place: the bonus then waits until that Tile is down.
-    fn place_tile(&mut self, player: usize, tile: TileKind, area: usize) {
+    fn place_tile(&mut self, player: usize, placement: Placement, area: usize) {
+        let Placement { tile, special, .. } = placement;
         let owner = if tile == TileKind::Ocean { None } else { Some(player) };
-        self.board.place(area, Tile { kind: tile, owner });
-        self.log.push(LogEvent::PlacedTile { player, tile, area });
+        self.board.place(area, Tile { kind: tile, owner, special });
+        self.log.push(LogEvent::PlacedTile { player, placement, area });
         if tile == TileKind::Ocean && self.placing_for.is_some_and(|tiles| tiles.card == FLOODING) {
             self.take_next_to_floodings_ocean(area);
         }
@@ -954,7 +971,10 @@ impl Game {
                 self.log.push(LogEvent::OceansRaised { player, oceans: self.board.oceans() });
             }
             TileKind::Greenery => self.raise_oxygen(player),
-            TileKind::City => {}
+            TileKind::City | TileKind::Special => {}
+        }
+        if matches!(special, Some(SpecialTile::MiningArea | SpecialTile::MiningRights)) {
+            self.raise_mining_production(player, area);
         }
         self.set_off(Happened::TilePlaced { player, tile });
         if self.is_placing() {

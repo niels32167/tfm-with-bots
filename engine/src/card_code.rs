@@ -2,10 +2,11 @@
 //! is named by its index in the card catalog, its printed number minus 1, which the catalog
 //! checks against the card's id when it is read.
 
+use crate::board::{SpecialTile, mining_resource};
 use crate::cards::{CARD_CATALOG, CardType, Effects, Tag};
 use crate::game::{DecisionOption, Game, Waiting};
 use crate::log::LogEvent;
-use crate::resources::Resources;
+use crate::resources::{Resource, Resources};
 use crate::targets::Targeting;
 
 /// #086 Robotic Workforce: "Duplicate only the production box of one of your building cards."
@@ -36,14 +37,25 @@ pub const MARS_UNIVERSITY: usize = 72;
 /// all 9 Oceans are placed, from nobody (see docs/rules-notes.md).
 pub const FLOODING: usize = 187;
 
+/// #064 Mining Area: "Place this tile on an area with a steel or titanium placement bonus, adjacent
+/// to another of your tiles. Increase your production of that resource 1 step." Its effect data is
+/// its Tile; the Production its Area gives is code, and Robotic Workforce copies it.
+pub const MINING_AREA: usize = SpecialTile::MiningArea.card();
+
+/// #067 Mining Rights: "Place this tile on an area with a steel or titanium placement bonus.
+/// Increase that production 1 step." Like Mining Area, but anywhere on such an Area.
+pub const MINING_RIGHTS: usize = SpecialTile::MiningRights.card();
+
 /// Every card with code here, and its id.
-pub const CARDS_WITH_CODE: [(usize, &str); 6] = [
+pub const CARDS_WITH_CODE: [(usize, &str); 8] = [
     (ROBOTIC_WORKFORCE, "robotic_workforce"),
     (INSULATION, "insulation"),
     (POWER_INFRASTRUCTURE, "power_infrastructure"),
     (IMMIGRANT_CITY, "immigrant_city"),
     (MARS_UNIVERSITY, "mars_university"),
     (FLOODING, "flooding"),
+    (MINING_AREA, "mining_area"),
+    (MINING_RIGHTS, "mining_rights"),
 ];
 
 /// Insulation's Production change for `steps`: that many steps of heat Production traded for as
@@ -61,15 +73,16 @@ pub fn energy_for_megacredits(amount: i32) -> Resources {
 impl Game {
     /// The cards whose production box `player` may copy with Robotic Workforce: their own played
     /// Automated and Active cards with a building Tag and a production box they can carry out in
-    /// full. A card's production box is its fixed and per-Tag Production data; a test checks that
-    /// against every printed box.
+    /// full. A card's production box is its fixed and per-Tag Production data, or the Production
+    /// a mining card's Tile gave; a test checks that against every printed box.
     pub(crate) fn copyable_production_boxes(&self, player: usize) -> impl Iterator<Item = usize> {
         self.players[player].played.iter().filter(move |&card| {
             let printed = &CARD_CATALOG[card];
             printed.card_type != CardType::Event
                 && printed.has_tag(Tag::Building)
-                && printed.has_production_box()
-                && self.can_carry_out_production_box(player, printed.implemented_effects())
+                && (self.mining_tile_resource(card).is_some()
+                    || printed.has_production_box()
+                        && self.can_carry_out_production_box(player, printed.implemented_effects()))
         })
     }
 
@@ -84,12 +97,34 @@ impl Game {
     /// Production, then its Production per Tag or Tile, counted now.
     pub(crate) fn copy_production_box(&mut self, player: usize, card: usize) {
         self.log.push(LogEvent::CopiedProductionBox { player, card });
+        if let Some(resource) = self.mining_tile_resource(card) {
+            self.change_production(player, resource, 1);
+            return;
+        }
         let effects = CARD_CATALOG[card].implemented_effects();
         self.change_productions(player, effects.production);
         self.change_production_per(player, effects.production_per);
         if !effects.any_player_production().is_zero() {
             self.take_from_any_player_later(card);
         }
+    }
+
+    /// The Resource whose Production `card`'s Tile raised, if `card` is Mining Area or Mining
+    /// Rights (the FAQ has Robotic Workforce copy it): the steel or titanium of its Area's
+    /// placement bonus.
+    fn mining_tile_resource(&self, card: usize) -> Option<Resource> {
+        if card != MINING_AREA && card != MINING_RIGHTS {
+            return None;
+        }
+        let tile = SpecialTile::of_card(card)?;
+        self.board.area_of(tile).and_then(mining_resource)
+    }
+
+    /// Once Mining Area's or Mining Rights' Tile is on `area`, `player` raises their Production of
+    /// the steel or titanium its placement bonus gives.
+    pub(crate) fn raise_mining_production(&mut self, player: usize, area: usize) {
+        let resource = mining_resource(area).expect("a mining Tile goes on a steel or titanium bonus");
+        self.change_production(player, resource, 1);
     }
 
     /// Whether `player` can carry out Immigrant City: place its City, then lower their Production
@@ -99,7 +134,7 @@ impl Game {
         let mut production = effects.production;
         production.megacredits += 1;
         self.can_change_production(player, production)
-            && effects.tiles.iter().all(|&placement| self.can_take_action_placing(Some(placement)))
+            && effects.tiles.iter().all(|&placement| self.can_take_action_placing(player, Some(placement)))
     }
 
     /// Offers the current Player, done with the card they played, to discard a card to draw one

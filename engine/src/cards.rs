@@ -8,7 +8,7 @@ use std::sync::LazyLock;
 
 use serde::{Deserialize, Serialize};
 
-use crate::board::{Placement, TileKind};
+use crate::board::{Placement, SpecialTile, TileKind};
 use crate::card_code::CARDS_WITH_CODE;
 use crate::card_set::CardSet;
 use crate::resources::{Resource, Resources};
@@ -27,6 +27,15 @@ pub static CARD_CATALOG: LazyLock<Vec<Card>> = LazyLock::new(|| {
         assert_eq!(
             file.cards[card].id, id,
             "card {card} of the catalog is not the card its Rust code is for"
+        );
+    }
+    for tile in SpecialTile::ALL {
+        let id = serde_json::to_value(tile).expect("a special Tile is written as its card's id");
+        assert_eq!(
+            file.cards[tile.card()].id,
+            id,
+            "card {} of the catalog does not place {tile:?}",
+            tile.card()
         );
     }
     file.cards
@@ -117,8 +126,9 @@ impl Card {
 /// Tile, then for having at least so many), Temperature and Oxygen steps, Terraform Rating
 /// (fixed, then per Tag), cards drawn, cards looked at to keep or buy some of, the Production or
 /// Resource change the Player chooses, the Tiles one at a time, and then what it takes from any
-/// Player. For the cards described this way the order never changes the outcome; a card whose
-/// effects depend on their order gets its own Rust code.
+/// Player. Claiming an Area (Land Claim) is a card's only effect. For the cards described this
+/// way the order never changes the outcome; a card whose effects depend on their order gets its
+/// own Rust code.
 #[derive(Debug, Default, Serialize, Deserialize)]
 #[serde(default, deny_unknown_fields)]
 pub struct Effects {
@@ -171,6 +181,10 @@ pub struct Effects {
     /// The Tiles to place, in order, each on the Areas it may go on. An action places at most
     /// one.
     pub tiles: Vec<Placement>,
+    /// Only for a card when played: whether its Player claims an Area that only they may place a
+    /// Tile on from then on (Land Claim).
+    #[serde(skip_serializing_if = "is_false")]
+    pub claim_area: bool,
     /// Only for a card when played: its action, which its Player may use once per Generation
     /// (an Active card's red arrow). None for a card without one.
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -269,6 +283,10 @@ pub struct NextCard {
 
 fn is_zero(value: &i32) -> bool {
     *value == 0
+}
+
+fn is_false(value: &bool) -> bool {
+    !*value
 }
 
 /// MegaCredits added to what a steel cube and a titanium cube pay.

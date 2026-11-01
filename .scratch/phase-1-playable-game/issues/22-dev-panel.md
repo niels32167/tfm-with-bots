@@ -30,3 +30,13 @@ With the state editor, the user can give a Player Resources or Production, set G
 - **Scenarios don't check** that Cities keep apart, so they accept a position after Urbanized Area
   (ticket 12), but also Cities next to each other that no rule allows. The fuzzer's
   `tiles_only_on_legal_areas` says what is legal, and the state editor could reuse its rules.
+
+### 2026-11-01 — notes from ticket 18 (Claude)
+
+- **Scenarios now describe special Tiles and Land Claim**: `{"area": "C4", "tile": "special",
+  "card": "nuclear_zone", "owner": 0}` (Capital's is a `"city"` with `"card": "capital"`), a City on
+  an Area reserved for a card's City, Mohole Area's Tile on an Area reserved for Oceans, and
+  `"land_claim": {"area": "C3", "player": 1}`. They don't check that the Tile's card was played, or
+  where a special Tile's card allows it (Lava Flows on a volcano, and so on); the fuzzer's
+  `special_tiles_where_their_cards_put_them` and `each_reserved_area_used_only_by_its_card` say
+  what is legal, and the state editor could reuse them.

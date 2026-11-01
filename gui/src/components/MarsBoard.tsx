@@ -2,7 +2,7 @@ import type { KeyboardEvent, ReactNode } from "react";
 
 import { TILE_NAMES } from "../format";
 import { PLAYER_COLOURS } from "../players";
-import type { Area, BonusItem, Decision, DecisionOption, Tile } from "../types";
+import type { Area, BonusItem, Card, Decision, DecisionOption, Tile } from "../types";
 import { OxygenTrack } from "./OxygenTrack";
 
 // Areas are hexagons with a corner at the top. SIZE is the distance from the centre of
@@ -24,6 +24,20 @@ const HEXAGON = [30, 90, 150, 210, 270, 330]
   })
   .join(" ");
 
+// The symbol drawn on each special Tile, by its card's id, after the card's own art where it has
+// one. Capital's City gets a star over its skyline.
+const SPECIAL_SYMBOLS: Record<string, string> = {
+  capital: "★",
+  natural_preserve: "✿",
+  mining_area: "⚒",
+  mining_rights: "⚒",
+  commercial_district: "€",
+  nuclear_zone: "☢",
+  industrial_center: "⚙",
+  lava_flows: "▲",
+  mohole_area: "♨",
+  restricted_area: "⊘",
+};
 
 interface Props {
   board: Area[];
@@ -31,6 +45,8 @@ interface Props {
   oxygen: number;
   /** Each Player's name, by index, for the tooltips. */
   playerNames: string[];
+  /** The card catalog, for the names of special Tiles. */
+  cards: Card[];
   /** The Decision a human at the screen must answer, if any. Its Areas are highlighted and clickable. */
   decision: Decision | null;
   /** True while a pick is on its way to the server. */
@@ -39,7 +55,7 @@ interface Props {
 }
 
 /** Mars with every Area, its placement bonus and its Tile, as on the Tharsis board, and the Oxygen track round it. */
-export function MarsBoard({ board, oxygen, playerNames, decision, disabled, onPick }: Props) {
+export function MarsBoard({ board, oxygen, playerNames, cards, decision, disabled, onPick }: Props) {
   const options = areaOptions(decision);
   const rowLengths = new Map<number, number>();
   for (const area of board) {
@@ -80,6 +96,8 @@ export function MarsBoard({ board, oxygen, playerNames, decision, disabled, onPi
             y={y}
             offMars={area.row === null}
             ownerName={area.tile?.owner != null ? playerNames[area.tile.owner] : null}
+            claimantName={area.claimed_by !== null ? playerNames[area.claimed_by] : null}
+            specialName={cards.find((card) => card.id === area.tile?.card)?.name ?? null}
             option={options.get(area.area)}
             onPick={pick}
           />
@@ -89,11 +107,12 @@ export function MarsBoard({ board, oxygen, playerNames, decision, disabled, onPi
   );
 }
 
-/** The Options of a choose-an-Area Decision, by the Area they name. */
+/** The Options of a choose-an-Area Decision, for a Tile or for Land Claim, by the Area they name. */
 function areaOptions(decision: Decision | null): Map<string, DecisionOption> {
   const options = new Map<string, DecisionOption>();
   for (const option of decision?.options ?? []) {
-    if (option.details.type === "area") options.set(option.details.area as string, option);
+    const { type, area } = option.details;
+    if (type === "area" || type === "claim_area") options.set(area as string, option);
   }
   return options;
 }
@@ -117,11 +136,15 @@ interface AreaMarkProps {
   offMars: boolean;
   /** The name of the Player who owns its Tile, if anyone does. */
   ownerName: string | null;
+  /** The name of the Player who claimed it with Land Claim, if anyone did. */
+  claimantName: string | null;
+  /** The name of the card whose symbol its special Tile is printed with, if it has one. */
+  specialName: string | null;
   option: DecisionOption | undefined;
   onPick: (option: DecisionOption) => void;
 }
 
-function AreaMark({ area, x, y, offMars, ownerName, option, onPick }: AreaMarkProps) {
+function AreaMark({ area, x, y, offMars, ownerName, claimantName, specialName, option, onPick }: AreaMarkProps) {
   const classes = [
     "area",
     offMars ? "off-mars" : "",
@@ -145,9 +168,12 @@ function AreaMark({ area, x, y, offMars, ownerName, option, onPick }: AreaMarkPr
     : {};
   return (
     <g className={classes.join(" ")} transform={`translate(${x.toFixed(2)} ${y.toFixed(2)})`} {...interactive}>
-      <title>{describe(area, ownerName)}</title>
+      <title>{describe(area, ownerName, claimantName, specialName)}</title>
       {offMars ? <circle className="area-shape" r={SIZE * 0.8} /> : <polygon className="area-shape" points={HEXAGON} />}
       {area.tile ? <TileMark tile={area.tile} /> : <BonusMarks bonus={area.bonus} />}
+      {!area.tile && area.claimed_by !== null && (
+        <circle className="claim-marker" r={SIZE * 0.62} stroke={PLAYER_COLOURS[area.claimed_by]} />
+      )}
       {area.name && (
         <text className="area-name" y={offMars ? SIZE * 1.25 : -SIZE * 0.5}>
           {area.name}
@@ -162,13 +188,26 @@ function AreaMark({ area, x, y, offMars, ownerName, option, onPick }: AreaMarkPr
   );
 }
 
-/** A Tile: its colour shows its type, and a disc in its owner's colour shows whose it is. */
+/** A Tile: its colour shows its type, a special Tile's symbol its card, and a disc in its owner's
+ * colour whose it is. */
 function TileMark({ tile }: { tile: Tile }) {
+  const symbol = tile.card ? SPECIAL_SYMBOLS[tile.card] : undefined;
+  const markerY = tile.type === "city" ? 8 : tile.type === "special" ? 10 : 0;
   return (
     <g className="tile-mark">
       {tile.type === "city" && <path className="city-skyline" d="M-11,2 v-9 h5 v-5 h6 v8 h5 v-4 h6 v10 z" />}
+      {symbol && (
+        <text className={`special-symbol ${tile.type === "city" ? "on-city" : ""}`} y={tile.type === "city" ? -14 : -3}>
+          {symbol}
+        </text>
+      )}
       {tile.owner !== null && (
-        <circle className="owner-marker" cy={tile.type === "city" ? 8 : 0} r={7} fill={PLAYER_COLOURS[tile.owner]} />
+        <circle
+          className="owner-marker"
+          cy={markerY}
+          r={tile.type === "special" ? 5.5 : 7}
+          fill={PLAYER_COLOURS[tile.owner]}
+        />
       )}
     </g>
   );
@@ -207,12 +246,16 @@ const BONUS_MARKS: Record<BonusItem, ReactNode> = {
 };
 
 /** The tooltip: everything about an Area in words. */
-function describe(area: Area, ownerName: string | null): string {
+function describe(area: Area, ownerName: string | null, claimantName: string | null, specialName: string | null): string {
   const lines = [area.name ? `${area.area}: ${area.name}` : area.area];
   if (area.reserved === "ocean") lines.push("Reserved for Oceans");
   else if (area.reserved) lines.push(`Reserved for the ${area.name} card`);
   if (area.bonus.length > 0) lines.push(`Placement bonus: ${countBonus(area.bonus)}`);
-  if (area.tile) lines.push(`${TILE_NAMES[area.tile.type]}${ownerName ? ` of ${ownerName}` : ""}`);
+  if (area.tile) {
+    const tile = specialName ? `${specialName} Tile` : TILE_NAMES[area.tile.type];
+    lines.push(`${tile}${ownerName ? ` of ${ownerName}` : ""}`);
+  }
+  if (claimantName) lines.push(`Claimed by ${claimantName} with Land Claim`);
   return lines.join("\n");
 }
 

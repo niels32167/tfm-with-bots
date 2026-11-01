@@ -28,7 +28,12 @@ def card_catalog() -> list[dict[str, Any]]:
     from the top of the deck, some kept and the rest discarded, such as {"cards": 4, "keep": 2},
     or some bought at 3 MegaCredits each, {"cards": 1, "buy": 1}) and "tiles" (a list such as
     ["ocean", "ocean"], with {"tile": "greenery", "on": "ocean_areas"} for a Tile that goes on
-    other Areas than usual: "ocean_areas", "land" or "next_to_two_cities"). An Active card's
+    other Areas than usual: "ocean_areas", "land", "next_to_two_cities", "next_to_no_other_tile",
+    "next_to_a_city", "volcanoes", "steel_or_titanium_bonus",
+    "steel_or_titanium_bonus_next_to_own_tile", or a card's reserved Area, "noctis_city",
+    "phobos_space_haven" or "ganymede_colony"; "special" is the card's special Tile, printed with
+    its symbol, and Capital's City is its special Tile too) and "claim_area" (true for Land Claim,
+    whose Player claims an Area only they may place a Tile on). An Active card's
     action is "action", the same shapes again (its cost as Resources lost), plus "pay" (MegaCredits
     that steel or titanium may pay, such as {"megacredits": 12, "titanium": true}),
     "resources_per" (Resources gained per Tag or Tile, such as {"resource": "megacredits",
@@ -48,10 +53,12 @@ def card_catalog() -> list[dict[str, Any]]:
     Player who can lose every step), {"remove": [{"plants": 3}]} (Resources removed up to these
     amounts, as one of the alternatives listed: Sabotage lists three) or {"steal": [...]} (removed
     and gained, Hired Raiders). Besides Tags ({"tag": "earth"}) and Tiles ({"tiles_in_play":
-    "city"}, {"tiles_on_mars": "city"}), "of" may count the opponents' Tags ({"tags_of_opponents":
+    "city"}, {"tiles_on_mars": "city"}, and for Victory Points the Tiles next to the card's own Tile,
+    {"adjacent": "ocean"}), "of" may count the opponents' Tags ({"tags_of_opponents":
     "space"}) or every Event played ("events_played"). Cards without "effects" are never offered;
     a few cards also have Rust code of their own (Robotic Workforce, Insulation, Power
-    Infrastructure, Immigrant City, Mars University and Flooding). Each call returns a new list."""
+    Infrastructure, Immigrant City, Mars University, Flooding, Mining Area and Mining Rights). Each
+    call returns a new list."""
 
 class Game:
     """A Game of Terraforming Mars, always either over or waiting on one Decision."""
@@ -84,14 +91,18 @@ class Game:
         Resources and Production name any of the six Resources (megacredits, steel,
         titanium, plants, energy, heat); the rest keep their defaults: 42 MegaCredits and
         nothing else to start with, and no Production.
-        Each Tile is {"area": "C3", "tile": "ocean" | "greenery" | "city", "owner": 0};
-        Oceans have no owner, and the number of Oceans is the number of Ocean Tiles.
+        Each Tile is {"area": "C3", "tile": "ocean" | "greenery" | "city", "owner": 0}, and a
+        special Tile names its card, {"area": "C4", "tile": "special", "card": "nuclear_zone",
+        "owner": 0} (Capital's is a "city" with "card": "capital"); Oceans have no owner, and the
+        number of Oceans is the number of Ocean Tiles. "land_claim" is the Area claimed with
+        Land Claim, {"area": "C3", "player": 1}.
         Milestones claimed are {"milestone": "mayor", "claimed_by": 1} and Awards funded
         {"award": "landlord", "funded_by": 0}: at most three of each, each at most once.
         Raises ValueError for unknown fields or impossible values, such as a negative
         Resource, MegaCredit Production below -5 or any other Production below 0, a
         Terraform Rating below 5 (so MegaCredits never go below 0), a City on
-        an Area reserved for Oceans, or more than 9 Oceans.
+        an Area reserved for Oceans (only Mohole Area's Tile goes there, and only a City on an
+        Area reserved for a card's City), or more than 9 Oceans.
         """
 
     @staticmethod
@@ -130,7 +141,9 @@ class Game:
         for Oceans, as Mangrove's Greenery does; "land", any free Area reserved for nothing, as
         Artificial Lake's Ocean does; "next_to_two_cities", free land next to at least 2 Cities,
         as Urbanized Area's City does; "next_to_no_other_tile", free land next to no Tile, as
-        Research Outpost's City does), "production" (the Production change the card being
+        Research Outpost's City does; the other "on" of the card file's "tiles" likewise; and
+        "card" for a special Tile, such as "nuclear_zone"; or the Area Land Claim claims,
+        {"type": "claim_area", "area": "C3"}), "production" (the Production change the card being
         played makes: {"type": "choose_production", "card": "artificial_photosynthesis",
         "production": {...}} with all six Resources, or the building card whose production box
         Robotic Workforce copies, {"type": "copy_production_box", "card": "mine"}; it comes only
@@ -225,7 +238,10 @@ class Game:
         top (A to J, skipping I) and each row from the left, then the two Areas off Mars:
         {"area": "E3", "name": "Noctis City" | None, "row": 5, "position": 3,
          "reserved": "ocean" | "noctis_city" | ... | None, "bonus": ["plant", "plant"],
-         "tile": {"type": "city", "owner": 0} | None}
+         "tile": {"type": "city", "owner": 0} | None, "claimed_by": 1 | None}
+        where a special Tile also names its card, {"type": "special", "card": "nuclear_zone",
+        "owner": 0} (Capital's City is {"type": "city", "card": "capital", ...}), and "claimed_by"
+        is the Player who claimed the Area with Land Claim;
         and the five "milestones" and five "awards" in the order printed on the board:
         {"milestone": "mayor", "name": "Mayor", "condition": "Owning at least 3 Cities",
          "target": 3, "claimed_by": int | None, "counts": [int per Player]} and

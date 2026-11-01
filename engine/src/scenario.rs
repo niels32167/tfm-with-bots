@@ -7,7 +7,7 @@ use std::collections::BTreeMap;
 
 use serde::{Deserialize, Deserializer, Serialize};
 
-use crate::board::{Reservation, Tile, TileKind, find_area, printed};
+use crate::board::{Board, Reservation, SpecialTile, Tile, TileKind, find_area, printed, row_and_position};
 use crate::card_flow::Buying;
 use crate::card_set::CardSet;
 use crate::cards::find_project_card;
@@ -38,6 +38,8 @@ pub struct Scenario {
     pub oxygen: i32,
     /// The Tiles on the board. The number of Oceans is the number of Ocean Tiles.
     pub tiles: Vec<ScenarioTile>,
+    /// The Area claimed with Land Claim, if any, and by whom.
+    pub land_claim: Option<LandClaim>,
     /// The Milestones claimed so far, and by whom.
     pub milestones: Vec<ClaimedMilestone>,
     /// The Awards funded so far, and by whom.
@@ -61,6 +63,7 @@ impl Default for Scenario {
             temperature: MIN_TEMPERATURE,
             oxygen: 0,
             tiles: Vec::new(),
+            land_claim: None,
             milestones: Vec::new(),
             awards: Vec::new(),
             players: vec![ScenarioPlayer::default(); 2],
@@ -71,7 +74,8 @@ impl Default for Scenario {
     }
 }
 
-/// A Tile on an Area, such as `{"area": "C3", "tile": "city", "owner": 0}`.
+/// A Tile on an Area, such as `{"area": "C3", "tile": "city", "owner": 0}`, or a special Tile,
+/// such as `{"area": "C4", "tile": "special", "card": "nuclear_zone", "owner": 0}`.
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct ScenarioTile {
@@ -80,6 +84,20 @@ pub struct ScenarioTile {
     /// The owning Player; Oceans have none.
     #[serde(default)]
     pub owner: Option<usize>,
+    /// For a special Tile, the card whose symbol it is printed with: Capital's for its City.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub card: Option<SpecialTile>,
+}
+
+/// The Area claimed with Land Claim and the Player who claimed it, such as
+/// `{"area": "C3", "player": 1}`.
+#[derive(Clone, Debug, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct LandClaim {
+    /// The Area claimed, by its name: "C3".
+    pub area: String,
+    /// The Player who claimed it, indexed from 0.
+    pub player: usize,
 }
 
 /// A Milestone and who claimed it, such as `{"milestone": "mayor", "claimed_by": 1}`.
@@ -215,7 +233,11 @@ impl Scenario {
             if game.board.tile(area).is_some() {
                 return Err(format!("a Scenario cannot put two Tiles on {}", tile.area));
             }
-            game.board.place(area, Tile { kind: tile.tile, owner: tile.owner });
+            game.board.place(area, Tile { kind: tile.tile, owner: tile.owner, special: tile.card });
+        }
+        if let Some(claim) = &self.land_claim {
+            let area = claim.check(&game.board, self.players.len())?;
+            game.board.claim_area(area, claim.player);
         }
         if game.board.oceans() > MAX_OCEANS {
             return Err(format!(
@@ -283,11 +305,46 @@ fn check_player(player: usize, players: usize, who: &str) -> Result<(), String> 
     }
 }
 
+impl LandClaim {
+    /// The Area claimed, or why Land Claim never claims it: it must be on Mars and reserved for
+    /// nothing, with no Tile on it but its Player's.
+    fn check(&self, board: &Board, players: usize) -> Result<usize, String> {
+        let area = find_area(&self.area).ok_or_else(|| format!("there is no Area '{}'", self.area))?;
+        check_player(self.player, players, "the Player who claimed an Area")?;
+        if row_and_position(area).is_none() || printed(area).reserved.is_some() {
+            return Err(format!("Land Claim cannot claim {}, which is reserved", self.area));
+        }
+        match board.tile(area).and_then(|tile| tile.owner) {
+            Some(owner) if owner != self.player => Err(format!(
+                "a Tile of {} is on {}, which is claimed by {}",
+                player_name(owner),
+                self.area,
+                player_name(self.player)
+            )),
+            _ => Ok(area),
+        }
+    }
+}
+
 impl ScenarioTile {
     /// The Area this Tile is on, or why the rules never allow it there.
     fn check(&self, players: usize) -> Result<usize, String> {
         let area = find_area(&self.area).ok_or_else(|| format!("there is no Area '{}'", self.area))?;
         let tile = self.tile.name();
+        match (self.tile, self.card) {
+            (TileKind::Special, None) => {
+                return Err(format!("the special Tile on {} needs the card it is printed with", self.area));
+            }
+            (TileKind::City, Some(SpecialTile::Capital)) | (TileKind::Special, Some(_)) => {}
+            (_, Some(card)) => {
+                return Err(format!(
+                    "{} is no {tile}, so the {tile} on {} cannot be it",
+                    card.name(),
+                    self.area
+                ));
+            }
+            (_, None) => {}
+        }
         let reserved = printed(area).reserved;
         if self.tile == TileKind::Ocean {
             if reserved != Some(Reservation::Ocean) {
@@ -306,12 +363,16 @@ impl ScenarioTile {
         }
         match reserved {
             None => {}
+            // Mohole Area's Tile goes on an Area reserved for Oceans.
+            Some(Reservation::Ocean) if self.card == Some(SpecialTile::MoholeArea) => {}
             Some(Reservation::Ocean) => {
                 return Err(format!("cannot put a {tile} on {}, which is reserved for Oceans", self.area));
             }
+            // The City of the card it is reserved for.
+            Some(_) if self.tile == TileKind::City && self.card.is_none() => {}
             Some(_) => {
                 return Err(format!(
-                    "cannot put a {tile} on {}, which is reserved for the {} card",
+                    "cannot put a {tile} on {}, which is reserved for the {} card's City",
                     self.area,
                     printed(area).name.unwrap_or_default()
                 ));

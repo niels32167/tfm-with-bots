@@ -426,6 +426,29 @@ input[aria-invalid="true"] {
   fill: #7a7d84;
 }
 
+/* Brown, as special Tiles are printed. */
+.area.tile-special .area-shape {
+  fill: #8a5a32;
+}
+
+.special-symbol {
+  font-size: 15px;
+  font-weight: 700;
+  fill: #fbe9c8;
+}
+
+.special-symbol.on-city {
+  font-size: 11px;
+  fill: #ffd54a;
+}
+
+/* Land Claim's marker: a ring in the claiming Player's colour on an Area still free. */
+.claim-marker {
+  fill: none;
+  stroke-width: 3;
+  stroke-dasharray: 5 3;
+}
+
 .area-id {
   font-size: 7px;
   fill: rgba(255, 245, 230, 0.55);

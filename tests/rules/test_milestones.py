@@ -13,6 +13,7 @@ from tests.helpers import (
     player_board,
     resources,
     scenario,
+    special,
 )
 
 
@@ -42,6 +43,15 @@ def test_mayor_needs_3_cities_of_the_players_own():
 
     game = scenario(player(), player(), tiles=[*two_cities, city("J1", 0)])
     pick(game, "Claim the Mayor Milestone")
+    assert milestone(game, "mayor")["claimed_by"] == 0
+
+
+def test_mayor_counts_capitals_city_and_the_cities_off_mars():
+    tiles = [city("phobos_space_haven", 0), city("ganymede_colony", 0), special("C3", "capital", 0)]
+    game = scenario(player(), player(), tiles=tiles)
+
+    pick(game, "Claim the Mayor Milestone")
+
     assert milestone(game, "mayor")["claimed_by"] == 0
 
 

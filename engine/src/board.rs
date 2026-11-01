@@ -10,6 +10,7 @@ use std::sync::LazyLock;
 
 use serde::{Deserialize, Serialize};
 
+use crate::cards::CARD_CATALOG;
 use crate::resources::Resource;
 
 /// How many Areas each row of Mars has, from the top.
@@ -133,6 +134,16 @@ pub fn printed(area: usize) -> &'static PrintedArea {
     &AREAS[area]
 }
 
+/// The Resource whose Production a mining Tile on `area` raises (Mining Area, Mining Rights): the
+/// steel or titanium of its placement bonus, if it has one. No Area of the Tharsis board has both.
+pub fn mining_resource(area: usize) -> Option<Resource> {
+    let bonus = printed(area).bonus;
+    [BonusItem::Steel, BonusItem::Titanium]
+        .into_iter()
+        .find(|item| bonus.contains(item))
+        .and_then(BonusItem::resource)
+}
+
 /// Where an Area is on Mars, as (row, position) counted from 0, or None off Mars.
 pub fn row_and_position(area: usize) -> Option<(usize, usize)> {
     let mut first_in_row = 0;
@@ -192,6 +203,33 @@ fn area_at(row: isize, half_column: isize) -> Option<usize> {
     Some(first_in_row + position)
 }
 
+/// The Areas on Mars reserved for nothing, the Areas reserved for Oceans and the Areas reserved for
+/// a card's City, each in board order, worked out once: a placement looks only at those its Tile
+/// could go on. (Looking at all 63 Areas made Random Bot playouts about 9 % slower, measured in
+/// ticket 18.)
+static LAND: LazyLock<Vec<usize>> =
+    LazyLock::new(|| (0..AREAS_ON_MARS).filter(|&area| printed(area).reserved.is_none()).collect());
+static OCEAN_AREAS: LazyLock<Vec<usize>> =
+    LazyLock::new(|| areas_reserved_for(|reserved| reserved == Some(Reservation::Ocean)));
+static CARDS_AREAS: LazyLock<Vec<usize>> = LazyLock::new(|| {
+    areas_reserved_for(|reserved| reserved.is_some_and(|reservation| reservation != Reservation::Ocean))
+});
+
+/// Every Area, on Mars or off it, whose reservation is `wanted`.
+fn areas_reserved_for(wanted: fn(Option<Reservation>) -> bool) -> Vec<usize> {
+    (0..AREA_COUNT).filter(|&area| wanted(printed(area).reserved)).collect()
+}
+
+/// The Areas `placement` could go on, whatever is on the board: the Areas reserved for Oceans, a
+/// card's reserved Area among those reserved for a card's City, or else the land on Mars.
+fn candidate_areas(placement: Placement) -> &'static [usize] {
+    match (placement.on, placement.tile) {
+        (Areas::ReservedForOceans, _) | (Areas::Usual, TileKind::Ocean) => &OCEAN_AREAS,
+        (Areas::NoctisCity | Areas::PhobosSpaceHaven | Areas::GanymedeColony, _) => &CARDS_AREAS,
+        _ => &LAND,
+    }
+}
+
 /// The name people use for an Area: "E3" on Mars, or "phobos_space_haven" off Mars.
 pub fn area_id(area: usize) -> String {
     match row_and_position(area) {
@@ -221,6 +259,8 @@ pub enum TileKind {
     Ocean,
     Greenery,
     City,
+    /// A Tile printed with its card's symbol, other than Capital's City (see `SpecialTile`).
+    Special,
 }
 
 impl TileKind {
@@ -229,6 +269,7 @@ impl TileKind {
             TileKind::Ocean => "Ocean",
             TileKind::Greenery => "Greenery",
             TileKind::City => "City",
+            TileKind::Special => "special Tile",
         }
     }
 
@@ -236,6 +277,65 @@ impl TileKind {
     pub fn with_article(self) -> String {
         let article = if self == TileKind::Ocean { "an" } else { "a" };
         format!("{article} {}", self.name())
+    }
+}
+
+/// The card whose symbol a special Tile is printed with. Each is a Tile of its own kind, but
+/// Capital's is a City as well, and counts as one wherever a City does.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum SpecialTile {
+    Capital,
+    NaturalPreserve,
+    MiningArea,
+    MiningRights,
+    CommercialDistrict,
+    NuclearZone,
+    IndustrialCenter,
+    LavaFlows,
+    MoholeArea,
+    RestrictedArea,
+}
+
+impl SpecialTile {
+    /// In card-number order.
+    pub const ALL: [SpecialTile; 10] = [
+        SpecialTile::Capital,
+        SpecialTile::NaturalPreserve,
+        SpecialTile::MiningArea,
+        SpecialTile::MiningRights,
+        SpecialTile::CommercialDistrict,
+        SpecialTile::NuclearZone,
+        SpecialTile::IndustrialCenter,
+        SpecialTile::LavaFlows,
+        SpecialTile::MoholeArea,
+        SpecialTile::RestrictedArea,
+    ];
+
+    /// Its card's index in the card catalog, which checks it against the card's id when read.
+    pub const fn card(self) -> usize {
+        match self {
+            SpecialTile::Capital => 7,
+            SpecialTile::NaturalPreserve => 43,
+            SpecialTile::MiningArea => 63,
+            SpecialTile::MiningRights => 66,
+            SpecialTile::CommercialDistrict => 84,
+            SpecialTile::NuclearZone => 96,
+            SpecialTile::IndustrialCenter => 122,
+            SpecialTile::LavaFlows => 139,
+            SpecialTile::MoholeArea => 141,
+            SpecialTile::RestrictedArea => 198,
+        }
+    }
+
+    /// The special Tile `card` places, if it places one.
+    pub fn of_card(card: usize) -> Option<SpecialTile> {
+        SpecialTile::ALL.into_iter().find(|tile| tile.card() == card)
+    }
+
+    /// How labels and the game log name it: "the Nuclear Zone Tile".
+    pub fn name(self) -> String {
+        format!("the {} Tile", CARD_CATALOG[self.card()].name)
     }
 }
 
@@ -258,11 +358,38 @@ pub enum Areas {
     /// Any free Area on Mars reserved for nothing and next to no Tile at all, as for Research
     /// Outpost's City.
     NextToNoOtherTile,
+    /// Any free Area on Mars reserved for nothing and next to a City, as for Industrial Center's
+    /// Tile.
+    NextToACity,
+    /// Any free volcano: Tharsis Tholus, Ascraeus Mons, Pavonis Mons or Arsia Mons, as for Lava
+    /// Flows' Tile.
+    Volcanoes,
+    /// Any free Area on Mars reserved for nothing, with a steel or titanium placement bonus, as
+    /// for Mining Rights' Tile.
+    SteelOrTitaniumBonus,
+    /// Like `SteelOrTitaniumBonus`, but next to one of its owner's Tiles, as for Mining Area's.
+    SteelOrTitaniumBonusNextToOwnTile,
+    /// The Area reserved for Noctis City's City, whatever is next to it.
+    NoctisCity,
+    /// The Area off Mars reserved for Phobos Space Haven's City.
+    PhobosSpaceHaven,
+    /// The Area off Mars reserved for Ganymede Colony's City.
+    GanymedeColony,
 }
 
 impl Areas {
     pub fn is_usual(&self) -> bool {
         *self == Areas::Usual
+    }
+
+    /// The card's reserved Area these are, if they are one.
+    fn reservation(self) -> Option<Reservation> {
+        match self {
+            Areas::NoctisCity => Some(Reservation::NoctisCity),
+            Areas::PhobosSpaceHaven => Some(Reservation::PhobosSpaceHaven),
+            Areas::GanymedeColony => Some(Reservation::GanymedeColony),
+            _ => None,
+        }
     }
 }
 
@@ -273,12 +400,23 @@ impl Areas {
 pub struct Placement {
     pub tile: TileKind,
     pub on: Areas,
+    /// The card's symbol it is printed with, for a special Tile: effect data leaves it out, and
+    /// the card being played fills it in.
+    pub special: Option<SpecialTile>,
 }
 
 impl Placement {
     /// `tile` on the usual Areas for it.
     pub fn usual(tile: TileKind) -> Placement {
-        Placement { tile, on: Areas::Usual }
+        Placement { tile, on: Areas::Usual, special: None }
+    }
+
+    /// How labels name the Tile: "the City", or "the Nuclear Zone Tile".
+    pub fn tile_name(&self) -> String {
+        match self.special {
+            Some(special) => special.name(),
+            None => format!("the {}", self.tile.name()),
+        }
     }
 }
 
@@ -294,7 +432,7 @@ impl From<WrittenPlacement> for Placement {
     fn from(written: WrittenPlacement) -> Placement {
         match written {
             WrittenPlacement::Usual(tile) => Placement::usual(tile),
-            WrittenPlacement::On { tile, on } => Placement { tile, on },
+            WrittenPlacement::On { tile, on } => Placement { tile, on, special: None },
         }
     }
 }
@@ -313,17 +451,49 @@ impl From<Placement> for WrittenPlacement {
 pub struct Tile {
     pub kind: TileKind,
     pub owner: Option<usize>,
+    /// The card's symbol it is printed with, for a special Tile.
+    pub special: Option<SpecialTile>,
 }
 
-/// The Tiles on the board, by Area.
+/// An Area that one Player has claimed with Land Claim: only they may place a Tile there.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct Claim {
+    pub area: usize,
+    /// The Player who claimed it, and the only one who may place a Tile on it.
+    pub player: usize,
+}
+
+/// The Tiles on the board, by Area, and the Area claimed with Land Claim.
 #[derive(Clone, Debug)]
 pub struct Board {
     tiles: [Option<Tile>; AREA_COUNT],
+    /// There is one Land Claim card, so at most one Area is ever claimed.
+    claim: Option<Claim>,
 }
 
 impl Board {
     pub fn new() -> Board {
-        Board { tiles: [None; AREA_COUNT] }
+        Board { tiles: [None; AREA_COUNT], claim: None }
+    }
+
+    /// The Area claimed with Land Claim, once it is played.
+    pub fn claim(&self) -> Option<Claim> {
+        self.claim
+    }
+
+    /// `player` claims `area` with Land Claim.
+    pub fn claim_area(&mut self, area: usize, player: usize) {
+        self.claim = Some(Claim { area, player });
+    }
+
+    /// The Areas Land Claim may claim, in board order: the free Areas on Mars reserved for nothing
+    /// that nobody has claimed.
+    pub fn claimable_areas(&self) -> impl Iterator<Item = usize> {
+        (0..AREAS_ON_MARS).filter(|&area| {
+            printed(area).reserved.is_none()
+                && self.tiles[area].is_none()
+                && self.claim.is_none_or(|claim| claim.area != area)
+        })
     }
 
     pub fn tile(&self, area: usize) -> Option<Tile> {
@@ -350,6 +520,11 @@ impl Board {
         adjacent_areas(area).filter(|&next| self.tiles[next].is_some_and(|tile| tile.kind == kind)).count()
     }
 
+    /// The Area of the special Tile printed with `special`'s symbol, once it is placed.
+    pub fn area_of(&self, special: SpecialTile) -> Option<usize> {
+        (0..AREA_COUNT).find(|&area| self.tiles[area].is_some_and(|tile| tile.special == Some(special)))
+    }
+
     /// The Areas of `player`'s Tiles, in board order, with each Tile's kind.
     pub fn tiles_of(&self, player: usize) -> impl Iterator<Item = (usize, TileKind)> {
         (0..AREA_COUNT).filter_map(move |area| match self.tiles[area] {
@@ -369,58 +544,54 @@ impl Board {
 
     /// Every Area where `player` may make `placement`, in board order.
     pub fn areas_for(&self, placement: Placement, player: usize) -> Vec<usize> {
-        match (placement.on, placement.tile) {
-            (Areas::ReservedForOceans, _) | (Areas::Usual, TileKind::Ocean) => {
-                self.free_ocean_areas().collect()
-            }
-            (Areas::Land, _) => self.free_land().collect(),
-            (Areas::NextToTwoCities, _) => self.next_to_two_cities().collect(),
-            (Areas::NextToNoOtherTile, _) => self.next_to_no_tile().collect(),
-            (Areas::Usual, TileKind::Greenery) => {
-                // A Greenery must go next to one of its owner's Tiles if it can.
-                let next_to_own: Vec<usize> =
-                    self.free_land().filter(|&area| self.next_to_a_tile_of(player, area)).collect();
-                if next_to_own.is_empty() { self.free_land().collect() } else { next_to_own }
-            }
-            (Areas::Usual, TileKind::City) => self.city_areas().collect(),
+        let candidates = candidate_areas(placement).iter().copied();
+        let areas: Vec<usize> = candidates.filter(|&area| self.allows(placement, player, area)).collect();
+        if placement != Placement::usual(TileKind::Greenery) {
+            return areas;
         }
+        // A Greenery must go next to one of its owner's Tiles if it can.
+        let next_to_own: Vec<usize> =
+            areas.iter().copied().filter(|&area| self.next_to_a_tile_of(player, area)).collect();
+        if next_to_own.is_empty() { areas } else { next_to_own }
     }
 
-    /// Whether there is any Area for `placement`: the same as `areas_for` not being empty, but
-    /// quicker, as it stops at the first one.
-    pub fn has_area_for(&self, placement: Placement) -> bool {
-        match (placement.on, placement.tile) {
-            (Areas::ReservedForOceans, _) | (Areas::Usual, TileKind::Ocean) => {
-                self.free_ocean_areas().next().is_some()
-            }
-            // With no free Area next to its owner's Tiles, a Greenery may go on any free land.
-            (Areas::Land, _) | (Areas::Usual, TileKind::Greenery) => self.free_land().next().is_some(),
-            (Areas::Usual, TileKind::City) => self.city_areas().next().is_some(),
-            (Areas::NextToTwoCities, _) => self.next_to_two_cities().next().is_some(),
-            (Areas::NextToNoOtherTile, _) => self.next_to_no_tile().next().is_some(),
+    /// Whether there is any Area where `player` may make `placement`: the same as `areas_for` not
+    /// being empty, but quicker, as it stops at the first one. With no free Area next to its
+    /// owner's Tiles, a Greenery may go on any free land.
+    pub fn has_area_for(&self, placement: Placement, player: usize) -> bool {
+        candidate_areas(placement).iter().any(|&area| self.allows(placement, player, area))
+    }
+
+    /// Whether `player` may make `placement` on `area`, one of its `candidate_areas`, leaving aside
+    /// that a Greenery must go next to its owner's Tiles if it can. Land claimed by another Player
+    /// is never theirs to use.
+    fn allows(&self, placement: Placement, player: usize, area: usize) -> bool {
+        if self.tiles[area].is_some() {
+            return false;
         }
-    }
-
-    fn free_ocean_areas(&self) -> impl Iterator<Item = usize> {
-        (0..AREAS_ON_MARS)
-            .filter(|&area| printed(area).reserved == Some(Reservation::Ocean) && self.tiles[area].is_none())
-    }
-
-    /// The free Areas on Mars that are reserved for nothing.
-    fn free_land(&self) -> impl Iterator<Item = usize> {
-        (0..AREAS_ON_MARS).filter(|&area| printed(area).reserved.is_none() && self.tiles[area].is_none())
-    }
-
-    fn city_areas(&self) -> impl Iterator<Item = usize> {
-        self.free_land().filter(|&area| !self.next_to_a_city(area))
-    }
-
-    fn next_to_two_cities(&self) -> impl Iterator<Item = usize> {
-        self.free_land().filter(|&area| self.adjacent(area, TileKind::City) >= 2)
-    }
-
-    fn next_to_no_tile(&self) -> impl Iterator<Item = usize> {
-        self.free_land().filter(|&area| adjacent_areas(area).all(|next| self.tiles[next].is_none()))
+        if self.claim.is_some_and(|claim| claim.area == area && claim.player != player) {
+            return false;
+        }
+        match (placement.on, placement.tile) {
+            (Areas::ReservedForOceans, _)
+            | (Areas::Usual, TileKind::Ocean)
+            // A special Tile has no placement restriction but those its card prints.
+            | (Areas::Land, _)
+            | (Areas::Usual, TileKind::Greenery | TileKind::Special) => true,
+            (Areas::Usual, TileKind::City) => !self.next_to_a_city(area),
+            (Areas::NextToTwoCities, _) => self.adjacent(area, TileKind::City) >= 2,
+            (Areas::NextToNoOtherTile, _) => adjacent_areas(area).all(|next| self.tiles[next].is_none()),
+            (Areas::NextToACity, _) => self.next_to_a_city(area),
+            // The four volcanoes are the Areas on Mars with a printed name but reserved for nothing.
+            (Areas::Volcanoes, _) => printed(area).name.is_some(),
+            (Areas::SteelOrTitaniumBonus, _) => mining_resource(area).is_some(),
+            (Areas::SteelOrTitaniumBonusNextToOwnTile, _) => {
+                mining_resource(area).is_some() && self.next_to_a_tile_of(player, area)
+            }
+            (Areas::NoctisCity | Areas::PhobosSpaceHaven | Areas::GanymedeColony, _) => {
+                printed(area).reserved == placement.on.reservation()
+            }
+        }
     }
 
     fn next_to_a_city(&self, area: usize) -> bool {

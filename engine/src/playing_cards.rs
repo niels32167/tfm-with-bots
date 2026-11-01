@@ -6,7 +6,7 @@ use std::cmp::Reverse;
 
 use serde::Serialize;
 
-use crate::board::{Placement, TileKind};
+use crate::board::{Placement, SpecialTile, TileKind};
 use crate::card_code::{FLOODING, IMMIGRANT_CITY, INSULATION, ROBOTIC_WORKFORCE, insulation_change};
 use crate::cards::{
     CARD_CATALOG, CARDS_WITH, CardType, Counted, CubeValues, Effects, Limit, NextCard, Owner,
@@ -177,19 +177,30 @@ impl Game {
         self.players[player]
             .played
             .iter()
-            .filter_map(|card| CARD_CATALOG[card].victory_points)
-            .map(|points| match points {
+            .filter_map(|card| CARD_CATALOG[card].victory_points.map(|points| (card, points)))
+            .map(|(card, points)| match points {
                 VictoryPoints::Fixed(points) => points,
-                VictoryPoints::Per { points, per, of } => self.for_every(player, points, per, of),
+                VictoryPoints::Per { points, per, of } => {
+                    points * (self.count_for_card(player, card, of) / per)
+                }
                 VictoryPoints::AtLeast { points, at_least, of } => {
-                    if self.count_of(player, of) >= at_least {
-                        points
-                    } else {
-                        0
-                    }
+                    if self.count_for_card(player, card, of) >= at_least { points } else { 0 }
                 }
             })
             .sum()
+    }
+
+    /// How many of `what` there are for the Victory Points of `card`, which `player` has played:
+    /// as `count_of` counts them, but Tiles next to the card's own Tile too (Capital, Commercial
+    /// District).
+    fn count_for_card(&self, player: usize, card: usize, what: Counted) -> i32 {
+        match what {
+            Counted::Adjacent(kind) => {
+                let own_tile = SpecialTile::of_card(card).and_then(|special| self.board.area_of(special));
+                own_tile.map_or(0, |area| self.board.adjacent(area, kind) as i32)
+            }
+            _ => self.count_of(player, what),
+        }
     }
 
     /// `amount` for every `per` of `of` that `player` has: 2 for 5 Tags at 1 for every 2.
@@ -198,7 +209,8 @@ impl Game {
     }
 
     /// How many of `what` there are for `player`'s card Victory Points or Production. Card
-    /// Resources (ticket 19) and Tiles of cards (ticket 18) don't exist yet, so they count 0.
+    /// Resources (ticket 19) don't exist yet, so they count 0, and only `count_for_card` knows
+    /// which card's Tile to count next to.
     fn count_of(&self, player: usize, what: Counted) -> i32 {
         match what {
             Counted::Tag(tag) => self.tags(player, tag),
@@ -214,16 +226,17 @@ impl Game {
     }
 
     /// Whether `player` can carry out `effects`: on their own Resources and Production, with
-    /// someone to lower the Production it lowers on any Player, and with an Area for each Tile (an
-    /// Ocean always, as Aquifer: see docs/rules-notes.md). Resources lost are checked against what
-    /// the Player holds before paying for the card; no card yet both costs steel or titanium and
-    /// loses some.
+    /// someone to lower the Production it lowers on any Player, with an Area for each Tile (an
+    /// Ocean always, as Aquifer: see docs/rules-notes.md), and with an Area to claim. Resources
+    /// lost are checked against what the Player holds before paying for the card; no card yet both
+    /// costs steel or titanium and loses some.
     pub(crate) fn can_carry_out(&self, player: usize, effects: &Effects) -> bool {
         let own = &self.players[player];
         Resource::ALL.into_iter().all(|resource| own.resources[resource] + effects.resources[resource] >= 0)
             && self.can_change_production(player, effects.production)
             && self.someone_can_lose_production(player, effects)
-            && effects.tiles.iter().all(|&placement| self.can_take_action_placing(Some(placement)))
+            && effects.tiles.iter().all(|&placement| self.can_take_action_placing(player, Some(placement)))
+            && (!effects.claim_area || self.board.claimable_areas().next().is_some())
     }
 
     /// Whether changing `player`'s Production `by` this keeps it within its limits.
@@ -377,10 +390,15 @@ impl Game {
         self.place_card_tiles(card);
     }
 
-    /// The Tiles of `card`, which is being played, are placed one at a time; then the Action ends.
+    /// The Tiles of `card`, which is being played, are placed one at a time, or the Area it claims
+    /// is chosen; then the Action ends.
     fn place_card_tiles(&mut self, card: usize) {
-        if !CARD_CATALOG[card].implemented_effects().tiles.is_empty() {
+        let effects = CARD_CATALOG[card].implemented_effects();
+        if !effects.tiles.is_empty() {
             self.placing_for = Some(CardTiles { card, placed: 0 });
+        }
+        if effects.claim_area {
+            self.wait_on(Waiting::ClaimArea);
         }
         self.finish_unless_placing();
     }
@@ -398,7 +416,7 @@ impl Game {
                 return;
             };
             self.placing_for = Some(CardTiles { card, placed: placed + 1 });
-            self.place_card_tile(placement);
+            self.place_card_tile(card, placement);
             if self.is_placing() {
                 return;
             }
@@ -413,13 +431,14 @@ impl Game {
         own.titanium -= payment.titanium;
     }
 
-    /// The current Player has a card's Tile to make `placement` with. An Ocean once all 9 are
-    /// placed is skipped, as for Aquifer (see docs/rules-notes.md).
-    pub(crate) fn place_card_tile(&mut self, placement: Placement) {
+    /// The current Player has `card`'s Tile to make `placement` with, printed with the card's
+    /// symbol if it is a special Tile. An Ocean once all 9 are placed is skipped, as for Aquifer
+    /// (see docs/rules-notes.md).
+    pub(crate) fn place_card_tile(&mut self, card: usize, placement: Placement) {
         if placement.tile == TileKind::Ocean {
             self.place_ocean(placement.on);
         } else {
-            self.place(placement);
+            self.place(Placement { special: SpecialTile::of_card(card), ..placement });
         }
     }
 

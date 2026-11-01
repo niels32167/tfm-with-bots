@@ -35,6 +35,7 @@ def printed_area(letter: str, row: int, position: int, printed: str) -> dict:
         "reserved": "ocean" if printed.startswith("~") else None,
         "bonus": [BONUS_ITEMS[item] for item in printed.lstrip("~").replace(".", "")],
         "tile": None,
+        "claimed_by": None,
     }
 
 
@@ -75,6 +76,7 @@ def test_phobos_space_haven_and_ganymede_colony_are_areas_off_mars_reserved_for_
         "reserved": "phobos_space_haven",
         "bonus": [],
         "tile": None,
+        "claimed_by": None,
     }
     assert area(game, "ganymede_colony")["name"] == "Ganymede Colony"
     assert area(game, "ganymede_colony")["reserved"] == "ganymede_colony"

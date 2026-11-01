@@ -18,6 +18,7 @@ from tests.helpers import (
     pick,
     player,
     scenario,
+    special,
     terraformed_mars,
 )
 
@@ -129,7 +130,13 @@ def test_global_parameters_off_their_tracks_break_an_invariant():
             "phobos_space_haven",
             "city",
             1,
-            "the City on phobos_space_haven is not on an Area of Mars that is reserved for nothing",
+            "the City on phobos_space_haven is not Phobos Space Haven's: its owner has not played the card",
+        ),
+        (
+            "phobos_space_haven",
+            "greenery",
+            1,
+            "the Greenery on phobos_space_haven is not on an Area of Mars that is reserved for nothing",
         ),
         ("C4", "city", 1, "the Cities on C3 and C4 are next to each other"),
         ("A5", "ocean", 1, "the Ocean on A5 belongs to Player 2, but Oceans belong to nobody"),
@@ -142,6 +149,111 @@ def test_a_tile_where_the_rules_never_allow_one_breaks_an_invariant(area_id, til
     put(view, area_id, tile, owner)
 
     assert problems(view, decision) == [problem]
+
+
+def put_special(view: dict[str, Any], area_id: str, card: str, owner: int) -> None:
+    """Writes `card`'s special Tile onto a free Area of the view's board, whatever the rules say."""
+    tile = special(area_id, card, owner)
+    put(view, area_id, tile["tile"], owner)
+    (entry,) = [entry for entry in view["board"] if entry["area"] == area_id]
+    entry["tile"]["card"] = card
+
+
+def test_special_tiles_and_reserved_areas_reached_by_the_rules_break_no_invariant():
+    tiles = [city("C3", owner=0), city("E2", owner=1)]
+    cards = ["noctis_city", "mohole_area", "industrial_center", "land_claim"]
+    holding = player(megacredits=43, production={"energy": 1}, hand=cards)
+    game = scenario(holding, player(), tiles=tiles)
+    for card, area_id in [("Noctis City", "E3"), ("Mohole Area", "A5")]:
+        pick(game, f"Play {card}")
+        assert problems(*position(game)) == []
+        pick(game, area=area_id)
+        assert problems(*position(game)) == []
+    pick(game, "Pass")  # Player 2's Turn
+    for action, area_id in [("Play Industrial Center", "C4"), ("Play Land Claim", "H1")]:
+        pick(game, action)
+        assert problems(*position(game)) == []
+        pick(game, area=area_id)
+        assert problems(*position(game)) == []
+
+
+@pytest.mark.parametrize(
+    ("area_id", "card", "owner", "problem"),
+    [
+        ("H3", "nuclear_zone", 1, "the Nuclear Zone Tile on H3 belongs to Player 2, who has not played its card"),
+        ("A4", "nuclear_zone", 0, "the Nuclear Zone Tile on A4 is not on an Area of Mars that is reserved for nothing"),
+        ("E3", "nuclear_zone", 0, "the Nuclear Zone Tile on E3 is not on an Area of Mars that is reserved for nothing"),
+    ],
+)
+def test_a_special_tile_where_the_rules_never_allow_one_breaks_an_invariant(area_id, card, owner, problem):
+    view, decision = position(scenario(player(played_cards=["nuclear_zone"]), player()))
+    put_special(view, area_id, card, owner)
+
+    assert problems(view, decision) == [problem]
+
+
+@pytest.mark.parametrize(
+    ("area_id", "card", "problem"),
+    [
+        ("C3", "lava_flows", "the Lava Flows Tile on C3 is not on a volcano"),
+        ("C3", "mining_rights", "the Mining Rights Tile on C3 is not on a steel or titanium bonus"),
+        (
+            "J1",
+            "mining_area",
+            "the Mining Area Tile on J1 is not on a steel or titanium bonus next to another of its owner's Tiles",
+        ),
+        ("J1", "industrial_center", "the Industrial Center Tile on J1 is not next to a City"),
+    ],
+)
+def test_a_special_tile_away_from_where_its_card_puts_it_breaks_an_invariant(area_id, card, problem):
+    view, decision = position(scenario(player(played_cards=[card]), player()))
+    put_special(view, area_id, card, 0)
+
+    assert problems(view, decision) == [problem]
+
+
+def test_a_tile_on_land_another_player_claimed_breaks_an_invariant():
+    game = scenario(player(played_cards=["land_claim"]), player(), land_claim={"area": "H1", "player": 0})
+    view, decision = position(game)
+    put(view, "H1", "city", 1)
+
+    assert problems(view, decision) == ["the City on H1 belongs to Player 2, but Player 1 claimed the Area"]
+
+
+def test_a_claim_without_land_claim_breaks_an_invariant():
+    view, decision = position(scenario(land_claim={"area": "H1", "player": 1}))
+
+    assert problems(view, decision) == ["H1 is claimed by Player 2, who has not played Land Claim"]
+
+
+def test_an_area_decision_offering_land_another_player_claimed_breaks_an_invariant():
+    game = scenario(player(megacredits=30), player(played_cards=["land_claim"]), land_claim={"area": "H1", "player": 1})
+    pick(game, "City")
+    view, decision = position(game)
+    decision["options"].append(area_option("H1", "city"))
+
+    assert problems(view, decision) == ["the Area Decision for a City offers H1, where it may not go"]
+
+
+def test_land_claims_area_decision_offering_a_claimed_area_breaks_an_invariant():
+    game = scenario(player(megacredits=1, hand=["land_claim"]), player())
+    pick(game, "Play Land Claim")
+    view, decision = position(game)
+    decision["options"] = [option for option in decision["options"] if option["details"]["area"] != "C3"]
+
+    assert problems(view, decision) == ["the Area Decision for Land Claim leaves out C3, where it may go"]
+
+
+def test_a_special_tiles_area_decision_offering_an_area_its_card_does_not_allow_breaks_an_invariant():
+    game = scenario(player(megacredits=18, hand=["lava_flows"]), player())
+    pick(game, "Play Lava Flows")
+    view, decision = position(game)
+    decision["options"].append(area_option("C3", "special", on="volcanoes"))
+    decision["options"][-1]["details"]["card"] = "lava_flows"
+
+    assert problems(view, decision) == [
+        "the Area Decision for a Lava Flows Tile on a volcano offers C3, where it may not go"
+    ]
 
 
 def test_an_area_decision_that_leaves_out_a_legal_area_breaks_an_invariant():

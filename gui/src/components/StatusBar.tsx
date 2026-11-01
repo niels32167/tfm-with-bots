@@ -31,6 +31,13 @@ const OTHER_AREAS: Record<string, string> = {
   land: " on an Area reserved for nothing",
   next_to_two_cities: " next to at least 2 Cities",
   next_to_no_other_tile: " next to no other Tile",
+  next_to_a_city: " next to a City",
+  volcanoes: " on a volcano",
+  steel_or_titanium_bonus: " on an Area with a steel or titanium bonus",
+  steel_or_titanium_bonus_next_to_own_tile: " on an Area with a steel or titanium bonus, next to one of their Tiles",
+  noctis_city: " on the Area reserved for it",
+  phobos_space_haven: " on the Area reserved for it",
+  ganymede_colony: " on the Area reserved for it",
 };
 
 /** The current Decision, with its Options as buttons, like Board Game Arena's title bar. A
@@ -109,9 +116,14 @@ function statusText(game: GameUpdate, cards: Card[]): string {
     return `${who} may choose whom ${card} ${steals ? "steals" : "removes"} Resources from:`;
   }
   if (decision?.kind === "area") {
-    const tile = decision.options[0]?.details.tile as TileType;
-    const where = OTHER_AREAS[decision.options[0]?.details.on as string] ?? "";
-    return `${who} must choose where to place the ${TILE_NAMES[tile]}${where}: click a highlighted Area on Mars.`;
+    const details = decision.options[0]?.details;
+    if (details?.type === "claim_area") {
+      return `${who} must choose the Area to claim with Land Claim: click a highlighted Area on Mars.`;
+    }
+    const special = cards.find((each) => each.id === details?.card)?.name;
+    const tile = special ? `${special} Tile` : TILE_NAMES[details?.tile as TileType];
+    const where = OTHER_AREAS[details?.on as string] ?? "";
+    return `${who} must choose where to place the ${tile}${where}: click a highlighted Area.`;
   }
   if (decision?.kind === "production") {
     const details = decision.options[0]?.details;

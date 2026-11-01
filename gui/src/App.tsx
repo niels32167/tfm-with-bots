@@ -116,6 +116,7 @@ export function App() {
                 board={game.view.board}
                 oxygen={game.view.oxygen}
                 playerNames={game.view.players.map((board) => board.name)}
+                cards={server.cards}
                 decision={game.decision}
                 disabled={picking}
                 onPick={server.pick}
