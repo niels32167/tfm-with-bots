@@ -101,6 +101,13 @@ function statusText(game: GameUpdate, cards: Card[]): string {
     const card = cards.find((each) => each.id === decision.options[0]?.details.card);
     return `${who} must choose what the action of ${card?.name} spends:`;
   }
+  if (decision?.kind === "target") {
+    const first = decision.options[0]?.details;
+    const card = cards.find((each) => each.id === first?.card)?.name;
+    if (first?.type === "lower_production") return `${who} must choose whose Production ${card} lowers:`;
+    const steals = decision.options.some((option) => option.details.stolen);
+    return `${who} may choose whom ${card} ${steals ? "steals" : "removes"} Resources from:`;
+  }
   if (decision?.kind === "area") {
     const tile = decision.options[0]?.details.tile as TileType;
     const where = OTHER_AREAS[decision.options[0]?.details.on as string] ?? "";

@@ -20,8 +20,8 @@ If a card turns out to need machinery from another ticket, move it to that ticke
 
 - [ ] #008 Capital — moved here from ticket 11 (2026-10-27): its City Tile is a special Tile, scored by the Oceans next to it. Its City sets off Rover Construction and Immigrant City (ticket 16), as any City does: test it.
 - [ ] #017 Noctis City — Its City sets off Rover Construction and Immigrant City (ticket 16), as any City does: test it.
-- [ ] #021 Phobos Space Haven — a City off Mars: Martian Rails (ticket 15) counts only Cities on Mars (`{"tiles_on_mars": "city"}`), so test that it leaves this one out. Rover Construction and Immigrant City (ticket 16) count every City Tile placed, off Mars too (the open-source game does), and `place_tile` already sets them off
-- [ ] #044 Natural Preserve
+- [ ] #021 Phobos Space Haven — a City off Mars: Martian Rails (ticket 15) counts only Cities on Mars (`{"tiles_on_mars": "city"}`), so test that it leaves this one out. Rover Construction and Immigrant City (ticket 16) count every City Tile placed, off Mars too (the open-source game does), and `place_tile` already sets them off. Greenhouses and Energy Saving (ticket 17) count it, as every City in play (`{"tiles_in_play": "city"}`); Zeppelins doesn't (`{"tiles_on_mars": "city"}`): test both
+- [ ] #044 Natural Preserve — like every special Tile with an owner, Flooding (ticket 17) may remove 4 MegaCredits from its owner when its Ocean goes next to it (`targets::target_options` reads the Tile's owner): test it once for a special Tile
 - [ ] #064 Mining Area — Robotic Workforce (ticket 12) copies the Production this card's Tile gave, steel or titanium (FAQ)
 - [ ] #066 Land Claim — moved here from ticket 14 (2026-10-29): an Event that reserves a non-reserved Area for its Player, so only they may place a Tile there
 - [ ] #067 Mining Rights — Robotic Workforce (ticket 12) copies the Production this card's Tile gave, steel or titanium (FAQ)

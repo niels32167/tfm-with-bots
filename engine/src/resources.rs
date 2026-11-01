@@ -71,6 +71,11 @@ pub struct Resources {
 }
 
 impl Resources {
+    /// Whether every amount is 0.
+    pub fn is_zero(self) -> bool {
+        self == Resources::default()
+    }
+
     /// Each amount `times` over.
     pub fn times(self, times: i32) -> Resources {
         let mut multiplied = self;

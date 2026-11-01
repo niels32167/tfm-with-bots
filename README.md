@@ -19,10 +19,11 @@ fuzzer plays Random Bot Games and checks them after every Decision, and a benchm
 measures the engine's speed. The card catalog holds the printed data of all 208 Project
 Cards and 12 Corporations, and the GUI's card gallery draws every card as the fan-made card
 list does. Players play Project Cards from their hand, paying with MegaCredits, steel and
-titanium, once the cards' Requirements are met; 142 cards work so far, 88 Automated, 35 Active
-and 19 Events. An Active card's action is an Action its Player may use once per Generation, and
+titanium, once the cards' Requirements are met; 164 cards work so far, 101 Automated, 35 Active
+and 28 Events. An Active card's action is an Action its Player may use once per Generation, and
 its ongoing effects lower card costs, raise what steel and titanium pay, ease Requirements or
-gain its Player something each time a Tile, card or Tag sets them off. At
+gain its Player something each time a Tile, card or Tag sets them off. A card that takes from
+"any Player" lets its Player pick whose Production it lowers or whose Resources it removes. At
 setup each Player is dealt 10 Project Cards and buys any of them for 3 MegaCredits
 each (everyone starts with 42 MegaCredits until Corporations exist). From Generation 2 each
 Research phase has the Draft, on by default and switchable on the setup screen: each Player is

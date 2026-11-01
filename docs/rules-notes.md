@@ -482,10 +482,12 @@ Events, cards without a production box and other Players' cards are never offere
 The sources agree. Chosen by the user (implemented now, as Rust code, 2026-10-29); the details
 by Claude, on the user's instruction to make the remaining ticket 12 calls without asking.
 
-Still to come, from the FAQ: a box that decreases any Player's Production picks its victim again
-(Heat Trappers and Biomass Combustors, ticket 17); Mining Area and Mining Rights copy the
-Production their Tile gave (ticket 18); a Corporation's printed Production, but not one in an
-effect or action, can be copied (Mining Guild, ticket 21). Each ticket's card line says so, and
+From the FAQ, as the ticket 17 card lines quote it: a box that decreases any Player's Production
+picks its victim again. Copying Heat Trappers or Biomass Combustors raises the Player's own energy
+Production and then asks for a target as the card does (see "Taking from any Player" below); the
+box is offered only while someone can lose the Production. Still to come: Mining Area and Mining
+Rights copy the Production their Tile gave (ticket 18); a Corporation's printed Production, but
+not one in an effect or action, can be copied (Mining Guild, ticket 21). Each ticket's card line says so, and
 `tests/rules/test_playing_cards.py::test_every_implemented_building_card_has_its_printed_production_box_as_production_data`
 fails for a building card whose production box isn't Production data.
 
@@ -939,6 +941,94 @@ user's instruction to make the remaining ticket 16 calls without asking.
 
 **Tests:** `tests/cards/test_research_outpost.py` and
 `tests/fuzzing/test_invariants.py::test_research_outposts_area_decision_offering_an_area_next_to_a_tile_breaks_an_invariant`.
+
+### Taking from any Player
+
+**Call:** A card with a red-bordered icon ("decrease any heat production 2 steps", "remove up to 3
+plants from any player") lets its Player pick the Player it takes from, with a "target" Decision
+once the card's other effects and its Tiles are done, and before Mars University's discard.
+- **Lowering Production** must be carried out in full, on one Player who can lose every step
+  (MegaCredit Production down to −5). The Decision offers each opponent who can. Only when no
+  opponent can is the Player's own Production lowered, without a Decision. With nobody able to lose
+  it, the card is not offered (Heat Trappers with nobody at 2 heat Production).
+- **The Player's own Production** is checked after the card raises it: Hackers can be played at −5
+  MegaCredit Production when no opponent is at −3 or more (+2 then −2), and Energy Tapping and Power
+  Supply Consortium when nobody has energy Production (+1 then −1). Asteroid Mining Consortium and
+  Great Escarpment Consortium need that Production anyway.
+- **Removing Resources** may be left undone. The Decision offers each opponent who has some of the
+  Resource, taking as much as they have up to the amount printed (Asteroid takes 2 plants from a
+  Player with 2), then "Remove nothing". Sabotage offers its three Resources for each opponent,
+  Hired Raiders its two, "Steal" rather than "Remove", and the Player gains what is stolen. With no
+  opponent to take from, there is no Decision and nothing is taken. Mining Expedition's "Remove 2
+  plants" is read as every red-bordered removal is: up to 2, or none.
+- **Never offered**, as Options that only do worse for the Player: their own Resources, their own
+  Production while an opponent can lose it, and partial amounts below what the card can take.
+- **One target only** is taken without a Decision, as with any Decision with one Option.
+- **Flooding** may remove 4 MegaCredits (up to 4) only from an opponent who owns a Tile next to its
+  Ocean, or nothing. Once all 9 Oceans are placed, it places none and removes nothing.
+- **Order:** taking comes last because a card's Tiles can only give an opponent more: Comet's Ocean
+  sets off an opponent's Arctic Algae (2 plants), which Comet can then remove.
+
+The game log says "Player 1 lowers Player 3's heat Production by 2.", "Player 1 lowers their own
+heat Production by 2.", "Player 1 removes 3 plants from Player 2.", "Player 1 steals 2 steel from
+Player 2." or "Player 1 removes nothing with Asteroid."
+
+**Why:**
+- The rulebook, as two rules sites quote it (rules.dized.com, "Red-bordered icons"; rulespal.com):
+  a red border "targets any player (you or an opponent)"; removing red-bordered Resources "may
+  also be performed partly, or not at all"; reducing red-bordered Production "must be performed, so
+  if your opponent doesn't have that production, then you must lower your own production or not
+  play the card at all".
+- The open-source game asks for a Player who can lose all the steps (`canHaveProductionReduced`),
+  offers the Player themselves too, and doesn't offer the card without one. It offers the
+  opponents with some of a Resource, taking up to the amount, plus "Do not remove", and Flooding's
+  adjacent opponents plus "Don't remove".
+- Lowering an opponent's Production leaves the Player better off than lowering their own, so
+  their own is left out while an opponent can lose it (see "When the 0 °C Ocean is placed": an
+  Option that only does worse is not offered). Taking less than the card allows lies between
+  taking it all and taking nothing.
+- Raising their own Production before lowering it is never worse for the Player, so it is the
+  order used (as for Immigrant City's own City). The open-source game checks the Production before
+  the card raises it, so it refuses Hackers at −5, and Energy Tapping with nobody having energy
+  Production. The rulebook doesn't order a card's effects, and the user's rule that the Player
+  orders simultaneous effects decides it.
+- The *Comprehensive FAQ* could not be checked: the PDF and BoardGameGeek refuse the download.
+
+Chosen by the user (2026-11-01): effect data, an `"any_player"` block (`{"production": {"heat":
+-2}}`, `{"remove": [{"plants": 3}]}`, `{"steal": [...]}`) with Rust code only for Flooding's
+adjacent owners; no dominated Option; status-bar buttons; the Decision after the Tiles. The rest by
+Claude, on the user's instruction to make the remaining ticket 17 calls without asking.
+
+**Tests:** `tests/rules/test_targets.py`, among them
+`test_lowering_any_production_offers_exactly_the_opponents_who_can_lose_every_step` and
+`test_the_target_decision_comes_after_the_cards_tiles_so_a_trigger_they_set_off_counts`; the card
+files of the 17 cards that take, among them `tests/cards/test_hackers.py`, `tests/cards/test_flooding.py`,
+`tests/cards/test_sabotage.py`,
+`tests/cards/test_energy_tapping.py::test_with_nobody_with_energy_production_energy_tapping_raises_and_lowers_the_players_own`
+and
+`tests/cards/test_heat_trappers.py::test_robotic_workforce_copying_heat_trappers_picks_whose_heat_production_to_lower_again`;
+and `tests/fuzzing/test_invariants.py`, among them
+`test_a_target_decision_offering_the_players_own_production_while_an_opponent_can_lose_it_breaks_an_invariant`.
+
+### What the counting cards count
+
+**Call:**
+- **Toll Station** counts the space Tags its Player's opponents have in play, not its Player's own,
+  and none on played Events (see "Tags on played Events").
+- **Media Archives** counts every Event played by any Player so far, its Player's own included.
+- **Greenhouses** and **Energy Saving** count every City in play, whoever owns it; from ticket 18,
+  the Cities off Mars too.
+- **Zeppelins** counts the Cities on Mars only, as Martian Rails does.
+
+**Why:** The cards: "for each space tag your OPPONENTS have", "for each event EVER PLAYED by all
+players", "for each city tile in play" and "for each City tile ON MARS". The open-source game counts
+`{tag: space, others: true}`, `{eventsPlayed: true, all: true}`, `{cities: {}}` and `{cities: {where:
+'onmars'}}`. The sources agree. Chosen by Claude (2026-11-01), on the user's instruction to make
+the remaining ticket 17 calls without asking.
+
+**Tests:** `tests/cards/test_toll_station.py`, `tests/cards/test_media_archives.py`,
+`tests/cards/test_greenhouses.py`, `tests/cards/test_energy_saving.py` and
+`tests/cards/test_zeppelins.py`.
 
 ## Card flow
 

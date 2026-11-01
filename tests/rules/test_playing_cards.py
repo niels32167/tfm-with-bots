@@ -98,14 +98,18 @@ PRODUCTION_BOX_IN_THE_ACTION = ("equatorial_magnetizer", "underground_detonation
 
 def test_every_implemented_building_card_has_its_printed_production_box_as_production_data():
     """Robotic Workforce copies a building card's production box as its fixed and per-Tag
-    Production data, so a card whose production box is carried out otherwise must be taught to
-    Robotic Workforce (see docs/rules-notes.md). The production boxes that are part of a card's
-    action, which Robotic Workforce doesn't copy, are those of the cards named here."""
+    Production data and the Production it lowers on any Player (Heat Trappers), so a card whose
+    production box is carried out otherwise must be taught to Robotic Workforce (see
+    docs/rules-notes.md). The production boxes that are part of a card's action, which Robotic
+    Workforce doesn't copy, are those of the cards named here."""
     for card in tm_engine.card_catalog():
         if "building" not in card["tags"] or card["type"] == "event" or "effects" not in card:
             continue
         effects = card["effects"]
-        has_production_data = any(effects["production"].values()) or "production_per" in effects
+        lowered_on_any_player = effects.get("any_player", {}).get("production", {})
+        has_production_data = (
+            any(effects["production"].values()) or "production_per" in effects or any(lowered_on_any_player.values())
+        )
         in_its_action = card["id"] in PRODUCTION_BOX_IN_THE_ACTION
         assert any(effects.get("action", {}).get("production", {}).values()) == in_its_action, card["name"]
         assert not (has_production_data and in_its_action), f"{card['name']} has two production boxes"

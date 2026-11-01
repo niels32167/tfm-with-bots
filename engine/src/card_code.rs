@@ -2,10 +2,11 @@
 //! is named by its index in the card catalog, its printed number minus 1, which the catalog
 //! checks against the card's id when it is read.
 
-use crate::cards::{CARD_CATALOG, CardType, Tag};
+use crate::cards::{CARD_CATALOG, CardType, Effects, Tag};
 use crate::game::{DecisionOption, Game, Waiting};
 use crate::log::LogEvent;
 use crate::resources::Resources;
+use crate::targets::Targeting;
 
 /// #086 Robotic Workforce: "Duplicate only the production box of one of your building cards."
 pub const ROBOTIC_WORKFORCE: usize = 85;
@@ -29,13 +30,20 @@ pub const IMMIGRANT_CITY: usize = 199;
 /// discard once, after the card's other effects (see docs/rules-notes.md).
 pub const MARS_UNIVERSITY: usize = 72;
 
+/// #188 Flooding: "Place an ocean tile. If there are tiles adjacent to this ocean tile, you may
+/// remove 4 MC from the owner of one of those tiles." Its effect data is its Ocean and the 4
+/// MegaCredits it may remove; it takes only from the owners of Tiles next to that Ocean, and once
+/// all 9 Oceans are placed, from nobody (see docs/rules-notes.md).
+pub const FLOODING: usize = 187;
+
 /// Every card with code here, and its id.
-pub const CARDS_WITH_CODE: [(usize, &str); 5] = [
+pub const CARDS_WITH_CODE: [(usize, &str); 6] = [
     (ROBOTIC_WORKFORCE, "robotic_workforce"),
     (INSULATION, "insulation"),
     (POWER_INFRASTRUCTURE, "power_infrastructure"),
     (IMMIGRANT_CITY, "immigrant_city"),
     (MARS_UNIVERSITY, "mars_university"),
+    (FLOODING, "flooding"),
 ];
 
 /// Insulation's Production change for `steps`: that many steps of heat Production traded for as
@@ -61,8 +69,15 @@ impl Game {
             printed.card_type != CardType::Event
                 && printed.has_tag(Tag::Building)
                 && printed.has_production_box()
-                && self.can_change_production(player, printed.implemented_effects().production)
+                && self.can_carry_out_production_box(player, printed.implemented_effects())
         })
+    }
+
+    /// Whether `player` can carry out the production box of a card with `effects` in full: their own
+    /// Production change, and lowering any Player's (Heat Trappers), whose target they pick again.
+    fn can_carry_out_production_box(&self, player: usize, effects: &Effects) -> bool {
+        self.can_change_production(player, effects.production)
+            && self.someone_can_lose_production(player, effects)
     }
 
     /// `player` copies the production box of `card`, one of their building cards: its fixed
@@ -72,6 +87,9 @@ impl Game {
         let effects = CARD_CATALOG[card].implemented_effects();
         self.change_productions(player, effects.production);
         self.change_production_per(player, effects.production_per);
+        if !effects.any_player_production().is_zero() {
+            self.take_from_any_player_later(card);
+        }
     }
 
     /// Whether `player` can carry out Immigrant City: place its City, then lower their Production
@@ -119,6 +137,12 @@ impl Game {
             self.draw(player, 1);
         }
         self.finish_unless_placing();
+    }
+
+    /// Flooding's Ocean is placed on `area`: once the card is done, it may take from the owner of a
+    /// Tile next to it.
+    pub(crate) fn take_next_to_floodings_ocean(&mut self, area: usize) {
+        self.targeting = Some(Targeting { card: FLOODING, next_to: Some(area) });
     }
 
     /// Once Immigrant City's City is placed, the current Player lowers their Production as

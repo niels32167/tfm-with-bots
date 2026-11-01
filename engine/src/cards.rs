@@ -90,7 +90,9 @@ impl Card {
     /// per Tag or Tile. A card that is not implemented has none.
     pub fn has_production_box(&self) -> bool {
         self.effects.as_ref().is_some_and(|effects| {
-            effects.production != Resources::default() || effects.production_per.is_some()
+            effects.production != Resources::default()
+                || effects.production_per.is_some()
+                || !effects.any_player_production().is_zero()
         })
     }
 
@@ -114,9 +116,9 @@ impl Card {
 /// action's payment, Resources (fixed, then per Tag or Tile), Production (fixed, then per Tag or
 /// Tile, then for having at least so many), Temperature and Oxygen steps, Terraform Rating
 /// (fixed, then per Tag), cards drawn, cards looked at to keep or buy some of, the Production or
-/// Resource change the Player chooses, and then the Tiles one at a time. For the cards described
-/// this way the order never changes the outcome; a card whose effects depend on their order gets
-/// its own Rust code.
+/// Resource change the Player chooses, the Tiles one at a time, and then what it takes from any
+/// Player. For the cards described this way the order never changes the outcome; a card whose
+/// effects depend on their order gets its own Rust code.
 #[derive(Debug, Default, Serialize, Deserialize)]
 #[serde(default, deny_unknown_fields)]
 pub struct Effects {
@@ -158,6 +160,10 @@ pub struct Effects {
     pub terraform_rating_per: Option<TerraformRatingPer>,
     /// Cards drawn.
     pub draw: i32,
+    /// Only for a card when played: what it takes from one Player of its Player's picking (a
+    /// red-bordered icon), once its Tiles are placed. None for a card that takes nothing.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub any_player: Option<AnyPlayer>,
     /// Cards looked at from the top of the deck, some of them kept and the rest discarded
     /// (Business Contacts, Invention Contest).
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -201,6 +207,33 @@ pub struct Trigger {
     pub resources: Resources,
     #[serde(default)]
     pub production: Resources,
+}
+
+impl Effects {
+    /// The Production the card lowers on any Player, if any: part of its production box (Heat
+    /// Trappers), which Robotic Workforce copies.
+    pub fn any_player_production(&self) -> Resources {
+        match self.any_player {
+            Some(AnyPlayer::Production(lowered)) => lowered,
+            _ => Resources::default(),
+        }
+    }
+}
+
+/// What a card takes from one Player, whom its Player picks. Lowering Production must be carried
+/// out in full, on a Player who can lose every step, the card's Player included. Removing
+/// Resources is up to the amounts written, from whoever has some, and may be left undone (see
+/// docs/rules-notes.md, "Taking from any Player").
+#[derive(Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case", deny_unknown_fields)]
+pub enum AnyPlayer {
+    /// Production steps lowered, written below zero: Heat Trappers' `{"heat": -2}`.
+    Production(Resources),
+    /// Resources removed, up to these amounts, as one of these alternatives: Asteroid's 3 plants,
+    /// or Sabotage's 3 titanium, 4 steel or 7 MegaCredits.
+    Remove(Vec<Resources>),
+    /// Like `Remove`, but the card's Player gains what is removed (Hired Raiders).
+    Steal(Vec<Resources>),
 }
 
 /// What sets a card's Trigger off.
@@ -461,4 +494,8 @@ pub enum Counted {
     /// Tiles on Mars, whoever owns them: not those off Mars (Phobos Space Haven and Ganymede
     /// Colony, ticket 18).
     TilesOnMars(TileKind),
+    /// The Tags of this kind that the Player's opponents have in play (Toll Station).
+    TagsOfOpponents(Tag),
+    /// The Events every Player has played (Media Archives).
+    EventsPlayed,
 }

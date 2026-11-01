@@ -21,6 +21,7 @@ use crate::milestones_and_awards::{Award, MILESTONE_COST, Milestone};
 use crate::playing_cards::{Payment, ProductionChange};
 use crate::resources::{Resource, Resources};
 use crate::scoring::Score;
+use crate::targets::{Taking, steals};
 
 #[derive(Serialize)]
 pub struct DecisionView {
@@ -66,6 +67,26 @@ pub enum OptionDetails {
     },
     /// Discard a card from the hand, named by its catalog id, to draw one (Mars University).
     DiscardCard {
+        card: &'static str,
+    },
+    /// Lower `player`'s Production, the deciding Player's own or an opponent's, `production` steps
+    /// (below zero) with `card`, which lowers any Player's.
+    LowerProduction {
+        card: &'static str,
+        player: usize,
+        production: Resources,
+    },
+    /// Remove `resources` (below zero) from `player` with `card`, which may remove any Player's
+    /// Resources, and gain them if `stolen`.
+    RemoveResources {
+        card: &'static str,
+        player: usize,
+        resources: Resources,
+        #[serde(skip_serializing_if = "std::ops::Not::not")]
+        stolen: bool,
+    },
+    /// Remove, or steal, nothing with `card`.
+    RemoveNothing {
         card: &'static str,
     },
     /// Sell a card from the hand with Sell Patents, named by its catalog id, for `megacredits`.
@@ -460,6 +481,7 @@ fn decision_view(game: &Game, decision: &Decision) -> DecisionView {
             DecisionKind::BuyCards => "buy_cards",
             DecisionKind::SellPatents => "sell_patents",
             DecisionKind::DiscardToDraw => "discard_to_draw",
+            DecisionKind::Target => "target",
             DecisionKind::FinalGreenery => "final_greenery",
         },
         sequence: decision.sequence,
@@ -467,16 +489,18 @@ fn decision_view(game: &Game, decision: &Decision) -> DecisionView {
             .options
             .iter()
             .enumerate()
-            .map(|(index, option)| {
-                let cost = |card: usize| game.card_cost(decision.player, card);
-                OptionView { index, label: label(option, cost), details: details(option, cost) }
+            .map(|(index, option)| OptionView {
+                index,
+                label: label(game, decision.player, option),
+                details: details(game, decision.player, option),
             })
             .collect(),
     }
 }
 
-/// An Option's label. `cost` is what the Player deciding pays for a card.
-fn label(option: &DecisionOption, cost: impl Fn(usize) -> i32) -> String {
+/// An Option's label, for `player`, who is deciding.
+fn label(game: &Game, player: usize, option: &DecisionOption) -> String {
+    let cost = |card: usize| game.card_cost(player, card);
     match option {
         DecisionOption::PlayCard(card) => {
             format!("Play {} ({})", CARD_CATALOG[*card].name, Resource::MegaCredits.counted(cost(*card)))
@@ -492,6 +516,16 @@ fn label(option: &DecisionOption, cost: impl Fn(usize) -> i32) -> String {
             format!("Sell {} ({})", CARD_CATALOG[*card].name, Resource::MegaCredits.counted(PATENT_VALUE))
         }
         DecisionOption::DiscardCard(card) => format!("Discard {} to draw a card", CARD_CATALOG[*card].name),
+        DecisionOption::Target { card, player: target, alternative } => {
+            taking_label(game.taking(*card, *target, *alternative), *target == player, *target)
+        }
+        DecisionOption::RemoveNothing(card) => {
+            if steals(*card) {
+                "Steal nothing".to_string()
+            } else {
+                "Remove nothing".to_string()
+            }
+        }
         DecisionOption::Pay { payment, .. } | DecisionOption::PayForAction { payment, .. } => {
             format!("Pay {}", payment.text())
         }
@@ -542,6 +576,26 @@ fn production_change(by: Resources) -> String {
     letters.next().map(|first| first.to_uppercase().chain(letters).collect()).unwrap_or_default()
 }
 
+/// A taking as a label writes it: "Lower Player 2's heat Production by 2", "Lower your own heat
+/// Production by 2", "Remove 3 plants from Player 2" or "Steal 2 steel from Player 2".
+fn taking_label(taking: Taking, own: bool, target: usize) -> String {
+    match taking {
+        Taking::Production(by) => {
+            let whose = if own { "your own".to_string() } else { format!("{}'s", player_name(target)) };
+            let changes = Resource::ALL.into_iter().filter(|&resource| by[resource] != 0);
+            let steps = listed(
+                changes.map(|resource| format!("{} Production by {}", resource.name(), -by[resource])),
+            );
+            format!("Lower {whose} {steps}")
+        }
+        Taking::Resources { resources, stolen } => {
+            let taken = Resource::ALL.into_iter().filter(|&resource| resources[resource] != 0);
+            let amounts = listed(taken.map(|resource| resource.counted(-resources[resource])));
+            format!("{} {amounts} from {}", if stolen { "Steal" } else { "Remove" }, player_name(target))
+        }
+    }
+}
+
 /// A Resource change as a label writes it: "Spend 1 plant to gain 7 MegaCredits".
 fn resource_change(by: Resources) -> String {
     let amounts = |spent: bool| {
@@ -552,8 +606,9 @@ fn resource_change(by: Resources) -> String {
     format!("Spend {} to gain {}", amounts(true), amounts(false))
 }
 
-/// An Option's details. `cost` is what the Player deciding pays for a card.
-fn details(option: &DecisionOption, cost: impl Fn(usize) -> i32) -> OptionDetails {
+/// An Option's details, for `player`, who is deciding.
+fn details(game: &Game, player: usize, option: &DecisionOption) -> OptionDetails {
+    let cost = |card: usize| game.card_cost(player, card);
     match option {
         DecisionOption::PlayCard(card) => {
             OptionDetails::PlayCard { card: &CARD_CATALOG[*card].id, cost: cost(*card) }
@@ -568,6 +623,18 @@ fn details(option: &DecisionOption, cost: impl Fn(usize) -> i32) -> OptionDetail
             OptionDetails::SellCard { card: &CARD_CATALOG[*card].id, megacredits: PATENT_VALUE }
         }
         DecisionOption::DiscardCard(card) => OptionDetails::DiscardCard { card: &CARD_CATALOG[*card].id },
+        DecisionOption::Target { card, player: target, alternative } => {
+            let id = &CARD_CATALOG[*card].id;
+            match game.taking(*card, *target, *alternative) {
+                Taking::Production(production) => {
+                    OptionDetails::LowerProduction { card: id, player: *target, production }
+                }
+                Taking::Resources { resources, stolen } => {
+                    OptionDetails::RemoveResources { card: id, player: *target, resources, stolen }
+                }
+            }
+        }
+        DecisionOption::RemoveNothing(card) => OptionDetails::RemoveNothing { card: &CARD_CATALOG[*card].id },
         DecisionOption::Pay { card, payment } => {
             OptionDetails::Payment { card: &CARD_CATALOG[*card].id, action: false, payment: *payment }
         }

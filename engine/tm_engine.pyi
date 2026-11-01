@@ -43,9 +43,15 @@ def card_catalog() -> list[dict[str, Any]]:
     "tag"}} (either may be left out), {"tag_played": "science"} (once per such Tag) or
     "standard_project" (any but Sell Patents), with "resources" and "production" gained). An
     Event's "next_card" ({"discount": 8} or {"requirement_steps": 2}) changes the next card its
-    Player plays this Generation. Cards without "effects" are never offered; a few cards also have
-    Rust code of their own (Robotic Workforce, Insulation, Power Infrastructure, Immigrant City and
-    Mars University). Each call returns a new list."""
+    Player plays this Generation. A card that takes from a Player its Player picks has
+    "any_player", once its Tiles are placed: {"production": {"heat": -2}} (Production lowered, on a
+    Player who can lose every step), {"remove": [{"plants": 3}]} (Resources removed up to these
+    amounts, as one of the alternatives listed: Sabotage lists three) or {"steal": [...]} (removed
+    and gained, Hired Raiders). Besides Tags ({"tag": "earth"}) and Tiles ({"tiles_in_play":
+    "city"}, {"tiles_on_mars": "city"}), "of" may count the opponents' Tags ({"tags_of_opponents":
+    "space"}) or every Event played ("events_played"). Cards without "effects" are never offered;
+    a few cards also have Rust code of their own (Robotic Workforce, Insulation, Power
+    Infrastructure, Immigrant City, Mars University and Flooding). Each call returns a new list."""
 
 class Game:
     """A Game of Terraforming Mars, always either over or waiting on one Decision."""
@@ -140,10 +146,15 @@ class Game:
         the final Production phase), "draft" (keep one of the cards being drafted and pass the
         rest on, with details {"type": "draft_card", "card": "mine"}), "buy_cards" (buy one more
         of the cards dealt or drafted, {"type": "buy_card", "card": "mine", "cost": 3}, or be
-        done) and "sell_patents" (sell one more card from the hand, {"type": "sell_card", "card":
+        done), "sell_patents" (sell one more card from the hand, {"type": "sell_card", "card":
         "mine", "megacredits": 1}, or be done) and "discard_to_draw" (discard a card from the hand
         to draw one, {"type": "discard_card", "card": "mine"}, or be done, once for each science
-        Tag played with Mars University in play). Being done is {"type": "done"}. Playing a card,
+        Tag played with Mars University in play) and "target" (whom the card being played takes
+        from, once its Tiles are placed: {"type": "lower_production", "card": "heat_trappers",
+        "player": 1, "production": {...}}, {"type": "remove_resources", "card": "sabotage", "player":
+        1, "resources": {...}} with "stolen": true for Hired Raiders, the changes to that Player with
+        all six Resources, or {"type": "remove_nothing", "card": "sabotage"}; it comes only when
+        there is more than one Option, so for Production only with two targets or more). Being done is {"type": "done"}. Playing a card,
         using a played card's action, claiming a Milestone and funding an Award are Actions, with
         details {"type": "play_card", "card": "mine", "cost": 4} (the cost after discounts),
         {"type": "use_action", "card": "space_elevator"},

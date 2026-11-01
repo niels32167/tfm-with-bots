@@ -427,6 +427,63 @@ def test_mars_universitys_decision_leaving_out_a_card_in_hand_breaks_an_invarian
     ]
 
 
+def test_a_target_decision_offering_the_players_own_production_while_an_opponent_can_lose_it_breaks_an_invariant():
+    game = scenario(
+        player(hand=["heat_trappers"], production={"heat": 2}),
+        player(production={"heat": 2}),
+        player(production={"heat": 3}),
+    )
+    pick(game, "Play Heat Trappers")
+    view, decision = position(game)
+    assert problems(view, decision) == []
+    decision["options"][1]["details"]["player"] = 0
+
+    assert problems(view, decision) == ["Heat Trappers offers to lower the Production of [1, 0], not of [1, 2]"]
+
+
+def test_a_target_decision_removing_more_than_the_target_has_or_from_the_player_breaks_an_invariant():
+    game = scenario(player(megacredits=1, plants=4, hand=["sabotage"]), player(megacredits=5, steel=9))
+    pick(game, "Play Sabotage")
+    view, decision = position(game)
+    assert problems(view, decision) == []
+    decision["options"][0]["details"]["resources"]["steel"] = -9
+    decision["options"][1]["details"]["player"] = 0
+
+    assert problems(view, decision) == [
+        "Sabotage offers to remove [(1, 'steel', -9), (0, 'megacredits', -5)], "
+        "not [(1, 'steel', -4), (1, 'megacredits', -5)]"
+    ]
+
+
+def test_a_target_decision_without_remove_nothing_or_stealing_with_sabotage_breaks_an_invariant():
+    game = scenario(player(megacredits=1, hand=["sabotage"]), player(megacredits=5, steel=9))
+    pick(game, "Play Sabotage")
+    view, decision = position(game)
+    decision["options"][0]["details"]["stolen"] = True
+    del decision["options"][-1]
+
+    assert problems(view, decision) == [
+        "Sabotage offers to remove [(1, 'steel', -4)], not [(1, 'steel', -4), (1, 'megacredits', -5)]",
+        "Sabotage's target Decision ends with {'type': 'remove_resources', 'card': 'sabotage', 'player': 1, "
+        "'resources': {'megacredits': -5, 'steel': 0, 'titanium': 0, 'plants': 0, 'energy': 0, 'heat': 0}}, "
+        "not Remove nothing",
+        "Sabotage offers to steal Resources",
+    ]
+
+
+def test_floodings_target_decision_offering_some_opponents_breaks_no_invariant():
+    game = scenario(
+        player(megacredits=7, hand=["flooding"]),
+        player(megacredits=5),
+        player(megacredits=5),
+        tiles=[city("A1", owner=1), city("J1", owner=2)],
+    )
+    pick(game, "Play Flooding")
+    pick(game, area="A2")
+
+    assert problems(*position(game)) == []
+
+
 def test_cards_bought_with_inventors_guild_break_no_invariant():
     game = scenario(player(megacredits=3, played_cards=["inventors_guild"]), player(), deck=["mine", "trees"])
     pick(game, "Use the action of Inventors' Guild")

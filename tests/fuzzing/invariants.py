@@ -348,6 +348,95 @@ def discard_to_draw_offers_every_card_in_hand(view: View, decision: Decision | N
         yield f"Mars University's Decision offers {offered}, not every card in the hand and Done"
 
 
+# What each card that takes from any Player takes, as printed: Production steps lowered, or
+# Resources removed up to these amounts, one of them (Sabotage's titanium, steel or MegaCredits).
+PRODUCTION_TAKEN = {
+    "asteroid_mining_consortium": ("titanium", 1),
+    "cloud_seeding": ("heat", 1),
+    "great_escarpment_consortium": ("steel", 1),
+    "hackers": ("megacredits", 2),
+    "power_supply_consortium": ("energy", 1),
+    "heat_trappers": ("heat", 2),
+    "biomass_combustors": ("plants", 1),
+    "energy_tapping": ("energy", 1),
+}
+RESOURCES_TAKEN = {
+    "asteroid": (("plants", 3),),
+    "comet": (("plants", 3),),
+    "big_asteroid": (("plants", 4),),
+    "deimos_down": (("plants", 8),),
+    "mining_expedition": (("plants", 2),),
+    "giant_ice_asteroid": (("plants", 6),),
+    "sabotage": (("titanium", 3), ("steel", 4), ("megacredits", 7)),
+    "hired_raiders": (("steel", 2), ("megacredits", 3)),
+    "flooding": (("megacredits", 4),),
+}
+STEALING_CARDS = ("hired_raiders",)
+# Flooding takes only from the owners of Tiles next to its Ocean, which the view doesn't name.
+TAKING_NEXT_TO_ITS_OCEAN = ("flooding",)
+
+
+def targets_offered_are_those_the_rules_allow(view: View, decision: Decision | None) -> Iterator[str]:
+    """A target Decision is about one card's taking. Lowering Production: it offers every opponent
+    who can lose every step, or if none can, only the deciding Player, and there is a Decision
+    only with two targets or more. Removing Resources: it offers each opponent who has some of an
+    alternative's Resources, as much as they have up to the amount printed, then Remove nothing
+    (for Flooding, some of those opponents)."""
+    if decision is None or decision["kind"] != "target":
+        return
+    player, players = decision["player"], view["players"]
+    offered = [option["details"] for option in decision["options"]]
+    cards = {details["card"] for details in offered}
+    if len(cards) != 1:
+        yield f"a target Decision is about {sorted(cards)}, not one card"
+        return
+    card_id = cards.pop()
+    if card_id in PRODUCTION_TAKEN:
+        resource, steps = PRODUCTION_TAKEN[card_id]
+        lowest = MIN_MEGACREDIT_PRODUCTION if resource == "megacredits" else 0
+        can_lose = [index for index, board in enumerate(players) if board["production"][resource] - steps >= lowest]
+        opponents = [index for index in can_lose if index != player]
+        wanted = opponents or [index for index in can_lose if index == player]
+        targets = [details.get("player") for details in offered]
+        if [details["type"] for details in offered] != ["lower_production"] * len(offered) or targets != wanted:
+            yield f"{CARDS[card_id]['name']} offers to lower the Production of {targets}, not of {wanted}"
+        if len(offered) < 2:
+            yield f"{CARDS[card_id]['name']}'s target Decision has {len(offered)} Option"
+        for details in offered:
+            if changed(details["production"]) != {resource: -steps}:
+                yield f"{CARDS[card_id]['name']} offers to lower Production by {details['production']}"
+        return
+    if card_id not in RESOURCES_TAKEN:
+        yield f"a target Decision is about '{card_id}', which takes nothing from any Player"
+        return
+    wanted = [
+        (index, resource, -min(amount, board["resources"][resource]))
+        for index, board in enumerate(players)
+        if index != player
+        for resource, amount in RESOURCES_TAKEN[card_id]
+        if board["resources"][resource] > 0
+    ]
+    removals = offered[:-1]
+    found = [
+        (details["player"], *next(iter(changed(details["resources"]).items())))
+        for details in removals
+        if details["type"] == "remove_resources" and len(changed(details["resources"])) == 1
+    ]
+    complete = card_id not in TAKING_NEXT_TO_ITS_OCEAN
+    if len(found) != len(removals) or (found != wanted if complete else not set(found) <= set(wanted)):
+        yield f"{CARDS[card_id]['name']} offers to remove {found}, not {wanted}"
+    if offered[-1] != {"type": "remove_nothing", "card": card_id}:
+        yield f"{CARDS[card_id]['name']}'s target Decision ends with {offered[-1]}, not Remove nothing"
+    steals = card_id in STEALING_CARDS
+    if any(details.get("stolen", False) != steals for details in removals if details["type"] == "remove_resources"):
+        yield f"{CARDS[card_id]['name']} offers to {'only remove' if steals else 'steal'} Resources"
+
+
+def changed(amounts: dict[str, int]) -> dict[str, int]:
+    """The Resources or Production steps of a change that are not 0."""
+    return {name: amount for name, amount in amounts.items() if amount != 0}
+
+
 def at_most_three_milestones_and_awards(view: View, decision: Decision | None) -> Iterator[str]:
     """At most three Milestones are claimed and three Awards funded, and the prices of the
     next ones follow: 8 for a Milestone, and 8, 14 and 20 for the Awards."""
@@ -530,6 +619,7 @@ AFTER_EVERY_DECISION: tuple[Check, ...] = (
     card_actions_used_once_per_generation,
     cards_cost_what_the_discounts_leave,
     discard_to_draw_offers_every_card_in_hand,
+    targets_offered_are_those_the_rules_allow,
     at_most_three_milestones_and_awards,
     every_card_in_exactly_one_place,
     every_decision_has_an_option,

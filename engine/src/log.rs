@@ -117,6 +117,28 @@ pub enum LogEvent {
         player: usize,
         card: usize,
     },
+    /// `player` lowers `target`'s Production of `resource` `by` steps with a card that lowers any
+    /// Player's; `target` may be `player` themselves.
+    LoweredProductionOf {
+        player: usize,
+        target: usize,
+        resource: Resource,
+        by: i32,
+    },
+    /// `player` removes `amount` of `resource` from `target`, and gains it if `stolen`.
+    RemovedResources {
+        player: usize,
+        target: usize,
+        resource: Resource,
+        amount: i32,
+        stolen: bool,
+    },
+    /// `player` removes, or steals, nothing with `card`.
+    RemovedNothing {
+        player: usize,
+        card: usize,
+        stolen: bool,
+    },
     SoldPatents {
         player: usize,
         cards: usize,
@@ -336,6 +358,27 @@ impl LogEvent {
             LogEvent::CopiedProductionBox { player, card } => {
                 format!("{} copies the production box of {}.", player_name(player), CARD_CATALOG[card].name)
             }
+            LogEvent::LoweredProductionOf { player, target, resource, by } => {
+                let whose = if target == player {
+                    "their own".to_string()
+                } else {
+                    format!("{}'s", player_name(target))
+                };
+                format!("{} lowers {whose} {} Production by {by}.", player_name(player), resource.name())
+            }
+            LogEvent::RemovedResources { player, target, resource, amount, stolen } => format!(
+                "{} {} {} from {}.",
+                player_name(player),
+                if stolen { "steals" } else { "removes" },
+                resource.counted(amount),
+                player_name(target)
+            ),
+            LogEvent::RemovedNothing { player, card, stolen } => format!(
+                "{} {} nothing with {}.",
+                player_name(player),
+                if stolen { "steals" } else { "removes" },
+                CARD_CATALOG[card].name
+            ),
             LogEvent::SoldPatents { player, cards } => format!(
                 "{} sells {} for {}.",
                 player_name(player),

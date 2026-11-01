@@ -11,6 +11,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::board::{Areas, Board, BonusItem, Placement, Tile, TileKind, printed};
 use crate::card_actions::ResourceChange;
+use crate::card_code::FLOODING;
 use crate::card_flow::{Buying, Keeping};
 use crate::card_set::CardSet;
 use crate::cards::{CARD_CATALOG, PROJECT_CARDS};
@@ -23,6 +24,7 @@ use crate::random::RandomNumbers;
 use crate::replay::{Replay, Start};
 use crate::resources::{Resource, Resources};
 use crate::scoring::{Score, final_scores, funded_award_places, winners};
+use crate::targets::Targeting;
 use crate::triggers::Happened;
 
 pub const MIN_PLAYERS: usize = 2;
@@ -230,6 +232,8 @@ pub enum DecisionKind {
     SellPatents,
     /// Discard a card from the hand to draw one, or be done (Mars University).
     DiscardToDraw,
+    /// Choose whom the card being played takes Production or Resources from.
+    Target,
     /// Convert plants into a Greenery once more, or be done, in the final Greenery conversion.
     FinalGreenery,
 }
@@ -250,6 +254,15 @@ pub enum DecisionOption {
     SellCard(usize),
     /// Discard this card from the hand to draw one (Mars University).
     DiscardCard(usize),
+    /// Take what `card` takes from any Player from `player`, with the card's alternative at
+    /// `alternative` (Sabotage's titanium, steel or MegaCredits).
+    Target {
+        card: usize,
+        player: usize,
+        alternative: usize,
+    },
+    /// Remove, or steal, nothing with `card`, which may remove Resources from any Player.
+    RemoveNothing(usize),
     /// Keep this card, one of those the card being played lets its Player look at.
     KeepCard(usize),
     /// Pay for `card`, which is being played, this way.
@@ -314,6 +327,8 @@ pub enum Waiting {
     SellPatents(usize),
     /// Whether, and which card, they discard from their hand to draw one (Mars University).
     DiscardToDraw,
+    /// Whom a card takes Production or Resources from.
+    Target(Targeting),
 }
 
 #[derive(Clone, Debug)]
@@ -376,6 +391,9 @@ pub struct Game {
     /// How many more times the current Player may discard a card from their hand to draw one
     /// (Mars University), once the card they are playing is done.
     pub discards_to_draw: u32,
+    /// What a card takes from any Player, due once the card the current Player is playing is done
+    /// with its Tiles.
+    pub targeting: Option<Targeting>,
     /// The Area of a Tile whose placement bonus waits until the Tile being placed is down:
     /// a Greenery's waits for the Ocean its 0 °C step gave (see docs/rules-notes.md).
     pub waiting_bonus: Option<usize>,
@@ -431,6 +449,7 @@ impl Game {
             waiting: None,
             placing_for: None,
             discards_to_draw: 0,
+            targeting: None,
             waiting_bonus: None,
             claimed_milestones: [None; Milestone::ALL.len()],
             funded_awards: [None; Award::ALL.len()],
@@ -467,6 +486,7 @@ impl Game {
             (Some(Waiting::DiscardToDraw), _) => {
                 (DecisionKind::DiscardToDraw, self.discard_to_draw_options())
             }
+            (Some(Waiting::Target(targeting)), _) => (DecisionKind::Target, self.target_options(targeting)),
             (None, Phase::Draft) => (DecisionKind::Draft, self.drafting_options()),
             (None, Phase::Setup | Phase::Research) => (DecisionKind::BuyCards, self.buying_options()),
             (None, Phase::FinalGreenery) => {
@@ -635,6 +655,10 @@ impl Game {
             DecisionOption::BuyCard(card) => self.buy(card),
             DecisionOption::SellCard(card) => self.sell(card),
             DecisionOption::DiscardCard(card) => self.discard_to_draw(Some(card)),
+            DecisionOption::Target { card, player: target, alternative } => {
+                self.take_as_picked(card, target, alternative)
+            }
+            DecisionOption::RemoveNothing(card) => self.remove_nothing(card),
             DecisionOption::KeepCard(card) => self.keep_card(card),
             // It has no price: the Player picks the cards to sell next.
             DecisionOption::UseStandardProject(StandardProject::SellPatents) => {
@@ -714,14 +738,15 @@ impl Game {
         }
     }
 
-    /// Unless a Tile is still to be placed, a card's included, or Mars University lets the
-    /// current Player discard a card to draw one: the current Action ends, or in the final
-    /// Greenery conversion, the current Player may convert again.
+    /// Unless a Tile is still to be placed, a card's included, the card played takes from a
+    /// Player of its Player's picking, or Mars University lets the current Player discard a card to
+    /// draw one: the current Action ends, or in the final Greenery conversion, the current Player
+    /// may convert again.
     pub(crate) fn finish_unless_placing(&mut self) {
         if !self.is_placing() {
             self.place_next_card_tile();
         }
-        if self.is_placing() || self.offer_discard_to_draw() {
+        if self.is_placing() || self.offer_target() || self.offer_discard_to_draw() {
             return;
         }
         match self.phase {
@@ -920,6 +945,9 @@ impl Game {
         let owner = if tile == TileKind::Ocean { None } else { Some(player) };
         self.board.place(area, Tile { kind: tile, owner });
         self.log.push(LogEvent::PlacedTile { player, tile, area });
+        if tile == TileKind::Ocean && self.placing_for.is_some_and(|tiles| tiles.card == FLOODING) {
+            self.take_next_to_floodings_ocean(area);
+        }
         match tile {
             TileKind::Ocean => {
                 self.players[player].terraform_rating += 1;

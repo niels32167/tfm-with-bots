@@ -7,7 +7,7 @@ use std::cmp::Reverse;
 use serde::Serialize;
 
 use crate::board::{Placement, TileKind};
-use crate::card_code::{IMMIGRANT_CITY, INSULATION, ROBOTIC_WORKFORCE, insulation_change};
+use crate::card_code::{FLOODING, IMMIGRANT_CITY, INSULATION, ROBOTIC_WORKFORCE, insulation_change};
 use crate::cards::{
     CARD_CATALOG, CARDS_WITH, CardType, Counted, CubeValues, Effects, Limit, NextCard, Owner,
     ProductionAtLeast, ProductionPer, Requirement, ResourcesPer, Tag, TerraformRatingPer, VictoryPoints,
@@ -204,18 +204,25 @@ impl Game {
             Counted::Tag(tag) => self.tags(player, tag),
             Counted::TilesInPlay(kind) => self.board.in_play(kind) as i32,
             Counted::TilesOnMars(kind) => self.board.on_mars(kind) as i32,
+            Counted::TagsOfOpponents(tag) => self.opponents(player).map(|other| self.tags(other, tag)).sum(),
+            Counted::EventsPlayed => {
+                let events = self.players.iter().flat_map(|each| each.played.iter());
+                events.filter(|&card| CARD_CATALOG[card].card_type == CardType::Event).count() as i32
+            }
             Counted::CardResource(_) | Counted::Adjacent(_) => 0,
         }
     }
 
-    /// Whether `player` can carry out `effects`: on their own Resources and Production, and
-    /// with an Area for each Tile (an Ocean always, as Aquifer: see docs/rules-notes.md).
-    /// Resources lost are checked against what the Player holds before paying for the card;
-    /// no card yet both costs steel or titanium and loses some.
+    /// Whether `player` can carry out `effects`: on their own Resources and Production, with
+    /// someone to lower the Production it lowers on any Player, and with an Area for each Tile (an
+    /// Ocean always, as Aquifer: see docs/rules-notes.md). Resources lost are checked against what
+    /// the Player holds before paying for the card; no card yet both costs steel or titanium and
+    /// loses some.
     pub(crate) fn can_carry_out(&self, player: usize, effects: &Effects) -> bool {
         let own = &self.players[player];
         Resource::ALL.into_iter().all(|resource| own.resources[resource] + effects.resources[resource] >= 0)
             && self.can_change_production(player, effects.production)
+            && self.someone_can_lose_production(player, effects)
             && effects.tiles.iter().all(|&placement| self.can_take_action_placing(Some(placement)))
     }
 
@@ -326,6 +333,10 @@ impl Game {
         // Immigrant City lowers its Production only once its City is placed.
         if card != IMMIGRANT_CITY {
             self.carry_out(player, effects);
+        }
+        // Flooding's taking waits on its Ocean.
+        if effects.any_player.is_some() && card != FLOODING {
+            self.take_from_any_player_later(card);
         }
         // Keeping the cards looked at comes first; once it is done, the Production change follows.
         if !self.look_at_cards(player, card, effects.look_at, false) {

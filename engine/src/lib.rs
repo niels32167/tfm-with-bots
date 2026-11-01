@@ -20,6 +20,7 @@ mod replay;
 mod resources;
 mod scenario;
 mod scoring;
+mod targets;
 mod triggers;
 mod view;
 

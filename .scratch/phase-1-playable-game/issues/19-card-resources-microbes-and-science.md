@@ -21,7 +21,7 @@ If a card turns out to need machinery from another ticket, move it to that ticke
 - [ ] #005 Search for Life
 - [ ] #033 Regolith Eaters
 - [ ] #034 GHG Producing Bacteria
-- [ ] #035 Ants
+- [ ] #035 Ants — "remove 1 microbe from any card" can share ticket 17's target Decision (`Waiting::Target`, `targets::target_options`; "Remove nothing" offered, never the Player's own cards while that only does worse): see "Taking from any Player" in docs/rules-notes.md
 - [ ] #049 Tardigrades
 - [ ] #095 Physics Complex
 - [ ] #131 Decomposers — a Trigger in ticket 16's `"when"` form, but `{"tag_played": ...}` takes one Tag and a Trigger gains only Resources and Production: extend both (several Tags, a Card Resource gain), and the card's "including this" makes its own Tags count, as Mars University's do

@@ -20,10 +20,10 @@ If a card turns out to need machinery from another ticket, move it to that ticke
 CEO's Favorite Project (#149, ticket 19, moved from ticket 14) adds 1 Card Resource to any card with at least 1: check that it can target this batch's animal and fighter cards too.
 
 - [ ] #019 Imported Hydrogen
-- [ ] #024 Predators
+- [ ] #024 Predators — "remove 1 animal from any card" can share ticket 17's target Decision (`Waiting::Target`, `targets::target_options`): see "Taking from any Player" in docs/rules-notes.md
 - [ ] #026 Eos Chasma National Park
 - [ ] #028 Security Fleet
-- [ ] #050 Virus
+- [ ] #050 Virus — "remove up to 2 animals or 5 plants from any player" is ticket 17's `"any_player": {"remove": [...]}` once a Card Resource can be an alternative
 - [ ] #052 Fish
 - [ ] #054 Small Animals
 - [ ] #072 Birds
@@ -33,6 +33,6 @@ CEO's Favorite Project (#149, ticket 19, moved from ticket 14) adds 1 Card Resou
 - [ ] #147 Herbivores — a `"when"` Trigger (ticket 16): `{"tile_placed": {"tile": "greenery", "by": "you"}}`, with a Card Resource gain
 - [ ] #163 Imported Nitrogen
 - [ ] #172 Pets — a `"when"` Trigger (ticket 16): `{"tile_placed": {"tile": "city", "by": "anyone"}}`, with a Card Resource gain
-- [ ] #173 Protected Habitats
+- [ ] #173 Protected Habitats — "opponents may not remove your plants, animals or microbes": `targets::target_options` must leave its Player out of plant removals (Asteroid, Comet, Big Asteroid, Deimos Down, Mining Expedition, Giant Ice Asteroid, ticket 17), and the fuzz invariant `targets_offered_are_those_the_rules_allow` must know it. It doesn't protect Production
 - [ ] #184 Livestock
 - [ ] #190 Local Heat Trapping

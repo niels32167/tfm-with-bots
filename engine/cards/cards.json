@@ -26,7 +26,8 @@
       "requirements": [{"type": "production", "resource": "titanium", "min": 1}],
       "victory_points": 1,
       "text": "(Requires that you have titanium production. Decrease any titanium production 1 step and increase your own 1 step.)",
-      "face": {"content": {"tag": "div", "class": "content", "children": [" ", {"tag": "div", "class": "points points-big", "children": ["1"]}, " ", {"tag": "div", "class": "requirements", "children": ["Titanium production"]}, " ", {"tag": "div", "class": "production-box production-box-size1a", "children": [" ", {"tag": "div", "class": "production-prefix", "children": [{"tag": "div", "class": "minus"}]}, " ", {"tag": "div", "class": "titanium production red-outline"}, " ", {"tag": "br"}, " ", {"tag": "div", "class": "production-prefix", "children": [{"tag": "div", "class": "plus"}]}, " ", {"tag": "div", "class": "titanium production"}, " "]}, " ", {"tag": "div", "class": "description", "style": {"margin-top": "0px"}, "children": [" (Requires that you have titanium production. Decrease any titanium production 1 step and increase your own 1 step.) "]}, " "]}}
+      "face": {"content": {"tag": "div", "class": "content", "children": [" ", {"tag": "div", "class": "points points-big", "children": ["1"]}, " ", {"tag": "div", "class": "requirements", "children": ["Titanium production"]}, " ", {"tag": "div", "class": "production-box production-box-size1a", "children": [" ", {"tag": "div", "class": "production-prefix", "children": [{"tag": "div", "class": "minus"}]}, " ", {"tag": "div", "class": "titanium production red-outline"}, " ", {"tag": "br"}, " ", {"tag": "div", "class": "production-prefix", "children": [{"tag": "div", "class": "plus"}]}, " ", {"tag": "div", "class": "titanium production"}, " "]}, " ", {"tag": "div", "class": "description", "style": {"margin-top": "0px"}, "children": [" (Requires that you have titanium production. Decrease any titanium production 1 step and increase your own 1 step.) "]}, " "]}},
+      "effects": {"production": {"titanium": 1}, "any_player": {"production": {"titanium": -1}}}
     },
     {
       "id": "deep_well_heating",
@@ -53,7 +54,8 @@
       "requirements": [{"type": "oceans", "min": 3}],
       "victory_points": null,
       "text": "(Requires 3 ocean tiles. Decrease your MC production 1 step and any heat production 1 step. Increase your Plant production 2 steps.)",
-      "face": {"content": {"tag": "div", "class": "content", "children": [" ", {"tag": "div", "class": "requirements", "children": ["3 Oceans"]}, " ", {"tag": "div", "class": "production-box production-box-size2a", "children": [" ", {"tag": "div", "class": "production-prefix", "children": [{"tag": "div", "class": "minus"}]}, " ", {"tag": "div", "class": "money production", "children": ["1"]}, " ", {"tag": "div", "class": "heat production red-outline"}, " ", {"tag": "br"}, " ", {"tag": "div", "class": "production-prefix", "children": [{"tag": "div", "class": "plus"}]}, " ", {"tag": "div", "class": "plant production"}, " ", {"tag": "div", "class": "plant production"}, " "]}, " ", {"tag": "div", "class": "description", "children": [" (Requires 3 ocean tiles. Decrease your MC production 1 step and any heat production 1 step. Increase your Plant production 2 steps.) "]}, " "]}}
+      "face": {"content": {"tag": "div", "class": "content", "children": [" ", {"tag": "div", "class": "requirements", "children": ["3 Oceans"]}, " ", {"tag": "div", "class": "production-box production-box-size2a", "children": [" ", {"tag": "div", "class": "production-prefix", "children": [{"tag": "div", "class": "minus"}]}, " ", {"tag": "div", "class": "money production", "children": ["1"]}, " ", {"tag": "div", "class": "heat production red-outline"}, " ", {"tag": "br"}, " ", {"tag": "div", "class": "production-prefix", "children": [{"tag": "div", "class": "plus"}]}, " ", {"tag": "div", "class": "plant production"}, " ", {"tag": "div", "class": "plant production"}, " "]}, " ", {"tag": "div", "class": "description", "children": [" (Requires 3 ocean tiles. Decrease your MC production 1 step and any heat production 1 step. Increase your Plant production 2 steps.) "]}, " "]}},
+      "effects": {"production": {"megacredits": -1, "plants": 2}, "any_player": {"production": {"heat": -1}}}
     },
     {
       "id": "search_for_life",
@@ -120,7 +122,8 @@
       "requirements": [],
       "victory_points": null,
       "text": "(Raise temperature 1 step and gain 2 titanium. Remove up to 3 Plants from any player.)",
-      "face": {"content": {"tag": "div", "class": "content", "children": [" ", {"tag": "div", "class": "tile temperature-tile"}, " ", {"tag": "br"}, " ", {"tag": "div", "class": "titanium resource"}, " ", {"tag": "div", "class": "titanium resource"}, " ", {"tag": "br"}, " ", {"tag": "div", "class": "minus"}, " ", {"tag": "div", "class": "resource plant red-outline"}, " ", {"tag": "div", "class": "plant resource red-outline"}, " ", {"tag": "div", "class": "plant resource red-outline"}, " ", {"tag": "div", "class": "description", "children": [" (Raise temperature 1 step and gain 2 titanium. Remove up to 3 Plants from any player.) "]}, " "]}}
+      "face": {"content": {"tag": "div", "class": "content", "children": [" ", {"tag": "div", "class": "tile temperature-tile"}, " ", {"tag": "br"}, " ", {"tag": "div", "class": "titanium resource"}, " ", {"tag": "div", "class": "titanium resource"}, " ", {"tag": "br"}, " ", {"tag": "div", "class": "minus"}, " ", {"tag": "div", "class": "resource plant red-outline"}, " ", {"tag": "div", "class": "plant resource red-outline"}, " ", {"tag": "div", "class": "plant resource red-outline"}, " ", {"tag": "div", "class": "description", "children": [" (Raise temperature 1 step and gain 2 titanium. Remove up to 3 Plants from any player.) "]}, " "]}},
+      "effects": {"resources": {"titanium": 2}, "temperature": 1, "any_player": {"remove": [{"plants": 3}]}}
     },
     {
       "id": "comet",
@@ -133,7 +136,8 @@
       "requirements": [],
       "victory_points": null,
       "text": "(Raise temperature 1 step and place an ocean tile. Remove up to 3 Plants from any player.)",
-      "face": {"content": {"tag": "div", "class": "content", "children": [" ", {"tag": "div", "class": "tile temperature-tile"}, " ", {"tag": "div", "class": "tile ocean-tile"}, " ", {"tag": "br"}, " ", {"tag": "div", "class": "minus"}, " ", {"tag": "div", "class": "plant resource red-outline"}, " ", {"tag": "div", "class": "plant resource red-outline"}, " ", {"tag": "div", "class": "plant resource red-outline"}, " ", {"tag": "div", "class": "description", "children": [" (Raise temperature 1 step and place an ocean tile. Remove up to 3 Plants from any player.) "]}, " "]}}
+      "face": {"content": {"tag": "div", "class": "content", "children": [" ", {"tag": "div", "class": "tile temperature-tile"}, " ", {"tag": "div", "class": "tile ocean-tile"}, " ", {"tag": "br"}, " ", {"tag": "div", "class": "minus"}, " ", {"tag": "div", "class": "plant resource red-outline"}, " ", {"tag": "div", "class": "plant resource red-outline"}, " ", {"tag": "div", "class": "plant resource red-outline"}, " ", {"tag": "div", "class": "description", "children": [" (Raise temperature 1 step and place an ocean tile. Remove up to 3 Plants from any player.) "]}, " "]}},
+      "effects": {"temperature": 1, "tiles": ["ocean"], "any_player": {"remove": [{"plants": 3}]}}
     },
     {
       "id": "big_asteroid",
@@ -146,7 +150,8 @@
       "requirements": [],
       "victory_points": null,
       "text": "(Raise temperature 2 steps and gain 4 titanium. Remove up to 4 Plants from any player.)",
-      "face": {"content": {"tag": "div", "class": "content", "children": [" ", {"tag": "div", "class": "tile temperature-tile"}, " ", {"tag": "div", "class": "tile temperature-tile"}, " ", {"tag": "br"}, " ", {"tag": "div", "class": "titanium resource"}, " ", {"tag": "div", "class": "titanium resource"}, " ", {"tag": "div", "class": "titanium resource"}, " ", {"tag": "div", "class": "titanium resource"}, " ", {"tag": "br"}, " ", {"tag": "div", "class": "minus"}, " ", {"tag": "div", "class": "plant resource red-outline"}, " ", {"tag": "div", "class": "plant resource red-outline"}, " ", {"tag": "div", "class": "plant resource red-outline"}, " ", {"tag": "div", "class": "plant resource red-outline"}, " ", {"tag": "div", "class": "description", "children": [" (Raise temperature 2 steps and gain 4 titanium. Remove up to 4 Plants from any player.) "]}, " "]}}
+      "face": {"content": {"tag": "div", "class": "content", "children": [" ", {"tag": "div", "class": "tile temperature-tile"}, " ", {"tag": "div", "class": "tile temperature-tile"}, " ", {"tag": "br"}, " ", {"tag": "div", "class": "titanium resource"}, " ", {"tag": "div", "class": "titanium resource"}, " ", {"tag": "div", "class": "titanium resource"}, " ", {"tag": "div", "class": "titanium resource"}, " ", {"tag": "br"}, " ", {"tag": "div", "class": "minus"}, " ", {"tag": "div", "class": "plant resource red-outline"}, " ", {"tag": "div", "class": "plant resource red-outline"}, " ", {"tag": "div", "class": "plant resource red-outline"}, " ", {"tag": "div", "class": "plant resource red-outline"}, " ", {"tag": "div", "class": "description", "children": [" (Raise temperature 2 steps and gain 4 titanium. Remove up to 4 Plants from any player.) "]}, " "]}},
+      "effects": {"resources": {"titanium": 4}, "temperature": 2, "any_player": {"remove": [{"plants": 4}]}}
     },
     {
       "id": "water_import_from_europa",
@@ -528,7 +533,8 @@
       "requirements": [],
       "victory_points": null,
       "text": "(Raise temperature 3 steps and gain 4 steel. Remove up to 8 Plants from any player.)",
-      "face": {"content": {"tag": "div", "class": "content", "children": [" ", {"tag": "div", "class": "tile temperature-tile"}, " ", {"tag": "div", "class": "tile temperature-tile"}, " ", {"tag": "div", "class": "tile temperature-tile"}, " ", {"tag": "br"}, " ", {"tag": "div", "class": "steel resource"}, " ", {"tag": "div", "class": "steel resource"}, " ", {"tag": "div", "class": "steel resource"}, " ", {"tag": "div", "class": "steel resource"}, " ", {"tag": "br"}, " ", {"tag": "div", "class": "minus"}, " 8 ", {"tag": "div", "class": "resource plant red-outline"}, " ", {"tag": "div", "class": "description", "children": [" (Raise temperature 3 steps and gain 4 steel. Remove up to 8 Plants from any player.) "]}, " "]}}
+      "face": {"content": {"tag": "div", "class": "content", "children": [" ", {"tag": "div", "class": "tile temperature-tile"}, " ", {"tag": "div", "class": "tile temperature-tile"}, " ", {"tag": "div", "class": "tile temperature-tile"}, " ", {"tag": "br"}, " ", {"tag": "div", "class": "steel resource"}, " ", {"tag": "div", "class": "steel resource"}, " ", {"tag": "div", "class": "steel resource"}, " ", {"tag": "div", "class": "steel resource"}, " ", {"tag": "br"}, " ", {"tag": "div", "class": "minus"}, " 8 ", {"tag": "div", "class": "resource plant red-outline"}, " ", {"tag": "div", "class": "description", "children": [" (Raise temperature 3 steps and gain 4 steel. Remove up to 8 Plants from any player.) "]}, " "]}},
+      "effects": {"resources": {"steel": 4}, "temperature": 3, "any_player": {"remove": [{"plants": 8}]}}
     },
     {
       "id": "asteroid_mining",
@@ -830,7 +836,8 @@
       "requirements": [{"type": "production", "resource": "steel", "min": 1}],
       "victory_points": null,
       "text": "(Requires that you have steel production. Decrease any steel production 1 step and increase your own 1 step.)",
-      "face": {"content": {"tag": "div", "class": "content", "children": [" ", {"tag": "div", "class": "requirements", "children": ["Steel production"]}, " ", {"tag": "div", "class": "production-box production-box-size1a", "children": [" ", {"tag": "div", "class": "production-prefix", "children": [{"tag": "div", "class": "minus"}]}, " ", {"tag": "div", "class": "production steel red-outline"}, " ", {"tag": "br"}, " ", {"tag": "div", "class": "production-prefix", "children": [{"tag": "div", "class": "plus"}]}, " ", {"tag": "div", "class": "production steel"}, " "]}, " ", {"tag": "div", "class": "description", "children": [" (Requires that you have steel production. Decrease any steel production 1 step and increase your own 1 step.) "]}, " "]}, "title_style": {"font-size": "14px"}}
+      "face": {"content": {"tag": "div", "class": "content", "children": [" ", {"tag": "div", "class": "requirements", "children": ["Steel production"]}, " ", {"tag": "div", "class": "production-box production-box-size1a", "children": [" ", {"tag": "div", "class": "production-prefix", "children": [{"tag": "div", "class": "minus"}]}, " ", {"tag": "div", "class": "production steel red-outline"}, " ", {"tag": "br"}, " ", {"tag": "div", "class": "production-prefix", "children": [{"tag": "div", "class": "plus"}]}, " ", {"tag": "div", "class": "production steel"}, " "]}, " ", {"tag": "div", "class": "description", "children": [" (Requires that you have steel production. Decrease any steel production 1 step and increase your own 1 step.) "]}, " "]}, "title_style": {"font-size": "14px"}},
+      "effects": {"production": {"steel": 1}, "any_player": {"production": {"steel": -1}}}
     },
     {
       "id": "mineral_deposit",
@@ -857,7 +864,8 @@
       "requirements": [],
       "victory_points": null,
       "text": "(Raise oxygen 1 step. Remove 2 plants from any player. Gain 2 steel.)",
-      "face": {"content": {"tag": "div", "class": "content", "children": [" ", {"tag": "div", "class": "tile oxygen-tile"}, " ", {"tag": "br"}, " ", {"tag": "div", "class": "resource steel"}, " ", {"tag": "div", "class": "resource steel"}, " ", {"tag": "div", "class": "resource plant red-outline"}, " ", {"tag": "div", "class": "resource plant red-outline"}, " ", {"tag": "div", "class": "description", "children": [" (Raise oxygen 1 step. Remove 2 plants from any player. Gain 2 steel.) "]}, " "]}}
+      "face": {"content": {"tag": "div", "class": "content", "children": [" ", {"tag": "div", "class": "tile oxygen-tile"}, " ", {"tag": "br"}, " ", {"tag": "div", "class": "resource steel"}, " ", {"tag": "div", "class": "resource steel"}, " ", {"tag": "div", "class": "resource plant red-outline"}, " ", {"tag": "div", "class": "resource plant red-outline"}, " ", {"tag": "div", "class": "description", "children": [" (Raise oxygen 1 step. Remove 2 plants from any player. Gain 2 steel.) "]}, " "]}},
+      "effects": {"resources": {"steel": 2}, "oxygen": 1, "any_player": {"remove": [{"plants": 2}]}}
     },
     {
       "id": "mining_area",
@@ -1089,7 +1097,8 @@
       "requirements": [],
       "victory_points": null,
       "text": "(Raise temperature 2 steps and place 2 ocean tiles. Remove up to 6 plants from any player.)",
-      "face": {"content": {"tag": "div", "class": "content", "children": [" ", {"tag": "div", "class": "tile temperature-tile"}, " ", {"tag": "div", "class": "tile temperature-tile"}, " ", {"tag": "br"}, " ", {"tag": "div", "class": "tile ocean-tile"}, " ", {"tag": "div", "class": "tile ocean-tile"}, " ", {"tag": "br"}, " ", {"tag": "div", "class": "minus"}, " 6 ", {"tag": "div", "class": "plant resource red-outline"}, " ", {"tag": "div", "class": "description", "children": [" (Raise temperature 2 steps and place 2 ocean tiles. Remove up to 6 plants from any player.) "]}, " "]}}
+      "face": {"content": {"tag": "div", "class": "content", "children": [" ", {"tag": "div", "class": "tile temperature-tile"}, " ", {"tag": "div", "class": "tile temperature-tile"}, " ", {"tag": "br"}, " ", {"tag": "div", "class": "tile ocean-tile"}, " ", {"tag": "div", "class": "tile ocean-tile"}, " ", {"tag": "br"}, " ", {"tag": "div", "class": "minus"}, " 6 ", {"tag": "div", "class": "plant resource red-outline"}, " ", {"tag": "div", "class": "description", "children": [" (Raise temperature 2 steps and place 2 ocean tiles. Remove up to 6 plants from any player.) "]}, " "]}},
+      "effects": {"temperature": 2, "tiles": ["ocean", "ocean"], "any_player": {"remove": [{"plants": 6}]}}
     },
     {
       "id": "ganymede_colony",
@@ -1309,7 +1318,8 @@
       "requirements": [],
       "victory_points": null,
       "text": "(Gain 1 plant for each city tile in play.)",
-      "face": {"content": {"tag": "div", "class": "content", "children": [" ", {"tag": "div", "class": "resource plant"}, " / ", {"tag": "div", "class": "tile city-tile red-outline"}, " ", {"tag": "div", "class": "description", "children": [" (Gain 1 plant for each city tile in play.) "]}, " "]}}
+      "face": {"content": {"tag": "div", "class": "content", "children": [" ", {"tag": "div", "class": "resource plant"}, " / ", {"tag": "div", "class": "tile city-tile red-outline"}, " ", {"tag": "div", "class": "description", "children": [" (Gain 1 plant for each city tile in play.) "]}, " "]}},
+      "effects": {"resources_per": {"resource": "plants", "amount": 1, "per": 1, "of": {"tiles_in_play": "city"}}}
     },
     {
       "id": "nuclear_zone",
@@ -1349,7 +1359,8 @@
       "requirements": [],
       "victory_points": null,
       "text": "(Increase your MC production 1 step for each space tag your OPPONENTS have.)",
-      "face": {"content": {"tag": "div", "class": "content", "children": [" ", {"tag": "div", "class": "production-box production-box-size2a", "children": [" ", {"tag": "div", "class": "production money", "children": ["1"]}, " / ", {"tag": "div", "class": "resource-tag production-tag tag-space red-outline"}, " "]}, " ", {"tag": "div", "class": "description", "children": [" (Increase your MC production 1 step for each space tag your OPPONENTS have.) "]}, " "]}}
+      "face": {"content": {"tag": "div", "class": "content", "children": [" ", {"tag": "div", "class": "production-box production-box-size2a", "children": [" ", {"tag": "div", "class": "production money", "children": ["1"]}, " / ", {"tag": "div", "class": "resource-tag production-tag tag-space red-outline"}, " "]}, " ", {"tag": "div", "class": "description", "children": [" (Increase your MC production 1 step for each space tag your OPPONENTS have.) "]}, " "]}},
+      "effects": {"production_per": {"resource": "megacredits", "steps": 1, "per": 1, "of": {"tags_of_opponents": "space"}}}
     },
     {
       "id": "fueled_generators",
@@ -1460,7 +1471,8 @@
       "requirements": [],
       "victory_points": null,
       "text": "(Gain 1 MC for each event EVER PLAYED by all players.)",
-      "face": {"content": {"tag": "div", "class": "content", "children": [" ", {"tag": "div", "class": "money resource", "children": ["1"]}, " / ", {"tag": "div", "class": "resource-tag tag-event red-outline"}, " ", {"tag": "div", "class": "description", "children": [" (Gain 1 MC for each event EVER PLAYED by all players.) "]}, " "]}}
+      "face": {"content": {"tag": "div", "class": "content", "children": [" ", {"tag": "div", "class": "money resource", "children": ["1"]}, " / ", {"tag": "div", "class": "resource-tag tag-event red-outline"}, " ", {"tag": "div", "class": "description", "children": [" (Gain 1 MC for each event EVER PLAYED by all players.) "]}, " "]}},
+      "effects": {"resources_per": {"resource": "megacredits", "amount": 1, "per": 1, "of": "events_played"}}
     },
     {
       "id": "open_city",
@@ -1655,7 +1667,8 @@
       "requirements": [],
       "victory_points": null,
       "text": "(Remove up to 3 titanium from any player, or 4 steel, or 7 MC.)",
-      "face": {"content": {"tag": "div", "class": "content", "children": [" -3 ", {"tag": "div", "class": "resource titanium red-outline"}, " OR -4 ", {"tag": "div", "class": "resource steel red-outline"}, " OR - ", {"tag": "div", "class": "resource money red-outline", "children": ["7"]}, " ", {"tag": "div", "class": "description", "children": [" (Remove up to 3 titanium from any player, or 4 steel, or 7 MC.) "]}, " "]}}
+      "face": {"content": {"tag": "div", "class": "content", "children": [" -3 ", {"tag": "div", "class": "resource titanium red-outline"}, " OR -4 ", {"tag": "div", "class": "resource steel red-outline"}, " OR - ", {"tag": "div", "class": "resource money red-outline", "children": ["7"]}, " ", {"tag": "div", "class": "description", "children": [" (Remove up to 3 titanium from any player, or 4 steel, or 7 MC.) "]}, " "]}},
+      "effects": {"any_player": {"remove": [{"titanium": 3}, {"steel": 4}, {"megacredits": 7}]}}
     },
     {
       "id": "moss",
@@ -1695,7 +1708,8 @@
       "requirements": [],
       "victory_points": null,
       "text": "(Steal up to 2 steel, or 3 MC from any player.)",
-      "face": {"content": {"tag": "div", "class": "content", "children": [" STEAL 2 ", {"tag": "div", "class": "resource steel red-outline"}, " ", {"tag": "br"}, "OR STEAL ", {"tag": "div", "class": "resource money red-outline", "children": ["3"]}, " ", {"tag": "div", "class": "description", "children": [" (Steal up to 2 steel, or 3 MC from any player.) "]}, " "]}}
+      "face": {"content": {"tag": "div", "class": "content", "children": [" STEAL 2 ", {"tag": "div", "class": "resource steel red-outline"}, " ", {"tag": "br"}, "OR STEAL ", {"tag": "div", "class": "resource money red-outline", "children": ["3"]}, " ", {"tag": "div", "class": "description", "children": [" (Steal up to 2 steel, or 3 MC from any player.) "]}, " "]}},
+      "effects": {"any_player": {"steal": [{"steel": 2}, {"megacredits": 3}]}}
     },
     {
       "id": "hackers",
@@ -1708,7 +1722,8 @@
       "requirements": [],
       "victory_points": -1,
       "text": "(Decrease your energy production 1 step and any MC production 2 steps. increase your MC production 2 steps.",
-      "face": {"content": {"tag": "div", "class": "content", "children": [" ", {"tag": "div", "class": "points points-big", "children": ["-1"]}, " ", {"tag": "div", "class": "production-box production-box-size2a", "children": [" ", {"tag": "div", "class": "production-prefix", "children": [{"tag": "div", "class": "minus"}]}, " ", {"tag": "div", "class": "energy production"}, " ", {"tag": "div", "class": "money production red-outline", "children": ["2"]}, " ", {"tag": "div", "class": "production-prefix", "children": [{"tag": "div", "class": "plus"}]}, " ", {"tag": "div", "class": "money production", "children": ["2"]}, " "]}, " ", {"tag": "div", "class": "description", "children": [" (Decrease your energy production 1 step and any MC production 2 steps. increase your MC production 2 steps. "]}, " "]}}
+      "face": {"content": {"tag": "div", "class": "content", "children": [" ", {"tag": "div", "class": "points points-big", "children": ["-1"]}, " ", {"tag": "div", "class": "production-box production-box-size2a", "children": [" ", {"tag": "div", "class": "production-prefix", "children": [{"tag": "div", "class": "minus"}]}, " ", {"tag": "div", "class": "energy production"}, " ", {"tag": "div", "class": "money production red-outline", "children": ["2"]}, " ", {"tag": "div", "class": "production-prefix", "children": [{"tag": "div", "class": "plus"}]}, " ", {"tag": "div", "class": "money production", "children": ["2"]}, " "]}, " ", {"tag": "div", "class": "description", "children": [" (Decrease your energy production 1 step and any MC production 2 steps. increase your MC production 2 steps. "]}, " "]}},
+      "effects": {"production": {"energy": -1, "megacredits": 2}, "any_player": {"production": {"megacredits": -2}}}
     },
     {
       "id": "ghg_factories",
@@ -1762,7 +1777,8 @@
       "requirements": [{"type": "oxygen", "min": 5}],
       "victory_points": 1,
       "text": "(Requires 5% oxygen. Increase your MC production 1 step for each City tile ON MARS.)",
-      "face": {"content": {"tag": "div", "class": "content", "children": [" ", {"tag": "div", "class": "points points-big", "children": ["1"]}, " ", {"tag": "div", "class": "requirements", "children": ["5% O2"]}, " ", {"tag": "div", "class": "production-box production-box-size2a", "children": [" ", {"tag": "div", "class": "money production", "children": ["1"]}, " / ", {"tag": "div", "class": "tile city-tile-small red-outline", "style": {"margin-bottom": "0px"}}, " ", {"tag": "br"}, " "]}, " ", {"tag": "div", "class": "description", "children": [" (Requires 5% oxygen. Increase your MC production 1 step for each City tile ON MARS.) "]}, " "]}}
+      "face": {"content": {"tag": "div", "class": "content", "children": [" ", {"tag": "div", "class": "points points-big", "children": ["1"]}, " ", {"tag": "div", "class": "requirements", "children": ["5% O2"]}, " ", {"tag": "div", "class": "production-box production-box-size2a", "children": [" ", {"tag": "div", "class": "money production", "children": ["1"]}, " / ", {"tag": "div", "class": "tile city-tile-small red-outline", "style": {"margin-bottom": "0px"}}, " ", {"tag": "br"}, " "]}, " ", {"tag": "div", "class": "description", "children": [" (Requires 5% oxygen. Increase your MC production 1 step for each City tile ON MARS.) "]}, " "]}},
+      "effects": {"production_per": {"resource": "megacredits", "steps": 1, "per": 1, "of": {"tiles_on_mars": "city"}}}
     },
     {
       "id": "worms",
@@ -2186,7 +2202,8 @@
       "requirements": [{"type": "tag", "tag": "power", "min": 2}],
       "victory_points": null,
       "text": "(Requires 2 Power tags. Decrease any Energy production 1 step and increase your own 1 step.)",
-      "face": {"content": {"tag": "div", "class": "content", "children": [" ", {"tag": "div", "class": "requirements", "children": ["2 Power"]}, " ", {"tag": "div", "class": "production-box production-box-size1a", "children": [" ", {"tag": "div", "class": "production-prefix", "children": [{"tag": "div", "class": "minus"}]}, " ", {"tag": "div", "class": "energy production red-outline"}, " ", {"tag": "div", "class": "production-prefix", "children": [{"tag": "div", "class": "plus"}]}, " ", {"tag": "div", "class": "energy production"}, " "]}, " ", {"tag": "div", "class": "description", "children": [" (Requires 2 Power tags. Decrease any Energy production 1 step and increase your own 1 step.) "]}, " "]}}
+      "face": {"content": {"tag": "div", "class": "content", "children": [" ", {"tag": "div", "class": "requirements", "children": ["2 Power"]}, " ", {"tag": "div", "class": "production-box production-box-size1a", "children": [" ", {"tag": "div", "class": "production-prefix", "children": [{"tag": "div", "class": "minus"}]}, " ", {"tag": "div", "class": "energy production red-outline"}, " ", {"tag": "div", "class": "production-prefix", "children": [{"tag": "div", "class": "plus"}]}, " ", {"tag": "div", "class": "energy production"}, " "]}, " ", {"tag": "div", "class": "description", "children": [" (Requires 2 Power tags. Decrease any Energy production 1 step and increase your own 1 step.) "]}, " "]}},
+      "effects": {"production": {"energy": 1}, "any_player": {"production": {"energy": -1}}}
     },
     {
       "id": "convoy_from_europa",
@@ -2433,7 +2450,8 @@
       "requirements": [],
       "victory_points": -1,
       "text": "(Decrease any heat production 2 steps and increase your Energy production 1 step.)",
-      "face": {"content": {"tag": "div", "class": "content", "children": [" ", {"tag": "div", "class": "points points-big", "children": ["-1"]}, " ", {"tag": "div", "class": "production-box production-box-size2a", "children": [" ", {"tag": "div", "class": "production-prefix", "children": [{"tag": "div", "class": "minus"}]}, " ", {"tag": "div", "class": "heat production red-outline"}, " ", {"tag": "div", "class": "heat production red-outline"}, " ", {"tag": "div", "class": "production-prefix", "children": [{"tag": "div", "class": "plus"}]}, " ", {"tag": "div", "class": "energy production"}, " "]}, " ", {"tag": "div", "class": "description", "children": [" (Decrease any heat production 2 steps and increase your Energy production 1 step.) "]}, " "]}}
+      "face": {"content": {"tag": "div", "class": "content", "children": [" ", {"tag": "div", "class": "points points-big", "children": ["-1"]}, " ", {"tag": "div", "class": "production-box production-box-size2a", "children": [" ", {"tag": "div", "class": "production-prefix", "children": [{"tag": "div", "class": "minus"}]}, " ", {"tag": "div", "class": "heat production red-outline"}, " ", {"tag": "div", "class": "heat production red-outline"}, " ", {"tag": "div", "class": "production-prefix", "children": [{"tag": "div", "class": "plus"}]}, " ", {"tag": "div", "class": "energy production"}, " "]}, " ", {"tag": "div", "class": "description", "children": [" (Decrease any heat production 2 steps and increase your Energy production 1 step.) "]}, " "]}},
+      "effects": {"production": {"energy": 1}, "any_player": {"production": {"heat": -2}}}
     },
     {
       "id": "soil_factory",
@@ -2502,7 +2520,8 @@
       "requirements": [{"type": "oxygen", "min": 6}],
       "victory_points": -1,
       "text": "(Requires 6% oxygen. Decrease any Plant production 1 step and increase your Energy production 2 steps.)",
-      "face": {"content": {"tag": "div", "class": "content", "children": [" ", {"tag": "div", "class": "points points-big", "children": ["-1"]}, " ", {"tag": "div", "class": "requirements", "children": ["6% O2"]}, " ", {"tag": "div", "class": "production-box production-box-size2a", "children": [" ", {"tag": "div", "class": "production-prefix", "children": [{"tag": "div", "class": "minus"}]}, " ", {"tag": "div", "class": "plant production red-outline"}, " ", {"tag": "br"}, " ", {"tag": "div", "class": "production-prefix", "children": [{"tag": "div", "class": "plus"}]}, " ", {"tag": "div", "class": "energy production"}, " ", {"tag": "div", "class": "energy production"}, " "]}, " ", {"tag": "div", "class": "description", "children": [" (Requires 6% oxygen. Decrease any Plant production 1 step and increase your Energy production 2 steps.) "]}, " "]}}
+      "face": {"content": {"tag": "div", "class": "content", "children": [" ", {"tag": "div", "class": "points points-big", "children": ["-1"]}, " ", {"tag": "div", "class": "requirements", "children": ["6% O2"]}, " ", {"tag": "div", "class": "production-box production-box-size2a", "children": [" ", {"tag": "div", "class": "production-prefix", "children": [{"tag": "div", "class": "minus"}]}, " ", {"tag": "div", "class": "plant production red-outline"}, " ", {"tag": "br"}, " ", {"tag": "div", "class": "production-prefix", "children": [{"tag": "div", "class": "plus"}]}, " ", {"tag": "div", "class": "energy production"}, " ", {"tag": "div", "class": "energy production"}, " "]}, " ", {"tag": "div", "class": "description", "children": [" (Requires 6% oxygen. Decrease any Plant production 1 step and increase your Energy production 2 steps.) "]}, " "]}},
+      "effects": {"production": {"energy": 2}, "any_player": {"production": {"plants": -1}}}
     },
     {
       "id": "livestock",
@@ -2569,7 +2588,8 @@
       "requirements": [],
       "victory_points": -1,
       "text": "(Place an ocean tile. IF THERE ARE TILES ADJACENT TO THIS OCEAN TILE, YOU MAY REMOVE 4 MC FROM THE OWNER OF ONE OF THOSE TILES.)",
-      "face": {"content": {"tag": "div", "class": "content", "children": [" ", {"tag": "div", "class": "points points-big", "children": ["-1"]}, " ", {"tag": "div", "class": "tile ocean-tile", "style": {"margin-right": "20px"}}, " ", {"tag": "div", "class": "minus"}, " ", {"tag": "div", "class": "resource money red-outline", "children": ["4"]}, " * ", {"tag": "div", "class": "description", "children": [" (Place an ocean tile. IF THERE ARE TILES ADJACENT TO THIS OCEAN TILE, YOU MAY REMOVE 4 MC FROM THE OWNER OF ONE OF THOSE TILES.) "]}, " "]}}
+      "face": {"content": {"tag": "div", "class": "content", "children": [" ", {"tag": "div", "class": "points points-big", "children": ["-1"]}, " ", {"tag": "div", "class": "tile ocean-tile", "style": {"margin-right": "20px"}}, " ", {"tag": "div", "class": "minus"}, " ", {"tag": "div", "class": "resource money red-outline", "children": ["4"]}, " * ", {"tag": "div", "class": "description", "children": [" (Place an ocean tile. IF THERE ARE TILES ADJACENT TO THIS OCEAN TILE, YOU MAY REMOVE 4 MC FROM THE OWNER OF ONE OF THOSE TILES.) "]}, " "]}},
+      "effects": {"tiles": ["ocean"], "any_player": {"remove": [{"megacredits": 4}]}}
     },
     {
       "id": "energy_saving",
@@ -2582,7 +2602,8 @@
       "requirements": [],
       "victory_points": null,
       "text": "(Increase your Energy production 1 step for each City tile in play.)",
-      "face": {"content": {"tag": "div", "class": "content", "children": [" ", {"tag": "div", "class": "production-box production-box-size2a", "children": [" ", {"tag": "div", "class": "energy production", "style": {"vertical-align": "middle"}}, " / ", {"tag": "div", "class": "tile city-tile-small red-outline", "style": {"margin-bottom": "3px"}}, " "]}, " ", {"tag": "div", "class": "description", "children": [" (Increase your Energy production 1 step for each City tile in play.) "]}, " "]}}
+      "face": {"content": {"tag": "div", "class": "content", "children": [" ", {"tag": "div", "class": "production-box production-box-size2a", "children": [" ", {"tag": "div", "class": "energy production", "style": {"vertical-align": "middle"}}, " / ", {"tag": "div", "class": "tile city-tile-small red-outline", "style": {"margin-bottom": "3px"}}, " "]}, " ", {"tag": "div", "class": "description", "children": [" (Increase your Energy production 1 step for each City tile in play.) "]}, " "]}},
+      "effects": {"production_per": {"resource": "energy", "steps": 1, "per": 1, "of": {"tiles_in_play": "city"}}}
     },
     {
       "id": "local_heat_trapping",
@@ -2747,7 +2768,8 @@
       "requirements": [],
       "victory_points": -1,
       "text": "(Decrease any Energy production 1 step and increase your own 1 step.)",
-      "face": {"content": {"tag": "div", "class": "content", "children": [" ", {"tag": "div", "class": "points points-big", "children": ["-1"]}, " ", {"tag": "div", "class": "production-box production-box-size1a", "children": [" ", {"tag": "div", "class": "production-prefix", "children": [{"tag": "div", "class": "minus"}]}, " ", {"tag": "div", "class": "energy production red-outline"}, " ", {"tag": "div", "class": "production-prefix", "children": [{"tag": "div", "class": "plus"}]}, " ", {"tag": "div", "class": "energy production"}, " "]}, " ", {"tag": "div", "class": "description", "children": [" (Decrease any Energy production 1 step and increase your own 1 step.) "]}, " "]}}
+      "face": {"content": {"tag": "div", "class": "content", "children": [" ", {"tag": "div", "class": "points points-big", "children": ["-1"]}, " ", {"tag": "div", "class": "production-box production-box-size1a", "children": [" ", {"tag": "div", "class": "production-prefix", "children": [{"tag": "div", "class": "minus"}]}, " ", {"tag": "div", "class": "energy production red-outline"}, " ", {"tag": "div", "class": "production-prefix", "children": [{"tag": "div", "class": "plus"}]}, " ", {"tag": "div", "class": "energy production"}, " "]}, " ", {"tag": "div", "class": "description", "children": [" (Decrease any Energy production 1 step and increase your own 1 step.) "]}, " "]}},
+      "effects": {"production": {"energy": 1}, "any_player": {"production": {"energy": -1}}}
     },
     {
       "id": "underground_detonations",
