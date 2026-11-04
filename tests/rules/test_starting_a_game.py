@@ -51,6 +51,7 @@ def test_until_corporations_exist_every_player_starts_with_42_megacredits_and_te
             "keeping": None,
             "played_cards": [],
             "used_actions": [],
+            "card_resources": {},
             "next_card": None,
             "tags": dict.fromkeys(TAGS_THAT_COUNT, 0),
         }

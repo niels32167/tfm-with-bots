@@ -19,8 +19,10 @@ If a card turns out to need machinery from another ticket, move it to that ticke
 
 CEO's Favorite Project (#149, ticket 19, moved from ticket 14) adds 1 Card Resource to any card with at least 1: check that it can target this batch's animal and fighter cards too.
 
+Ticket 19's machinery (see "Card Resources", "An action's alternatives" and "Adding Card Resources to another card" in docs/rules-notes.md): `"holds"`, `"card_resources"`, `"add_to_another"`, a Trigger's `"card_resources"`, `{"tag_played": [...]}` and an action's `"choice"`. Add this batch's 9 cards that hold some to `CARDS_HOLDING_CARD_RESOURCES` in `tests/helpers.py` (the Game has room for all 18: `card_resources::CARDS_HOLDING_CARD_RESOURCES`) and those that add to another to `ADDING_TO_ANOTHER_CARD` in `tests/fuzzing/invariants.py`. `"choice"` is only for an action so far: Imported Hydrogen, Large Convoy and Local Heat Trapping need it when played (`Card::action_alternative`, `action_alternatives`). `tests/cards/test_decomposers.py` checks an animal Tag only through Advanced Ecosystems: add a test with one of this batch's animal cards.
+
 - [ ] #019 Imported Hydrogen
-- [ ] #024 Predators — "remove 1 animal from any card" can share ticket 17's target Decision (`Waiting::Target`, `targets::target_options`): see "Taking from any Player" in docs/rules-notes.md
+- [ ] #024 Predators — "remove 1 animal from any card" is `"action": {"any_player": {"move_card_resource": "animal"}}`, as Ants (ticket 19), which takes from the opponents' cards first and has no "Remove nothing": see "Ants" in docs/rules-notes.md. Add it to `MOVING_A_CARD_RESOURCE` in `tests/fuzzing/invariants.py`
 - [ ] #026 Eos Chasma National Park
 - [ ] #028 Security Fleet
 - [ ] #050 Virus — "remove up to 2 animals or 5 plants from any player" is ticket 17's `"any_player": {"remove": [...]}` once a Card Resource can be an alternative
@@ -28,11 +30,11 @@ CEO's Favorite Project (#149, ticket 19, moved from ticket 14) adds 1 Card Resou
 - [ ] #054 Small Animals
 - [ ] #072 Birds
 - [ ] #074 Viral Enhancers — the open-source game offers Nitrophilic Moss (ticket 13, "lose 2 plants") with only 1 plant while Viral Enhancers is in play, as its plant Tag gains a plant first; Moss (#122, lose 1) likewise with none. Decide whether the plant loss is checked before or after the "when you play" effect, and update "Production at its limit" in docs/rules-notes.md
-- [ ] #128 Ecological Zone — a `"when"` Trigger (ticket 16) on several Tags with a Card Resource gain, as Decomposers (ticket 19). Its Tile is a special Tile (ticket 18): add `SpecialTile::EcologicalZone` in `engine/src/board.rs` (the catalog checks its card index) and its symbol in `gui/src/components/MarsBoard.tsx`'s `SPECIAL_SYMBOLS`, and give it a placement rule as an `Areas` value ("adjacent to any greenery tile"), also written out in the fuzzer's `legal_areas`
+- [ ] #128 Ecological Zone — a `"when"` Trigger (ticket 16) on several Tags with a Card Resource gain, as Decomposers (ticket 19): `{"on": {"tag_played": ["animal", "plant"]}, "card_resources": 1}`. Its Tile is a special Tile (ticket 18): add `SpecialTile::EcologicalZone` in `engine/src/board.rs` (the catalog checks its card index) and its symbol in `gui/src/components/MarsBoard.tsx`'s `SPECIAL_SYMBOLS`, and give it a placement rule as an `Areas` value ("adjacent to any greenery tile"), also written out in the fuzzer's `legal_areas`
 - [ ] #143 Large Convoy
 - [ ] #147 Herbivores — a `"when"` Trigger (ticket 16): `{"tile_placed": {"tile": "greenery", "by": "you"}}`, with a Card Resource gain
 - [ ] #163 Imported Nitrogen
-- [ ] #172 Pets — a `"when"` Trigger (ticket 16): `{"tile_placed": {"tile": "city", "by": "anyone"}}`, with a Card Resource gain
-- [ ] #173 Protected Habitats — "opponents may not remove your plants, animals or microbes": `targets::target_options` must leave its Player out of plant removals (Asteroid, Comet, Big Asteroid, Deimos Down, Mining Expedition, Giant Ice Asteroid, ticket 17), and the fuzz invariant `targets_offered_are_those_the_rules_allow` must know it. It doesn't protect Production
+- [ ] #172 Pets — a `"when"` Trigger (ticket 16): `{"tile_placed": {"tile": "city", "by": "anyone"}}`, with a Card Resource gain. The printed card says "Animals may not be removed from this card", which `cards.json`'s text leaves out (the open-source `Pets.ts` has it as `protectedResources`): `targets::cards_with_some` must leave Pets out for Predators, and Virus must too
+- [ ] #173 Protected Habitats — "opponents may not remove your plants, animals or microbes": `targets::target_options` must leave its Player out of plant removals (Asteroid, Comet, Big Asteroid, Deimos Down, Mining Expedition, Giant Ice Asteroid, ticket 17), `targets::cards_to_take_from` must leave their cards out for Ants (ticket 19) and Predators, and the fuzz invariant `targets_offered_are_those_the_rules_allow` must know it. It doesn't protect Production
 - [ ] #184 Livestock
 - [ ] #190 Local Heat Trapping

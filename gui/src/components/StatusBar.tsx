@@ -18,7 +18,8 @@ interface Props {
 
 // Options picked where they are drawn rather than as buttons here: Milestones and Awards in
 // their bar, cards to play, sell or discard in the hand, card actions on the played cards, and
-// cards to keep or buy in the buying panel.
+// cards to keep or buy in the buying panel. (A card to give or take Card Resources is both a button
+// here and a card outlined among the played cards, which may be out of view when one must be picked.)
 const PICKED_IN_THE_BAR = new Set(["claim_milestone", "fund_award"]);
 const PICKED_IN_THE_HAND = new Set(Object.keys(HAND_OPTIONS));
 const PICKED_ON_PLAYED_CARDS = new Set(["use_action"]);
@@ -112,8 +113,24 @@ function statusText(game: GameUpdate, cards: Card[]): string {
     const first = decision.options[0]?.details;
     const card = cards.find((each) => each.id === first?.card)?.name;
     if (first?.type === "lower_production") return `${who} must choose whose Production ${card} lowers:`;
+    if (first?.type === "move_card_resource") {
+      return `${who} must choose the card ${card} removes 1 ${first.kind} from: click a button or a highlighted played card.`;
+    }
     const steals = decision.options.some((option) => option.details.stolen);
     return `${who} may choose whom ${card} ${steals ? "steals" : "removes"} Resources from:`;
+  }
+  if (decision?.kind === "effects") {
+    const card = cards.find((each) => each.id === decision.options[0]?.details.card);
+    return `${who} must choose what the action of ${card?.name} does:`;
+  }
+  if (decision?.kind === "add_to_card") {
+    const card = cards.find((each) => each.id === decision.options[0]?.details.card);
+    return `${who} must choose the card ${card?.name} adds to: click a button or a highlighted played card.`;
+  }
+  if (decision?.kind === "olympus_conference") {
+    const discard = decision.options.some((option) => option.details.type === "discard_card");
+    const first = discard ? ", or may first discard a card from the hand to draw one (Mars University)" : "";
+    return `${who} must choose what Olympus Conference does for the science Tag played${first}:`;
   }
   if (decision?.kind === "area") {
     const details = decision.options[0]?.details;

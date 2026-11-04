@@ -10,6 +10,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::board::{Placement, SpecialTile, TileKind};
 use crate::card_code::CARDS_WITH_CODE;
+use crate::card_resources::CARDS_HOLDING_CARD_RESOURCES;
 use crate::card_set::CardSet;
 use crate::resources::{Resource, Resources};
 
@@ -110,9 +111,24 @@ impl Card {
         self.implemented_effects().production_choice[index]
     }
 
+    /// The kind of Card Resource it holds, if it is implemented and holds any.
+    pub fn holds(&self) -> Option<CardResource> {
+        self.effects.as_ref().and_then(|effects| effects.holds)
+    }
+
+    /// The kind of Card Resource it holds, as every card that gets or loses them does.
+    pub fn held(&self) -> CardResource {
+        self.holds().expect("only a card that holds Card Resources gets or loses them")
+    }
+
     /// The action of an implemented card, if it has one.
     pub fn action(&self) -> Option<&Effects> {
         self.effects.as_ref().and_then(|effects| effects.action.as_deref())
+    }
+
+    /// The effects at `index` among those the Player chooses one of for its action.
+    pub fn action_alternative(&self, index: usize) -> &Effects {
+        &self.implemented_action().choice[index]
     }
 
     /// The action of a card that has one, as every card whose action is used does.
@@ -122,13 +138,13 @@ impl Card {
 }
 
 /// The simple effects of a card, or of its action, which are carried out in this order: the
-/// action's payment, Resources (fixed, then per Tag or Tile), Production (fixed, then per Tag or
-/// Tile, then for having at least so many), Temperature and Oxygen steps, Terraform Rating
-/// (fixed, then per Tag), cards drawn, cards looked at to keep or buy some of, the Production or
-/// Resource change the Player chooses, the Tiles one at a time, and then what it takes from any
-/// Player. Claiming an Area (Land Claim) is a card's only effect. For the cards described this
-/// way the order never changes the outcome; a card whose effects depend on their order gets its
-/// own Rust code.
+/// action's payment, Card Resources on the card itself, Resources (fixed, then per Tag or Tile),
+/// Production (fixed, then per Tag or Tile, then for having at least so many), Temperature and
+/// Oxygen steps, Terraform Rating (fixed, then per Tag), cards drawn, cards looked at to keep or buy
+/// some of, the Production or Resource change or the effects the Player chooses, the Tiles one at a
+/// time, Card Resources added to other cards, and then what it takes from any Player. Claiming an
+/// Area (Land Claim) is a card's only effect. For the cards described this way the order never
+/// changes the outcome; a card whose effects depend on their order gets its own Rust code.
 #[derive(Debug, Default, Serialize, Deserialize)]
 #[serde(default, deny_unknown_fields)]
 pub struct Effects {
@@ -158,6 +174,11 @@ pub struct Effects {
     /// Only for an action: Resource changes the Player chooses one of, such as 1 plant or 1 steel
     /// for 7 MegaCredits (Electro Catapult). Empty for an action with no such choice.
     pub resources_choice: Vec<Resources>,
+    /// Only for an action: effects the Player chooses one of, each carried out as `Effects` are
+    /// (Regolith Eaters' 1 microbe added, or 2 removed to raise Oxygen). Empty for an action with no
+    /// such choice.
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub choice: Vec<Effects>,
     /// Temperature steps raised.
     pub temperature: i32,
     /// Oxygen steps raised.
@@ -170,8 +191,8 @@ pub struct Effects {
     pub terraform_rating_per: Option<TerraformRatingPer>,
     /// Cards drawn.
     pub draw: i32,
-    /// Only for a card when played: what it takes from one Player of its Player's picking (a
-    /// red-bordered icon), once its Tiles are placed. None for a card that takes nothing.
+    /// What it takes from one Player of its Player's picking (a red-bordered icon), once its Tiles
+    /// are placed. An action only moves a Card Resource (Ants). None for a card that takes nothing.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub any_player: Option<AnyPlayer>,
     /// Cards looked at from the top of the deck, some of them kept and the rest discarded
@@ -185,6 +206,16 @@ pub struct Effects {
     /// Tile on from then on (Land Claim).
     #[serde(skip_serializing_if = "is_false")]
     pub claim_area: bool,
+    /// Card Resources added to other cards of the Player's, one at a time, once the Tiles are placed.
+    /// Each goes on a card of their picking.
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub add_to_another: Vec<AddToAnother>,
+    /// Only for an Active card: the kind of Card Resource it holds. None for a card that holds none.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub holds: Option<CardResource>,
+    /// Card Resources added to the card itself, or removed from it below zero.
+    #[serde(skip_serializing_if = "is_zero")]
+    pub card_resources: i32,
     /// Only for a card when played: its action, which its Player may use once per Generation
     /// (an Active card's red arrow). None for a card without one.
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -212,8 +243,9 @@ pub struct Effects {
 }
 
 /// What a card's Player gains each time something happens, as `on` says, for as long as the card
-/// is in play. A card whose gain is a Decision (Mars University) has its own Rust code.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+/// is in play: Resources, Production, or Card Resources on the card itself. A card whose gain is a
+/// Decision (Mars University) has its own Rust code.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct Trigger {
     pub on: TriggerCondition,
@@ -221,6 +253,8 @@ pub struct Trigger {
     pub resources: Resources,
     #[serde(default)]
     pub production: Resources,
+    #[serde(default, skip_serializing_if = "is_zero")]
+    pub card_resources: i32,
 }
 
 impl Effects {
@@ -231,6 +265,31 @@ impl Effects {
             Some(AnyPlayer::Production(lowered)) => lowered,
             _ => Resources::default(),
         }
+    }
+}
+
+/// `amount` Card Resources added to one of the Player's played cards that hold them. No card that
+/// adds to another holds any itself, so each of those cards counts as ANOTHER card.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct AddToAnother {
+    /// The kind added, or left out for whichever the card picked holds (CEO's Favorite Project).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub kind: Option<CardResource>,
+    pub amount: i32,
+    /// Only a card with at least this many on it may get them.
+    #[serde(default, skip_serializing_if = "is_zero")]
+    pub at_least: i32,
+    /// Whether the effects can be carried out only with such a card. Otherwise, without one, they
+    /// are lost, and the rest is still carried out.
+    #[serde(default, skip_serializing_if = "is_false")]
+    pub must_have_card: bool,
+}
+
+impl AddToAnother {
+    /// As labels and the game log write it: "2 microbes", or "1" for any kind.
+    pub fn amount_text(self) -> String {
+        self.kind.map_or(self.amount.to_string(), |kind| kind.counted(self.amount))
     }
 }
 
@@ -248,10 +307,13 @@ pub enum AnyPlayer {
     Remove(Vec<Resources>),
     /// Like `Remove`, but the card's Player gains what is removed (Hired Raiders).
     Steal(Vec<Resources>),
+    /// Only for an action: 1 Card Resource of this kind moved from any card to this one (Ants). It is
+    /// the action's cost, so unlike `Remove` it can't be left undone.
+    MoveCardResource(CardResource),
 }
 
 /// What sets a card's Trigger off.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case", deny_unknown_fields)]
 pub enum TriggerCondition {
     /// A Tile of this kind placed by the card's Player, or by anyone.
@@ -264,8 +326,8 @@ pub enum TriggerCondition {
         #[serde(default, skip_serializing_if = "Option::is_none")]
         tag: Option<Tag>,
     },
-    /// The card's Player plays this Tag: once for each such Tag on the card they play.
-    TagPlayed(Tag),
+    /// The card's Player plays one of these Tags: once for each such Tag on the card they play.
+    TagPlayed(Vec<Tag>),
     /// The card's Player pays for a Standard Project, Sell Patents excepted.
     StandardProject,
 }
@@ -314,6 +376,7 @@ pub struct CardsWith {
     pub cube_values: CardSet,
     pub requirement_steps: CardSet,
     pub triggers: CardSet,
+    pub card_resources: CardSet,
 }
 
 /// Read from the card catalog the first time it is needed, like the catalog itself.
@@ -321,11 +384,17 @@ pub static CARDS_WITH: LazyLock<CardsWith> = LazyLock::new(|| {
     let having = |has: fn(&Effects) -> bool| -> CardSet {
         (0..PROJECT_CARDS).filter(|&card| CARD_CATALOG[card].effects.as_ref().is_some_and(has)).collect()
     };
+    let card_resources = having(|effects| effects.holds.is_some());
+    assert!(
+        card_resources.len() <= CARDS_HOLDING_CARD_RESOURCES,
+        "a Game has room for every card's Card Resources"
+    );
     CardsWith {
         discount: having(|effects| effects.discount.is_some()),
         cube_values: having(|effects| effects.cube_values.is_some()),
         requirement_steps: having(|effects| effects.requirement_steps != 0),
         triggers: having(|effects| !effects.when.is_empty()),
+        card_resources,
     }
 });
 
@@ -441,7 +510,7 @@ impl Tag {
     ];
 }
 
-/// A Card Resource that Victory Points can count.
+/// A kind of marker kept on a card rather than with a Player.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum CardResource {
@@ -449,6 +518,19 @@ pub enum CardResource {
     Microbe,
     Science,
     Fighter,
+}
+
+impl CardResource {
+    /// "1 microbe", "2 microbes", "2 science".
+    pub fn counted(self, amount: i32) -> String {
+        let (name, plural) = match self {
+            CardResource::Animal => ("animal", "s"),
+            CardResource::Microbe => ("microbe", "s"),
+            CardResource::Science => ("science", ""),
+            CardResource::Fighter => ("fighter", "s"),
+        };
+        format!("{amount} {name}{}", if amount == 1 { "" } else { plural })
+    }
 }
 
 /// A condition that must hold before the card can be played.

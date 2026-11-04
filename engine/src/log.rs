@@ -4,7 +4,7 @@
 
 use crate::board::{BonusItem, Placement, area_label};
 use crate::card_flow::{CARD_PRICE, PATENT_VALUE, RESEARCH_CARDS, SETUP_CARDS};
-use crate::cards::CARD_CATALOG;
+use crate::cards::{AddToAnother, CARD_CATALOG};
 use crate::game::{
     HEAT_PER_TEMPERATURE_STEP, MAX_OCEANS, OCEAN_ADJACENCY_BONUS, OCEAN_BONUS_TEMPERATURE,
     PLANTS_PER_GREENERY, StandardProject, TEMPERATURE_BONUS_OXYGEN,
@@ -115,6 +115,29 @@ pub enum LogEvent {
     /// Robotic Workforce copies the production box of `card`.
     CopiedProductionBox {
         player: usize,
+        card: usize,
+    },
+    /// `player` reveals `card` from the top of the deck and discards it (Search for Life).
+    RevealedCard {
+        player: usize,
+        card: usize,
+    },
+    /// `player` adds Card Resources to `card`, or removes them below zero.
+    CardResourcesChanged {
+        player: usize,
+        card: usize,
+        by: i32,
+    },
+    /// `player` has no card for the Card Resources `add` adds, so they are lost.
+    NoCardToAddTo {
+        player: usize,
+        add: AddToAnother,
+    },
+    /// `player` moves 1 Card Resource from `from`, a card of `owner`'s, to `card`.
+    MovedCardResource {
+        player: usize,
+        owner: usize,
+        from: usize,
         card: usize,
     },
     /// `player` lowers `target`'s Production of `resource` `by` steps with a card that lowers any
@@ -361,6 +384,34 @@ impl LogEvent {
             }
             LogEvent::CopiedProductionBox { player, card } => {
                 format!("{} copies the production box of {}.", player_name(player), CARD_CATALOG[card].name)
+            }
+            LogEvent::RevealedCard { player, card } => format!(
+                "{} reveals {} from the top of the deck and discards it.",
+                player_name(player),
+                CARD_CATALOG[card].name
+            ),
+            LogEvent::CardResourcesChanged { player, card, by } => {
+                let printed = &CARD_CATALOG[card];
+                let (verb, preposition) = if by < 0 { ("removes", "from") } else { ("adds", "to") };
+                let amount = printed.held().counted(by.abs());
+                format!("{} {verb} {amount} {preposition} {}.", player_name(player), printed.name)
+            }
+            LogEvent::NoCardToAddTo { player, add } => {
+                format!("{} has no card to add {} to.", player_name(player), add.amount_text())
+            }
+            LogEvent::MovedCardResource { player, owner, from, card } => {
+                let whose = if owner == player {
+                    "their own".to_string()
+                } else {
+                    format!("{}'s", player_name(owner))
+                };
+                format!(
+                    "{} moves {} from {whose} {} to {}.",
+                    player_name(player),
+                    CARD_CATALOG[card].held().counted(1),
+                    CARD_CATALOG[from].name,
+                    CARD_CATALOG[card].name
+                )
             }
             LogEvent::LoweredProductionOf { player, target, resource, by } => {
                 let whose = if target == player {

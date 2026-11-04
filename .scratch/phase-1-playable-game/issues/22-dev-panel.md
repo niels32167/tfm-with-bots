@@ -40,3 +40,7 @@ With the state editor, the user can give a Player Resources or Production, set G
   where a special Tile's card allows it (Lava Flows on a volcano, and so on); the fuzzer's
   `special_tiles_where_their_cards_put_them` and `each_reserved_area_used_only_by_its_card` say
   what is legal, and the state editor could reuse them.
+
+### 2026-11-04 — hand-off from ticket 19 (Claude)
+
+Scenarios now take a Player's `"card_resources"`, such as `{"tardigrades": 3}`: the state editor should let the user set them on played cards that hold some (`effects.holds` in the catalog). The Scenario refuses them on a card not played or holding none.

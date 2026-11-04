@@ -31,6 +31,16 @@ pub const IMMIGRANT_CITY: usize = 199;
 /// discard once, after the card's other effects (see docs/rules-notes.md).
 pub const MARS_UNIVERSITY: usize = 72;
 
+/// #185 Olympus Conference: "When you play a Science tag, including this, either add a Science
+/// resource to this card, or remove a Science resource from this card to draw a card." Its Trigger is
+/// effect data; each science Tag played is one such choice, after the card's other effects, in any
+/// order with Mars University's discards (see docs/rules-notes.md).
+pub const OLYMPUS_CONFERENCE: usize = 184;
+
+/// #005 Search for Life: "Action: Spend 1 MC to reveal the top card of the draw deck. If that card
+/// has a Microbe tag, add a Science resource here." Its effect data is the MegaCredit.
+pub const SEARCH_FOR_LIFE: usize = 4;
+
 /// #188 Flooding: "Place an ocean tile. If there are tiles adjacent to this ocean tile, you may
 /// remove 4 MC from the owner of one of those tiles." Its effect data is its Ocean and the 4
 /// MegaCredits it may remove; it takes only from the owners of Tiles next to that Ocean, and once
@@ -47,7 +57,7 @@ pub const MINING_AREA: usize = SpecialTile::MiningArea.card();
 pub const MINING_RIGHTS: usize = SpecialTile::MiningRights.card();
 
 /// Every card with code here, and its id.
-pub const CARDS_WITH_CODE: [(usize, &str); 8] = [
+pub const CARDS_WITH_CODE: [(usize, &str); 10] = [
     (ROBOTIC_WORKFORCE, "robotic_workforce"),
     (INSULATION, "insulation"),
     (POWER_INFRASTRUCTURE, "power_infrastructure"),
@@ -56,6 +66,8 @@ pub const CARDS_WITH_CODE: [(usize, &str); 8] = [
     (FLOODING, "flooding"),
     (MINING_AREA, "mining_area"),
     (MINING_RIGHTS, "mining_rights"),
+    (OLYMPUS_CONFERENCE, "olympus_conference"),
+    (SEARCH_FOR_LIFE, "search_for_life"),
 ];
 
 /// Insulation's Production change for `steps`: that many steps of heat Production traded for as
@@ -137,11 +149,48 @@ impl Game {
             && effects.tiles.iter().all(|&placement| self.can_take_action_placing(player, Some(placement)))
     }
 
-    /// Offers the current Player, done with the card they played, to discard a card to draw one
-    /// with Mars University if a discard is due, and returns whether the Game now waits on it.
-    /// Without a card in their hand, they have nothing to discard, and the discards due are
+    /// Whether a card can be drawn: the deck or the discard pile, which is shuffled into a new deck
+    /// when the deck runs out, has one.
+    pub(crate) fn can_draw(&self) -> bool {
+        !self.deck.is_empty() || !self.discard.is_empty()
+    }
+
+    /// `player` reveals the top card of the deck with Search for Life and discards it. If it has a
+    /// microbe Tag, a science goes on Search for Life.
+    pub(crate) fn search_for_life(&mut self, player: usize) {
+        let revealed = self.draw_cards(player, 1);
+        for card in revealed.iter() {
+            self.log.push(LogEvent::RevealedCard { player, card });
+            self.discard.insert(card);
+            if CARD_CATALOG[card].has_tag(Tag::Microbe) {
+                self.change_card_resources(player, SEARCH_FOR_LIFE, 1);
+            }
+        }
+    }
+
+    /// Whether the current Player has a choice with Olympus Conference: a science on it to remove,
+    /// and a card to draw for it.
+    fn can_draw_with_olympus_conference(&self) -> bool {
+        self.card_resources.on(OLYMPUS_CONFERENCE) > 0 && self.can_draw()
+    }
+
+    /// Offers the current Player, done with the card they played, what the science Tags they played
+    /// let them do, and returns whether the Game now waits on it. Olympus Conference's science is
+    /// added without a Decision while there is nothing else to do with it; that first is never
+    /// worse, as it can only give them a science to remove for a later Tag. While both cards have
+    /// something due, the Player orders them by picking either's Option, in one Decision (see
+    /// docs/rules-notes.md). Then Mars University lets them discard a card to draw one if a discard
+    /// is due; without a card in their hand, they have nothing to discard, and the discards due are
     /// dropped.
-    pub(crate) fn offer_discard_to_draw(&mut self) -> bool {
+    pub(crate) fn offer_science_tag_effects(&mut self) -> bool {
+        while self.olympus_conference_due > 0 && !self.can_draw_with_olympus_conference() {
+            self.olympus_conference_due -= 1;
+            self.change_card_resources(self.current_player, OLYMPUS_CONFERENCE, 1);
+        }
+        if self.olympus_conference_due > 0 {
+            self.wait_on(Waiting::OlympusConference);
+            return true;
+        }
         if self.discards_to_draw == 0 {
             return false;
         }
@@ -157,6 +206,35 @@ impl Game {
     pub(crate) fn discard_to_draw_options(&self) -> Vec<DecisionOption> {
         let hand = self.players[self.current_player].hand.iter().map(DecisionOption::DiscardCard);
         hand.chain([DecisionOption::Done]).collect()
+    }
+
+    /// The current Player chooses what Olympus Conference does, or, with a discard due, to carry out
+    /// Mars University's first: with a card in their hand, its Options come too.
+    pub(crate) fn olympus_conference_options(&self) -> Vec<DecisionOption> {
+        let own_options = [false, true].map(|draw| DecisionOption::OlympusConference { draw });
+        let hand_is_empty = self.players[self.current_player].hand.is_empty();
+        let discards = if self.discards_to_draw > 0 && !hand_is_empty {
+            self.discard_to_draw_options()
+        } else {
+            Vec::new()
+        };
+        own_options.into_iter().chain(discards).collect()
+    }
+
+    /// The current Player removes a science from Olympus Conference to draw a card, or adds one to
+    /// it. Then the next effect due follows, or the Action ends.
+    pub(crate) fn olympus_conference(&mut self, draw: bool) {
+        self.waiting = None;
+        self.olympus_conference_due -= 1;
+        let player = self.current_player;
+        if draw {
+            self.change_card_resources(player, OLYMPUS_CONFERENCE, -1);
+            self.log.push(LogEvent::DrewCards { player, count: 1 });
+            self.draw(player, 1);
+        } else {
+            self.change_card_resources(player, OLYMPUS_CONFERENCE, 1);
+        }
+        self.finish_unless_placing();
     }
 
     /// The current Player discards `card` face down, if they chose one, and draws a card. Then the

@@ -19,14 +19,15 @@ fuzzer plays Random Bot Games and checks them after every Decision, and a benchm
 measures the engine's speed. The card catalog holds the printed data of all 208 Project
 Cards and 12 Corporations, and the GUI's card gallery draws every card as the fan-made card
 list does. Players play Project Cards from their hand, paying with MegaCredits, steel and
-titanium, once the cards' Requirements are met; 178 cards work so far, 111 Automated, 37 Active
-and 30 Events. An Active card's action is an Action its Player may use once per Generation, and
+titanium, once the cards' Requirements are met; 191 cards work so far, 111 Automated, 48 Active
+and 32 Events. An Active card's action is an Action its Player may use once per Generation, and
 its ongoing effects lower card costs, raise what steel and titanium pay, ease Requirements or
 gain its Player something each time a Tile, card or Tag sets them off. A card that takes from
 "any Player" lets its Player pick whose Production it lowers or whose Resources it removes.
 Special Tiles show their card's symbol on the board, Noctis City, Phobos Space Haven and Ganymede
 Colony place their Cities on the Areas reserved for them, and Land Claim marks an Area that only
-its Player may place a Tile on. At setup each Player is dealt 10 Project Cards and buys any of
+its Player may place a Tile on. Cards can hold Card Resources, microbes and science so far, which
+show on the played cards and may count for Victory Points. At setup each Player is dealt 10 Project Cards and buys any of
 them for 3 MegaCredits each (everyone starts with 42 MegaCredits until Corporations exist). From Generation 2 each
 Research phase has the Draft, on by default and switchable on the setup screen: each Player is
 dealt 4 cards, keeps one and passes the rest to their neighbour (clockwise in even Generations,
@@ -115,7 +116,9 @@ A card is implemented once it has `"effects"` in the card file (ADR 0009), such 
 Dust; cards without it are never offered. Effects can gain or lose Resources, change
 Production, raise Temperature and Oxygen, raise Terraform Rating, draw cards, let the Player
 look at cards to keep some of them, place Tiles (special Tiles too, as `"special"`) and claim
-an Area (Land Claim's `"claim_area"`); an Active card can also have an action,
+an Area (Land Claim's `"claim_area"`), add Card Resources to the card itself or to another of the
+Player's (`"card_resources"`, `"add_to_another"`; the card names what it holds in `"holds"`); an
+Active card can also have an action, whose effects the Player may choose between (`"choice"`),
 discounts, steel and titanium values, Requirement steps and Triggers (`"when"`), and an Event an
 effect on the next card played.
 Declare any new field in `engine/src/cards.rs` first, since the card file allows no unknown
@@ -165,7 +168,10 @@ reloading the page picks it up again.
 Below the board are your hand and every Player's played cards, grouped into Automated,
 Active and Events; hover over a card to enlarge it. A card you can play now is outlined:
 click it to play it. A played card whose action you can use now is outlined too: click it to
-use the action. A card whose action is used this Generation is dimmed and marked **Used**.
+use the action. A card whose action is used this Generation is dimmed and marked **Used**. A card
+that holds Card Resources shows how many are on it, next to their icon; when a Decision asks which
+card gets or loses some, the cards it offers are outlined, and each is a button in the status bar
+too.
 When steel or titanium can pay for a card or an action, the status bar shows a payment picker:
 step the steel and titanium up or down, then **Pay** for the rest in MegaCredits.
 In the full view every hand is shown. Player boards show the cards in hand and the Tags in
@@ -185,6 +191,7 @@ play.
 | `engine/src/resources.rs` | The six Resources, and an amount of each (held, or Production) |
 | `engine/src/cards.rs` | The card catalog, read from the card file `engine/cards/cards.json`, with each card's effect data |
 | `engine/src/playing_cards.rs` | The central card rules: Tag counting, Requirements, payment, carrying out effects, drawing, card Victory Points |
+| `engine/src/card_resources.rs` | Card Resources on the played cards, and adding them to another card |
 | `engine/src/card_set.rs`, `engine/src/deck.rs` | Hands and played cards (sets of cards), and the deck |
 | `engine/src/milestones_and_awards.rs` | The Tharsis Milestones and Awards, and what each one counts |
 | `engine/src/scoring.rs` | Final scoring: the breakdown, Award places, ranks and the winner |

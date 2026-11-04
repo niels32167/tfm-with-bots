@@ -6,6 +6,7 @@ mod board;
 mod card_actions;
 mod card_code;
 mod card_flow;
+mod card_resources;
 mod card_set;
 mod cards;
 mod deck;

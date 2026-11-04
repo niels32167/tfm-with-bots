@@ -5,10 +5,11 @@
 //!
 //! The target Decision leaves out every Option that only does worse for its Player (see
 //! docs/rules-notes.md, "Taking from any Player"): lowering their own Production while an opponent
-//! can lose it, removing their own Resources, and taking less than the card allows.
+//! can lose it, removing their own Resources or Card Resources while an opponent has some, and taking
+//! less than the card allows.
 
 use crate::board::adjacent_areas;
-use crate::cards::{AnyPlayer, CARD_CATALOG, Effects};
+use crate::cards::{AnyPlayer, CARD_CATALOG, CardResource, Effects};
 use crate::game::{DecisionOption, Game, Waiting};
 use crate::log::LogEvent;
 use crate::resources::{Resource, Resources};
@@ -30,9 +31,13 @@ pub enum Taking {
     Resources { resources: Resources, stolen: bool },
 }
 
-/// The `any_player` effect of `card`, which every card with a taking has.
+/// The `any_player` effect of `card` or of its action, which every card with a taking has.
 fn any_player(card: usize) -> &'static AnyPlayer {
-    CARD_CATALOG[card].implemented_effects().any_player.as_ref().expect("only a card with a taking takes")
+    let printed = &CARD_CATALOG[card];
+    let taking = printed.implemented_effects().any_player.as_ref();
+    taking
+        .or_else(|| printed.implemented_action().any_player.as_ref())
+        .expect("only a card with a taking takes")
 }
 
 /// Whether `card` steals the Resources it removes (Hired Raiders).
@@ -80,6 +85,10 @@ impl Game {
                 self.take_from(card, player, alternative);
                 false
             }
+            [DecisionOption::MoveCardResource { card, owner, from }] => {
+                self.move_card_resource(card, owner, from);
+                false
+            }
             _ => {
                 self.wait_on(Waiting::Target(targeting));
                 true
@@ -91,7 +100,7 @@ impl Game {
     /// opponent who can lose every step, or if none can, the Player themselves. Removing
     /// Resources: each opponent who has some of an alternative's Resources (for Flooding, only the
     /// owners of a Tile next to its Ocean), and removing nothing, unless there is nobody to take
-    /// from.
+    /// from. Moving a Card Resource: `cards_to_take_from`.
     pub(crate) fn target_options(&self, targeting: Targeting) -> Vec<DecisionOption> {
         let Targeting { card, next_to } = targeting;
         let player = self.current_player;
@@ -108,6 +117,11 @@ impl Game {
                     return opponents;
                 }
                 return vec![target(player, 0)];
+            }
+            &AnyPlayer::MoveCardResource(kind) => {
+                let cards = self.cards_to_take_from(player, kind);
+                let moving = |(owner, from)| DecisionOption::MoveCardResource { card, owner, from };
+                return cards.into_iter().map(moving).collect();
             }
             AnyPlayer::Remove(alternatives) | AnyPlayer::Steal(alternatives) => alternatives,
         };
@@ -132,6 +146,47 @@ impl Game {
         options
     }
 
+    /// The cards of `owner`'s with a Card Resource of this kind on them.
+    fn cards_with_some(&self, owner: usize, kind: CardResource) -> impl Iterator<Item = usize> {
+        self.players[owner]
+            .cards_holding_card_resources()
+            .iter()
+            .filter(move |&card| CARD_CATALOG[card].holds() == Some(kind) && self.card_resources.on(card) > 0)
+    }
+
+    /// The cards `player` may move a Card Resource of this kind from, and their owners: the
+    /// opponents' cards with some, or if they have none, their own, the card getting it included.
+    fn cards_to_take_from(&self, player: usize, kind: CardResource) -> Vec<(usize, usize)> {
+        let with_some = |owner: usize| self.cards_with_some(owner, kind).map(move |card| (owner, card));
+        let opponents: Vec<(usize, usize)> = self.opponents(player).flat_map(with_some).collect();
+        if opponents.is_empty() { with_some(player).collect() } else { opponents }
+    }
+
+    /// Whether a Card Resource can be found for `action` to move: true for an action that moves none.
+    pub(crate) fn can_move_a_card_resource(&self, action: &Effects) -> bool {
+        match action.any_player {
+            Some(AnyPlayer::MoveCardResource(kind)) => {
+                (0..self.players.len()).any(|owner| self.cards_with_some(owner, kind).next().is_some())
+            }
+            _ => true,
+        }
+    }
+
+    /// The current Player moves 1 Card Resource from `from`, a card of `owner`'s, to `card`.
+    fn move_card_resource(&mut self, card: usize, owner: usize, from: usize) {
+        self.card_resources.set(from, self.card_resources.on(from) - 1);
+        self.card_resources.set(card, self.card_resources.on(card) + 1);
+        self.log.push(LogEvent::MovedCardResource { player: self.current_player, owner, from, card });
+    }
+
+    /// The current Player picks `from`, a card of `owner`'s, for the action of `card`, and the
+    /// Action goes on.
+    pub(crate) fn move_card_resource_as_picked(&mut self, card: usize, owner: usize, from: usize) {
+        self.waiting = None;
+        self.move_card_resource(card, owner, from);
+        self.finish_unless_placing();
+    }
+
     /// What `card` takes from `target` with its alternative at `alternative` (0 for Production):
     /// its Production steps, or as much of each Resource as they have, up to the amount written.
     pub fn taking(&self, card: usize, target: usize, alternative: usize) -> Taking {
@@ -141,6 +196,9 @@ impl Game {
                 resources: self.removable(target, alternatives[alternative]).times(-1),
                 stolen: steals(card),
             },
+            AnyPlayer::MoveCardResource(_) => {
+                panic!("moving a Card Resource takes from a card, not a Player")
+            }
         }
     }
 

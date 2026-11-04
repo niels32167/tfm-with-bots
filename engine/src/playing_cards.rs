@@ -8,6 +8,7 @@ use serde::Serialize;
 
 use crate::board::{Placement, SpecialTile, TileKind};
 use crate::card_code::{FLOODING, IMMIGRANT_CITY, INSULATION, ROBOTIC_WORKFORCE, insulation_change};
+use crate::card_resources::Adding;
 use crate::cards::{
     CARD_CATALOG, CARDS_WITH, CardType, Counted, CubeValues, Effects, Limit, NextCard, Owner,
     ProductionAtLeast, ProductionPer, Requirement, ResourcesPer, Tag, TerraformRatingPer, VictoryPoints,
@@ -191,14 +192,15 @@ impl Game {
     }
 
     /// How many of `what` there are for the Victory Points of `card`, which `player` has played:
-    /// as `count_of` counts them, but Tiles next to the card's own Tile too (Capital, Commercial
-    /// District).
+    /// as `count_of` counts them, but Tiles next to the card's own Tile (Capital, Commercial
+    /// District) and the Card Resources on the card too.
     fn count_for_card(&self, player: usize, card: usize, what: Counted) -> i32 {
         match what {
             Counted::Adjacent(kind) => {
                 let own_tile = SpecialTile::of_card(card).and_then(|special| self.board.area_of(special));
                 own_tile.map_or(0, |area| self.board.adjacent(area, kind) as i32)
             }
+            Counted::CardResource(_) => self.card_resources.on(card),
             _ => self.count_of(player, what),
         }
     }
@@ -208,9 +210,8 @@ impl Game {
         amount * (self.count_of(player, of) / per)
     }
 
-    /// How many of `what` there are for `player`'s card Victory Points or Production. Card
-    /// Resources (ticket 19) don't exist yet, so they count 0, and only `count_for_card` knows
-    /// which card's Tile to count next to.
+    /// How many of `what` there are for `player`'s card Victory Points or Production. Only
+    /// `count_for_card` knows which card's Tile to count next to and whose Card Resources to count.
     fn count_of(&self, player: usize, what: Counted) -> i32 {
         match what {
             Counted::Tag(tag) => self.tags(player, tag),
@@ -227,7 +228,8 @@ impl Game {
 
     /// Whether `player` can carry out `effects`: on their own Resources and Production, with
     /// someone to lower the Production it lowers on any Player, with an Area for each Tile (an
-    /// Ocean always, as Aquifer: see docs/rules-notes.md), and with an Area to claim. Resources
+    /// Ocean always, as Aquifer: see docs/rules-notes.md), with an Area to claim, and with a card
+    /// for the Card Resources that need one. Resources
     /// lost are checked against what the Player holds before paying for the card; no card yet both
     /// costs steel or titanium and loses some.
     pub(crate) fn can_carry_out(&self, player: usize, effects: &Effects) -> bool {
@@ -237,6 +239,10 @@ impl Game {
             && self.someone_can_lose_production(player, effects)
             && effects.tiles.iter().all(|&placement| self.can_take_action_placing(player, Some(placement)))
             && (!effects.claim_area || self.board.claimable_areas().next().is_some())
+            && effects
+                .add_to_another
+                .iter()
+                .all(|&add| !add.must_have_card || self.cards_to_add_to(player, add).next().is_some())
     }
 
     /// Whether changing `player`'s Production `by` this keeps it within its limits.
@@ -345,7 +351,7 @@ impl Game {
         let effects = CARD_CATALOG[card].implemented_effects();
         // Immigrant City lowers its Production only once its City is placed.
         if card != IMMIGRANT_CITY {
-            self.carry_out(player, effects);
+            self.carry_out(player, card, effects);
         }
         // Flooding's taking waits on its Ocean.
         if effects.any_player.is_some() && card != FLOODING {
@@ -442,9 +448,13 @@ impl Game {
         }
     }
 
-    /// Carries out `effects` for `player`, in the order `Effects` gives, up to the cards looked
-    /// at: what follows them is for the card or action to carry on with.
-    pub(crate) fn carry_out(&mut self, player: usize, effects: &Effects) {
+    /// Carries out `effects` of `card` for `player`, in the order `Effects` gives, up to the cards
+    /// looked at: what follows them is for the card or action to carry on with.
+    pub(crate) fn carry_out(&mut self, player: usize, card: usize, effects: &'static Effects) {
+        self.change_card_resources(player, card, effects.card_resources);
+        if !effects.add_to_another.is_empty() {
+            self.adding = Some(Adding { card, additions: &effects.add_to_another });
+        }
         self.change_resources(player, effects.resources);
         if let Some(ResourcesPer { resource, amount, per, of }) = effects.resources_per {
             let mut gained = Resources::default();

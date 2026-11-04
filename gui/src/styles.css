@@ -1230,18 +1230,60 @@ input[aria-invalid="true"] {
   opacity: 0.45;
 }
 
-/* A played card whose action is used this Generation: dimmed, with a badge at the top between its
- * cost and Tags, which stays in view when the cards overlap. */
-.small-card.used-action > :not(.used-action-badge) {
+/* A played card whose action is used this Generation: dimmed, with a badge. */
+.small-card.used-action > :not(.card-badges) {
   opacity: 0.5;
 }
 
-.used-action-badge {
+/* What a played card's badges are drawn in: side by side at the top, from its cost towards its Tags,
+ * which stays in view when the cards overlap. */
+.card-badges {
   position: absolute;
   top: 6px;
-  left: 50%;
-  transform: translateX(-50%);
+  left: 58px;
   z-index: 1;
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+
+/* How many Card Resources are on the card, next to their icon. */
+.card-resource-badge {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  padding: 2px 10px 2px 4px;
+  border: 2px solid var(--text-dim);
+  border-radius: 16px;
+  background: var(--background);
+  color: var(--text);
+  font-size: 1.6rem;
+  font-weight: 700;
+}
+
+/* The card list's icon for a Card Resource draws only inside a printed card, so this is one with no
+ * frame of its own. */
+.printed-card.card-resource-icon {
+  display: block;
+  position: static;
+  width: 34px;
+  height: 34px;
+  margin: 0;
+  border: none;
+  box-shadow: none;
+  background: none;
+  transform: none;
+}
+
+.printed-card.card-resource-icon .resource {
+  display: block;
+  margin: 0;
+  width: 34px;
+  height: 34px;
+  transform: none;
+}
+
+.used-action-badge {
   padding: 2px 12px;
   border-radius: 12px;
   background: var(--text-dim);

@@ -112,7 +112,7 @@ def test_only_active_cards_have_a_trigger_and_one_that_its_own_play_sets_off_say
             own_tile = (
                 isinstance(on, dict) and "tile_placed" in on and on["tile_placed"]["tile"] in effects.get("tiles", [])
             )
-            own_tag = isinstance(on, dict) and on.get("tag_played") in card["tags"]
+            own_tag = isinstance(on, dict) and set(on.get("tag_played", [])) & set(card["tags"])
             if own_tile or own_tag:
                 assert "including this" in card["text"], card["name"]
             if isinstance(on, dict) and "card_played" in on:

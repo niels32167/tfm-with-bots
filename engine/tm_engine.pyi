@@ -37,28 +37,38 @@ def card_catalog() -> list[dict[str, Any]]:
     action is "action", the same shapes again (its cost as Resources lost), plus "pay" (MegaCredits
     that steel or titanium may pay, such as {"megacredits": 12, "titanium": true}),
     "resources_per" (Resources gained per Tag or Tile, such as {"resource": "megacredits",
-    "amount": 1, "per": 1, "of": {"tiles_on_mars": "city"}}) and "resources_choice" (Resource
-    changes the Player chooses one of). An Active card's ongoing effects are "discount"
+    "amount": 1, "per": 1, "of": {"tiles_on_mars": "city"}}), "resources_choice" (Resource changes
+    the Player chooses one of) and "choice" (effects the Player chooses one of, each the same
+    shapes again: [{"card_resources": 1}, {"card_resources": -2, "oxygen": 1}]). A card that holds
+    Card Resources has "holds" ("microbe", "science", "animal" or "fighter"), and any effects may
+    have "card_resources" (added to the card itself, below zero to remove them) and "add_to_another"
+    (added to other cards of the Player's, of their picking, a list of {"kind": "microbe",
+    "amount": 2}; "kind" left out for any kind, "at_least" for only a card with so many on it,
+    and "must_have_card": true if the effects can't be carried out without such a card; otherwise
+    they are lost). An Active card's ongoing effects are "discount"
     (MegaCredits off each card its Player plays, or only those with a Tag: {"megacredits": 2,
     "tag": "space"}), "cube_values" (MegaCredits more that each steel and titanium pays: {"steel":
     1, "titanium": 1}), "requirement_steps" (how many steps easier its Player's Requirements on a
     Global Parameter are) and "when" (Triggers: what its Player gains each time something happens,
     such as [{"on": {"tile_placed": {"tile": "ocean", "by": "anyone"}}, "resources": {"plants":
     2}}], "on" being {"tile_placed": {"tile", "by": "you" | "anyone"}}, {"card_played": {"type",
-    "tag"}} (either may be left out), {"tag_played": "science"} (once per such Tag) or
-    "standard_project" (any but Sell Patents), with "resources" and "production" gained). An
+    "tag"}} (either may be left out), {"tag_played": ["animal", "plant"]} (once per such Tag) or
+    "standard_project" (any but Sell Patents), with "resources", "production" and "card_resources"
+    (on the card itself) gained). An
     Event's "next_card" ({"discount": 8} or {"requirement_steps": 2}) changes the next card its
     Player plays this Generation. A card that takes from a Player its Player picks has
     "any_player", once its Tiles are placed: {"production": {"heat": -2}} (Production lowered, on a
     Player who can lose every step), {"remove": [{"plants": 3}]} (Resources removed up to these
-    amounts, as one of the alternatives listed: Sabotage lists three) or {"steal": [...]} (removed
-    and gained, Hired Raiders). Besides Tags ({"tag": "earth"}) and Tiles ({"tiles_in_play":
+    amounts, as one of the alternatives listed: Sabotage lists three), {"steal": [...]} (removed
+    and gained, Hired Raiders) or, only in an action, {"move_card_resource": "microbe"} (1 moved
+    from any card to this one, Ants). Besides Tags ({"tag": "earth"}) and Tiles ({"tiles_in_play":
     "city"}, {"tiles_on_mars": "city"}, and for Victory Points the Tiles next to the card's own Tile,
     {"adjacent": "ocean"}), "of" may count the opponents' Tags ({"tags_of_opponents":
-    "space"}) or every Event played ("events_played"). Cards without "effects" are never offered;
-    a few cards also have Rust code of their own (Robotic Workforce, Insulation, Power
-    Infrastructure, Immigrant City, Mars University, Flooding, Mining Area and Mining Rights). Each
-    call returns a new list."""
+    "space"}), every Event played ("events_played") or for Victory Points the Card Resources on the
+    card ({"card_resource": "microbe"}). Cards without "effects" are never offered; a few cards also
+    have Rust code of their own (Robotic Workforce, Insulation, Power Infrastructure, Immigrant City,
+    Mars University, Flooding, Mining Area, Mining Rights, Olympus Conference and Search for Life).
+    Each call returns a new list."""
 
 class Game:
     """A Game of Terraforming Mars, always either over or waiting on one Decision."""
@@ -83,7 +93,9 @@ class Game:
         temperature, oxygen, tiles, milestones, awards, deck, discard, draft (default True:
         whether the Research phases have the Draft), and players: a list of
         {"resources": {...}, "production": {...}, "terraform_rating": int,
-         "hand": [card id, ...], "played_cards": [card id, ...]}.
+         "hand": [card id, ...], "played_cards": [card id, ...],
+         "card_resources": {card id: int, ...}}, the Card Resources on their played cards that
+        hold some.
         Cards are named by their catalog id ("black_polar_dust"); only Project Cards, each in
         one place at most. "deck" lists the cards on top of the deck, the first drawn first;
         every other Project Card is shuffled beneath them with the seed. "discard" lists the cards
@@ -98,8 +110,8 @@ class Game:
         Land Claim, {"area": "C3", "player": 1}.
         Milestones claimed are {"milestone": "mayor", "claimed_by": 1} and Awards funded
         {"award": "landlord", "funded_by": 0}: at most three of each, each at most once.
-        Raises ValueError for unknown fields or impossible values, such as a negative
-        Resource, MegaCredit Production below -5 or any other Production below 0, a
+        Raises ValueError for unknown fields or impossible values, such as Card Resources on a
+        card not played or that holds none, a negative Resource, MegaCredit Production below -5 or any other Production below 0, a
         Terraform Rating below 5 (so MegaCredits never go below 0), a City on
         an Area reserved for Oceans (only Mohole Area's Tile goes there, and only a City on an
         Area reserved for a card's City), or more than 9 Oceans.
@@ -154,7 +166,16 @@ class Game:
         or be done and discard them; it comes only when they can pay for one), "resources"
         (the Resource change the action being used makes, {"type": "choose_resources", "card":
         "electro_catapult", "resources": {...}} with all six Resources; it comes only when there
-        is more than one to choose from),
+        is more than one to choose from), "effects" (the effects the action being used carries out,
+        {"type": "choose_effects", "card": "regolith_eaters", "alternative": 1}, the index in its
+        "choice"; it comes only when there is more than one it can carry out), "add_to_card" (which of
+        the Player's cards gets the Card Resources being added, {"type": "add_card_resources", "card":
+        "aerobraked_ammonia_asteroid", "to": "tardigrades", "kind": "microbe", "amount": 2}; it
+        comes only with more than one such card), "olympus_conference" (add a science to Olympus
+        Conference or remove one to draw a card, {"type": "olympus_conference", "card":
+        "olympus_conference", "draw": true}, once for each science Tag played once it
+        has one to remove; with a Mars University discard due and a card in the hand, its Options
+        too, so that the Player orders the two by picking either),
         "final_greenery" (convert 8 plants into a Greenery once more, or be done, after
         the final Production phase), "draft" (keep one of the cards being drafted and pass the
         rest on, with details {"type": "draft_card", "card": "mine"}), "buy_cards" (buy one more
@@ -166,8 +187,10 @@ class Game:
         from, once its Tiles are placed: {"type": "lower_production", "card": "heat_trappers",
         "player": 1, "production": {...}}, {"type": "remove_resources", "card": "sabotage", "player":
         1, "resources": {...}} with "stolen": true for Hired Raiders, the changes to that Player with
-        all six Resources, or {"type": "remove_nothing", "card": "sabotage"}; it comes only when
-        there is more than one Option, so for Production only with two targets or more). Being done is {"type": "done"}. Playing a card,
+        all six Resources, or {"type": "remove_nothing", "card": "sabotage"}; or the card the action
+        being used moves a Card Resource from, {"type": "move_card_resource", "card": "ants",
+        "player": 1, "from": "tardigrades", "kind": "microbe"}; it comes only when there is more
+        than one Option, so for Production only with two targets or more). Being done is {"type": "done"}. Playing a card,
         using a played card's action, claiming a Milestone and funding an Award are Actions, with
         details {"type": "play_card", "card": "mine", "cost": 4} (the cost after discounts),
         {"type": "use_action", "card": "space_elevator"},
@@ -214,6 +237,7 @@ class Game:
          "keeping": {"card": card id, "looking_at": [...], "kept": [...], "keep": int,
                      "price": int} | None,
          "played_cards": [card id, ...], "used_actions": [card id, ...],
+         "card_resources": {card id: int},
          "next_card": card id | None,
          "tags": {"building": int, ...}}, where Resources and
         Production each hold all six Resources, cards come in card-number order, and "tags" counts
@@ -228,6 +252,8 @@ class Game:
         discarded. Using the action of Inventors' Guild or Business Network, it has the "price"
         of each card, 3, and "keep" is how many more they may buy; otherwise "price" is 0.
         "used_actions" is the played cards whose action the Player has used this Generation.
+        "card_resources" is how many Card Resources are on each of their played cards that can hold
+        some, even if none are on it.
         "card_costs" is what the Player would pay now for each card in their hand, once their
         discounts are taken off; it is None where "hand" is. "next_card" is the Event the Player
         played whose effect waits on the next card they play this Generation (Indentured Workers,

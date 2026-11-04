@@ -1,9 +1,9 @@
 //! Triggers: what an Active card's Player gains each time something happens while the card is in
 //! play, such as Arctic Algae's 2 plants when anyone places an Ocean. They are effect data
-//! (`cards::Trigger`), plus Mars University's Rust code in `card_code`.
+//! (`cards::Trigger`), plus Mars University's and Olympus Conference's Rust code in `card_code`.
 
 use crate::board::TileKind;
-use crate::card_code::MARS_UNIVERSITY;
+use crate::card_code::{MARS_UNIVERSITY, OLYMPUS_CONFERENCE};
 use crate::cards::{CARD_CATALOG, CARDS_WITH, Owner, TriggerCondition};
 use crate::game::Game;
 use crate::log::LogEvent;
@@ -22,10 +22,10 @@ pub enum Happened {
 impl Happened {
     /// How many times this sets off `on` for a card of `owner`'s: once, or once for each Tag
     /// played, or not at all.
-    fn times(self, on: TriggerCondition, owner: usize) -> i32 {
+    fn times(self, on: &TriggerCondition, owner: usize) -> i32 {
         match (self, on) {
             (Happened::TilePlaced { player, tile }, TriggerCondition::TilePlaced { tile: kind, by }) => {
-                i32::from(tile == kind && (by == Owner::Anyone || player == owner))
+                i32::from(tile == *kind && (*by == Owner::Anyone || player == owner))
             }
             (Happened::CardPlayed { player, card }, TriggerCondition::CardPlayed { card_type, tag }) => {
                 let printed = &CARD_CATALOG[card];
@@ -33,8 +33,8 @@ impl Happened {
                     && tag.is_none_or(|tag| printed.has_tag(tag));
                 i32::from(player == owner && matches)
             }
-            (Happened::CardPlayed { player, card }, TriggerCondition::TagPlayed(tag)) if player == owner => {
-                CARD_CATALOG[card].tags.iter().filter(|&&each| each == tag).count() as i32
+            (Happened::CardPlayed { player, card }, TriggerCondition::TagPlayed(tags)) if player == owner => {
+                CARD_CATALOG[card].tags.iter().filter(|each| tags.contains(each)).count() as i32
             }
             (Happened::StandardProject { player }, TriggerCondition::StandardProject) => {
                 i32::from(player == owner)
@@ -54,13 +54,16 @@ impl Game {
         for owner in 0..self.players.len() {
             for card in self.players[owner].played.intersection(CARDS_WITH.triggers).iter() {
                 for trigger in &CARD_CATALOG[card].implemented_effects().when {
-                    let times = happened.times(trigger.on, owner);
+                    let times = happened.times(&trigger.on, owner);
                     if times > 0 && card == MARS_UNIVERSITY {
                         self.discards_to_draw += times as u32;
+                    } else if times > 0 && card == OLYMPUS_CONFERENCE {
+                        self.olympus_conference_due += times as u32;
                     } else if times > 0 {
                         self.log.push(LogEvent::TriggerTakesEffect { player: owner, card });
                         self.change_resources(owner, trigger.resources.times(times));
                         self.change_productions(owner, trigger.production.times(times));
+                        self.change_card_resources(owner, card, trigger.card_resources * times);
                     }
                 }
             }

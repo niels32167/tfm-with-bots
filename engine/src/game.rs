@@ -13,8 +13,9 @@ use crate::board::{Areas, Board, BonusItem, Placement, SpecialTile, Tile, TileKi
 use crate::card_actions::ResourceChange;
 use crate::card_code::FLOODING;
 use crate::card_flow::{Buying, Keeping};
+use crate::card_resources::{Adding, CardResources};
 use crate::card_set::CardSet;
-use crate::cards::{CARD_CATALOG, PROJECT_CARDS};
+use crate::cards::{AddToAnother, CARD_CATALOG, CARDS_WITH, PROJECT_CARDS};
 use crate::deck::Deck;
 use crate::draft::{DraftPass, Drafting};
 use crate::log::LogEvent;
@@ -106,6 +107,11 @@ pub struct Player {
 }
 
 impl Player {
+    /// The cards they have played that can hold Card Resources.
+    pub fn cards_holding_card_resources(&self) -> CardSet {
+        self.played.intersection(CARDS_WITH.card_resources)
+    }
+
     pub fn new() -> Player {
         Player {
             resources: starting_resources(),
@@ -224,6 +230,10 @@ pub enum DecisionKind {
     KeepCards,
     /// Choose the Resource change the action being used makes.
     Resources,
+    /// Choose which effects the action being used carries out.
+    Effects,
+    /// Choose which of the Player's cards gets the Card Resources being added.
+    AddToCard,
     /// Keep one of the cards being drafted, and pass the rest on.
     Draft,
     /// Buy one more of the cards dealt, or be done, in the setup or a Research phase.
@@ -232,7 +242,11 @@ pub enum DecisionKind {
     SellPatents,
     /// Discard a card from the hand to draw one, or be done (Mars University).
     DiscardToDraw,
-    /// Choose whom the card being played takes Production or Resources from.
+    /// Add a science to Olympus Conference, or remove one to draw a card, or first discard a card
+    /// to draw one with Mars University.
+    OlympusConference,
+    /// Choose whom the card being played takes Production or Resources from, or the card that the
+    /// action being used takes a Card Resource from.
     Target,
     /// Convert plants into a Greenery once more, or be done, in the final Greenery conversion.
     FinalGreenery,
@@ -261,8 +275,18 @@ pub enum DecisionOption {
         player: usize,
         alternative: usize,
     },
+    /// Move 1 Card Resource from `from`, a card of `owner`'s, to `card`, whose action is being used.
+    MoveCardResource {
+        card: usize,
+        owner: usize,
+        from: usize,
+    },
     /// Remove, or steal, nothing with `card`, which may remove Resources from any Player.
     RemoveNothing(usize),
+    /// Remove a science from Olympus Conference to draw a card (`draw`), or add one to it.
+    OlympusConference {
+        draw: bool,
+    },
     /// Keep this card, one of those the card being played lets its Player look at.
     KeepCard(usize),
     /// Pay for `card`, which is being played, this way.
@@ -284,6 +308,18 @@ pub enum DecisionOption {
     ChangeResources {
         card: usize,
         change: ResourceChange,
+    },
+    /// Carry out the alternative at `alternative` of the effects the action of `card`, which is
+    /// being used, chooses between.
+    ChooseEffects {
+        card: usize,
+        alternative: usize,
+    },
+    /// Add `amount` Card Resources with `card` to `to`, one of the Player's played cards.
+    AddToCard {
+        card: usize,
+        to: usize,
+        amount: i32,
     },
     UseStandardProject(StandardProject),
     ClaimMilestone(Milestone),
@@ -325,11 +361,17 @@ pub enum Waiting {
     ActionPayment(usize),
     /// The Resource change the action of this card, which they are using, makes.
     Resources(usize),
+    /// Which effects the action of this card, which they are using, carries out.
+    Effects(usize),
+    /// Which of their cards gets the Card Resources that `card` adds.
+    AddToCard { card: usize, add: AddToAnother },
     /// Which card they sell next with Sell Patents, having sold this many so far.
     SellPatents(usize),
     /// Whether, and which card, they discard from their hand to draw one (Mars University).
     DiscardToDraw,
-    /// Whom a card takes Production or Resources from.
+    /// What Olympus Conference does for a science Tag played, or which card they discard first.
+    OlympusConference,
+    /// Whom a card takes Production or Resources from, or the card it takes a Card Resource from.
     Target(Targeting),
     /// Which Area they claim with Land Claim, which they are playing.
     ClaimArea,
@@ -395,12 +437,20 @@ pub struct Game {
     /// How many more times the current Player may discard a card from their hand to draw one
     /// (Mars University), once the card they are playing is done.
     pub discards_to_draw: u32,
+    /// How many more times the current Player chooses what Olympus Conference does, once the card
+    /// they are playing is done.
+    pub olympus_conference_due: u32,
     /// What a card takes from any Player, due once the card the current Player is playing is done
     /// with its Tiles.
     pub targeting: Option<Targeting>,
     /// The Area of a Tile whose placement bonus waits until the Tile being placed is down:
     /// a Greenery's waits for the Ocean its 0 °C step gave (see docs/rules-notes.md).
     pub waiting_bonus: Option<usize>,
+    /// The Card Resources on the cards played.
+    pub card_resources: CardResources,
+    /// The Card Resources still to add to other cards, due once the card the current Player is
+    /// playing is done with its Tiles, or the action they are using with its Tile.
+    pub adding: Option<Adding>,
     /// Who claimed each Milestone, by its index in `Milestone::ALL`.
     pub claimed_milestones: [Option<usize>; Milestone::ALL.len()],
     /// Who funded each Award, by its index in `Award::ALL`.
@@ -453,8 +503,11 @@ impl Game {
             waiting: None,
             placing_for: None,
             discards_to_draw: 0,
+            olympus_conference_due: 0,
             targeting: None,
             waiting_bonus: None,
+            card_resources: CardResources::default(),
+            adding: None,
             claimed_milestones: [None; Milestone::ALL.len()],
             funded_awards: [None; Award::ALL.len()],
             log: Vec::new(),
@@ -489,9 +542,18 @@ impl Game {
             (Some(Waiting::Resources(card)), _) => {
                 (DecisionKind::Resources, self.resource_change_options(self.current_player, card))
             }
+            (Some(Waiting::Effects(card)), _) => {
+                (DecisionKind::Effects, self.action_alternative_options(card))
+            }
+            (Some(Waiting::AddToCard { card, add }), _) => {
+                (DecisionKind::AddToCard, self.add_to_card_options(card, add))
+            }
             (Some(Waiting::SellPatents(sold)), _) => (DecisionKind::SellPatents, self.selling_options(sold)),
             (Some(Waiting::DiscardToDraw), _) => {
                 (DecisionKind::DiscardToDraw, self.discard_to_draw_options())
+            }
+            (Some(Waiting::OlympusConference), _) => {
+                (DecisionKind::OlympusConference, self.olympus_conference_options())
             }
             (Some(Waiting::Target(targeting)), _) => (DecisionKind::Target, self.target_options(targeting)),
             (None, Phase::Draft) => (DecisionKind::Draft, self.drafting_options()),
@@ -658,6 +720,10 @@ impl Game {
             DecisionOption::ChangeResources { card, change } => {
                 self.change_resources_as_chosen(player, card, change)
             }
+            DecisionOption::ChooseEffects { card, alternative } => {
+                self.carry_out_action_alternative(player, card, alternative)
+            }
+            DecisionOption::AddToCard { to, amount, .. } => self.add_to_card(to, amount),
             DecisionOption::DraftCard(card) => self.draft(card),
             DecisionOption::BuyCard(card) if matches!(self.waiting, Some(Waiting::KeepCards(_))) => {
                 self.keep_card(card)
@@ -668,7 +734,11 @@ impl Game {
             DecisionOption::Target { card, player: target, alternative } => {
                 self.take_as_picked(card, target, alternative)
             }
+            DecisionOption::MoveCardResource { card, owner, from } => {
+                self.move_card_resource_as_picked(card, owner, from)
+            }
             DecisionOption::RemoveNothing(card) => self.remove_nothing(card),
+            DecisionOption::OlympusConference { draw } => self.olympus_conference(draw),
             DecisionOption::KeepCard(card) => self.keep_card(card),
             // It has no price: the Player picks the cards to sell next.
             DecisionOption::UseStandardProject(StandardProject::SellPatents) => {
@@ -743,7 +813,9 @@ impl Game {
             DecisionOption::Done if matches!(self.waiting, Some(Waiting::KeepCards(_))) => {
                 self.done_keeping()
             }
-            DecisionOption::Done if matches!(self.waiting, Some(Waiting::DiscardToDraw)) => {
+            DecisionOption::Done
+                if matches!(self.waiting, Some(Waiting::DiscardToDraw | Waiting::OlympusConference)) =>
+            {
                 self.discard_to_draw(None)
             }
             DecisionOption::Done if self.phase == Phase::FinalGreenery => {
@@ -754,15 +826,19 @@ impl Game {
         }
     }
 
-    /// Unless a Tile is still to be placed, a card's included, the card played takes from a
-    /// Player of its Player's picking, or Mars University lets the current Player discard a card to
-    /// draw one: the current Action ends, or in the final Greenery conversion, the current Player
-    /// may convert again.
+    /// Unless a Tile is still to be placed, a card's included, Card Resources are added to another
+    /// card of the Player's picking, the card played takes from a Player of its Player's picking, or
+    /// the science Tags played call on Olympus Conference or Mars University: the current Action
+    /// ends, or in the final Greenery conversion, the current Player may convert again.
     pub(crate) fn finish_unless_placing(&mut self) {
         if !self.is_placing() {
             self.place_next_card_tile();
         }
-        if self.is_placing() || self.offer_target() || self.offer_discard_to_draw() {
+        if self.is_placing()
+            || self.offer_card_to_add_to()
+            || self.offer_target()
+            || self.offer_science_tag_effects()
+        {
             return;
         }
         match self.phase {

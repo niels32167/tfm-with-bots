@@ -9,8 +9,9 @@ use serde::{Deserialize, Deserializer, Serialize};
 
 use crate::board::{Board, Reservation, SpecialTile, Tile, TileKind, find_area, printed, row_and_position};
 use crate::card_flow::Buying;
+use crate::card_resources::CardResources;
 use crate::card_set::CardSet;
-use crate::cards::find_project_card;
+use crate::cards::{CARD_CATALOG, find_project_card};
 use crate::deck::Deck;
 use crate::draft::Drafting;
 use crate::game::{
@@ -128,6 +129,8 @@ pub struct ScenarioPlayer {
     pub hand: Vec<String>,
     /// The cards they have played, by catalog id.
     pub played_cards: Vec<String>,
+    /// The Card Resources on their played cards, by catalog id: `{"tardigrades": 3}`.
+    pub card_resources: BTreeMap<String, i32>,
 }
 
 impl Default for ScenarioPlayer {
@@ -138,6 +141,7 @@ impl Default for ScenarioPlayer {
             terraform_rating: STARTING_TERRAFORM_RATING,
             hand: Vec::new(),
             played_cards: Vec::new(),
+            card_resources: BTreeMap::new(),
         }
     }
 }
@@ -165,6 +169,26 @@ impl ScenarioPlayer {
                     resource.name()
                 ));
             }
+        }
+        Ok(())
+    }
+
+    /// Puts this Player's Card Resources on their played cards, or says why the rules never
+    /// allow them there.
+    fn put_card_resources(&self, index: usize, on: &mut CardResources) -> Result<(), String> {
+        let name = player_name(index);
+        for (id, &amount) in &self.card_resources {
+            if !self.played_cards.contains(id) {
+                return Err(format!("{name} has Card Resources on '{id}', which they have not played"));
+            }
+            let card = find_project_card(id).ok_or_else(|| format!("there is no Project Card '{id}'"))?;
+            if CARD_CATALOG[card].holds().is_none() {
+                return Err(format!("'{id}' holds no Card Resources"));
+            }
+            if !(0..=i32::from(u16::MAX)).contains(&amount) {
+                return Err(format!("'{id}' cannot hold {amount} Card Resources"));
+            }
+            on.set(card, amount);
         }
         Ok(())
     }
@@ -221,11 +245,16 @@ impl Scenario {
                 drafting: Drafting::default(),
             });
         }
+        let mut card_resources = CardResources::default();
+        for (index, player) in self.players.iter().enumerate() {
+            player.put_card_resources(index, &mut card_resources)?;
+        }
         let top_of_deck = cards_named(&self.deck, &mut named_cards)?;
         let discard = cards_named(&self.discard, &mut named_cards)?.into_iter().collect();
         let mut game = Game::prepare(Start::Scenario(self.clone()), players);
         game.deck = Deck::shuffled(named_cards, &top_of_deck, &mut game.random_numbers);
         game.discard = discard;
+        game.card_resources = card_resources;
         game.temperature = self.temperature;
         game.oxygen = self.oxygen;
         for tile in &self.tiles {

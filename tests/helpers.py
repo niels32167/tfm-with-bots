@@ -29,6 +29,18 @@ RESERVED_FOR_CARDS = {
     "phobos_space_haven": "phobos_space_haven",
     "ganymede_colony": "ganymede_colony",
 }
+# The cards printed with a Card Resource to hold, and its kind.
+CARDS_HOLDING_CARD_RESOURCES = {
+    "search_for_life": "science",
+    "regolith_eaters": "microbe",
+    "ghg_producing_bacteria": "microbe",
+    "ants": "microbe",
+    "tardigrades": "microbe",
+    "physics_complex": "science",
+    "decomposers": "microbe",
+    "nitrite_reducing_bacteria": "microbe",
+    "olympus_conference": "science",
+}
 # Every Area on Mars that is reserved for nothing, in board order.
 LAND_AREAS = [name for name in AREAS_ON_MARS if name not in OCEAN_AREAS and name != NOCTIS_CITY]
 
@@ -302,6 +314,12 @@ def keeping(game: tm_engine.Game, player: int) -> dict[str, Any] | None:
 def played_cards(game: tm_engine.Game, player: int) -> list[str]:
     """The cards a Player has played, by catalog id, as everyone sees them."""
     return player_board(game, player)["played_cards"]
+
+
+def card_resources(game: tm_engine.Game, player: int) -> dict[str, int]:
+    """The Card Resources on each of a Player's played cards that can hold some, by catalog id, as
+    everyone sees them."""
+    return player_board(game, player)["card_resources"]
 
 
 def area(game: tm_engine.Game, area_id: str) -> dict[str, Any]:

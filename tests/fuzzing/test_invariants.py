@@ -818,3 +818,166 @@ def test_a_finished_game_without_scores_breaks_an_invariant():
     view["scores"] = None
 
     assert problems_at_the_end(view, decision) == ["the Game is over, but has no scores"]
+
+
+def test_positions_with_card_resources_reached_by_the_rules_break_no_invariant():
+    game = scenario(
+        player(energy=6, played_cards=["physics_complex", "tardigrades"], card_resources={"tardigrades": 7}),
+        player(played_cards=["ants"], card_resources={"ants": 1}),
+    )
+
+    assert problems(*position(game)) == []
+
+
+def test_card_resources_on_a_card_that_holds_none_or_too_few_break_an_invariant():
+    view, decision = position(scenario(player(played_cards=["tardigrades", "trees"]), player(played_cards=["ants"])))
+    view["players"][0]["card_resources"] = {"tardigrades": -1, "trees": 1}
+    view["players"][1]["card_resources"] = {}
+
+    assert problems(view, decision) == [
+        "Player 1's board shows Card Resources on ['tardigrades', 'trees'], not on ['tardigrades']",
+        "Player 1's tardigrades has -1 Card Resources",
+        "Player 2's board shows Card Resources on [], not on ['ants']",
+    ]
+
+
+def test_card_resources_count_for_the_card_victory_points_the_board_shows():
+    game = scenario(
+        player(played_cards=["tardigrades"], card_resources={"tardigrades": 4}), player(), **terraformed_mars()
+    )
+    end_the_generation(game)
+    for _ in range(4):
+        if game.is_over:
+            break
+        pick(game, "Done")
+    view, decision = position(game)
+    assert problems_at_the_end(view, decision) == []
+    view["players"][0]["card_resources"]["tardigrades"] = 8
+
+    assert problems_at_the_end(view, decision) == ["Player 1's score has 1 Victory Point for Cards, but the board gives 2"]
+
+
+def test_actions_that_cannot_be_carried_out_break_an_invariant():
+    game = scenario(
+        player(megacredits=1, energy=6, played_cards=["physics_complex", "search_for_life", "ants"]),
+        player(played_cards=["tardigrades"], card_resources={"tardigrades": 1}),
+    )
+    view, decision = position(game)
+    assert problems(view, decision) == []
+    view["players"][0]["resources"]["energy"] = 5
+    view["players"][0]["resources"]["megacredits"] = 0
+    view["players"][1]["card_resources"]["tardigrades"] = 0
+
+    assert problems(view, decision) == [
+        "Use the action of Search for Life is offered, but Player 1 cannot carry it out",
+        "Use the action of Ants is offered, but Player 1 cannot carry it out",
+        "Use the action of Physics Complex is offered, but Player 1 cannot carry it out",
+    ]
+
+
+def test_an_add_to_card_decision_offering_a_card_of_the_wrong_kind_or_too_few_breaks_an_invariant():
+    game = scenario(
+        player(played_cards=["symbiotic_fungus", "tardigrades", "regolith_eaters"]),
+        player(),
+    )
+    pick(game, "Use the action of Symbiotic Fungus")
+    view, decision = position(game)
+    assert problems(view, decision) == []
+    decision["options"][1]["details"]["to"] = "physics_complex"
+
+    assert problems(view, decision) == [
+        (
+            "Symbiotic Fungus offers to add [('regolith_eaters', 'microbe', 1), ('physics_complex', 'microbe', 1)], "
+            "not [('regolith_eaters', 'microbe', 1), ('tardigrades', 'microbe', 1)]"
+        )
+    ]
+    del decision["options"][1]
+    assert problems(view, decision)[-1] == "Symbiotic Fungus's add_to_card Decision has 1 Option"
+
+
+def test_ceos_favorite_project_offering_a_card_with_none_on_it_breaks_an_invariant():
+    game = scenario(
+        player(
+            megacredits=1,
+            hand=["ceos_favorite_project"],
+            played_cards=["tardigrades", "physics_complex", "ants"],
+            card_resources={"tardigrades": 1, "physics_complex": 1},
+        ),
+        player(),
+    )
+    pick(game, "Play CEO's Favorite Project")
+    view, decision = position(game)
+    assert problems(view, decision) == []
+    view["players"][0]["card_resources"]["tardigrades"] = 0
+
+    assert problems(view, decision) == [
+        (
+            "CEO's Favorite Project offers to add [('tardigrades', 'microbe', 1), ('physics_complex', 'science', 1)], "
+            "not [('physics_complex', 'science', 1)]"
+        )
+    ]
+
+
+def test_an_effects_decision_without_enough_on_the_card_breaks_an_invariant():
+    holding = player(played_cards=["regolith_eaters"], card_resources={"regolith_eaters": 2})
+    game = scenario(holding, player())
+    pick(game, "Use the action of Regolith Eaters")
+    view, decision = position(game)
+    assert problems(view, decision) == []
+    view["players"][0]["card_resources"]["regolith_eaters"] = 1
+    del decision["options"][0]
+
+    assert problems(view, decision) == [
+        "Regolith Eaters's effects Decision does not offer its 2 alternatives",
+        "Regolith Eaters offers to remove 2, but has 1",
+    ]
+
+
+def test_extreme_cold_fungus_offering_microbes_without_a_card_for_them_breaks_an_invariant():
+    game = scenario(player(played_cards=["extreme_cold_fungus", "tardigrades"]), player())
+    pick(game, "Use the action of Extreme-Cold Fungus")
+    view, decision = position(game)
+    assert problems(view, decision) == []
+    view["players"][0]["played_cards"].remove("tardigrades")
+    del view["players"][0]["card_resources"]["tardigrades"]
+    view["discard"].append("tardigrades")
+    view["discard_size"] += 1
+
+    assert problems(view, decision) == ["Extreme-Cold Fungus offers to add microbes, but Player 1 has no card for them"]
+
+
+def test_ants_taking_from_its_players_own_card_while_an_opponent_has_some_breaks_an_invariant():
+    game = scenario(
+        player(played_cards=["ants", "tardigrades"], card_resources={"tardigrades": 3}),
+        player(played_cards=["regolith_eaters", "decomposers"], card_resources={"regolith_eaters": 1, "decomposers": 1}),
+    )
+    pick(game, "Use the action of Ants")
+    view, decision = position(game)
+    assert problems(view, decision) == []
+    decision["options"][0]["details"] |= {"player": 0, "from": "tardigrades"}
+
+    assert problems(view, decision) == [
+        "Ants offers to take from [(0, 'tardigrades'), (1, 'decomposers')], not [(1, 'regolith_eaters'), (1, 'decomposers')]"
+    ]
+
+
+def test_an_olympus_conference_decision_without_a_science_or_its_options_breaks_an_invariant():
+    game = scenario(
+        player(
+            megacredits=13,
+            hand=["regolith_eaters", "mine"],
+            played_cards=["mars_university", "olympus_conference"],
+            card_resources={"olympus_conference": 1},
+        ),
+        player(),
+    )
+    pick(game, "Play Regolith Eaters")
+    view, decision = position(game)
+    assert problems(view, decision) == []
+    view["players"][0]["card_resources"]["olympus_conference"] = 0
+    del decision["options"][2]
+
+    assert problems(view, decision) == [
+        "Olympus Conference offers to remove a science, but has none",
+        "Olympus Conference's Decision also offers [{'type': 'done'}], not every card in the hand and Done",
+    ]

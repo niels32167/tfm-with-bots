@@ -48,6 +48,13 @@ impl CardSet {
         self.bits == [0; WORDS]
     }
 
+    /// How many cards of this set come before `card` in card-number order.
+    pub fn rank(&self, card: usize) -> usize {
+        let words_before: u32 = self.bits[..card / 64].iter().map(|word| word.count_ones()).sum();
+        let below_in_its_word = self.bits[card / 64] & ((1 << (card % 64)) - 1);
+        (words_before + below_in_its_word.count_ones()) as usize
+    }
+
     /// The cards in card-number order.
     pub fn iter(self) -> impl Iterator<Item = usize> {
         (0..WORDS).flat_map(move |word| {

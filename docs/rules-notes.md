@@ -508,7 +508,7 @@ action's Production data, which the test above allows.
 **Call:** Research is printed with two science Tags, and both count, for Requirements, Awards
 and Victory Points like any other Tags. "Counts as playing 2 science cards" also makes it two
 science Tags played for the "when you play a science Tag" effects: Mars University (ticket 16)
-and Olympus Conference (ticket 19).
+and Olympus Conference (see "Olympus Conference and Mars University").
 
 **Why:** The card list and the open-source game both give it two science Tags. Chosen by
 Claude (2026-10-29), on the user's instruction to make the remaining ticket 12 calls without
@@ -841,7 +841,8 @@ the gain, whoever sets it off, once for each thing that sets it off:
 - a card the Player plays: once per card of that type and Tag (Optimal Aerobraking's space Event,
   Media Group's Event), once it is paid for and before its own effects;
 - a Tag the Player plays: once per such Tag on the card played, so Research sets off Mars
-  University twice, and an Event's Tags count (Special Design's science Tag);
+  University twice, and an Event's Tags count (Special Design's science Tag). One Trigger may name
+  several Tags (Decomposers);
 - a Standard Project the Player pays for, Sell Patents excepted (Standard Technology).
 
 A card in play counts itself: Immigrant City's own City and Mars University's own science Tag set
@@ -849,7 +850,8 @@ them off, as their cards say ("including this"). No other card's Trigger matches
 Media Group is no Event and Optimal Aerobraking no space Event. When several Triggers fire at once,
 each Player's, they are carried out in player number order, each Player's cards in card-number
 order. The order never changes the outcome, as each only gains its Player something, so no Player
-is asked to order them (see "When the 0 °C Ocean is placed"). The game log says "Player 2's Arctic
+is asked to order them (see "When the 0 °C Ocean is placed"), but for the two science Tag cards (see
+"Olympus Conference and Mars University"). The game log says "Player 2's Arctic
 Algae takes effect." before what it gains.
 
 **Why:**
@@ -895,8 +897,9 @@ ticket 16 calls without asking. The card has Rust code for this (`card_code::IMM
 ### Mars University's discard
 
 **Call:** Each science Tag the Player plays lets them discard a card from their hand to draw one,
-once the card's other effects are done, its Tiles included. A "discard_to_draw" Decision offers one
-Option per card in hand ("Discard Mine to draw a card"), in card-number order, and Done to keep the
+once the card's other effects are done, its Tiles included, in any order with Olympus Conference (see
+"Olympus Conference and Mars University"). A "discard_to_draw" Decision offers one Option per card in
+hand ("Discard Mine to draw a card"), in card-number order, and Done to keep the
 hand. Research asks twice, one after the other. With an empty hand there is no Decision. The card
 goes face down to the discard pile before the draw, so with the deck empty it may be drawn back
 (see "When the deck runs out"); the game log says "Player 1 discards a card to draw one." without
@@ -959,7 +962,8 @@ once the card's other effects and its Tiles are done, and before Mars University
   Resource, taking as much as they have up to the amount printed (Asteroid takes 2 plants from a
   Player with 2), then "Remove nothing". Sabotage offers its three Resources for each opponent,
   Hired Raiders its two, "Steal" rather than "Remove", and the Player gains what is stolen. With no
-  opponent to take from, there is no Decision and nothing is taken. Mining Expedition's "Remove 2
+  opponent to take from, there is no Decision and nothing is taken. Ants' action is a cost, so it has
+  no "Remove nothing" (see "Ants"). Mining Expedition's "Remove 2
   plants" is read as every red-bordered removal is: up to 2, or none.
 - **Never offered**, as Options that only do worse for the Player: their own Resources, their own
   Production while an opponent can lose it, and partial amounts below what the card can take.
@@ -1124,6 +1128,173 @@ effect data `"claim_area": true`, and at most one claim on the board, as there i
 `test_a_claimed_area_is_kept_from_every_other_tile_an_ocean_on_land_included`, and the fuzz
 invariant tests in `tests/fuzzing/test_invariants.py`, among them
 `test_a_tile_on_land_another_player_claimed_breaks_an_invariant`.
+
+### Card Resources
+
+**Call:** A card holds Card Resources only if printed with one to hold, of one kind, and only once
+played. Those 9 cards hold 0 when played, unless they say otherwise (Nitrite Reducing Bacteria's 3);
+the Player View's `"card_resources"` lists each such played card, even with 0 on it, and the GUI
+draws the count next to the Card Resource's icon. They count for Victory Points only on the card
+they are on: 1 per 4 microbes on Tardigrades, with 3 microbes on it giving none. Search for Life
+scores 3 with at least 1 science on it, and more scores no more. Olympus Conference's Victory Point
+is fixed, whatever is on it. The game log says "Player 1 adds 2 microbes to Tardigrades." and
+"Player 1 removes 2 microbes from Regolith Eaters."
+
+**Why:** The rulebook: "Other resources (including animals and microbes) are collected on their
+respective cards, which also define what they do", and "If a card adds a non-standard resource, it
+is generally placed on that same card" (rulespal.com's copy). The open-source game gives each such
+card a `resourceType` and a `resourceCount`, and agrees on all 9. Chosen by Claude (2026-11-04), on
+the user's instruction to make the ticket 19 calls without asking: effect data (`"holds"`,
+`"card_resources"`), counted in one small array on the Game for the 18 cards that hold any (ADR
+0004).
+
+**Tests:** `tests/rules/test_card_resources.py`, among them
+`test_card_resources_count_for_victory_points_as_printed`; `tests/cards/test_tardigrades.py`,
+`tests/cards/test_physics_complex.py`, `tests/cards/test_search_for_life.py`.
+
+### An action's alternatives
+
+**Call:** An action printed with "or" is offered if at least one alternative can be carried out, and
+the Player chooses with an "effects" Decision only when more than one can: "Add 1 microbe to Regolith
+Eaters" or "Remove 2 microbes from Regolith Eaters to raise Oxygen 1 step". Removing needs that many
+on the card itself, so with too few the action only adds, without a Decision. With the Global
+Parameter at its maximum, removing is still offered and raises nothing, as with Asteroid. GHG
+Producing Bacteria's step to 0 °C gives the Ocean as any step does, and the action ends once it is
+placed.
+
+**Why:**
+- The cards; the open-source game's `or` behaviours with `spend: {resourcesHere}` and `autoSelect`.
+- The rulebook: "You may still play cards and actions that increase the parameter" (see "Actions that
+  raise a Global Parameter at its maximum").
+- A Decision with one Option is no Decision, as everywhere.
+
+Chosen by Claude (2026-11-04), on the user's instruction to make the ticket 19 calls without asking:
+effect data, an action's `"choice"`, which ticket 20's cards can extend to a card's play.
+
+**Tests:** `tests/cards/test_regolith_eaters.py`, `tests/cards/test_ghg_producing_bacteria.py`,
+`tests/cards/test_nitrite_reducing_bacteria.py`, `tests/cards/test_extreme_cold_fungus.py`.
+
+### Adding Card Resources to another card
+
+**Call:** "Add 2 microbes to ANOTHER card" means one of the Player's own played cards that holds
+microbes, of their picking, once the card's Tiles are placed. With one such card they go on it without
+a Decision. Otherwise an "add_to_card" Decision offers each one, as a button and as an outlined played
+card.
+- **Without such a card, a card can still be played**, and the microbes are lost: Aerobraked Ammonia
+  Asteroid still raises its Production ("Player 1 has no card to add 2 microbes to.").
+- **So can an action**: Symbiotic Fungus is offered without another card that holds microbes, and the
+  microbe is lost. Extreme-Cold Fungus only gains its plant then, without a Decision, as its other
+  alternative can't be carried out.
+- **CEO's Favorite Project** adds 1 of whichever kind a card holds, to a card of the Player's with at
+  least 1 on it, and can't be played without one.
+
+**Why:**
+- The rulebook (rulespal.com's copy) lets a card be played without being able to do everything in
+  these cases: "adding microbe resources without having any microbe project to place them on". It
+  makes that exception for playing a card, not for an action.
+- The open-source game's `AddResourcesToCard` takes the Player's own cards, picks by itself with one,
+  and does nothing with none. It has `mustHaveCard` and `min: 1` for CEO's Favorite Project.
+- **Symbiotic Fungus's action with nothing to add to**: the rulebook makes its exception for playing a
+  card and doesn't speak of actions here, so the open-source game decides: it offers the action, which
+  does nothing. This is no dominated Option either, as using it keeps the Player in the Generation
+  without passing.
+- The *Comprehensive FAQ* could not be checked: the PDF and BoardGameGeek refuse the download.
+
+Chosen by Claude (2026-11-04), on the user's instruction to make the ticket 19 calls without asking:
+effect data, `"add_to_another"`, with `"must_have_card"` and `"at_least"`; buttons and outlined cards
+both, as a required choice among the played cards may be out of view.
+
+**Tests:** `tests/cards/test_aerobraked_ammonia_asteroid.py`, `tests/cards/test_symbiotic_fungus.py`,
+`tests/cards/test_extreme_cold_fungus.py`, `tests/cards/test_ceos_favorite_project.py`;
+`tests/server/test_card_resources.py`.
+
+### Ants
+
+**Call:** Ants' action moves 1 microbe from any card to Ants, with the "target" Decision. It offers
+each card of the opponents' with a microbe ("Remove 1 microbe from Player 2's Tardigrades"). Only when
+they have none does it offer the Player's own cards ("from your own Tardigrades"), since taking from an
+opponent is never worse than from themselves. Those include Ants itself, as "any card" does, which
+moves a microbe back onto it. With no microbe on any card, the action isn't offered; with one card,
+it is taken without a Decision. **"Remove nothing" is not offered.** The game log says "Player 1 moves 1 microbe
+from Player 2's Tardigrades to Ants."
+
+**Why:**
+- **Against the ticket's note**, which asked for "Remove nothing" as in "Taking from any Player". The
+  rulebook: "When you use an action on a blue card, you must first pay any cost stated to the left of
+  the arrow", and Ants' microbe is on the left of its arrow. The open-source game agrees: its
+  `RemoveResourcesFromCard` is `mandatory` when "it's a cost", with no "Do not remove". Its red border
+  only says whose card it may be. The rulebook comes first. Ticket 20's Predators works the same way.
+- The open-source game offers the Player's own cards alongside the opponents', and Ants itself. Taking
+  from an opponent leaves the Player with one more microbe and the opponent with one fewer, so the
+  Player's own only do worse while an opponent has one (see "When the 0 °C Ocean is placed"). Once none
+  has, they may be worth moving, and moving one back onto Ants keeps the Player in the Generation.
+
+Chosen by Claude (2026-11-04), on the user's instruction to make the ticket 19 calls without asking:
+effect data, `"any_player": {"move_card_resource": "microbe"}` in the action, sharing the target
+Decision.
+
+**Tests:** `tests/cards/test_ants.py`, among them
+`test_the_player_picks_among_the_opponents_cards_with_microbes_and_their_own_are_left_out` and
+`test_with_no_opponent_to_take_from_the_player_may_move_microbes_from_their_own_cards`;
+`tests/fuzzing/test_invariants.py::test_ants_taking_from_its_players_own_card_while_an_opponent_has_some_breaks_an_invariant`.
+
+### Decomposers
+
+**Call:** Each animal, plant or microbe Tag the Player plays adds 1 microbe to Decomposers, its own
+microbe Tag included, and an Event's Tags too. Each such Tag on a card counts, so Advanced Ecosystems'
+three Tags add 3 at once.
+
+**Why:** The card ("including this"); the open-source game counts `cardTagCount` of the three Tags.
+Chosen by Claude (2026-11-04), on the user's instruction to make the ticket 19 calls without asking:
+effect data, `{"on": {"tag_played": ["animal", "plant", "microbe"]}, "card_resources": 1}`.
+
+**Tests:** `tests/cards/test_decomposers.py`.
+
+### Search for Life
+
+**Call:** Search for Life's action spends 1 MegaCredit, then reveals the top card of the deck, which the
+game log names, and discards it. If that card has a microbe Tag, a science goes on Search for Life. The
+action isn't offered without a card to reveal (none in the deck or the discard pile, which is shuffled
+into a new deck if the deck has run out), and stays open once a science is on the card.
+
+**Why:** The card; the open-source game's `canAct` asks for 1 MegaCredit and a card to draw, and it logs
+the card revealed and discards it. Chosen by Claude (2026-11-04), on the user's instruction to make the
+ticket 19 calls without asking: Rust code for the reveal (`card_code::SEARCH_FOR_LIFE`).
+
+**Tests:** `tests/cards/test_search_for_life.py`.
+
+### Olympus Conference and Mars University
+
+**Call:** Each science Tag the Player plays, its own included, makes Olympus Conference add a science to
+itself or remove one to draw a card, once the card played is done, as Mars University's discard is. With
+no science on it, or no card left to draw, it adds one without a Decision. Research asks twice.
+
+With Mars University in play, each science Tag sets off both. While both have something due, one
+"olympus_conference" Decision offers both cards' Options together: "Add 1 science to Olympus
+Conference", "Remove 1 science from Olympus Conference to draw a card", "Discard Mine to draw a card"
+for each card in the hand, and "Keep the hand". The Option picked is carried out and the rest stay due,
+so the Player orders them by picking. With no card in the hand, Olympus Conference comes first, as its
+draw may give them one to discard.
+
+**Why:**
+- The Player orders simultaneous effects, and a Decision is skipped only when one order is never worse
+  (the user's rule, see "When the 0 °C Ocean is placed"). **No order dominates here.** Discarding first
+  lets the Player see the card drawn and then still keep their science. Removing first lets them see that
+  card and then choose what to discard. So the Player chooses. The one exception is adding to an empty
+  card, which offers no choice and can only help a later Tag, so it comes first.
+- Offering the Options together orders them without a separate "which first" Decision.
+- The open-source game fixes the order instead: Olympus Conference first, by its priority.
+- The *Comprehensive FAQ* could not be checked: the PDF and BoardGameGeek refuse the download.
+
+Chosen by Claude (2026-11-04), on the user's instruction to make the ticket 19 calls without asking,
+which covered asking about an order that doesn't dominate. Rust code for the Decision
+(`card_code::OLYMPUS_CONFERENCE`); its Trigger is effect data.
+
+**Tests:** `tests/cards/test_olympus_conference.py`, among them
+`test_research_counts_as_2_science_tags_so_it_sets_it_off_twice`,
+`test_with_mars_university_the_player_orders_the_two_as_the_options_of_one_decision`,
+`test_carrying_out_olympus_conference_first_leaves_mars_universitys_discard_with_the_card_drawn` and
+`test_carrying_out_mars_university_first_leaves_olympus_conferences_choice`.
 
 ## Card flow
 

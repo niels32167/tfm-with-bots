@@ -62,7 +62,7 @@ def test_a_used_action_is_available_again_in_the_next_generation():
 
 
 # Every card with an action, and enough to use it in two Generations: Resources, energy Production
-# to lower and to give the next Generation's 4 energy, and a deck to look at and draw from.
+# to lower and to give the next Generation's 6 energy, and a deck to look at and draw from.
 CARDS_WITH_AN_ACTION = [card["id"] for card in tm_engine.card_catalog() if "action" in card.get("effects", {})]
 PLENTY = {"megacredits": 30, "steel": 5, "titanium": 5, "plants": 5, "energy": 10, "heat": 10}
 
@@ -80,8 +80,11 @@ def use_the_action_of(game: tm_engine.Game, card: str) -> None:
 
 @pytest.mark.parametrize("card", CARDS_WITH_AN_ACTION)
 def test_every_cards_action_is_used_once_per_generation_and_is_available_again_in_the_next(card):
-    using = player(**PLENTY, production={"energy": 4}, played_cards=[card])
-    game = scenario(using, player(), deck=["mine", "trees", "birds", "fish"], draft=False)
+    # Symbiotic Fungus needs another card to add to, Ants a card to take from.
+    played = [card, "tardigrades"] if card == "symbiotic_fungus" else [card]
+    using = player(**PLENTY, production={"energy": 6}, played_cards=played)
+    holding = player(played_cards=["decomposers"], card_resources={"decomposers": 9})
+    game = scenario(using, holding, deck=["mine", "trees", "birds", "fish"], draft=False)
     assert offered(game, type="use_action", card=card)
 
     use_the_action_of(game, card)

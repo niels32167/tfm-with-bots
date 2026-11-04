@@ -68,7 +68,8 @@
       "requirements": [{"type": "oxygen", "max": 6}],
       "victory_points": {"points": 3, "at_least": 1, "of": {"card_resource": "science"}},
       "text": "(Action: Spend 1 MC to reveal the top card of the draw deck. If that card has a Microbe tag, add a Science resource here.)\n(3 VPs if you have one or more Science resources here.)",
-      "face": {"content": {"tag": "div", "class": "content", "children": [" ", {"tag": "div", "class": "points points-big", "children": [" ", {"tag": "span", "style": {"margin-right": "-8px"}, "children": ["3/"]}, " ", {"tag": "span", "class": "resource science"}, " "]}, " ", {"tag": "div", "class": "requirements requirements-max", "children": ["max 6% O2"]}, " ", {"tag": "div", "children": [" ", {"tag": "span", "class": "money resource", "children": ["1"]}, " ", {"tag": "div", "class": "red-arrow"}, " ", {"tag": "span", "class": "resource-tag tag-microbe"}, " * : ", {"tag": "div", "class": "resource science"}, " "]}, " ", {"tag": "div", "class": "description", "children": [" (Action: Spend 1 MC to reveal the top card of the draw deck. If that card has a Microbe tag, add a Science resource here.)", {"tag": "br"}, {"tag": "br"}, " (3 VPs if you have one or more Science resources here.) "]}, " "]}}
+      "face": {"content": {"tag": "div", "class": "content", "children": [" ", {"tag": "div", "class": "points points-big", "children": [" ", {"tag": "span", "style": {"margin-right": "-8px"}, "children": ["3/"]}, " ", {"tag": "span", "class": "resource science"}, " "]}, " ", {"tag": "div", "class": "requirements requirements-max", "children": ["max 6% O2"]}, " ", {"tag": "div", "children": [" ", {"tag": "span", "class": "money resource", "children": ["1"]}, " ", {"tag": "div", "class": "red-arrow"}, " ", {"tag": "span", "class": "resource-tag tag-microbe"}, " * : ", {"tag": "div", "class": "resource science"}, " "]}, " ", {"tag": "div", "class": "description", "children": [" (Action: Spend 1 MC to reveal the top card of the draw deck. If that card has a Microbe tag, add a Science resource here.)", {"tag": "br"}, {"tag": "br"}, " (3 VPs if you have one or more Science resources here.) "]}, " "]}},
+      "effects": {"holds": "science", "action": {"resources": {"megacredits": -1}}}
     },
     {
       "id": "inventors_guild",
@@ -455,7 +456,8 @@
       "requirements": [],
       "victory_points": null,
       "text": "(Action: Add 1 Microbe to this card, or remove 2 Microbes from this card to raise oxygen level 1 step.)",
-      "face": {"content": {"tag": "div", "class": "content", "children": [" ", {"tag": "div", "class": "red-arrow"}, " ", {"tag": "div", "class": "microbe resource"}, " ", {"tag": "br"}, " OR ", {"tag": "div", "class": "microbe resource"}, " ", {"tag": "div", "class": "microbe resource"}, " ", {"tag": "div", "class": "red-arrow"}, " ", {"tag": "div", "class": "tile oxygen-tile"}, " ", {"tag": "div", "class": "description", "children": [" (Action: Add 1 Microbe to this card, or remove 2 Microbes from this card to raise oxygen level 1 step.) "]}, " "]}}
+      "face": {"content": {"tag": "div", "class": "content", "children": [" ", {"tag": "div", "class": "red-arrow"}, " ", {"tag": "div", "class": "microbe resource"}, " ", {"tag": "br"}, " OR ", {"tag": "div", "class": "microbe resource"}, " ", {"tag": "div", "class": "microbe resource"}, " ", {"tag": "div", "class": "red-arrow"}, " ", {"tag": "div", "class": "tile oxygen-tile"}, " ", {"tag": "div", "class": "description", "children": [" (Action: Add 1 Microbe to this card, or remove 2 Microbes from this card to raise oxygen level 1 step.) "]}, " "]}},
+      "effects": {"holds": "microbe", "action": {"choice": [{"card_resources": 1}, {"card_resources": -2, "oxygen": 1}]}}
     },
     {
       "id": "ghg_producing_bacteria",
@@ -468,7 +470,8 @@
       "requirements": [{"type": "oxygen", "min": 4}],
       "victory_points": null,
       "text": "(Action: Add 1 Microbe to this card, or remove 2 Microbes to raise temperature 1 step.)\n(Requires 4% oxygen.)",
-      "face": {"content": {"tag": "div", "class": "content", "children": [" ", {"tag": "div", "class": "requirements", "children": ["4% O2"]}, " ", {"tag": "div", "class": "red-arrow"}, " ", {"tag": "div", "class": "microbe resource"}, " ", {"tag": "br"}, " OR ", {"tag": "div", "class": "microbe resource"}, " ", {"tag": "div", "class": "microbe resource"}, " ", {"tag": "div", "class": "red-arrow"}, " ", {"tag": "div", "class": "tile temperature-tile"}, " ", {"tag": "div", "class": "description", "children": [" (Action: Add 1 Microbe to this card, or remove 2 Microbes to raise temperature 1 step.)", {"tag": "br"}, {"tag": "br"}, " (Requires 4% oxygen.) "]}, " "]}}
+      "face": {"content": {"tag": "div", "class": "content", "children": [" ", {"tag": "div", "class": "requirements", "children": ["4% O2"]}, " ", {"tag": "div", "class": "red-arrow"}, " ", {"tag": "div", "class": "microbe resource"}, " ", {"tag": "br"}, " OR ", {"tag": "div", "class": "microbe resource"}, " ", {"tag": "div", "class": "microbe resource"}, " ", {"tag": "div", "class": "red-arrow"}, " ", {"tag": "div", "class": "tile temperature-tile"}, " ", {"tag": "div", "class": "description", "children": [" (Action: Add 1 Microbe to this card, or remove 2 Microbes to raise temperature 1 step.)", {"tag": "br"}, {"tag": "br"}, " (Requires 4% oxygen.) "]}, " "]}},
+      "effects": {"holds": "microbe", "action": {"choice": [{"card_resources": 1}, {"card_resources": -2, "temperature": 1}]}}
     },
     {
       "id": "ants",
@@ -481,7 +484,8 @@
       "requirements": [{"type": "oxygen", "min": 4}],
       "victory_points": {"points": 1, "per": 2, "of": {"card_resource": "microbe"}},
       "text": "(Action: Remove 1 Microbe from any card to add 1 to this card.)\n(Requires 4% oxygen. 1 VP per 2 Microbes on this card.)",
-      "face": {"content": {"tag": "div", "class": "content", "children": [" ", {"tag": "div", "class": "points", "children": [" 1/2 ", {"tag": "div", "class": "resource microbe"}, " "]}, " ", {"tag": "div", "class": "requirements", "children": ["4% O2"]}, " ", {"tag": "div", "class": "microbe resource red-outline"}, " ", {"tag": "div", "class": "red-arrow"}, " ", {"tag": "div", "class": "microbe resource"}, " ", {"tag": "div", "class": "description", "children": [" (Action: Remove 1 Microbe from any card to add 1 to this card.) ", {"tag": "br"}, {"tag": "br"}, " (Requires 4% oxygen. 1 VP per 2 Microbes on this card.) "]}, " "]}}
+      "face": {"content": {"tag": "div", "class": "content", "children": [" ", {"tag": "div", "class": "points", "children": [" 1/2 ", {"tag": "div", "class": "resource microbe"}, " "]}, " ", {"tag": "div", "class": "requirements", "children": ["4% O2"]}, " ", {"tag": "div", "class": "microbe resource red-outline"}, " ", {"tag": "div", "class": "red-arrow"}, " ", {"tag": "div", "class": "microbe resource"}, " ", {"tag": "div", "class": "description", "children": [" (Action: Remove 1 Microbe from any card to add 1 to this card.) ", {"tag": "br"}, {"tag": "br"}, " (Requires 4% oxygen. 1 VP per 2 Microbes on this card.) "]}, " "]}},
+      "effects": {"holds": "microbe", "action": {"any_player": {"move_card_resource": "microbe"}}}
     },
     {
       "id": "release_of_inert_gases",
@@ -676,7 +680,8 @@
       "requirements": [],
       "victory_points": {"points": 1, "per": 4, "of": {"card_resource": "microbe"}},
       "text": "(Action: Add 1 Microbe to this card.)\n(1 VP per 4 Microbes on this card.)",
-      "face": {"content": {"tag": "div", "class": "content", "children": [" ", {"tag": "div", "class": "points", "children": [" 1/4 ", {"tag": "div", "class": "resource microbe"}, " "]}, " ", {"tag": "div", "class": "red-arrow"}, " ", {"tag": "div", "class": "microbe resource"}, " ", {"tag": "br"}, " ", {"tag": "div", "class": "description", "children": [" (Action: Add 1 Microbe to this card.) ", {"tag": "br"}, {"tag": "br"}, " (1 VP per 4 Microbes on this card.) "]}, " "]}}
+      "face": {"content": {"tag": "div", "class": "content", "children": [" ", {"tag": "div", "class": "points", "children": [" 1/4 ", {"tag": "div", "class": "resource microbe"}, " "]}, " ", {"tag": "div", "class": "red-arrow"}, " ", {"tag": "div", "class": "microbe resource"}, " ", {"tag": "br"}, " ", {"tag": "div", "class": "description", "children": [" (Action: Add 1 Microbe to this card.) ", {"tag": "br"}, {"tag": "br"}, " (1 VP per 4 Microbes on this card.) "]}, " "]}},
+      "effects": {"holds": "microbe", "action": {"card_resources": 1}}
     },
     {
       "id": "virus",
@@ -1008,7 +1013,7 @@
       "victory_points": 1,
       "text": "(Effect: When you play a Science tag, including this, you may discard a card from hand to draw a card.)",
       "face": {"content": {"tag": "div", "class": "content", "children": [" ", {"tag": "div", "class": "points points-big", "children": ["1"]}, " ", {"tag": "div", "class": "resource-tag tag-science"}, " : - ", {"tag": "span", "class": "card resource"}, " + ", {"tag": "span", "class": "card resource"}, " ", {"tag": "div", "class": "description", "children": [" (Effect: When you play a Science tag, including this, you may discard a card from hand to draw a card.) "]}, " "]}},
-      "effects": {"when": [{"on": {"tag_played": "science"}}]}
+      "effects": {"when": [{"on": {"tag_played": ["science"]}}]}
     },
     {
       "id": "viral_enhancers",
@@ -1314,7 +1319,8 @@
       "requirements": [],
       "victory_points": {"points": 2, "per": 1, "of": {"card_resource": "science"}},
       "text": "(Action: Spend 6 Energy to add a science resource to this card.)\n(2 VP for each science resource on this card.)",
-      "face": {"content": {"tag": "div", "class": "content", "children": [" ", {"tag": "div", "class": "points points-big", "children": [" ", {"tag": "span", "style": {"margin-left": "-8px"}, "children": ["2/"]}, " ", {"tag": "div", "class": "science resource"}, " "]}, " 6 ", {"tag": "div", "class": "energy resource"}, " ", {"tag": "div", "class": "red-arrow"}, " ", {"tag": "div", "class": "resource science"}, " ", {"tag": "div", "class": "description", "children": [" (Action: Spend 6 Energy to add a science resource to this card.) "]}, " ", {"tag": "br"}, {"tag": "br"}, {"tag": "br"}, " ", {"tag": "div", "class": "description", "children": [" (2 VP for each science resource on this card.) "]}, " "]}}
+      "face": {"content": {"tag": "div", "class": "content", "children": [" ", {"tag": "div", "class": "points points-big", "children": [" ", {"tag": "span", "style": {"margin-left": "-8px"}, "children": ["2/"]}, " ", {"tag": "div", "class": "science resource"}, " "]}, " 6 ", {"tag": "div", "class": "energy resource"}, " ", {"tag": "div", "class": "red-arrow"}, " ", {"tag": "div", "class": "resource science"}, " ", {"tag": "div", "class": "description", "children": [" (Action: Spend 6 Energy to add a science resource to this card.) "]}, " ", {"tag": "br"}, {"tag": "br"}, {"tag": "br"}, " ", {"tag": "div", "class": "description", "children": [" (2 VP for each science resource on this card.) "]}, " "]}},
+      "effects": {"holds": "science", "action": {"resources": {"energy": -6}, "card_resources": 1}}
     },
     {
       "id": "greenhouses",
@@ -1816,7 +1822,8 @@
       "requirements": [{"type": "oxygen", "min": 3}],
       "victory_points": {"points": 1, "per": 3, "of": {"card_resource": "microbe"}},
       "text": "(Effect: When you play an Animal, Plant, or Microbe tag, including this, add a Microbe to this card.)\n(Requires 3% oxygen. 1 VP per 3 Microbes on this card.)",
-      "face": {"content": {"tag": "div", "class": "content", "children": [" ", {"tag": "div", "class": "points", "children": [" 1/3 ", {"tag": "div", "class": "resource microbe"}, " "]}, " ", {"tag": "div", "class": "requirements", "children": ["3% O2"]}, " ", {"tag": "div", "class": "tag-animal resource-tag"}, " / ", {"tag": "div", "class": "tag-plant resource-tag"}, " / ", {"tag": "div", "class": "tag-microbe resource-tag"}, " : ", {"tag": "div", "class": "microbe resource"}, " ", {"tag": "div", "class": "description", "children": [" (Effect: When you play an Animal, Plant, or Microbe tag, including this, add a Microbe to this card.) "]}, " ", {"tag": "div", "class": "description", "style": {"margin-top": "10px"}, "children": [" (Requires 3% oxygen. 1 VP per 3 Microbes on this card.) "]}, " "]}}
+      "face": {"content": {"tag": "div", "class": "content", "children": [" ", {"tag": "div", "class": "points", "children": [" 1/3 ", {"tag": "div", "class": "resource microbe"}, " "]}, " ", {"tag": "div", "class": "requirements", "children": ["3% O2"]}, " ", {"tag": "div", "class": "tag-animal resource-tag"}, " / ", {"tag": "div", "class": "tag-plant resource-tag"}, " / ", {"tag": "div", "class": "tag-microbe resource-tag"}, " : ", {"tag": "div", "class": "microbe resource"}, " ", {"tag": "div", "class": "description", "children": [" (Effect: When you play an Animal, Plant, or Microbe tag, including this, add a Microbe to this card.) "]}, " ", {"tag": "div", "class": "description", "style": {"margin-top": "10px"}, "children": [" (Requires 3% oxygen. 1 VP per 3 Microbes on this card.) "]}, " "]}},
+      "effects": {"holds": "microbe", "when": [{"on": {"tag_played": ["animal", "plant", "microbe"]}, "card_resources": 1}]}
     },
     {
       "id": "fusion_power",
@@ -1843,7 +1850,8 @@
       "requirements": [{"type": "temperature", "min": -14}],
       "victory_points": null,
       "text": "(Action: Add a microbe to ANOTHER card.)\n(Requires -14 C or warmer.)",
-      "face": {"content": {"tag": "div", "class": "content", "children": [" ", {"tag": "div", "class": "requirements", "children": ["-14 C"]}, " ", {"tag": "div", "class": "red-arrow"}, " ", {"tag": "div", "class": "microbe resource"}, " * ", {"tag": "div", "class": "description", "children": [" (Action: Add a microbe to ANOTHER card.) ", {"tag": "br"}, {"tag": "br"}, " (Requires -14 C or warmer.) "]}, " "]}}
+      "face": {"content": {"tag": "div", "class": "content", "children": [" ", {"tag": "div", "class": "requirements", "children": ["-14 C"]}, " ", {"tag": "div", "class": "red-arrow"}, " ", {"tag": "div", "class": "microbe resource"}, " * ", {"tag": "div", "class": "description", "children": [" (Action: Add a microbe to ANOTHER card.) ", {"tag": "br"}, {"tag": "br"}, " (Requires -14 C or warmer.) "]}, " "]}},
+      "effects": {"action": {"add_to_another": [{"kind": "microbe", "amount": 1}]}}
     },
     {
       "id": "extreme_cold_fungus",
@@ -1856,7 +1864,8 @@
       "requirements": [{"type": "temperature", "max": -10}],
       "victory_points": null,
       "text": "(Action: Gain 1 plant or add 2 microbes to ANOTHER card.)\n(It must be -10 C or colder.)",
-      "face": {"content": {"tag": "div", "class": "content", "children": [" ", {"tag": "div", "class": "requirements requirements-max", "children": ["max -10 C"]}, " ", {"tag": "div", "class": "red-arrow", "style": {"margin-left": "-9px"}}, " ", {"tag": "div", "class": "plant resource"}, " ", {"tag": "br"}, " OR ", {"tag": "div", "class": "red-arrow"}, " ", {"tag": "div", "class": "microbe resource"}, " ", {"tag": "div", "class": "microbe resource"}, " * ", {"tag": "div", "class": "description", "children": [" (Action: Gain 1 plant or add 2 microbes to ANOTHER card.) ", {"tag": "br"}, {"tag": "br"}, " (It must be -10 C or colder.) "]}, " "]}}
+      "face": {"content": {"tag": "div", "class": "content", "children": [" ", {"tag": "div", "class": "requirements requirements-max", "children": ["max -10 C"]}, " ", {"tag": "div", "class": "red-arrow", "style": {"margin-left": "-9px"}}, " ", {"tag": "div", "class": "plant resource"}, " ", {"tag": "br"}, " OR ", {"tag": "div", "class": "red-arrow"}, " ", {"tag": "div", "class": "microbe resource"}, " ", {"tag": "div", "class": "microbe resource"}, " * ", {"tag": "div", "class": "description", "children": [" (Action: Gain 1 plant or add 2 microbes to ANOTHER card.) ", {"tag": "br"}, {"tag": "br"}, " (It must be -10 C or colder.) "]}, " "]}},
+      "effects": {"action": {"choice": [{"resources": {"plants": 1}}, {"add_to_another": [{"kind": "microbe", "amount": 2, "must_have_card": true}]}]}}
     },
     {
       "id": "advanced_ecosystems",
@@ -2063,7 +2072,8 @@
       "requirements": [],
       "victory_points": null,
       "text": "ADD 1 RESOURCE TO A CARD WITH AT LEAST 1 RESOURCE ON IT",
-      "face": {"content": {"tag": "div", "class": "content", "style": {"font-size": "14px", "font-weight": "normal"}, "children": [" ADD 1 RESOURCE TO A CARD WITH AT LEAST 1 RESOURCE ON IT "]}}
+      "face": {"content": {"tag": "div", "class": "content", "style": {"font-size": "14px", "font-weight": "normal"}, "children": [" ADD 1 RESOURCE TO A CARD WITH AT LEAST 1 RESOURCE ON IT "]}},
+      "effects": {"add_to_another": [{"amount": 1, "at_least": 1, "must_have_card": true}]}
     },
     {
       "id": "anti_gravity_technology",
@@ -2174,7 +2184,8 @@
       "requirements": [],
       "victory_points": null,
       "text": "(Action: Add 1 Microbe to this card, or remove 3 Microbes to increase your TR 1 step.\n(Add 3 Microbes to this card.)",
-      "face": {"content": {"tag": "div", "class": "content", "children": [" ", {"tag": "div", "class": "red-arrow"}, " ", {"tag": "div", "class": "microbe resource"}, " ", {"tag": "br"}, " OR 3 ", {"tag": "div", "class": "microbe resource"}, " ", {"tag": "div", "class": "red-arrow"}, " ", {"tag": "div", "class": "tile rating"}, " ", {"tag": "div", "class": "description", "children": [" (Action: Add 1 Microbe to this card, or remove 3 Microbes to increase your TR 1 step. "]}, " ", {"tag": "br"}, " ", {"tag": "div", "class": "microbe resource"}, " ", {"tag": "div", "class": "microbe resource"}, " ", {"tag": "div", "class": "microbe resource"}, " ", {"tag": "div", "class": "description", "children": ["(Add 3 Microbes to this card.)"]}, " "]}}
+      "face": {"content": {"tag": "div", "class": "content", "children": [" ", {"tag": "div", "class": "red-arrow"}, " ", {"tag": "div", "class": "microbe resource"}, " ", {"tag": "br"}, " OR 3 ", {"tag": "div", "class": "microbe resource"}, " ", {"tag": "div", "class": "red-arrow"}, " ", {"tag": "div", "class": "tile rating"}, " ", {"tag": "div", "class": "description", "children": [" (Action: Add 1 Microbe to this card, or remove 3 Microbes to increase your TR 1 step. "]}, " ", {"tag": "br"}, " ", {"tag": "div", "class": "microbe resource"}, " ", {"tag": "div", "class": "microbe resource"}, " ", {"tag": "div", "class": "microbe resource"}, " ", {"tag": "div", "class": "description", "children": ["(Add 3 Microbes to this card.)"]}, " "]}},
+      "effects": {"holds": "microbe", "card_resources": 3, "action": {"choice": [{"card_resources": 1}, {"card_resources": -3, "terraform_rating": 1}]}}
     },
     {
       "id": "industrial_microbes",
@@ -2354,7 +2365,8 @@
       "requirements": [],
       "victory_points": null,
       "text": "(Add 2 Microbes to ANOTHER card. Increase your heat production 3 steps and your Plant productions 1 step.)",
-      "face": {"content": {"tag": "div", "class": "content", "children": [" ", {"tag": "div", "class": "production-box production-box-size3", "children": [" ", {"tag": "div", "class": "heat production"}, " ", {"tag": "div", "class": "heat production"}, " ", {"tag": "div", "class": "heat production"}, " ", {"tag": "div", "class": "plant production"}, " "]}, " ", {"tag": "br"}, " ", {"tag": "div", "class": "microbe resource"}, " ", {"tag": "div", "class": "microbe resource"}, " * ", {"tag": "div", "class": "description", "children": [" (Add 2 Microbes to ANOTHER card. Increase your heat production 3 steps and your Plant productions 1 step.) "]}, " "]}, "title_style": {"font-size": "14px"}}
+      "face": {"content": {"tag": "div", "class": "content", "children": [" ", {"tag": "div", "class": "production-box production-box-size3", "children": [" ", {"tag": "div", "class": "heat production"}, " ", {"tag": "div", "class": "heat production"}, " ", {"tag": "div", "class": "heat production"}, " ", {"tag": "div", "class": "plant production"}, " "]}, " ", {"tag": "br"}, " ", {"tag": "div", "class": "microbe resource"}, " ", {"tag": "div", "class": "microbe resource"}, " * ", {"tag": "div", "class": "description", "children": [" (Add 2 Microbes to ANOTHER card. Increase your heat production 3 steps and your Plant productions 1 step.) "]}, " "]}, "title_style": {"font-size": "14px"}},
+      "effects": {"production": {"heat": 3, "plants": 1}, "add_to_another": [{"kind": "microbe", "amount": 2}]}
     },
     {
       "id": "magnetic_field_dome",
@@ -2560,7 +2572,8 @@
       "requirements": [],
       "victory_points": 1,
       "text": "(When you play a Science tag, including this, either add a Science resource to this card, or remove a Science resource from this card to draw a card.)",
-      "face": {"content": {"tag": "div", "class": "content", "children": [" ", {"tag": "div", "class": "points points-big", "children": ["1"]}, " ", {"tag": "div", "class": "resource-tag tag-science"}, " : ", {"tag": "div", "class": "resource science"}, " OR - ", {"tag": "div", "class": "resource science"}, " + ", {"tag": "div", "class": "card resource"}, " ", {"tag": "div", "class": "description", "children": [" (When you play a Science tag, including this, either add a Science resource to this card, or remove a Science resource from this card to draw a card.) "]}, " "]}}
+      "face": {"content": {"tag": "div", "class": "content", "children": [" ", {"tag": "div", "class": "points points-big", "children": ["1"]}, " ", {"tag": "div", "class": "resource-tag tag-science"}, " : ", {"tag": "div", "class": "resource science"}, " OR - ", {"tag": "div", "class": "resource science"}, " + ", {"tag": "div", "class": "card resource"}, " ", {"tag": "div", "class": "description", "children": [" (When you play a Science tag, including this, either add a Science resource to this card, or remove a Science resource from this card to draw a card.) "]}, " "]}},
+      "effects": {"holds": "science", "when": [{"on": {"tag_played": ["science"]}}]}
     },
     {
       "id": "rad_suits",

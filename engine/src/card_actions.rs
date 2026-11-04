@@ -1,8 +1,9 @@
 //! Card actions: the action of a played Active card (its red arrow), which its Player may use as
 //! an Action once per Generation. Actions are effect data like a card's play effects (ADR 0009),
-//! carried out by the same rules, plus Power Infrastructure's Rust code in `card_code`.
+//! carried out by the same rules, plus Power Infrastructure's and Search for Life's Rust code in
+//! `card_code`.
 
-use crate::card_code::{POWER_INFRASTRUCTURE, energy_for_megacredits};
+use crate::card_code::{POWER_INFRASTRUCTURE, SEARCH_FOR_LIFE, energy_for_megacredits};
 use crate::cards::{ActionCost, CARD_CATALOG};
 use crate::game::{DecisionOption, Game, Waiting};
 use crate::log::LogEvent;
@@ -46,6 +47,45 @@ impl Game {
         action.pay.is_none_or(|cost| self.spendable(player, cost.steel, cost.titanium) >= cost.megacredits)
             && self.can_carry_out(player, action)
             && self.can_make_a_resource_change(player, card)
+            && self.can_move_a_card_resource(action)
+            && (card != SEARCH_FOR_LIFE || self.can_draw())
+            && (action.choice.is_empty() || self.action_alternatives(player, card).next().is_some())
+    }
+
+    /// The effects `player` may choose between for the action of `card`, by index: those they can
+    /// carry out in full.
+    fn action_alternatives(&self, player: usize, card: usize) -> impl Iterator<Item = usize> {
+        let alternatives = &CARD_CATALOG[card].implemented_action().choice;
+        (0..alternatives.len()).filter(move |&index| {
+            let alternative = &alternatives[index];
+            self.can_carry_out(player, alternative)
+                && self.card_resources.on(card) + alternative.card_resources >= 0
+        })
+    }
+
+    /// Every alternative the current Player may choose for the action of `card`.
+    pub(crate) fn action_alternative_options(&self, card: usize) -> Vec<DecisionOption> {
+        self.action_alternatives(self.current_player, card)
+            .map(|alternative| DecisionOption::ChooseEffects { card, alternative })
+            .collect()
+    }
+
+    /// `player` chooses what the action of `card` does, unless only one alternative is left.
+    fn choose_action_alternative(&mut self, player: usize, card: usize) {
+        match self.action_alternative_options(card)[..] {
+            [DecisionOption::ChooseEffects { alternative, .. }] => {
+                self.carry_out_action_alternative(player, card, alternative)
+            }
+            _ => self.wait_on(Waiting::Effects(card)),
+        }
+    }
+
+    /// `player` carries out the alternative of the action of `card` at `alternative`, and the action
+    /// ends.
+    pub(crate) fn carry_out_action_alternative(&mut self, player: usize, card: usize, alternative: usize) {
+        self.waiting = None;
+        self.carry_out(player, card, CARD_CATALOG[card].action_alternative(alternative));
+        self.finish_card_action(card);
     }
 
     /// Every way the current Player may pay for the action of `card`.
@@ -88,9 +128,18 @@ impl Game {
             self.log.push(LogEvent::PaidForAction { player, payment });
         }
         let action = CARD_CATALOG[card].implemented_action();
-        self.carry_out(player, action);
+        self.carry_out(player, card, action);
+        if action.any_player.is_some() {
+            self.take_from_any_player_later(card);
+        }
+        if card == SEARCH_FOR_LIFE {
+            self.search_for_life(player);
+        }
         if self.look_at_cards(player, card, action.look_at, true) {
             return;
+        }
+        if !action.choice.is_empty() {
+            return self.choose_action_alternative(player, card);
         }
         match self.resource_change_options(player, card)[..] {
             [] => self.finish_card_action(card),

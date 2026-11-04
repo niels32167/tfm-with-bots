@@ -59,6 +59,8 @@ export interface PlayerBoard {
   played_cards: string[];
   /** The played cards whose action they have used this Generation, by catalog id. */
   used_actions: string[];
+  /** How many Card Resources are on each of their played cards that can hold some, by catalog id. */
+  card_resources: Record<string, number>;
   /** The Event they played whose effect waits on the next card they play this Generation
    * (Indentured Workers, Special Design), by catalog id, or null. */
   next_card: string | null;

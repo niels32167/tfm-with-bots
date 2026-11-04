@@ -9,10 +9,10 @@ use serde::Serialize;
 use crate::board::{
     AREA_COUNT, Areas, Board, SpecialTile, TileKind, area_id, area_label, printed, row_and_position,
 };
-use crate::card_code::insulation_change;
+use crate::card_code::{OLYMPUS_CONFERENCE, insulation_change};
 use crate::card_flow::{CARD_PRICE, PATENT_VALUE};
 use crate::card_set::CardSet;
-use crate::cards::{CARD_CATALOG, Tag};
+use crate::cards::{CARD_CATALOG, CardResource, Tag};
 use crate::draft::DraftPass;
 use crate::game::{
     Decision, DecisionKind, DecisionOption, Game, HEAT_PER_TEMPERATURE_STEP, PLANTS_PER_GREENERY, Phase,
@@ -87,9 +87,21 @@ pub enum OptionDetails {
         #[serde(skip_serializing_if = "std::ops::Not::not")]
         stolen: bool,
     },
+    /// Move 1 Card Resource from the card `from`, of `player`'s, to `card`, whose action moves it.
+    MoveCardResource {
+        card: &'static str,
+        player: usize,
+        from: &'static str,
+        kind: CardResource,
+    },
     /// Remove, or steal, nothing with `card`.
     RemoveNothing {
         card: &'static str,
+    },
+    /// Remove a science from Olympus Conference to draw a card (`draw`), or add one to it.
+    OlympusConference {
+        card: &'static str,
+        draw: bool,
     },
     /// Sell a card from the hand with Sell Patents, named by its catalog id, for `megacredits`.
     SellCard {
@@ -118,6 +130,19 @@ pub enum OptionDetails {
     ChooseResources {
         card: &'static str,
         resources: Resources,
+    },
+    /// One of the alternatives the action of `card`, being used, lets its Player choose: the one at
+    /// `alternative` in its effect data's `"choice"`.
+    ChooseEffects {
+        card: &'static str,
+        alternative: usize,
+    },
+    /// One of the Player's cards to get `amount` Card Resources of the kind it holds, with `card`.
+    AddCardResources {
+        card: &'static str,
+        to: &'static str,
+        kind: CardResource,
+        amount: i32,
     },
     StandardProject {
         project: String,
@@ -262,6 +287,8 @@ pub struct PlayerBoard {
     /// The played cards whose action they have used this Generation, by catalog id in card-number
     /// order.
     pub used_actions: Vec<&'static str>,
+    /// How many Card Resources are on each of their played cards that can hold some, by catalog id.
+    pub card_resources: BTreeMap<&'static str, i32>,
     /// The Event they played whose effect waits on the next card they play this Generation
     /// (Indentured Workers, Special Design), by catalog id, or None.
     pub next_card: Option<&'static str>,
@@ -414,6 +441,11 @@ fn view(game: &Game, viewer: Option<usize>) -> View {
                 },
                 played_cards: ids(player.played),
                 used_actions: ids(player.used_actions),
+                card_resources: player
+                    .cards_holding_card_resources()
+                    .iter()
+                    .map(|card| (CARD_CATALOG[card].id.as_str(), game.card_resources.on(card)))
+                    .collect(),
                 next_card: player.next_card.map(|card| CARD_CATALOG[card].id.as_str()),
                 tags: Tag::COUNTED.into_iter().map(|tag| (tag, game.tags(index, tag))).collect(),
             })
@@ -496,10 +528,13 @@ fn decision_view(game: &Game, decision: &Decision) -> DecisionView {
             DecisionKind::Production => "production",
             DecisionKind::KeepCards => "keep_cards",
             DecisionKind::Resources => "resources",
+            DecisionKind::Effects => "effects",
+            DecisionKind::AddToCard => "add_to_card",
             DecisionKind::Draft => "draft",
             DecisionKind::BuyCards => "buy_cards",
             DecisionKind::SellPatents => "sell_patents",
             DecisionKind::DiscardToDraw => "discard_to_draw",
+            DecisionKind::OlympusConference => "olympus_conference",
             DecisionKind::Target => "target",
             DecisionKind::FinalGreenery => "final_greenery",
         },
@@ -535,8 +570,23 @@ fn label(game: &Game, player: usize, option: &DecisionOption) -> String {
             format!("Sell {} ({})", CARD_CATALOG[*card].name, Resource::MegaCredits.counted(PATENT_VALUE))
         }
         DecisionOption::DiscardCard(card) => format!("Discard {} to draw a card", CARD_CATALOG[*card].name),
+        DecisionOption::OlympusConference { draw: false } => {
+            format!("Add 1 science to {}", CARD_CATALOG[OLYMPUS_CONFERENCE].name)
+        }
+        DecisionOption::OlympusConference { draw: true } => {
+            format!("Remove 1 science from {} to draw a card", CARD_CATALOG[OLYMPUS_CONFERENCE].name)
+        }
         DecisionOption::Target { card, player: target, alternative } => {
             taking_label(game.taking(*card, *target, *alternative), *target == player, *target)
+        }
+        DecisionOption::MoveCardResource { owner, from, .. } => {
+            let whose =
+                if *owner == player { "your own".to_string() } else { format!("{}'s", player_name(*owner)) };
+            format!(
+                "Remove {} from {whose} {}",
+                CARD_CATALOG[*from].held().counted(1),
+                CARD_CATALOG[*from].name
+            )
         }
         DecisionOption::RemoveNothing(card) => {
             if steals(*card) {
@@ -549,6 +599,11 @@ fn label(game: &Game, player: usize, option: &DecisionOption) -> String {
             format!("Pay {}", payment.text())
         }
         DecisionOption::ChangeResources { card, change } => resource_change(change.resources(*card)),
+        DecisionOption::ChooseEffects { card, alternative } => alternative_label(*card, *alternative),
+        DecisionOption::AddToCard { to, amount, .. } => {
+            let printed = &CARD_CATALOG[*to];
+            format!("Add {} to {}", printed.held().counted(*amount), printed.name)
+        }
         DecisionOption::ChangeProduction { card, change: ProductionChange::Alternative(index) } => {
             production_change(CARD_CATALOG[*card].production_alternative(*index))
         }
@@ -576,6 +631,10 @@ fn label(game: &Game, player: usize, option: &DecisionOption) -> String {
         }
         DecisionOption::EndTurn => "End Turn".to_string(),
         DecisionOption::Pass => "Pass".to_string(),
+        // Next to Olympus Conference's Options, being done is about Mars University's discard.
+        DecisionOption::Done if matches!(game.waiting, Some(Waiting::OlympusConference)) => {
+            "Keep the hand".to_string()
+        }
         DecisionOption::Done => "Done".to_string(),
         DecisionOption::PlaceTile { placement, area } => {
             format!("Place {} on {}", placement.tile_name(), area_label(*area))
@@ -591,9 +650,44 @@ fn production_change(by: Resources) -> String {
         let verb = if by[resource] < 0 { "lower" } else { "raise" };
         format!("{verb} {} Production by {}", resource.name(), by[resource].abs())
     });
-    let text = listed(changes);
+    capitalized(listed(changes))
+}
+
+fn capitalized(text: String) -> String {
     let mut letters = text.chars();
     letters.next().map(|first| first.to_uppercase().chain(letters).collect()).unwrap_or_default()
+}
+
+/// An action's alternative as a label writes it: "Add 1 microbe to Regolith Eaters", "Remove 2
+/// microbes from Regolith Eaters to raise Oxygen 1 step", "Gain 1 plant" or "Add 2 microbes to
+/// another card".
+fn alternative_label(card: usize, alternative: usize) -> String {
+    let printed = &CARD_CATALOG[card];
+    let effects = printed.action_alternative(alternative);
+    let amount = |by: i32| printed.holds().map_or(String::new(), |held| held.counted(by.abs()));
+    let mut gains: Vec<String> = Resource::ALL
+        .into_iter()
+        .filter(|&resource| effects.resources[resource] > 0)
+        .map(|resource| format!("gain {}", resource.counted(effects.resources[resource])))
+        .collect();
+    for add in &effects.add_to_another {
+        gains.push(format!("add {} to another card", add.amount_text()));
+    }
+    for (steps, what) in [
+        (effects.oxygen, "Oxygen"),
+        (effects.temperature, "Temperature"),
+        (effects.terraform_rating, "your Terraform Rating"),
+    ] {
+        if steps > 0 {
+            gains.push(format!("raise {what} {steps} step"));
+        }
+    }
+    let gained = listed(gains.into_iter());
+    capitalized(match effects.card_resources {
+        by if by > 0 => format!("add {} to {}", amount(by), printed.name),
+        by if by < 0 => format!("remove {} from {} to {gained}", amount(by), printed.name),
+        _ => gained,
+    })
 }
 
 /// A taking as a label writes it: "Lower Player 2's heat Production by 2", "Lower your own heat
@@ -643,6 +737,9 @@ fn details(game: &Game, player: usize, option: &DecisionOption) -> OptionDetails
             OptionDetails::SellCard { card: &CARD_CATALOG[*card].id, megacredits: PATENT_VALUE }
         }
         DecisionOption::DiscardCard(card) => OptionDetails::DiscardCard { card: &CARD_CATALOG[*card].id },
+        DecisionOption::OlympusConference { draw } => {
+            OptionDetails::OlympusConference { card: &CARD_CATALOG[OLYMPUS_CONFERENCE].id, draw: *draw }
+        }
         DecisionOption::Target { card, player: target, alternative } => {
             let id = &CARD_CATALOG[*card].id;
             match game.taking(*card, *target, *alternative) {
@@ -654,6 +751,12 @@ fn details(game: &Game, player: usize, option: &DecisionOption) -> OptionDetails
                 }
             }
         }
+        DecisionOption::MoveCardResource { card, owner, from } => OptionDetails::MoveCardResource {
+            card: &CARD_CATALOG[*card].id,
+            player: *owner,
+            from: &CARD_CATALOG[*from].id,
+            kind: CARD_CATALOG[*from].held(),
+        },
         DecisionOption::RemoveNothing(card) => OptionDetails::RemoveNothing { card: &CARD_CATALOG[*card].id },
         DecisionOption::Pay { card, payment } => {
             OptionDetails::Payment { card: &CARD_CATALOG[*card].id, action: false, payment: *payment }
@@ -679,6 +782,15 @@ fn details(game: &Game, player: usize, option: &DecisionOption) -> OptionDetails
                 production: insulation_change(*steps),
             }
         }
+        DecisionOption::ChooseEffects { card, alternative } => {
+            OptionDetails::ChooseEffects { card: &CARD_CATALOG[*card].id, alternative: *alternative }
+        }
+        DecisionOption::AddToCard { card, to, amount } => OptionDetails::AddCardResources {
+            card: &CARD_CATALOG[*card].id,
+            to: &CARD_CATALOG[*to].id,
+            kind: CARD_CATALOG[*to].held(),
+            amount: *amount,
+        },
         DecisionOption::UseStandardProject(project) => {
             OptionDetails::StandardProject { project: project.id(), cost: project.cost() }
         }
