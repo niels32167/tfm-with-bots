@@ -1,11 +1,11 @@
-//! A set of Project Cards, such as a hand or the cards a Player has played. It is one bit per
+//! A set of cards, such as a hand or the cards a Player has played. It is one bit per
 //! card, so copying a Game stays a plain value copy (ADR 0004), and its cards always come out
 //! in card-number order, never in an order that could differ between runs (ADR 0010).
 
-use crate::cards::PROJECT_CARDS;
+use crate::cards::{CORPORATIONS, PROJECT_CARDS};
 
 const WORDS: usize = 4;
-const _: () = assert!(PROJECT_CARDS <= WORDS * 64, "a CardSet has room for every Project Card");
+const _: () = assert!(PROJECT_CARDS + CORPORATIONS <= WORDS * 64, "a CardSet has room for every card");
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub struct CardSet {

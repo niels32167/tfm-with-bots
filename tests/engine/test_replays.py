@@ -22,14 +22,14 @@ from tests.helpers import (
 
 
 def test_a_replay_holds_the_settings_and_seed_and_the_options_picked():
-    game = tm_engine.Game(seed=7, players=3)
+    game = tm_engine.Game(seed=7, players=3, corporations=False)
 
     picked = []
     for label in ("Done", "Done", "Done", "Asteroid", "End Turn", "Pass"):  # nobody buys a card at setup
         picked.append(index_of(game, label))
         pick(game, label)
 
-    settings = {"players": 3, "seed": 7, "implemented_cards_first": False, "draft": True}
+    settings = {"players": 3, "seed": 7, "implemented_cards_first": False, "draft": True, "corporations": False}
     assert game.replay == {"start": {"settings": settings}, "picks": picked}
 
 

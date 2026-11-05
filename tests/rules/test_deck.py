@@ -7,7 +7,9 @@ import tm_engine
 from tests.helpers import PROJECT_CARDS, hand, pick, played_cards, player, scenario
 
 # The cards implemented so far: those with effect data. A card without it is never offered.
-IMPLEMENTED = {card["id"] for card in tm_engine.card_catalog() if card.get("effects") is not None}
+IMPLEMENTED = {
+    card["id"] for card in tm_engine.card_catalog() if card.get("effects") is not None and card["type"] != "corporation"
+}
 
 
 def dealt_cards(view):

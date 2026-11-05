@@ -33,8 +33,8 @@ def test_a_new_game_starts_in_generation_1_with_temperature_at_minus_30():
     assert not game.is_over
 
 
-def test_until_corporations_exist_every_player_starts_with_42_megacredits_and_terraform_rating_20():
-    game = tm_engine.Game(seed=7)
+def test_without_corporations_every_player_starts_with_42_megacredits_and_terraform_rating_20():
+    game = tm_engine.Game(seed=7, corporations=False)
 
     for index in (0, 1):
         board = player_board(game, index)
@@ -44,7 +44,11 @@ def test_until_corporations_exist_every_player_starts_with_42_megacredits_and_te
             "resources": {"megacredits": 42, "steel": 0, "titanium": 0, "plants": 0, "energy": 0, "heat": 0},
             "production": {"megacredits": 0, "steel": 0, "titanium": 0, "plants": 0, "energy": 0, "heat": 0},
             "terraform_rating": 20,
+            "terraform_rating_raised": False,
             "passed": False,
+            "corporation": None,
+            "first_action_due": False,
+            "choosing_corporation": None,
             "drafting": None,
             "card_costs": {},
             "passed_in_draft": [],
@@ -193,7 +197,7 @@ def test_a_scenario_funds_each_award_at_most_once_and_at_most_three_in_all():
 
 def test_an_empty_scenario_is_a_new_two_player_game_with_player_1_as_first_player_and_no_cards_dealt():
     view = scenario().full_view()
-    new_game = tm_engine.Game(seed=0)
+    new_game = tm_engine.Game(seed=0, corporations=False)
     skip_buying(new_game)
     new_game = new_game.full_view()
 

@@ -5,9 +5,10 @@
 use crate::board::{BonusItem, Placement, area_label};
 use crate::card_flow::{CARD_PRICE, PATENT_VALUE, RESEARCH_CARDS, SETUP_CARDS};
 use crate::cards::{AddToAnother, CARD_CATALOG};
+use crate::corporations::CORPORATIONS_DEALT;
 use crate::game::{
-    HEAT_PER_TEMPERATURE_STEP, MAX_OCEANS, OCEAN_ADJACENCY_BONUS, OCEAN_BONUS_TEMPERATURE,
-    PLANTS_PER_GREENERY, StandardProject, TEMPERATURE_BONUS_OXYGEN,
+    HEAT_PER_TEMPERATURE_STEP, MAX_OCEANS, OCEAN_ADJACENCY_BONUS, OCEAN_BONUS_TEMPERATURE, StandardProject,
+    TEMPERATURE_BONUS_OXYGEN,
 };
 use crate::milestones_and_awards::{Award, MILESTONE_COST, Milestone};
 use crate::playing_cards::Payment;
@@ -17,6 +18,17 @@ use crate::scoring::{AwardPlace, Win};
 #[derive(Clone, Copy, Debug)]
 pub enum LogEvent {
     Setup,
+    CorporationsDealt,
+    /// The Player takes the first action of their Corporation.
+    TookFirstAction {
+        player: usize,
+        card: usize,
+    },
+    /// The Player reveals the Corporation they chose at setup.
+    RevealedCorporation {
+        player: usize,
+        card: usize,
+    },
     GenerationBegins {
         generation: u32,
         first_player: usize,
@@ -42,6 +54,12 @@ pub enum LogEvent {
     UsedStandardProject {
         player: usize,
         project: StandardProject,
+        cost: i32,
+    },
+    /// The Player paid `heat` of what they just paid for with heat (Helion).
+    PaidWithHeat {
+        player: usize,
+        heat: i32,
     },
     /// The Player uses the action of `card`.
     UsedAction {
@@ -68,6 +86,7 @@ pub enum LogEvent {
     },
     ConvertedPlants {
         player: usize,
+        plants: i32,
     },
     ConvertedHeat {
         player: usize,
@@ -264,6 +283,16 @@ impl LogEvent {
                 "Setup: each Player is dealt {SETUP_CARDS} Project Cards and may buy any of them for \
                  {CARD_PRICE} MegaCredits each."
             ),
+            LogEvent::CorporationsDealt => format!(
+                "Each Player is dealt {CORPORATIONS_DEALT} Corporations and chooses one, which stays hidden until \
+                 every Player is done buying."
+            ),
+            LogEvent::TookFirstAction { player, card } => {
+                format!("{} takes the first action of {}.", player_name(player), CARD_CATALOG[card].name)
+            }
+            LogEvent::RevealedCorporation { player, card } => {
+                format!("{} reveals {}.", player_name(player), CARD_CATALOG[card].name)
+            }
             LogEvent::GenerationBegins { generation, first_player } => {
                 format!("Generation {generation} begins, with {} as first player.", player_name(first_player))
             }
@@ -308,12 +337,14 @@ impl LogEvent {
             LogEvent::PaidForAction { player, payment } => {
                 format!("{} pays {}.", player_name(player), payment.text())
             }
-            LogEvent::UsedStandardProject { player, project } => format!(
-                "{} uses the {} Standard Project for {} MegaCredits.",
+            LogEvent::UsedStandardProject { player, project, cost } => format!(
+                "{} uses the {} Standard Project for {cost} MegaCredits.",
                 player_name(player),
-                project.name(),
-                project.cost()
+                project.name()
             ),
+            LogEvent::PaidWithHeat { player, heat } => {
+                format!("{} pays {heat} of it with heat.", player_name(player))
+            }
             LogEvent::ClaimedMilestone { player, milestone } => format!(
                 "{} claims the {} Milestone for {MILESTONE_COST} MegaCredits.",
                 player_name(player),
@@ -462,8 +493,8 @@ impl LogEvent {
                 "The deck and the discard pile are empty, so {} draws no more cards.",
                 player_name(player)
             ),
-            LogEvent::ConvertedPlants { player } => {
-                format!("{} converts {PLANTS_PER_GREENERY} plants into a Greenery.", player_name(player))
+            LogEvent::ConvertedPlants { player, plants } => {
+                format!("{} converts {plants} plants into a Greenery.", player_name(player))
             }
             LogEvent::ConvertedHeat { player } => format!(
                 "{} converts {HEAT_PER_TEMPERATURE_STEP} heat into a Temperature step.",

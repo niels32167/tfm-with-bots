@@ -9,8 +9,10 @@ mod card_flow;
 mod card_resources;
 mod card_set;
 mod cards;
+mod corporations;
 mod deck;
 mod draft;
+mod expenses;
 mod game;
 mod log;
 mod milestones_and_awards;
@@ -39,11 +41,18 @@ struct PyGame {
 #[pymethods]
 impl PyGame {
     /// A new Game from its settings, with the Draft unless `draft` is false. While most cards
-    /// are not implemented yet, `implemented_cards_first` deals the implemented ones first.
+    /// are not implemented yet, `implemented_cards_first` deals the implemented ones first. Without
+    /// `corporations`, as a Replay saved before they existed plays, nobody has one.
     #[new]
-    #[pyo3(signature = (*, seed, players = 2, implemented_cards_first = false, draft = true))]
-    fn new(seed: u64, players: usize, implemented_cards_first: bool, draft: bool) -> PyResult<Self> {
-        let settings = game::Settings { players, seed, implemented_cards_first, draft };
+    #[pyo3(signature = (*, seed, players = 2, implemented_cards_first = false, draft = true, corporations = true))]
+    fn new(
+        seed: u64,
+        players: usize,
+        implemented_cards_first: bool,
+        draft: bool,
+        corporations: bool,
+    ) -> PyResult<Self> {
+        let settings = game::Settings { players, seed, implemented_cards_first, draft, corporations };
         let game = game::Game::new(settings).map_err(PyValueError::new_err)?;
         Ok(PyGame { game })
     }

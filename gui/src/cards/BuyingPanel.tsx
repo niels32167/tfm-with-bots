@@ -33,9 +33,8 @@ export function playersAreBuying(view: View): boolean {
  * cards they look at, or else the one human at the screen. Null when there is nothing to show. */
 export function cardsShownFor(game: GameUpdate): number | null {
   const { decision, viewer, view } = game;
-  if (decision?.kind === "draft" || decision?.kind === "buy_cards" || decision?.kind === "keep_cards") {
-    return decision.player;
-  }
+  const pickingCards = ["corporation", "draft", "buy_cards", "keep_cards"];
+  if (decision && pickingCards.includes(decision.kind)) return decision.player;
   if (viewer === null) return null;
   const { drafting, buying, keeping } = view.players[viewer];
   return drafting || buying || keeping ? viewer : null;
@@ -48,11 +47,13 @@ function optionsByCard(decision: Decision | null, player: number, type: string):
   return new Map(options.map((option) => [option.details.card as string, option.index]));
 }
 
-/** Over the board in the setup and each Research phase: the cards a Player drafts from or buys
- * from, large enough to read and all in view. In the Draft, clicking one keeps it, and the cards
- * kept and passed on so far show above; buying, clicking one buys it, those bought are marked,
- * and Done is in the status bar. The cards a card such as Business Contacts lets its Player look
- * at show the same way as the Draft's. It can be hidden to look at the board. */
+/** Over the board in the setup and each Research phase: the Corporations a Player chooses from and
+ * the cards they draft from or buy from, large enough to read and all in view. Choosing a Corporation,
+ * the Project Cards dealt show above; in the Draft, clicking one keeps it, and the cards kept and
+ * passed on so far show above; buying, clicking one buys it, those bought are marked, the
+ * Corporation they chose shows above, and Done is in the status bar. The cards a card such as Business
+ * Contacts lets its Player look at show the same way as the Draft's. It can be hidden to look at the
+ * board. */
 export function BuyingPanel({ game, cards, disabled, onPick }: Props) {
   const catalog = useCardsById(cards);
   const [hidden, setHidden] = useState(false);
@@ -64,13 +65,16 @@ export function BuyingPanel({ game, cards, disabled, onPick }: Props) {
   if (shown === null || catalog.size === 0) return null;
   const { view, decision } = game;
   const board = view.players[shown];
+  const choosing = board.choosing_corporation;
   const panel = board.keeping
     ? keepingPanel(game, shown, catalog)
     : board.drafting
       ? draftPanel(game, shown)
-      : board.buying
-        ? buyingPanel(game, shown)
-        : null;
+      : choosing && choosing.picked === null
+        ? corporationPanel(game, shown)
+        : board.buying
+          ? buyingPanel(game, shown)
+          : null;
   const kept = board.keeping?.kept ?? board.drafting?.kept;
   if (panel === null) return null;
   const waitingFor = view.current_player !== null && view.current_player !== shown ? view.current_player : null;
@@ -91,8 +95,12 @@ export function BuyingPanel({ game, cards, disabled, onPick }: Props) {
           {hidden ? "Show the cards" : "Look at the board"}
         </button>
       </header>
-      {!hidden && (kept || passedThisGeneration.length > 0) && (
+      {!hidden && (kept || passedThisGeneration.length > 0 || choosing) && (
         <div className="buying-panel-strip">
+          {choosing?.picked && <SmallCards label="Corporation, hidden for now" groups={[named([choosing.picked])]} />}
+          {choosing?.picked === null && board.buying && (
+            <SmallCards label="Project Cards to buy from next" groups={[named(board.buying.dealt)]} />
+          )}
           {kept && (
             <SmallCards label={`${board.keeping?.price ? "Bought" : "Kept"} (${kept.length})`} groups={[named(kept)]} />
           )}
@@ -151,6 +159,20 @@ function draftPanel(game: GameUpdate, player: number): Panel {
   };
 }
 
+/** At setup, while `player` has not chosen: the Corporations dealt to them. */
+function corporationPanel(game: GameUpdate, player: number): Panel {
+  const { dealt } = game.view.players[player].choosing_corporation!;
+  return {
+    label: "Corporations to choose from",
+    heading: `Setup: ${whose(game, player)} Corporations`,
+    summary: "Choose one · it stays hidden until every Player is done buying",
+    waitingFor: "choose a Corporation",
+    cards: dealt,
+    optionType: "choose_corporation",
+    verb: "Choose",
+  };
+}
+
 /** While `player` plays a card such as Business Contacts: the cards they look at and may still
  * keep, discarding the rest. Using the action of one such as Inventors' Guild, they may buy them
  * instead. */
@@ -182,14 +204,14 @@ function keepingPanel(game: GameUpdate, player: number, catalog: Map<string, Car
 
 /** At setup and in a Research phase: the cards dealt to `player` (or kept in the Draft) to buy from. */
 function buyingPanel(game: GameUpdate, player: number): Panel {
-  const { dealt, bought } = game.view.players[player].buying!;
+  const { dealt, bought, megacredits } = game.view.players[player].buying!;
   return {
     label: "Cards to buy",
     heading:
       game.view.phase === "setup"
         ? `Setup: ${whose(game, player)} ${dealt.length} Project Cards`
         : `Research phase: ${whose(game, player)} ${dealt.length} cards`,
-    summary: `${bought.length} bought, ${bought.length * CARD_PRICE} MegaCredits · ${CARD_PRICE} each`,
+    summary: `${bought.length} bought, ${bought.length * CARD_PRICE} of ${megacredits} MegaCredits · ${CARD_PRICE} each`,
     waitingFor: "buy",
     cards: dealt,
     optionType: "buy_card",

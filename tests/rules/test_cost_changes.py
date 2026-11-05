@@ -51,10 +51,10 @@ def test_no_card_has_two_tags_a_discount_counts_so_a_discount_per_card_and_per_t
             assert card["tags"].count(tag) <= 1, card["name"]
 
 
-def test_only_active_cards_change_costs_for_good_and_only_events_change_the_next_card():
+def test_only_active_cards_and_corporations_change_costs_for_good_and_only_events_change_the_next_card():
     for card in CATALOG:
         effects = card.get("effects", {})
         if {"discount", "cube_values", "requirement_steps"} & effects.keys():
-            assert card["type"] == "active", card["name"]
+            assert card["type"] in ("active", "corporation"), card["name"]
         if "next_card" in effects:
             assert card["type"] == "event", card["name"]

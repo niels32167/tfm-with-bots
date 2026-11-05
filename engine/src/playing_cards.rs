@@ -7,7 +7,7 @@ use std::cmp::Reverse;
 use serde::Serialize;
 
 use crate::board::{Placement, SpecialTile, TileKind};
-use crate::card_code::{FLOODING, IMMIGRANT_CITY, INSULATION, ROBOTIC_WORKFORCE, insulation_change};
+use crate::card_code::{FLOODING, HELION, IMMIGRANT_CITY, INSULATION, ROBOTIC_WORKFORCE, insulation_change};
 use crate::card_resources::Adding;
 use crate::cards::{
     CARD_CATALOG, CARDS_WITH, CardType, Counted, CubeValues, Effects, Limit, NextCard, Owner,
@@ -29,11 +29,13 @@ pub struct Payment {
     pub megacredits: i32,
     pub steel: i32,
     pub titanium: i32,
+    /// Heat used as MegaCredits (Helion).
+    pub heat: i32,
 }
 
 impl Payment {
     /// Nothing paid, for an action that costs no MegaCredits.
-    pub const NOTHING: Payment = Payment { megacredits: 0, steel: 0, titanium: 0 };
+    pub const NOTHING: Payment = Payment { megacredits: 0, steel: 0, titanium: 0, heat: 0 };
 
     /// As labels and the game log write it: "4 MegaCredits", "2 MegaCredits and 1 steel".
     pub fn text(self) -> String {
@@ -41,6 +43,7 @@ impl Payment {
             (Resource::MegaCredits, self.megacredits),
             (Resource::Steel, self.steel),
             (Resource::Titanium, self.titanium),
+            (Resource::Heat, self.heat),
         ];
         let paid: Vec<String> = parts
             .into_iter()
@@ -135,8 +138,12 @@ impl Game {
         let printed = &CARD_CATALOG[card];
         let Some(effects) = &printed.effects else { return false };
         printed.requirements.iter().all(|requirement| self.meets(player, requirement))
-            && self.spendable(player, printed.has_tag(Tag::Building), printed.has_tag(Tag::Space))
-                >= self.card_cost(player, card)
+            && self.spendable(
+                player,
+                printed.has_tag(Tag::Building),
+                printed.has_tag(Tag::Space),
+                effects.resources.heat,
+            ) >= self.card_cost(player, card)
             && if card == IMMIGRANT_CITY {
                 self.can_carry_out_immigrant_city(player)
             } else {
@@ -157,12 +164,32 @@ impl Game {
         (if steel { resources.steel } else { 0 }, if titanium { resources.titanium } else { 0 })
     }
 
-    /// What `player` could spend on a cost that steel or titanium may pay as `usable_cubes` says:
-    /// their MegaCredits plus what those cubes are worth.
-    pub(crate) fn spendable(&self, player: usize, steel: bool, titanium: bool) -> i32 {
+    /// What `player` could spend on a cost that neither steel nor titanium may pay: `spendable`, but
+    /// quicker, as an Action Decision asks for it for every Milestone.
+    pub(crate) fn spendable_megacredits(&self, player: usize) -> i32 {
+        self.players[player].resources.megacredits + self.usable_heat(player, 0)
+    }
+
+    /// The heat `player` may use as MegaCredits (Helion): all they have, but what the effects they are
+    /// paying for change it by if that loses some, since those need it left to lose (Local Heat
+    /// Trapping's 5 heat).
+    pub(crate) fn usable_heat(&self, player: usize, heat_change: i32) -> i32 {
+        if !self.players[player].played.contains(HELION) {
+            return 0;
+        }
+        (self.players[player].resources.heat + heat_change.min(0)).max(0)
+    }
+
+    /// What `player` could spend on a cost that steel or titanium may pay as `usable_cubes` says, for
+    /// effects that change their heat by `heat_change`: their MegaCredits, what those cubes are worth
+    /// and the heat they may use.
+    pub(crate) fn spendable(&self, player: usize, steel: bool, titanium: bool, heat_change: i32) -> i32 {
         let (steel, titanium) = self.usable_cubes(player, steel, titanium);
         let values = self.cube_values(player);
-        self.players[player].resources.megacredits + values.steel * steel + values.titanium * titanium
+        self.players[player].resources.megacredits
+            + values.steel * steel
+            + values.titanium * titanium
+            + self.usable_heat(player, heat_change)
     }
 
     /// What one steel and one titanium of `player`'s pay: `STEEL_VALUE` and `TITANIUM_VALUE`, plus
@@ -240,8 +267,9 @@ impl Game {
     /// their own Resources and Production, with someone to lower the Production it lowers on any
     /// Player, with an Area for each Tile (an Ocean always, as Aquifer: see docs/rules-notes.md), with
     /// an Area to claim, and with a card for the Card Resources that need one. Resources lost are
-    /// checked against what the Player holds before paying for the card; no card yet both costs steel
-    /// or titanium and loses some.
+    /// checked against what the Player holds before paying for the card; no card both costs steel or
+    /// titanium and loses some, and heat that the card loses is left out of what may pay for it (see
+    /// `usable_heat`).
     pub(crate) fn can_carry_out_with_plants(&self, player: usize, effects: &Effects, plants: i32) -> bool {
         let mut resources = self.players[player].resources;
         resources.plants += plants;
@@ -297,14 +325,15 @@ impl Game {
     }
 
     /// Every way `player` may pay for `card`, the most MegaCredits first: each split between
-    /// steel, titanium and MegaCredits for the rest. Steel and titanium may pay more than the
-    /// cost, with no change, but a split with a cube the others make unneeded is never worth
-    /// taking, so it is left out (see docs/rules-notes.md).
+    /// steel, titanium, heat as MegaCredits (Helion) and MegaCredits for the rest. Steel and titanium
+    /// may pay more than the cost, with no change, but a split with a cube the others make unneeded
+    /// is never worth taking, so it is left out (see docs/rules-notes.md).
     pub(crate) fn payments(&self, player: usize, card: usize) -> Vec<Payment> {
         let printed = &CARD_CATALOG[card];
         let (steel, titanium) =
             self.usable_cubes(player, printed.has_tag(Tag::Building), printed.has_tag(Tag::Space));
-        self.ways_to_pay(player, self.card_cost(player, card), steel, titanium)
+        let heat = self.usable_heat(player, printed.implemented_effects().resources.heat);
+        self.ways_to_pay(player, self.card_cost(player, card), steel, titanium, heat)
     }
 
     /// What `player` pays for `card` now: its printed cost less the discounts of their played
@@ -320,15 +349,16 @@ impl Game {
         (printed.project_cost() - discount).max(0)
     }
 
-    /// Every way `player` may pay `cost` with up to `most_steel` steel and `most_titanium`
-    /// titanium, the most MegaCredits first, leaving out a split with a cube the others make
-    /// unneeded (see `payments`).
+    /// Every way `player` may pay `cost` with up to `most_steel` steel, `most_titanium` titanium and
+    /// `most_heat` heat, the most MegaCredits first, leaving out a split with a cube or a heat the
+    /// others make unneeded (see `payments`).
     pub(crate) fn ways_to_pay(
         &self,
         player: usize,
         cost: i32,
         most_steel: i32,
         most_titanium: i32,
+        most_heat: i32,
     ) -> Vec<Payment> {
         let megacredits = self.players[player].resources.megacredits;
         let values = self.cube_values(player);
@@ -338,9 +368,13 @@ impl Game {
                 let covered = values.steel * steel + values.titanium * titanium;
                 let unneeded = (steel > 0 && covered - values.steel >= cost)
                     || (titanium > 0 && covered - values.titanium >= cost);
-                let payment = Payment { megacredits: (cost - covered).max(0), steel, titanium };
-                if !unneeded && payment.megacredits <= megacredits {
-                    payments.push(payment);
+                if unneeded {
+                    continue;
+                }
+                let left = (cost - covered).max(0);
+                // Each heat pays 1 MegaCredit, so there is one split for each amount of heat.
+                for heat in (left - megacredits).max(0)..=most_heat.min(left) {
+                    payments.push(Payment { megacredits: left - heat, steel, titanium, heat });
                 }
             }
         }
@@ -449,6 +483,7 @@ impl Game {
         own.megacredits -= payment.megacredits;
         own.steel -= payment.steel;
         own.titanium -= payment.titanium;
+        own.heat -= payment.heat;
     }
 
     /// The current Player has `card`'s Tile to make `placement` with, printed with the card's
@@ -501,7 +536,7 @@ impl Game {
     /// Raises `player`'s Terraform Rating `by` so many steps, if any.
     fn raise_terraform_rating_by(&mut self, player: usize, by: i32) {
         if by != 0 {
-            self.players[player].terraform_rating += by;
+            self.raise_terraform_rating(player, by);
             self.log.push(LogEvent::TerraformRatingRaised { player, by });
         }
     }

@@ -20,6 +20,7 @@ import tm_engine
 from tests.helpers import (
     ADJACENT_AREAS,
     CARDS_HOLDING_CARD_RESOURCES,
+    CORPORATIONS,
     LAND_AREAS,
     NOCTIS_CITY,
     OCEAN_AREAS,
@@ -43,6 +44,9 @@ MILESTONE_COST = 8
 AWARD_COSTS = (8, 14, 20)
 MAX_MILESTONES_CLAIMED = 3
 MILESTONE_VICTORY_POINTS = 5
+PLANTS_PER_GREENERY = 8
+CORPORATIONS_DEALT = 2
+STEEL_VALUE, TITANIUM_VALUE = 2, 3
 
 # How the game log names each Resource: an amount of it, and its Production.
 AMOUNT_NAMES = {name: name for name in RESOURCES} | {"megacredits": "MegaCredits"}
@@ -68,6 +72,9 @@ STEEL_OR_TITANIUM_LAND = ("A1", "B2", "C7", "D1", "H1", "H6", "J1", "J2")
 # The building cards whose printed production box is part of their action, which Robotic Workforce
 # doesn't copy.
 PRODUCTION_BOX_IN_THE_ACTION = ("equatorial_magnetizer", "industrial_center", "underground_detonations")
+# The building Corporation whose printed production box is part of its effect, which Robotic Workforce
+# doesn't copy either.
+PRODUCTION_BOX_IN_THE_EFFECT = ("tharsis_republic",)
 # How the fuzzer's messages describe a Tile that goes on other Areas than usual, by the Area
 # Decision's "on".
 OTHER_AREAS = {
@@ -95,7 +102,19 @@ DISCOUNTS = {
     "earth_office": (3, "earth"),
     "anti_gravity_technology": (2, None),
     "shuttles": (2, "space"),
+    "teractor": (3, "earth"),
+    "thorgate": (3, "power"),
 }
+# The Standard Projects' printed costs, by Option details' "project".
+STANDARD_PROJECT_COSTS = {"power_plant": 11, "asteroid": 14, "aquifer": 18, "greenery": 23, "city": 25}
+# The Corporations printed with a first action, and how the Decision details describe them.
+CORPORATIONS_WITH_A_FIRST_ACTION = ("inventrix", "tharsis_republic")
+# The Corporation printed with "Your may use heat as MC".
+HEAT_AS_MEGACREDITS = "helion"
+# What raises what a steel or a titanium pays, printed on these cards: (steel, titanium).
+CUBE_VALUES = {"advanced_alloys": (1, 1), "phobolog": (0, 1)}
+# The Resources a card loses when it is played, printed on the only one that loses heat.
+HEAT_LOST = {"local_heat_trapping": 5}
 # The Events printed with an effect on the next card played this Generation, and what they take
 # off its cost.
 NEXT_CARD_DISCOUNTS = {"indentured_workers": 8, "special_design": 0}
@@ -384,7 +403,7 @@ def robotic_workforce_copies_only_your_building_cards(view: View, decision: Deci
     if decision is None:
         return
     player = decision["player"]
-    played = view["players"][player]["played_cards"]
+    played = cards_in_play(view["players"][player])
     for option in decision["options"]:
         details = option["details"]
         if details["type"] != "copy_production_box":
@@ -392,10 +411,11 @@ def robotic_workforce_copies_only_your_building_cards(view: View, decision: Deci
         card = CARDS[details["card"]]
         building_card = (
             card["id"] in played
-            and card["type"] in ("automated", "active")
+            and card["type"] in ("automated", "active", "corporation")
             and "building" in card["tags"]
             and has_printed_production_box(card)
             and card["id"] not in PRODUCTION_BOX_IN_THE_ACTION
+            and card["id"] not in PRODUCTION_BOX_IN_THE_EFFECT
         )
         if not building_card:
             yield (
@@ -404,16 +424,30 @@ def robotic_workforce_copies_only_your_building_cards(view: View, decision: Deci
             )
 
 
+def cards_in_play(player_board: dict[str, Any]) -> list[str]:
+    """A Player's played Project Cards and their Corporation, once it is revealed."""
+    corporation = player_board["corporation"]
+    return player_board["played_cards"] + ([corporation] if corporation else [])
+
+
+def spendable_megacredits(player_board: dict[str, Any]) -> int:
+    """What a Player may spend on a cost that neither steel nor titanium may pay: their MegaCredits, and
+    with Helion their heat."""
+    resources = player_board["resources"]
+    return resources["megacredits"] + (resources["heat"] if player_board["corporation"] == HEAT_AS_MEGACREDITS else 0)
+
+
 def card_actions_used_once_per_generation(view: View, decision: Decision | None) -> Iterator[str]:
     """A Player has used only the actions of cards they played, and only in the Action phase: the
     Production phase ends the Generation, and every action with it. An Action Decision offers
-    only the actions of the deciding Player's own played cards that they haven't used yet."""
+    only the actions of the deciding Player's own played cards that they haven't used yet, and United
+    Nations Mars Initiative's only if their Terraform Rating was raised this Generation."""
     for player_board in view["players"]:
         name, used = player_board["name"], player_board["used_actions"]
         if used and view["phase"] != "action":
             yield f"in the {view['phase']} phase, {name} has used the actions of {', '.join(used)}"
         for card_id in used:
-            if card_id not in player_board["played_cards"] or "action" not in CARDS[card_id].get("effects", {}):
+            if card_id not in cards_in_play(player_board) or "action" not in CARDS[card_id].get("effects", {}):
                 yield f"{name} has used the action of '{card_id}', which is not a card with an action they played"
     if decision is None:
         return
@@ -423,10 +457,12 @@ def card_actions_used_once_per_generation(view: View, decision: Decision | None)
         if details["type"] != "use_action":
             continue
         card_id = details["card"]
-        if card_id not in player_board["played_cards"] or "action" not in CARDS[card_id].get("effects", {}):
+        if card_id not in cards_in_play(player_board) or "action" not in CARDS[card_id].get("effects", {}):
             yield f"{player_board['name']} is offered the action of '{card_id}', not a card with an action they played"
         elif card_id in player_board["used_actions"]:
             yield f"{player_board['name']} is offered the action of '{card_id}' again this Generation"
+        elif card_id == "united_nations_mars_initiative" and not player_board["terraform_rating_raised"]:
+            yield f"{player_board['name']} is offered the action of '{card_id}' without a raise this Generation"
 
 
 def cards_cost_what_the_discounts_leave(view: View, decision: Decision | None) -> Iterator[str]:
@@ -458,7 +494,7 @@ def card_cost(view: View, player: int, card_id: str) -> int:
     """What `player` pays for `card_id`: its printed cost less the discounts of their played
     cards and of the Event they played for their next card, never below 0."""
     player_board = view["players"][player]
-    card, played = CARDS[card_id], player_board["played_cards"]
+    card, played = CARDS[card_id], cards_in_play(player_board)
     discount = sum(
         amount
         for discounting, (amount, tag) in DISCOUNTS.items()
@@ -530,7 +566,7 @@ def card_resource_actions_can_be_carried_out(view: View, decision: Decision | No
 
     can_carry_out = {
         "physics_complex": board["resources"]["energy"] >= 6,
-        "search_for_life": board["resources"]["megacredits"] >= 1 and bool(view["deck"] or view["discard"]),
+        "search_for_life": spendable_megacredits(board) >= 1 and bool(view["deck"] or view["discard"]),
         "security_fleet": board["resources"]["titanium"] >= 1,
         "ants": can_take("microbe"),
         "predators": can_take("animal"),
@@ -848,6 +884,131 @@ def at_most_three_milestones_and_awards(view: View, decision: Decision | None) -
         yield f"with {counted(funded, 'Award')} funded, award_cost is {view['award_cost']}, not {award_cost}"
 
 
+def corporations_stay_hidden_until_they_are_revealed(view: View, decision: Decision | None) -> Iterator[str]:
+    """At setup a Player has none revealed and may be choosing from 2 Corporations dealt, picking one
+    of those, and nobody was dealt one that another was; after setup, none is being chosen and no
+    two Players have the same one. A Corporation Decision offers exactly those dealt to the Player
+    deciding, while they have chosen none."""
+    dealt_so_far: list[str] = []
+    for player_board in view["players"]:
+        name, corporation, choosing = (
+            player_board["name"],
+            player_board["corporation"],
+            player_board["choosing_corporation"],
+        )
+        if view["phase"] != "setup" and choosing is not None:
+            yield f"in the {view['phase']} phase, {name} is choosing a Corporation"
+        if view["phase"] == "setup" and corporation is not None:
+            yield f"at setup, {name}'s Corporation {corporation} is revealed"
+        if corporation is not None and corporation not in CORPORATIONS:
+            yield f"{name}'s Corporation is '{corporation}', which is none"
+        if corporation is not None:
+            dealt_so_far.append(corporation)
+        if choosing is None:
+            continue
+        if len(choosing["dealt"]) != CORPORATIONS_DEALT or not set(choosing["dealt"]) <= set(CORPORATIONS):
+            yield f"{name} was dealt {choosing['dealt']}, not {CORPORATIONS_DEALT} Corporations"
+        if choosing["picked"] is not None and choosing["picked"] not in choosing["dealt"]:
+            yield f"{name} chose {choosing['picked']}, which was not dealt to them"
+        dealt_so_far += choosing["dealt"]
+    for corporation, times in Counter(dealt_so_far).items():
+        if times > 1:
+            yield f"{corporation} is with {times} Players"
+    if decision is None or decision["kind"] != "corporation":
+        return
+    choosing = view["players"][decision["player"]]["choosing_corporation"]
+    offered = [option["details"]["card"] for option in decision["options"]]
+    if choosing is None or choosing["picked"] is not None or offered != choosing["dealt"]:
+        yield f"Player {decision['player'] + 1} is offered the Corporations {offered}, not those dealt to them"
+
+
+def first_action_comes_first(view: View, decision: Decision | None) -> Iterator[str]:
+    """Only a Corporation printed with a first action has one due. While it is due and can be carried
+    out, an Action Decision offers its Player that or Pass; a first action is offered for nothing else."""
+    for player_board in view["players"]:
+        if player_board["first_action_due"] and player_board["corporation"] not in CORPORATIONS_WITH_A_FIRST_ACTION:
+            yield f"{player_board['name']} has a first action due with {player_board['corporation']}"
+    if decision is None or decision["kind"] != "action":
+        return
+    player_board = view["players"][decision["player"]]
+    corporation, due = player_board["corporation"], player_board["first_action_due"]
+    types = sorted(option["details"]["type"] for option in decision["options"])
+    can_place = corporation != "tharsis_republic" or legal_areas(view, "city", decision["player"])
+    if due and can_place and types != ["first_action", "pass"]:
+        yield f"{player_board['name']} must take the first action of {corporation} first, but is offered {types}"
+    for option in decision["options"]:
+        if option["details"]["type"] == "first_action" and (not due or option["details"]["card"] != corporation):
+            yield f"{player_board['name']} is offered the first action of {option['details']['card']}"
+
+
+def costs_of_standard_projects_and_greeneries_are_as_printed(view: View, decision: Decision | None) -> Iterator[str]:
+    """A Standard Project costs what is printed, 3 MegaCredits less for Thorgate's Power Plant, and
+    converting plants into a Greenery takes 8, or 7 with EcoLine. Whoever is offered one can pay for it."""
+    if decision is None:
+        return
+    player_board = view["players"][decision["player"]]
+    in_play = cards_in_play(player_board)
+    resources = player_board["resources"]
+    spendable = spendable_megacredits(player_board)
+    for option in decision["options"]:
+        details = option["details"]
+        if details["type"] == "standard_project" and details["project"] != "sell_patents":
+            cost = STANDARD_PROJECT_COSTS[details["project"]]
+            if details["project"] == "power_plant" and "thorgate" in in_play:
+                cost -= 3
+            if details["cost"] != cost:
+                yield f"{option['label']} is offered at {details['cost']}, not at {cost}"
+            # What is below 0 `no_negative_resources` reports.
+            if 0 <= spendable < cost:
+                yield f"{option['label']} is offered to {player_board['name']}, who can spend {spendable}"
+        if details["type"] == "convert_plants":
+            plants = PLANTS_PER_GREENERY - ("ecoline" in in_play)
+            if details["plants"] != plants:
+                yield f"{option['label']} takes {details['plants']} plants, not {plants}"
+            if resources["plants"] < plants:
+                yield f"{option['label']} is offered to {player_board['name']}, who has {resources['plants']} plants"
+
+
+def ways_to_pay_cover_the_cost(view: View, decision: Decision | None) -> Iterator[str]:
+    """Each way to pay spends only what the Player has, heat only with Helion and never the heat the
+    card itself loses, and what it spends covers the cost at what their steel and titanium are worth."""
+    if decision is None or decision["kind"] != "payment":
+        return
+    player_board = view["players"][decision["player"]]
+    in_play, resources = cards_in_play(player_board), player_board["resources"]
+    steel_value = STEEL_VALUE + sum(steel for card, (steel, _) in CUBE_VALUES.items() if card in in_play)
+    titanium_value = TITANIUM_VALUE + sum(titanium for card, (_, titanium) in CUBE_VALUES.items() if card in in_play)
+    for option in decision["options"]:
+        details = option["details"]
+        paid = {part: details[part] for part in ("megacredits", "steel", "titanium", "heat")}
+        worth = paid["megacredits"] + steel_value * paid["steel"] + titanium_value * paid["titanium"] + paid["heat"]
+        if "paying_for" in details:
+            cost = details["cost"]
+        elif details.get("action"):
+            cost = CARDS[details["card"]]["effects"]["action"]["pay"]["megacredits"]
+        else:
+            cost = card_cost(view, decision["player"], details["card"])
+        if worth < cost:
+            yield f"{option['label']} is worth {worth}, but the cost is {cost}"
+        kept_heat = HEAT_LOST.get(details.get("card"), 0)
+        if paid["heat"] > 0 and (HEAT_AS_MEGACREDITS not in in_play or paid["heat"] > resources["heat"] - kept_heat):
+            yield f"{option['label']} is offered to {player_board['name']}, who may not spend that heat"
+        for part, amount in paid.items():
+            if not 0 <= amount <= resources[part]:
+                yield f"{option['label']} is offered to {player_board['name']}, who has {resources[part]} {part}"
+
+
+def tags_shown_count_the_corporation(view: View, decision: Decision | None) -> Iterator[str]:
+    """The Tags on a board count those printed on its Player's Corporation."""
+    for player_board in view["players"]:
+        if player_board["corporation"] is None:
+            continue
+        for tag, printed in Counter(CARDS[player_board["corporation"]]["tags"]).items():
+            if player_board["tags"][tag] < printed:
+                shown = player_board["tags"][tag]
+                yield f"{player_board['name']} shows {shown} {tag} Tags, but their Corporation has {printed}"
+
+
 def every_card_in_exactly_one_place(view: View, decision: Decision | None) -> Iterator[str]:
     """Every Project Card is in exactly one place: the deck, the discard pile, a hand, a Player's
     played cards, the cards a Player drafts from or has kept in the Draft, the cards dealt to a
@@ -973,7 +1134,7 @@ def card_victory_points(view: View, player: int) -> int:
     play, of the Tiles next to the card's own Tile (Capital's Oceans, Commercial District's
     Cities), or of the Card Resources on the card."""
     card_resources = view["players"][player]["card_resources"]
-    played = [CARDS[card_id] for card_id in view["players"][player]["played_cards"]]
+    played = [CARDS[card_id] for card_id in cards_in_play(view["players"][player])]
     tags = Counter(tag for card in played if card["type"] != "event" for tag in card["tags"])
     on_the_board = tiles_on_the_board(view)
     tiles = Counter(tile["type"] for tile in on_the_board.values())
@@ -1036,6 +1197,11 @@ AFTER_EVERY_DECISION: tuple[Check, ...] = (
     viral_enhancers_offers_what_the_card_says,
     targets_offered_are_those_the_rules_allow,
     at_most_three_milestones_and_awards,
+    corporations_stay_hidden_until_they_are_revealed,
+    first_action_comes_first,
+    costs_of_standard_projects_and_greeneries_are_as_printed,
+    ways_to_pay_cover_the_cost,
+    tags_shown_count_the_corporation,
     every_card_in_exactly_one_place,
     every_decision_has_an_option,
 )

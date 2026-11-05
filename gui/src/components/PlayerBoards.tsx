@@ -33,9 +33,9 @@ interface Props {
   cards: Card[];
 }
 
-/** One board per Player: Terraform Rating, the six Resources with their Production, Turn
- * state, the first-player marker, cards in hand, the Tags in play, and the cards they passed in
- * the Draft where the view shows them. */
+/** One board per Player: their Corporation and its ability, Terraform Rating, the six Resources with
+ * their Production, Turn state, the first-player marker, cards in hand, the Tags in play, and the
+ * cards they passed in the Draft where the view shows them. */
 export function PlayerBoards({ game, cards }: Props) {
   const { view } = game;
   const catalog = useCardsById(cards);
@@ -66,6 +66,7 @@ export function PlayerBoards({ game, cards }: Props) {
                 <span className="terraform-rating-label">TR</span> {board.terraform_rating}
               </span>
             </header>
+            <CorporationLine game={game} player={index} catalog={catalog} />
             <dl className="player-stats">
               {RESOURCES.map((resource) => (
                 <div
@@ -108,6 +109,47 @@ export function PlayerBoards({ game, cards }: Props) {
         );
       })}
     </section>
+  );
+}
+
+/** What a Corporation's card says it does, without what it starts with: "Effect: When playing an
+ * Earth card, you pay 3 MC less for it." */
+function corporationAbility(card: Card | undefined): string {
+  const [ability] = (card?.text ?? "").split("\n");
+  return ability.replace(/^\(|\)$/g, "");
+}
+
+interface CorporationLineProps {
+  game: GameUpdate;
+  player: number;
+  catalog: Map<string, Card>;
+}
+
+/** A Player's Corporation and its ability, or at setup, that it is hidden. The one they chose shows
+ * only to them: the human at the screen, or in the full view, while it is their Decision. Nothing
+ * shows in a Game without Corporations, a Replay saved before they existed. */
+function CorporationLine({ game, player, catalog }: CorporationLineProps) {
+  const { view, viewer, decision } = game;
+  const board = view.players[player];
+  const dealtCorporations = view.players.some((each) => each.choosing_corporation !== null);
+  if (!board.corporation && !dealtCorporations) return null;
+  const seesTheirChoice = (viewer ?? decision?.player) === player;
+  const picked = seesTheirChoice ? board.choosing_corporation?.picked : null;
+  const corporation = catalog.get(board.corporation ?? picked ?? "");
+  return (
+    <div className="player-corporation">
+      {corporation ? (
+        <>
+          <span className="player-corporation-name">
+            {corporation.name}
+            {!board.corporation && " (hidden for now)"}
+          </span>
+          <span className="player-corporation-ability">{corporationAbility(corporation)}</span>
+        </>
+      ) : (
+        <span className="player-corporation-name">Corporation hidden until every Player is done buying</span>
+      )}
+    </div>
   );
 }
 

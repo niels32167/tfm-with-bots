@@ -10,3 +10,9 @@ Every rule bug found is saved as a Replay, filed as a new ticket and fixed. Play
 
 - [ ] Three complete Games in a row played without finding a rule bug.
 - [ ] Every bug found along the way has a ticket with its Replay and a regression test.
+
+## Comments
+
+### 2026-11-05 — note from ticket 21 (Claude)
+
+Worth watching while playing: choosing a Corporation with the 10 Project Cards shown small above it, Helion's payment Decision with many splits (the heat stepper), and being asked how to pay with heat right after Done in a Research phase.

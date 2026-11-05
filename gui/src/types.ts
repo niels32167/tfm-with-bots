@@ -41,6 +41,15 @@ export interface PlayerBoard {
   /** What they would pay now for each card in their hand, by catalog id, once their discounts
    * are taken off: with the hand, otherwise null. */
   card_costs: Record<string, number> | null;
+  /** Their Corporation by catalog id, once it is revealed, otherwise null. */
+  corporation: string | null;
+  /** Whether they must still take their Corporation's first action. */
+  first_action_due: boolean;
+  /** Whether their Terraform Rating was raised this Generation. */
+  terraform_rating_raised: boolean;
+  /** At setup, the Corporations dealt to them and the one they chose: only the viewer's own, or
+   * everyone's in the full view; otherwise null. */
+  choosing_corporation: ChoosingCorporation | null;
   /** In the setup or a Research phase, the cards dealt to them to buy from and those of them
    * they have bought so far (nothing is paid until every Player is done): only the viewer's own,
    * or everyone's in the full view; otherwise null. */
@@ -68,10 +77,18 @@ export interface PlayerBoard {
   tags: Record<CountedTag, number>;
 }
 
-/** Cards by catalog id, in card-number order: those dealt, and those of them bought. */
+/** The Corporations dealt to a Player at setup by catalog id, and the one they chose, if they have. */
+export interface ChoosingCorporation {
+  dealt: string[];
+  picked: string | null;
+}
+
+/** Cards by catalog id, in card-number order: those dealt, and those of them bought. `megacredits` is
+ * what they may spend on them: at setup, the starting MegaCredits of the Corporation they chose. */
 export interface Buying {
   dealt: string[];
   bought: string[];
+  megacredits: number;
 }
 
 /** Cards by catalog id, in card-number order: those to keep one from, passing the rest to Player
@@ -283,7 +300,15 @@ export interface Card {
 /** Where a Game started and the index of every Option picked since. */
 export interface Replay {
   start:
-    | { settings: { players: number; seed: number; implemented_cards_first: boolean; draft: boolean } }
+    | {
+        settings: {
+          players: number;
+          seed: number;
+          implemented_cards_first: boolean;
+          draft: boolean;
+          corporations: boolean;
+        };
+      }
     | { scenario: { seed: number } };
   picks: number[];
 }

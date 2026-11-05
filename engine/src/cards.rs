@@ -20,6 +20,9 @@ const CARD_FILE: &str = include_str!("../cards/cards.json");
 /// Project Card's index in the catalog is its number minus 1. A Game names cards by that index.
 pub const PROJECT_CARDS: usize = 208;
 
+/// How many Corporations there are. They follow the Project Cards in the catalog.
+pub const CORPORATIONS: usize = 12;
+
 /// Every card: the Project Cards in number order, then the Corporations.
 pub static CARD_CATALOG: LazyLock<Vec<Card>> = LazyLock::new(|| {
     let file: CardFile = serde_json::from_str(CARD_FILE)
@@ -45,6 +48,11 @@ pub static CARD_CATALOG: LazyLock<Vec<Card>> = LazyLock::new(|| {
 /// The index of the Project Card whose id is `id`, if there is one.
 pub fn find_project_card(id: &str) -> Option<usize> {
     CARD_CATALOG[..PROJECT_CARDS].iter().position(|card| card.id == id)
+}
+
+/// The index of the Corporation whose id is `id`, if there is one.
+pub fn find_corporation(id: &str) -> Option<usize> {
+    (PROJECT_CARDS..CARD_CATALOG.len()).find(|&card| CARD_CATALOG[card].id == id)
 }
 
 #[derive(Deserialize)]
@@ -136,6 +144,11 @@ impl Card {
         }
     }
 
+    /// The first action of a Corporation that has one.
+    pub fn first_action(&self) -> Option<&Effects> {
+        self.effects.as_ref().and_then(|effects| effects.first_action.as_deref())
+    }
+
     /// The action of a card that has one, as every card whose action is used does.
     pub fn implemented_action(&self) -> &Effects {
         self.action().expect("only cards with an action have their action used")
@@ -224,26 +237,33 @@ pub struct Effects {
     #[serde(skip_serializing_if = "is_zero")]
     pub card_resources: i32,
     /// Only for a card when played: its action, which its Player may use once per Generation
-    /// (an Active card's red arrow). None for a card without one.
+    /// (an Active card's or a Corporation's red arrow). None for a card without one.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub action: Option<Box<Effects>>,
-    /// Only for an Active card: MegaCredits off every card its Player plays from then on, or only
+    /// Only for a card in play: MegaCredits off every card its Player plays from then on, or only
     /// off those with a Tag (Space Station's 2 off each card with a space Tag).
     #[serde(skip_serializing_if = "Option::is_none")]
     pub discount: Option<Discount>,
-    /// Only for an Active card: how many MegaCredits more each steel and each titanium pays for
+    /// Only for a card in play: how many MegaCredits more each steel and each titanium pays for
     /// its Player from then on, towards whatever they may pay for (Advanced Alloys).
     #[serde(skip_serializing_if = "Option::is_none")]
     pub cube_values: Option<CubeValues>,
-    /// Only for an Active card: how many steps easier each of its Player's Requirements on a
+    /// Only for a card in play: how many steps easier each of its Player's Requirements on a
     /// Global Parameter is to meet from then on (Adaptation Technology).
     #[serde(skip_serializing_if = "is_zero")]
     pub requirement_steps: i32,
+    /// Only for a Corporation: what its Player must do as their first action in the Game (Inventrix's
+    /// 3 cards, Tharsis Republic's City), carried out as `Effects` are, cards drawn, then the Tile.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub first_action: Option<Box<Effects>>,
+    /// Only for a card in play: how many plants fewer its Player pays to place a Greenery (EcoLine).
+    #[serde(skip_serializing_if = "is_zero")]
+    pub greenery_discount: i32,
     /// Only for an Event: what it changes about the next card its Player plays this Generation
     /// (Indentured Workers, Special Design).
     #[serde(skip_serializing_if = "Option::is_none")]
     pub next_card: Option<NextCard>,
-    /// Only for an Active card: what its Player gains from then on, each time something happens
+    /// Only for a card in play: what its Player gains from then on, each time something happens
     /// (Arctic Algae's 2 plants when anyone places an Ocean). Empty for a card without one.
     #[serde(skip_serializing_if = "Vec::is_empty")]
     pub when: Vec<Trigger>,
@@ -333,8 +353,13 @@ pub enum AnyPlayer {
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case", deny_unknown_fields)]
 pub enum TriggerCondition {
-    /// A Tile of this kind placed by the card's Player, or by anyone.
-    TilePlaced { tile: TileKind, by: Owner },
+    /// A Tile of this kind placed by the card's Player, or by anyone; with `on_mars`, only on Mars.
+    TilePlaced {
+        tile: TileKind,
+        by: Owner,
+        #[serde(default, skip_serializing_if = "is_false")]
+        on_mars: bool,
+    },
     /// The card's Player plays a card of this type (any, if left out) with this Tag (any, if
     /// left out).
     CardPlayed {
@@ -345,8 +370,16 @@ pub enum TriggerCondition {
     },
     /// The card's Player plays one of these Tags: once for each such Tag on the card they play.
     TagPlayed(Vec<Tag>),
+    /// Anyone plays one of these Tags: once for each such Tag on the card they play. A Corporation's
+    /// Tags are played when it is revealed.
+    TagPlayedByAnyone(Vec<Tag>),
     /// The card's Player pays for a Standard Project, Sell Patents excepted.
     StandardProject,
+    /// The card's Player pays for a card or a Standard Project with at least this printed cost.
+    CostAtLeast(i32),
+    /// The card's Player gets a placement bonus with any of these Resources: once for each Tile
+    /// placed, however much it gives.
+    PlacementBonus(Vec<Resource>),
 }
 
 /// What an Event changes about the next card its Player plays this Generation: MegaCredits off
@@ -392,6 +425,7 @@ pub struct CardsWith {
     pub discount: CardSet,
     pub cube_values: CardSet,
     pub requirement_steps: CardSet,
+    pub greenery_discount: CardSet,
     pub triggers: CardSet,
     pub card_resources: CardSet,
 }
@@ -399,7 +433,7 @@ pub struct CardsWith {
 /// Read from the card catalog the first time it is needed, like the catalog itself.
 pub static CARDS_WITH: LazyLock<CardsWith> = LazyLock::new(|| {
     let having = |has: fn(&Effects) -> bool| -> CardSet {
-        (0..PROJECT_CARDS).filter(|&card| CARD_CATALOG[card].effects.as_ref().is_some_and(has)).collect()
+        (0..CARD_CATALOG.len()).filter(|&card| CARD_CATALOG[card].effects.as_ref().is_some_and(has)).collect()
     };
     let card_resources = having(|effects| effects.holds.is_some());
     assert!(
@@ -410,6 +444,7 @@ pub static CARDS_WITH: LazyLock<CardsWith> = LazyLock::new(|| {
         discount: having(|effects| effects.discount.is_some()),
         cube_values: having(|effects| effects.cube_values.is_some()),
         requirement_steps: having(|effects| effects.requirement_steps != 0),
+        greenery_discount: having(|effects| effects.greenery_discount != 0),
         triggers: having(|effects| !effects.when.is_empty()),
         card_resources,
     }

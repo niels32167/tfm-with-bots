@@ -184,6 +184,8 @@ def test_there_is_no_draft_at_setup_where_each_player_buys_from_the_10_cards_dea
     game = tm_engine.Game(seed=7)
 
     assert game.full_view()["phase"] == "setup"
+    assert game.decision["kind"] == "corporation"
+    game.pick(0)
     assert game.decision["kind"] == "buy_cards"
     assert all(len(board["buying"]["dealt"]) == 10 for board in game.full_view()["players"])
 

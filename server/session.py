@@ -84,8 +84,14 @@ class GameSession:
         return self.deciding_controller() == "random_bot"
 
     def waiting_on_random_bot_to_draft_or_buy(self) -> bool:
-        """Whether a Random Bot is drafting cards, or buying them at setup or in a Research phase."""
-        return self.waiting_on_random_bot() and self.game.decision["kind"] in ("draft", "buy_cards")
+        """Whether a Random Bot is choosing a Corporation, drafting cards, or buying them at setup or in
+        a Research phase, paying with heat included."""
+        if not self.waiting_on_random_bot():
+            return False
+        phase = self.game.full_view()["phase"]
+        return self.game.decision["kind"] in ("corporation", "draft", "buy_cards") or (
+            self.game.decision["kind"] == "payment" and phase == "research"
+        )
 
     def pick_for_random_bot(self) -> None:
         decision = self.game.decision

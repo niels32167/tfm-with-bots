@@ -1,5 +1,5 @@
-"""Card actions: the action of a played Active card is an Action its Player may take once per
-Generation."""
+"""Card actions: the action of a played Active card or a Corporation is an Action its Player may take
+once per Generation."""
 
 import pytest
 import tm_engine
@@ -63,7 +63,9 @@ def test_a_used_action_is_available_again_in_the_next_generation():
 
 # Every card with an action, and enough to use it in two Generations: Resources, energy Production
 # to lower and to give the next Generation's 6 energy, and a deck to look at and draw from.
-CARDS_WITH_AN_ACTION = [card["id"] for card in tm_engine.card_catalog() if "action" in card.get("effects", {})]
+CARDS_WITH_AN_ACTION = [
+    card["id"] for card in tm_engine.card_catalog() if "action" in card.get("effects", {}) and card["type"] != "corporation"
+]
 PLENTY = {"megacredits": 30, "steel": 5, "titanium": 5, "plants": 5, "energy": 10, "heat": 10}
 
 
@@ -145,7 +147,7 @@ def test_card_actions_come_after_the_cards_to_play_in_card_number_order():
 def test_only_active_cards_have_an_action_and_only_actions_have_a_payment_or_resource_alternatives():
     for card in tm_engine.card_catalog():
         effects = card.get("effects", {})
-        assert "action" not in effects or card["type"] == "active", card["name"]
+        assert "action" not in effects or card["type"] in ("active", "corporation"), card["name"]
         assert "pay" not in effects and not effects.get("resources_choice"), card["name"]
         assert "action" not in effects.get("action", {}), card["name"]
 

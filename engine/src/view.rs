@@ -14,9 +14,9 @@ use crate::card_flow::{CARD_PRICE, PATENT_VALUE};
 use crate::card_set::CardSet;
 use crate::cards::{CARD_CATALOG, CardResource, Tag};
 use crate::draft::DraftPass;
+use crate::expenses::Expense;
 use crate::game::{
-    Decision, DecisionKind, DecisionOption, Game, HEAT_PER_TEMPERATURE_STEP, PLANTS_PER_GREENERY, Phase,
-    StandardProject, Waiting,
+    Decision, DecisionKind, DecisionOption, Game, HEAT_PER_TEMPERATURE_STEP, Phase, StandardProject, Waiting,
 };
 use crate::log::{listed, player_name};
 use crate::milestones_and_awards::{Award, MILESTONE_COST, Milestone};
@@ -50,6 +50,14 @@ pub enum OptionDetails {
     },
     /// Use the action of a played card, named by its catalog id.
     UseAction {
+        card: &'static str,
+    },
+    /// Choose one of the Corporations dealt at setup, named by its catalog id.
+    ChooseCorporation {
+        card: &'static str,
+    },
+    /// Take the first action of the Player's own Corporation, named by its catalog id.
+    FirstAction {
         card: &'static str,
     },
     /// Keep one of the cards being drafted, named by its catalog id, and pass the rest on.
@@ -127,6 +135,15 @@ pub enum OptionDetails {
         card: &'static str,
         #[serde(skip_serializing_if = "std::ops::Not::not")]
         action: bool,
+        #[serde(flatten)]
+        payment: Payment,
+    },
+    /// One way to pay `cost` for what is `paying_for`, such as "the Asteroid Standard Project" or "2
+    /// cards": its MegaCredits and heat.
+    #[serde(rename = "payment")]
+    PayExpense {
+        paying_for: String,
+        cost: i32,
         #[serde(flatten)]
         payment: Payment,
     },
@@ -283,6 +300,15 @@ pub struct PlayerBoard {
     /// What they would pay now for each card in their hand, by catalog id, once their discounts
     /// are taken off: only with their hand, otherwise None.
     pub card_costs: Option<BTreeMap<&'static str, i32>>,
+    /// Their Corporation by catalog id, once it is revealed, otherwise None.
+    pub corporation: Option<&'static str>,
+    /// Whether they must still take their Corporation's first action.
+    pub first_action_due: bool,
+    /// Whether their Terraform Rating was raised this Generation.
+    pub terraform_rating_raised: bool,
+    /// At setup, the Corporations dealt to them and the one they chose: only in their own Player View
+    /// and the full view, otherwise None.
+    pub choosing_corporation: Option<ChoosingCorporationView>,
     /// In the setup or a Research phase, what they are buying from: only in their own Player View
     /// and the full view, otherwise None.
     pub buying: Option<BuyingView>,
@@ -295,7 +321,7 @@ pub struct PlayerBoard {
     /// While they play a card that lets them look at cards to keep some of them, those cards:
     /// only in their own Player View and the full view, otherwise None.
     pub keeping: Option<KeepingView>,
-    /// The cards they have played, by catalog id in card-number order.
+    /// The Project Cards they have played, by catalog id in card-number order.
     pub played_cards: Vec<&'static str>,
     /// The played cards whose action they have used this Generation, by catalog id in card-number
     /// order.
@@ -309,12 +335,22 @@ pub struct PlayerBoard {
     pub tags: BTreeMap<Tag, i32>,
 }
 
+/// The Corporations dealt to a Player at setup, by catalog id in catalog order, and the one they
+/// chose, if they have.
+#[derive(Serialize)]
+pub struct ChoosingCorporationView {
+    pub dealt: Vec<&'static str>,
+    pub picked: Option<&'static str>,
+}
+
 /// The cards dealt to a Player to buy from, and those of them they have bought so far, by
-/// catalog id in card-number order. Nothing is paid until every Player is done buying.
+/// catalog id in card-number order, and the MegaCredits they may spend on them. Nothing is paid
+/// until every Player is done buying.
 #[derive(Serialize)]
 pub struct BuyingView {
     pub dealt: Vec<&'static str>,
     pub bought: Vec<&'static str>,
+    pub megacredits: i32,
 }
 
 /// What a Player is drafting, by catalog id in card-number order: the cards they pick one from
@@ -430,9 +466,18 @@ fn view(game: &Game, viewer: Option<usize>) -> View {
                         .map(|card| (CARD_CATALOG[card].id.as_str(), game.card_cost(index, card)))
                         .collect()
                 }),
+                corporation: player.corporation().map(|card| CARD_CATALOG[card].id.as_str()),
+                first_action_due: player.first_action_due,
+                terraform_rating_raised: player.terraform_rating_raised,
+                choosing_corporation: (sees_hand(index) && !player.choosing_corporation.dealt.is_empty())
+                    .then(|| ChoosingCorporationView {
+                        dealt: ids(player.choosing_corporation.dealt),
+                        picked: player.choosing_corporation.picked.map(|card| CARD_CATALOG[card].id.as_str()),
+                    }),
                 buying: (sees_hand(index) && game.phase.is_buying()).then(|| BuyingView {
                     dealt: ids(player.buying.dealt),
                     bought: ids(player.buying.bought),
+                    megacredits: game.megacredits_to_buy_with(index),
                 }),
                 drafting: (sees_hand(index) && game.phase == Phase::Draft).then(|| DraftingView {
                     picking_from: ids(player.drafting.picking_from),
@@ -441,7 +486,9 @@ fn view(game: &Game, viewer: Option<usize>) -> View {
                 }),
                 passed_in_draft: sees_hand(index).then(|| passed_in_draft(&game.draft_passes, index)),
                 keeping: match game.waiting {
-                    Some(Waiting::KeepCards(keeping)) if sees_hand(index) && index == game.current_player => {
+                    Some(Waiting::KeepCards(keeping) | Waiting::Expense(Expense::KeptCards(keeping)))
+                        if sees_hand(index) && index == game.current_player =>
+                    {
                         Some(KeepingView {
                             card: &CARD_CATALOG[keeping.card].id,
                             looking_at: ids(keeping.looking_at),
@@ -452,7 +499,7 @@ fn view(game: &Game, viewer: Option<usize>) -> View {
                     }
                     _ => None,
                 },
-                played_cards: ids(player.played),
+                played_cards: ids(player.played_project_cards()),
                 used_actions: ids(player.used_actions),
                 card_resources: player
                     .cards_holding_card_resources()
@@ -543,6 +590,7 @@ fn decision_view(game: &Game, decision: &Decision) -> DecisionView {
             DecisionKind::Resources => "resources",
             DecisionKind::Effects => "effects",
             DecisionKind::AddToCard => "add_to_card",
+            DecisionKind::Corporation => "corporation",
             DecisionKind::Draft => "draft",
             DecisionKind::BuyCards => "buy_cards",
             DecisionKind::SellPatents => "sell_patents",
@@ -574,6 +622,8 @@ fn label(game: &Game, player: usize, option: &DecisionOption) -> String {
             format!("Play {} ({})", CARD_CATALOG[*card].name, Resource::MegaCredits.counted(cost(*card)))
         }
         DecisionOption::UseAction(card) => format!("Use the action of {}", CARD_CATALOG[*card].name),
+        DecisionOption::ChooseCorporation(card) => format!("Choose {}", CARD_CATALOG[*card].name),
+        DecisionOption::TakeFirstAction(card) => first_action_label(*card),
         DecisionOption::DraftCard(card) | DecisionOption::KeepCard(card) => {
             format!("Keep {}", CARD_CATALOG[*card].name)
         }
@@ -625,9 +675,9 @@ fn label(game: &Game, player: usize, option: &DecisionOption) -> String {
                 "Remove nothing".to_string()
             }
         }
-        DecisionOption::Pay { payment, .. } | DecisionOption::PayForAction { payment, .. } => {
-            format!("Pay {}", payment.text())
-        }
+        DecisionOption::Pay { payment, .. }
+        | DecisionOption::PayForAction { payment, .. }
+        | DecisionOption::PayExpense(payment) => format!("Pay {}", payment.text()),
         DecisionOption::ChangeResources { card, change } => resource_change(change.resources(*card)),
         DecisionOption::ChooseEffects { card, alternative } => alternative_label(*card, *alternative),
         DecisionOption::AddToCard { to, amount, .. } => {
@@ -647,7 +697,7 @@ fn label(game: &Game, player: usize, option: &DecisionOption) -> String {
             format!("Sell Patents ({} per card)", Resource::MegaCredits.counted(PATENT_VALUE))
         }
         DecisionOption::UseStandardProject(project) => {
-            format!("{} ({} MegaCredits)", project.name(), project.cost())
+            format!("{} ({} MegaCredits)", project.name(), game.standard_project_cost(player, *project))
         }
         DecisionOption::ClaimMilestone(milestone) => {
             format!("Claim the {} Milestone ({MILESTONE_COST} MegaCredits)", milestone.name())
@@ -655,7 +705,9 @@ fn label(game: &Game, player: usize, option: &DecisionOption) -> String {
         DecisionOption::FundAward { award, cost } => {
             format!("Fund the {} Award ({cost} MegaCredits)", award.name())
         }
-        DecisionOption::ConvertPlants => format!("Convert {PLANTS_PER_GREENERY} plants into a Greenery"),
+        DecisionOption::ConvertPlants => {
+            format!("Convert {} plants into a Greenery", game.plants_per_greenery(player))
+        }
         DecisionOption::ConvertHeat => {
             format!("Convert {HEAT_PER_TEMPERATURE_STEP} heat into a Temperature step")
         }
@@ -671,6 +723,17 @@ fn label(game: &Game, player: usize, option: &DecisionOption) -> String {
         }
         DecisionOption::ClaimArea(area) => format!("Claim {}", area_label(*area)),
     }
+}
+
+/// A Corporation's first action as a label writes it: "First action of Inventrix: draw 3 cards".
+fn first_action_label(card: usize) -> String {
+    let printed = &CARD_CATALOG[card];
+    let first_action = printed.first_action().expect("only a first action due is offered");
+    let does = match first_action.tiles.first() {
+        Some(placement) => format!("place a {}", placement.tile.name()),
+        None => format!("draw {} cards", first_action.draw),
+    };
+    format!("First action of {}: {does}", printed.name)
 }
 
 /// A Production change as a label writes it: "Raise energy Production by 2", or "Lower
@@ -758,6 +821,10 @@ fn details(game: &Game, player: usize, option: &DecisionOption) -> OptionDetails
             OptionDetails::PlayCard { card: &CARD_CATALOG[*card].id, cost: cost(*card) }
         }
         DecisionOption::UseAction(card) => OptionDetails::UseAction { card: &CARD_CATALOG[*card].id },
+        DecisionOption::ChooseCorporation(card) => {
+            OptionDetails::ChooseCorporation { card: &CARD_CATALOG[*card].id }
+        }
+        DecisionOption::TakeFirstAction(card) => OptionDetails::FirstAction { card: &CARD_CATALOG[*card].id },
         DecisionOption::DraftCard(card) => OptionDetails::DraftCard { card: &CARD_CATALOG[*card].id },
         DecisionOption::KeepCard(card) => OptionDetails::KeepCard { card: &CARD_CATALOG[*card].id },
         DecisionOption::BuyCard(card) => {
@@ -804,6 +871,16 @@ fn details(game: &Game, player: usize, option: &DecisionOption) -> OptionDetails
         DecisionOption::PayForAction { card, payment } => {
             OptionDetails::Payment { card: &CARD_CATALOG[*card].id, action: true, payment: *payment }
         }
+        DecisionOption::PayExpense(payment) => {
+            let Some(Waiting::Expense(expense)) = game.waiting else {
+                panic!("only a Player asked how to pay for something is offered a way to pay")
+            };
+            OptionDetails::PayExpense {
+                paying_for: game.expense_text(expense),
+                cost: game.expense_cost(expense),
+                payment: *payment,
+            }
+        }
         DecisionOption::ChangeResources { card, change } => OptionDetails::ChooseResources {
             card: &CARD_CATALOG[*card].id,
             resources: change.resources(*card),
@@ -831,16 +908,19 @@ fn details(game: &Game, player: usize, option: &DecisionOption) -> OptionDetails
             kind: CARD_CATALOG[*to].held(),
             amount: *amount,
         },
-        DecisionOption::UseStandardProject(project) => {
-            OptionDetails::StandardProject { project: project.id(), cost: project.cost() }
-        }
+        DecisionOption::UseStandardProject(project) => OptionDetails::StandardProject {
+            project: project.id(),
+            cost: game.standard_project_cost(player, *project),
+        },
         DecisionOption::ClaimMilestone(milestone) => {
             OptionDetails::ClaimMilestone { milestone: milestone.id(), cost: MILESTONE_COST }
         }
         DecisionOption::FundAward { award, cost } => {
             OptionDetails::FundAward { award: award.id(), cost: *cost }
         }
-        DecisionOption::ConvertPlants => OptionDetails::ConvertPlants { plants: PLANTS_PER_GREENERY },
+        DecisionOption::ConvertPlants => {
+            OptionDetails::ConvertPlants { plants: game.plants_per_greenery(player) }
+        }
         DecisionOption::ConvertHeat => OptionDetails::ConvertHeat { heat: HEAT_PER_TEMPERATURE_STEP },
         DecisionOption::EndTurn => OptionDetails::EndTurn,
         DecisionOption::Pass => OptionDetails::Pass,

@@ -9,15 +9,19 @@ use std::fmt;
 
 use serde::{Deserialize, Serialize};
 
-use crate::board::{Areas, Board, BonusItem, Placement, SpecialTile, Tile, TileKind, printed};
+use crate::board::{
+    Areas, Board, BonusItem, Placement, SpecialTile, Tile, TileKind, printed, row_and_position,
+};
 use crate::card_actions::ResourceChange;
-use crate::card_code::{FLOODING, ViralEnhancing};
+use crate::card_code::{FLOODING, THORGATE, ViralEnhancing};
 use crate::card_flow::{Buying, Keeping};
 use crate::card_resources::{Adding, CardResources};
 use crate::card_set::CardSet;
 use crate::cards::{AddToAnother, CARD_CATALOG, CARDS_WITH, PROJECT_CARDS};
+use crate::corporations::ChoosingCorporation;
 use crate::deck::Deck;
 use crate::draft::{DraftPass, Drafting};
+use crate::expenses::Expense;
 use crate::log::LogEvent;
 use crate::milestones_and_awards::{AWARD_COSTS, Award, MAX_MILESTONES_CLAIMED, MILESTONE_COST, Milestone};
 use crate::playing_cards::{CardTiles, Payment, ProductionChange};
@@ -64,9 +68,9 @@ pub const OCEAN_ADJACENCY_BONUS: i32 = 2;
 
 pub const STARTING_TERRAFORM_RATING: i32 = 20;
 
-/// Temporary until Corporations exist (ticket 21): every Player starts with this many
-/// MegaCredits, as Helion and Saturn Systems do, and buys their setup cards with them.
-pub const STARTING_MEGACREDITS: i32 = 42;
+/// What a Player holds without a Corporation: in a Scenario that gives them neither, and in a
+/// Replay saved before Corporations existed, where they bought their setup cards with it.
+pub const MEGACREDITS_WITHOUT_A_CORPORATION: i32 = 42;
 
 pub const ACTIONS_PER_TURN: u32 = 2;
 
@@ -83,6 +87,10 @@ pub struct Settings {
     /// before the Draft existed has no such setting, and reads as off, as it was played.
     #[serde(default)]
     pub draft: bool,
+    /// Whether each Player is dealt Corporations at setup. On by default (ADR 0003), but a Replay
+    /// saved before they existed has no such setting, and reads as off, as it was played.
+    #[serde(default)]
+    pub corporations: bool,
 }
 
 #[derive(Clone, Debug)]
@@ -93,7 +101,8 @@ pub struct Player {
     /// Passed for the rest of this Generation's Action phase.
     pub passed: bool,
     pub hand: CardSet,
-    /// The cards they have played, Events included.
+    /// The cards they have played, Events included, and their Corporation once it is revealed: its
+    /// Tags and ongoing effects count as a played card's do.
     pub played: CardSet,
     /// The played cards whose action they have used this Generation.
     pub used_actions: CardSet,
@@ -104,6 +113,12 @@ pub struct Player {
     pub buying: Buying,
     /// In the Draft, what they are drafting.
     pub drafting: Drafting,
+    /// At setup, the Corporations dealt to them and the one they chose.
+    pub choosing_corporation: ChoosingCorporation,
+    /// Whether they must still take their Corporation's first action.
+    pub first_action_due: bool,
+    /// Whether their Terraform Rating was raised this Generation.
+    pub terraform_rating_raised: bool,
 }
 
 impl Player {
@@ -112,9 +127,20 @@ impl Player {
         self.played.intersection(CARDS_WITH.card_resources)
     }
 
-    pub fn new() -> Player {
+    /// Their Corporation, once it is revealed.
+    pub fn corporation(&self) -> Option<usize> {
+        self.played.iter().find(|&card| card >= PROJECT_CARDS)
+    }
+
+    /// The Project Cards they have played, Events included: their played cards but their Corporation.
+    pub fn played_project_cards(&self) -> CardSet {
+        self.played.iter().filter(|&card| card < PROJECT_CARDS).collect()
+    }
+
+    /// A Player before setup, holding `resources`.
+    pub fn new(resources: Resources) -> Player {
         Player {
-            resources: starting_resources(),
+            resources,
             production: Resources::default(),
             terraform_rating: STARTING_TERRAFORM_RATING,
             passed: false,
@@ -124,13 +150,16 @@ impl Player {
             next_card: None,
             buying: Buying::default(),
             drafting: Drafting::default(),
+            choosing_corporation: ChoosingCorporation::default(),
+            first_action_due: false,
+            terraform_rating_raised: false,
         }
     }
 }
 
-/// What every Player starts with, until Corporations exist: MegaCredits and nothing else.
-pub fn starting_resources() -> Resources {
-    Resources { megacredits: STARTING_MEGACREDITS, ..Resources::default() }
+/// What a Player holds without a Corporation: MegaCredits and nothing else.
+pub fn resources_without_a_corporation() -> Resources {
+    Resources { megacredits: MEGACREDITS_WITHOUT_A_CORPORATION, ..Resources::default() }
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -234,6 +263,8 @@ pub enum DecisionKind {
     Effects,
     /// Choose which of the Player's cards gets the Card Resources being added.
     AddToCard,
+    /// Choose one of the Corporations dealt at setup.
+    Corporation,
     /// Keep one of the cards being drafted, and pass the rest on.
     Draft,
     /// Buy one more of the cards dealt, or be done, in the setup or a Research phase.
@@ -261,6 +292,10 @@ pub enum DecisionOption {
     PlayCard(usize),
     /// Use the action of this played card.
     UseAction(usize),
+    /// Take the first action of this Corporation, the Player's own.
+    TakeFirstAction(usize),
+    /// Choose this Corporation, one of those dealt at setup.
+    ChooseCorporation(usize),
     /// Keep this card, one of those being drafted, and pass the rest on.
     DraftCard(usize),
     /// Buy this card, one of those dealt in the setup or a Research phase, or one of those the
@@ -313,6 +348,8 @@ pub enum DecisionOption {
         card: usize,
         change: ProductionChange,
     },
+    /// Pay for what the Player is asked to pay for this way.
+    PayExpense(Payment),
     /// Pay for the action of `card`, which is being used, this way.
     PayForAction {
         card: usize,
@@ -363,6 +400,8 @@ pub enum DecisionOption {
 /// What the current Player's Decision is about, other than the one their Phase asks for.
 #[derive(Clone, Copy, Debug)]
 pub enum Waiting {
+    /// Which of the Corporations dealt to them they choose.
+    Corporation,
     /// The Area for this Tile, on the Areas it may go on.
     Area(Placement),
     /// How they pay for this card, which they are playing.
@@ -371,6 +410,8 @@ pub enum Waiting {
     Production(usize),
     /// Which of the cards they are looking at they keep or buy.
     KeepCards(Keeping),
+    /// How they pay for this, other than a card or a card's action.
+    Expense(Expense),
     /// How they pay for the action of this card, which they are using.
     ActionPayment(usize),
     /// The Resource change the action of this card, which they are using, makes.
@@ -489,7 +530,9 @@ impl Game {
     pub fn new(settings: Settings) -> Result<Game, String> {
         check_player_count(settings.players)?;
         check_seed(settings.seed)?;
-        let players = vec![Player::new(); settings.players];
+        let holding =
+            if settings.corporations { Resources::default() } else { resources_without_a_corporation() };
+        let players = vec![Player::new(holding); settings.players];
         let mut game = Game::prepare(Start::Settings(settings), players);
         game.first_player = game.random_numbers.below(game.players.len());
         game.generation = 1;
@@ -548,6 +591,7 @@ impl Game {
             return None;
         }
         let (kind, options) = match (self.waiting, self.phase) {
+            (Some(Waiting::Corporation), _) => (DecisionKind::Corporation, self.corporation_options()),
             (Some(Waiting::Area(placement)), _) => (DecisionKind::Area, self.area_options(placement)),
             (Some(Waiting::ClaimArea), _) => {
                 (DecisionKind::Area, self.board.claimable_areas().map(DecisionOption::ClaimArea).collect())
@@ -557,9 +601,9 @@ impl Game {
                 (DecisionKind::Production, self.production_options(self.current_player, card))
             }
             (Some(Waiting::KeepCards(keeping)), _) => {
-                let megacredits = self.players[self.current_player].resources.megacredits;
-                (DecisionKind::KeepCards, keeping.options(megacredits))
+                (DecisionKind::KeepCards, keeping.options(self.spendable_megacredits(self.current_player)))
             }
+            (Some(Waiting::Expense(expense)), _) => (DecisionKind::Payment, self.expense_options(expense)),
             (Some(Waiting::ActionPayment(card)), _) => {
                 (DecisionKind::Payment, self.action_payment_options(card))
             }
@@ -626,7 +670,11 @@ impl Game {
     }
 
     fn action_options(&self) -> Vec<DecisionOption> {
+        if let Some(card) = self.first_action_to_take() {
+            return vec![DecisionOption::TakeFirstAction(card), DecisionOption::Pass];
+        }
         let player = &self.players[self.current_player];
+        let spendable = self.spendable_megacredits(self.current_player);
         let mut options: Vec<DecisionOption> = player
             .hand
             .iter()
@@ -638,7 +686,7 @@ impl Game {
             let can_use = match project {
                 StandardProject::SellPatents => !player.hand.is_empty(),
                 _ => {
-                    player.resources.megacredits >= project.cost()
+                    spendable >= self.standard_project_cost(self.current_player, project)
                         && self.can_take_action_placing(
                             self.current_player,
                             project.tile().map(Placement::usual),
@@ -662,7 +710,7 @@ impl Game {
             }
         }
         if let Some(cost) = self.award_cost()
-            && player.resources.megacredits >= cost
+            && spendable >= cost
         {
             for award in Award::ALL {
                 if self.funded_awards[award.index()].is_none() {
@@ -693,9 +741,22 @@ impl Game {
     /// claimed it, and fewer than three Milestones are claimed.
     fn can_claim(&self, milestone: Milestone) -> bool {
         let player = self.current_player;
-        self.milestone_cost().is_some_and(|cost| self.players[player].resources.megacredits >= cost)
+        self.milestone_cost().is_some_and(|cost| self.spendable_megacredits(player) >= cost)
             && self.claimed_milestones[milestone.index()].is_none()
             && milestone.count(self, player) >= milestone.target()
+    }
+
+    /// What `player` pays for `project`: its printed cost, less Thorgate's discount on Power Plant.
+    pub fn standard_project_cost(&self, player: usize, project: StandardProject) -> i32 {
+        let discount = match project {
+            StandardProject::PowerPlant if self.players[player].played.contains(THORGATE) => CARD_CATALOG
+                [THORGATE]
+                .implemented_effects()
+                .discount
+                .map_or(0, |discount| discount.megacredits),
+            _ => 0,
+        };
+        project.cost() - discount
     }
 
     /// What claiming a Milestone costs, or None once three are claimed.
@@ -709,8 +770,20 @@ impl Game {
         AWARD_COSTS.get(self.funded_awards.iter().flatten().count()).copied()
     }
 
+    /// How many plants `player` converts into a Greenery: `PLANTS_PER_GREENERY`, less what their
+    /// cards take off (EcoLine).
+    pub fn plants_per_greenery(&self, player: usize) -> i32 {
+        let discounting = self.players[player].played.intersection(CARDS_WITH.greenery_discount);
+        if discounting.is_empty() {
+            return PLANTS_PER_GREENERY;
+        }
+        let discounts = discounting.iter();
+        PLANTS_PER_GREENERY
+            - discounts.map(|card| CARD_CATALOG[card].implemented_effects().greenery_discount).sum::<i32>()
+    }
+
     fn can_convert_plants(&self, player: usize) -> bool {
-        self.players[player].resources.plants >= PLANTS_PER_GREENERY
+        self.players[player].resources.plants >= self.plants_per_greenery(player)
             && self.board.has_area_for(Placement::usual(TileKind::Greenery), player)
     }
 
@@ -741,6 +814,7 @@ impl Game {
                 self.change_production_as_chosen(player, card, change)
             }
             DecisionOption::UseAction(card) => self.use_action(player, card),
+            DecisionOption::TakeFirstAction(card) => self.take_first_action(card),
             DecisionOption::PayForAction { card, payment } => self.carry_out_action(player, card, payment),
             DecisionOption::ChangeResources { card, change } => {
                 self.change_resources_as_chosen(player, card, change)
@@ -749,6 +823,7 @@ impl Game {
                 self.carry_out_alternative(player, card, alternative)
             }
             DecisionOption::AddToCard { to, amount, .. } => self.add_to_card(to, amount),
+            DecisionOption::ChooseCorporation(card) => self.choose_corporation(card),
             DecisionOption::DraftCard(card) => self.draft(card),
             DecisionOption::BuyCard(card) if matches!(self.waiting, Some(Waiting::KeepCards(_))) => {
                 self.keep_card(card)
@@ -773,40 +848,14 @@ impl Game {
             DecisionOption::UseStandardProject(StandardProject::SellPatents) => {
                 self.wait_on(Waiting::SellPatents(0))
             }
-            DecisionOption::UseStandardProject(project) => {
-                self.players[player].resources.megacredits -= project.cost();
-                self.log.push(LogEvent::UsedStandardProject { player, project });
-                self.set_off(Happened::StandardProject { player });
-                match project {
-                    StandardProject::SellPatents => {
-                        unreachable!("Sell Patents begins with the cards to sell")
-                    }
-                    StandardProject::PowerPlant => self.change_production(player, Resource::Energy, 1),
-                    StandardProject::Asteroid => self.raise_temperature(player),
-                    StandardProject::Aquifer => self.place_ocean(Areas::Usual),
-                    StandardProject::Greenery => self.place(Placement::usual(TileKind::Greenery)),
-                    StandardProject::City => {
-                        self.change_production(player, Resource::MegaCredits, 1);
-                        self.place(Placement::usual(TileKind::City));
-                    }
-                }
-                self.finish_unless_placing();
-            }
-            DecisionOption::ClaimMilestone(milestone) => {
-                self.players[player].resources.megacredits -= MILESTONE_COST;
-                self.claimed_milestones[milestone.index()] = Some(player);
-                self.log.push(LogEvent::ClaimedMilestone { player, milestone });
-                self.finish_unless_placing();
-            }
-            DecisionOption::FundAward { award, cost } => {
-                self.players[player].resources.megacredits -= cost;
-                self.funded_awards[award.index()] = Some(player);
-                self.log.push(LogEvent::FundedAward { player, award, cost });
-                self.finish_unless_placing();
-            }
+            DecisionOption::UseStandardProject(project) => self.spend_on(Expense::StandardProject(project)),
+            DecisionOption::ClaimMilestone(milestone) => self.spend_on(Expense::Milestone(milestone)),
+            DecisionOption::FundAward { award, cost } => self.spend_on(Expense::Award { award, cost }),
+            DecisionOption::PayExpense(payment) => self.pay_expense(payment),
             DecisionOption::ConvertPlants => {
-                self.players[player].resources.plants -= PLANTS_PER_GREENERY;
-                self.log.push(LogEvent::ConvertedPlants { player });
+                let plants = self.plants_per_greenery(player);
+                self.players[player].resources.plants -= plants;
+                self.log.push(LogEvent::ConvertedPlants { player, plants });
                 self.place(Placement::usual(TileKind::Greenery));
                 self.finish_unless_placing();
             }
@@ -933,6 +982,7 @@ impl Game {
         for (index, player) in self.players.iter_mut().enumerate() {
             player.used_actions = CardSet::default();
             player.next_card = None;
+            player.terraform_rating_raised = false;
             let energy = player.resources.energy;
             if energy > 0 {
                 player.resources.heat += energy;
@@ -1075,7 +1125,7 @@ impl Game {
         }
         match tile {
             TileKind::Ocean => {
-                self.players[player].terraform_rating += 1;
+                self.raise_terraform_rating(player, 1);
                 self.log.push(LogEvent::OceansRaised { player, oceans: self.board.oceans() });
             }
             TileKind::Greenery => self.raise_oxygen(player),
@@ -1084,7 +1134,7 @@ impl Game {
         if matches!(special, Some(SpecialTile::MiningArea | SpecialTile::MiningRights)) {
             self.raise_mining_production(player, area);
         }
-        self.set_off(Happened::TilePlaced { player, tile });
+        self.set_off(Happened::TilePlaced { player, tile, on_mars: row_and_position(area).is_some() });
         if self.is_placing() {
             self.waiting_bonus = Some(area);
             return;
@@ -1118,11 +1168,21 @@ impl Game {
                 None => self.draw(player, amount),
             }
         }
+        if !bonus.is_empty() {
+            self.set_off(Happened::PlacementBonus { player, area });
+        }
         let oceans = self.board.adjacent(area, TileKind::Ocean);
         if oceans > 0 {
             self.players[player].resources.megacredits += OCEAN_ADJACENCY_BONUS * oceans as i32;
             self.log.push(LogEvent::AdjacentOceans { player, oceans });
         }
+    }
+
+    /// Raises `player`'s Terraform Rating `by` so many steps, which United Nations Mars Initiative's
+    /// action looks for.
+    pub(crate) fn raise_terraform_rating(&mut self, player: usize, by: i32) {
+        self.players[player].terraform_rating += by;
+        self.players[player].terraform_rating_raised = true;
     }
 
     /// Raises `player`'s Production of `resource` by `by` steps, or lowers it below zero.
@@ -1139,7 +1199,7 @@ impl Game {
             return;
         }
         self.oxygen += 1;
-        self.players[player].terraform_rating += 1;
+        self.raise_terraform_rating(player, 1);
         self.log.push(LogEvent::OxygenRaised { player, oxygen: self.oxygen });
         if self.oxygen == TEMPERATURE_BONUS_OXYGEN {
             self.log.push(LogEvent::TemperatureBonus { player });
@@ -1156,7 +1216,7 @@ impl Game {
             return;
         }
         self.temperature += TEMPERATURE_STEP;
-        self.players[player].terraform_rating += 1;
+        self.raise_terraform_rating(player, 1);
         self.log.push(LogEvent::TemperatureRaised { player, temperature: self.temperature });
         if HEAT_PRODUCTION_BONUS_TEMPERATURES.contains(&self.temperature) {
             self.players[player].production.heat += 1;

@@ -17,7 +17,7 @@ from tests.helpers import (
 
 
 def test_after_the_setup_buy_generation_1_waits_on_the_first_player_to_choose_an_action():
-    game = tm_engine.Game(seed=1)
+    game = tm_engine.Game(seed=1, corporations=False)
     skip_buying(game)
 
     decision = game.decision
@@ -47,7 +47,7 @@ def test_each_decision_carries_the_next_sequence_number():
     game = tm_engine.Game(seed=1)
     first = game.decision["sequence"]
 
-    pick(game, "Done")
+    game.pick(0)
 
     assert game.decision["sequence"] == first + 1
 

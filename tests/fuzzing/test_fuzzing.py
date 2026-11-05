@@ -10,6 +10,7 @@ import pytest
 import tm_engine
 
 from tests.fuzzing.runner import fuzz, fuzz_game, save_failure, settings_for
+from tests.helpers import CORPORATIONS
 
 
 def test_about_a_thousand_fuzzed_games_break_no_invariant():
@@ -25,6 +26,16 @@ def test_fuzzed_games_cover_2_to_5_players_the_implemented_cards_dealt_first_and
     assert [each["players"] for each in settings] == [2, 3, 4, 5] * 4
     assert [each["implemented_cards_first"] for each in settings] == ([False] * 4 + [True] * 4) * 2
     assert [each["draft"] for each in settings] == [True] * 8 + [False] * 8
+
+
+def test_fuzzed_games_play_every_corporation():
+    played = set()
+    for seed in range(40):
+        game = tm_engine.Game(seed=seed, **settings_for(seed))
+        game.play_randomly(seed=seed, picks=120)
+        played |= {board["corporation"] for board in game.full_view()["players"]}
+
+    assert played - {None} == set(CORPORATIONS)
 
 
 def test_a_fuzzed_game_that_breaks_nothing_has_no_failure():

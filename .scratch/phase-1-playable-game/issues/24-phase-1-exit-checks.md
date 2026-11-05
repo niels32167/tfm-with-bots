@@ -21,3 +21,7 @@
 ### 2026-11-05 — hand-off from ticket 20 (Claude)
 
 Every Project Card is implemented now, so the `implemented_cards_first` setting and the setup screen's "Deal the implemented cards first" change nothing about which cards can be played. They were left in, as old Replays name the setting. Decide here whether to remove them (`docs/rules-notes.md`, "Dealing the implemented cards first").
+
+### 2026-11-05 — hand-off from ticket 21 (Claude)
+
+`uv run python -m tools.card_coverage` now lists no card, Corporations included, so the check can start failing as this ticket asks. The fuzzer plays random Corporations in every Game; `Game(corporations=False)` remains only for Replays saved before ticket 21, and for tests of buying that don't concern Corporations. The mismatch report compares starting MegaCredits too. In identical Games the Corporation code costs about 3.7 % of the Games per second (5,307 in 1 process and 53,785 on 16 at ticket 21).

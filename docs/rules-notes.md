@@ -187,7 +187,7 @@ and `test_players_tied_on_victory_points_and_megacredits_share_a_rank`.
 ### Tags on played Events
 
 **Call:** A Player's Tags are counted in one place, over their played Automated and Active
-cards (and, from ticket 21, their Corporation). No Tag on a played Event counts, the Event
+cards and their Corporation. No Tag on a played Event counts, the Event
 Tag included: not for Requirements, Builder, Scientist or Victory Points per Tag. The card
 catalog keeps the Event Tag as printed, for the GUI. An Event's Tags count only while it is
 being played, for the "when you play…" effects of ticket 16.
@@ -494,8 +494,9 @@ From the FAQ, as the ticket 17 card lines quote it: a box that decreases any Pla
 picks its victim again. Copying Heat Trappers or Biomass Combustors raises the Player's own energy
 Production and then asks for a target as the card does (see "Taking from any Player" below); the
 box is offered only while someone can lose the Production. Still to come: Mining Area and Mining
-Rights copy the Production their Tile gave (ticket 18); a Corporation's printed Production, but
-not one in an effect or action, can be copied (Mining Guild, ticket 21). Each ticket's card line says so, and
+Rights copy the Production their Tile gave (ticket 18). A Corporation's printed Production can be
+copied, but not one in an effect or action: Mining Guild's 1 steel, but not Tharsis Republic's (ticket
+21). Each ticket's card line says so, and
 `tests/rules/test_playing_cards.py::test_every_implemented_building_card_has_its_printed_production_box_as_production_data`
 fails for a building card whose production box isn't Production data.
 
@@ -851,9 +852,12 @@ the gain, whoever sets it off, once for each thing that sets it off:
 - a Tag the Player plays: once per such Tag on the card played, so Research sets off Mars
   University twice, and an Event's Tags count (Special Design's science Tag). One Trigger may name
   several Tags (Decomposers);
-- a Standard Project the Player pays for, Sell Patents excepted (Standard Technology).
+- a Standard Project the Player pays for, Sell Patents excepted (Standard Technology);
+- any Player's Tag, for Saturn Systems, once per such Tag;
+- a card or Standard Project the Player pays for with at least a printed cost (CrediCor);
+- a placement bonus the Player gets with steel or titanium, once per Tile (Mining Guild).
 
-A card in play counts itself: Immigrant City's own City and Mars University's own science Tag set
+A Tile's Trigger may ask for Mars only (Tharsis Republic). A card in play counts itself: Immigrant City's own City and Mars University's own science Tag set
 them off, as their cards say ("including this"). No other card's Trigger matches the card itself:
 Media Group is no Event and Optimal Aerobraking no space Event. When several Triggers fire at once,
 each Player's, they are carried out in player number order, each Player's cards in card-number
@@ -1441,21 +1445,138 @@ to make the ticket 20 calls without asking: effect data, `{"tile": "special", "o
 
 ## Card flow
 
-### What setup cards cost until Corporations exist (temporary)
+### Without a Corporation: 42 MegaCredits
 
-**Call:** Until Corporations arrive (ticket 21), every Player starts with 42 MegaCredits, is
-dealt 10 Project Cards, and buys any of them for 3 MegaCredits each.
+**Call:** Real Games deal Corporations (see "Corporations at setup" below). A Player has 42
+MegaCredits and no Corporation in only two places: a Scenario that gives them neither, and a Game
+whose settings have `corporations` off, as a Replay saved before ticket 21 reads, so that it plays as
+it was played (ADR 0010).
 
-**Why:** 42 MegaCredits was first taken from the Beginner Corporation, but the Beginner keeps
-all 10 cards for free (its card in the open-source game: "Instead of choosing from 10 cards
-during setup, you get 10 cards for free"; the rules: "A Beginner Corporation gets to keep all
-their cards for free"). Ticket 21 leaves the Beginner out, as it belongs to the beginner
-variant. So 42 MegaCredits stays as a plain stand-in (Helion and Saturn Systems start with it
-too), and setup buying works now as the Corporations will use it. Chosen by the user
-(2026-10-24).
+**Why:** Before ticket 21 every Player started with 42 MegaCredits, a plain stand-in chosen by the user
+(2026-10-24). The Beginner Corporation stays out, as it belongs to the beginner variant. Scenarios and
+old Replays keep the stand-in; chosen by Claude (2026-11-05), on the user's instruction to choose the
+recommended decisions.
 
-**Tests:** `tests/rules/test_buying_cards.py::test_until_corporations_exist_every_player_starts_with_42_megacredits_to_buy_cards_with`
-and `test_players_buy_in_player_order_from_the_first_player_and_pay_once_everyone_is_done`.
+**Tests:** `tests/rules/test_buying_cards.py::test_without_corporations_every_player_starts_with_42_megacredits_to_buy_cards_with`,
+`tests/rules/test_corporations.py::test_a_replay_saved_before_corporations_existed_plays_as_it_was_played` and
+`test_without_a_corporation_a_scenario_player_has_42_megacredits`.
+
+### Corporations at setup
+
+**Call:** Each Player is dealt 2 Corporations, all 12 being in the shuffle, and 10 Project Cards. One
+at a time in player order, a Player chooses a Corporation and then buys cards, up to what its starting
+MegaCredits pay for. Nothing shows until every Player is done: other Players see no Corporation, and
+nobody holds any Resources yet. Then, in player order, each reveals their Corporation, gets its
+starting Resources and Production, and pays for their cards. Those not chosen go back in the box.
+
+**Why:** The rulebook has Players choose both at once, then reveal in player order, gain the starting
+values and pay; it deals 10 Corporations for the standard game and leaves out the 2 Corporate Era ones,
+and ADR 0003 plays Corporate Era, so all 12 go in. The engine asks one Player at a time (ADR 0002), and
+the Corporation comes first since it says how many cards they may buy. Nobody learns anything from another
+Player's turn, so being asked in turn changes nothing. The *Comprehensive FAQ* could not be checked: the
+PDF and BoardGameGeek refuse the download. Chosen by Claude (2026-11-05), on the user's instruction to
+choose the recommended decisions.
+
+**Tests:** `tests/rules/test_corporations.py`, among them
+`test_what_a_player_chose_shows_only_in_their_own_view_until_every_player_is_done`,
+`test_while_players_choose_and_buy_nobody_has_anything_to_show` and
+`test_a_player_buys_only_as_many_cards_as_their_corporations_starting_megacredits_pay_for`.
+
+### A Corporation counts as a card in play
+
+**Call:** Once revealed, a Player's Corporation is among their cards in play: its Tags count for
+Requirements, Milestones, Awards and Victory Points like a played card's, its ongoing effects work,
+and its Tags are put into play at the reveal. It is not one of the Project Cards in "played cards":
+the view gives it apart, as "corporation". A Scenario names it apart too, and gives no starting values,
+as a Scenario says what a Player holds now.
+
+**Why:** The rulebook says little about it: a Player starts with one, and it may have a first action. The
+open-source game keeps it in the tableau, counts its Tags, and calls `onCardPlayed` with it. The engine holds it
+as one more bit of the Player's played cards, as it fits a CardSet, so a Game costs no more to copy
+and every ongoing effect reads it with no extra step; only the view takes it out. Chosen by Claude
+(2026-11-05), on the user's instruction to choose the recommended decisions.
+
+**Which Triggers count its Tags:** Only Saturn Systems' own, in a real Game: nothing else with a Trigger on
+Tags is in play at the reveal, no other Corporation has a jovian Tag, and Project Cards come later, so Viral
+Enhancers, Olympus Conference and Mars University never see one. The reveal sets Triggers off as a card
+played does, so "including this" gives Saturn Systems 1 MegaCredit Production step from the start,
+on top of the printed 1 titanium Production. The open-source game gives the same.
+
+**Tests:** `tests/rules/test_corporations.py::test_a_corporation_is_not_among_the_played_project_cards_and_its_tags_count`,
+`test_a_scenario_names_a_players_corporation_without_giving_its_starting_values` and
+`tests/cards/test_saturn_systems.py::test_saturn_systems_starts_with_1_titanium_production_42_megacredits_and_its_own_tag_counted`.
+
+### A Corporation's first action
+
+**Call:** Inventrix and Tharsis Republic have a first action, which is an Action: a Player whose first
+action is due is offered it, or Pass, and nothing else. If they pass, it waits for their next Turn. If it
+can't be carried out, which only a Scenario can bring about (no Area for a City), they go on without
+it, for as long as it can't. A Scenario says with `first_action_due` whether it is still due; by
+default it is not.
+
+**Why:** The rulebook only says some Corporations have a fixed first action. The open-source game offers
+it or Pass, keeps it waiting after a Pass, and quotes the FAQ on skipping one that can't be carried out,
+choosing "must skip" over "can skip". Where the rulebook is silent the open-source game decides. Chosen
+by Claude (2026-11-05), on the user's instruction to choose the recommended decisions.
+
+**Tests:** `tests/cards/test_inventrix.py::test_its_first_action_draws_3_cards_and_is_all_it_may_do_first_but_passing`,
+`test_if_they_pass_instead_the_first_action_waits_for_their_next_turn` and
+`tests/cards/test_tharsis_republic.py::test_without_an_area_for_its_city_the_first_action_is_not_offered_and_nothing_else_waits_on_it`.
+
+### Helion's heat as MegaCredits
+
+**Call:** With Helion, heat pays MegaCredits for anything a Player pays for: a card, a card's action,
+a Standard Project, a Milestone, an Award and cards bought. MegaCredits taken from them by a card are not
+paid, so heat doesn't cover those. Each split is an Option, the most MegaCredits first; with one way
+to pay, there is no Decision. A heat that would overpay is never offered. The heat a card itself
+loses can't pay for it: Local Heat Trapping's 1 MegaCredit must leave its 5 heat. For cards bought in a
+Research phase, Helion's Player says how they will pay when they are done buying, and nothing is paid
+until every Player is done, so it stays hidden.
+
+**Why:** The card has no limits on what heat pays for. The open-source game adds heat to what is spendable
+for all of these, asks how to pay in one Decision, and has Local Heat Trapping check for it. Heat isn't
+always better spent than MegaCredits, as it can still become a Temperature step, so the Player
+chooses: no split is dominated. For this, the five actions printed as spending MegaCredits (Search for
+Life, Space Mirrors, Industrial Center, Restricted Area, Underground Detonations) are written as an
+action's cost, `"pay"`, rather than as Resources lost. Chosen by Claude (2026-11-05), on the user's
+instruction to choose the recommended decisions.
+
+**Tests:** `tests/cards/test_helion.py`, among them
+`test_heat_may_pay_for_a_card_in_any_split_with_megacredits`,
+`test_local_heat_trapping_is_not_offered_a_way_to_pay_that_spends_its_5_heat`,
+`test_a_standard_project_with_several_ways_to_pay_asks_how` and
+`test_cards_bought_in_a_research_phase_may_be_paid_with_heat_when_every_player_is_done`.
+
+### The other Corporations' abilities
+
+**Call and why,** each chosen by Claude (2026-11-05), on the user's instruction to choose the recommended
+decisions, following the card and the open-source game; the FAQ couldn't be checked:
+- **CrediCor:** the "basic cost" is the printed one, before discounts, so Mohole Area with a discount
+  still counts; among Standard Projects Greenery and City count, and Aquifer at 18 doesn't. The 4
+  MegaCredits come after paying and before the card's effects, as a Trigger's gain does.
+- **EcoLine:** 7 plants also in the final Greenery conversion, "always" as printed.
+- **Inventrix:** 2 steps, as Adaptation Technology (see "Requirement steps").
+- **Interplanetary Cinematics:** its own Events only.
+- **Mining Guild:** once per Tile placed however much the bonus gives, for an Ocean or any Tile, and
+  only for its own Player. Robotic Workforce may copy its printed 1 steel Production, as ticket 12 noted
+  from the FAQ.
+- **PhoboLog:** 1 MegaCredit more per titanium towards anything titanium may pay.
+- **Tharsis Republic:** any Player's City on Mars raises its MegaCredit Production; its own City, on
+  Mars or off it, gains 3 MegaCredits. Its first City does both. Robotic Workforce doesn't copy
+  that Production, which is part of an effect. Immigrant City may be played with MegaCredit Production
+  at -5, as its City raises it twice before the 2 steps are lowered; the open-source game says the same.
+- **Thorgate:** the Power Plant Standard Project costs it 8 MegaCredits, and power cards 3 less.
+- **Teractor:** a discount like Earth Office's, which adds to Earth Office's.
+- **United Nations Mars Initiative:** any raise of its own Player's Terraform Rating this Generation
+  counts, by whatever cause. The action may be used once, and the raise is forgotten when the
+  Production phase ends the Generation. A Scenario starts with no raise.
+- **Saturn Systems:** any Player's jovian Tags, as "any Jovian tag"; see "A Corporation counts as a
+  card in play".
+
+Point Luna, mentioned in ticket 16's hand-off, is not in the catalog or in ticket 21's list, so it isn't
+added.
+
+**Tests:** `tests/cards/test_<id>.py` for each of the 12.
 
 ### Buying stays hidden until every Player is done
 

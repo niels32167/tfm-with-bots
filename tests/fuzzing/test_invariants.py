@@ -8,6 +8,7 @@ import tm_engine
 
 from tests.fuzzing.invariants import AFTER_EVERY_DECISION, AT_THE_END_OF_THE_GAME
 from tests.helpers import (
+    CORPORATIONS,
     city,
     claimed,
     end_the_action_phase,
@@ -691,6 +692,144 @@ def test_drafting_cards_outside_the_draft_breaks_an_invariant():
     view["players"][1]["drafting"] = {"picking_from": [], "kept": [], "passing_to": 0}
 
     assert problems(view, decision) == ["in the action phase, Player 2 is drafting cards"]
+
+
+def test_positions_with_corporations_reached_by_the_rules_break_no_invariant():
+    game = tm_engine.Game(seed=7, players=3)
+    for _ in range(80):
+        assert problems(*position(game)) == []
+        game.play_randomly(seed=1, picks=1)
+
+
+def test_a_corporation_revealed_at_setup_breaks_an_invariant():
+    view, decision = position(tm_engine.Game(seed=7))
+    view["players"][0]["corporation"] = "helion"
+
+    assert "at setup, Player 1's Corporation helion is revealed" in problems(view, decision)
+
+
+def test_a_corporation_being_chosen_after_setup_breaks_an_invariant():
+    view, decision = position(scenario(player(), player()))
+    view["players"][1]["choosing_corporation"] = {"dealt": ["helion", "thorgate"], "picked": None}
+
+    assert problems(view, decision) == ["in the action phase, Player 2 is choosing a Corporation"]
+
+
+def test_a_corporation_chosen_that_was_not_dealt_or_dealt_twice_breaks_an_invariant():
+    view, decision = position(tm_engine.Game(seed=7))
+    choosing = view["players"][0]["choosing_corporation"]
+    choosing["picked"] = next(each for each in CORPORATIONS if each not in choosing["dealt"])
+    view["players"][1]["choosing_corporation"]["dealt"][0] = choosing["dealt"][0]
+
+    found = problems(view, decision)
+    assert f"Player 1 chose {choosing['picked']}, which was not dealt to them" in found
+    assert f"{choosing['dealt'][0]} is with 2 Players" in found
+
+
+def test_a_corporation_decision_offering_another_corporation_breaks_an_invariant():
+    game = tm_engine.Game(seed=7)
+    view, decision = position(game)
+    deciding = view["players"][decision["player"]]["choosing_corporation"]
+    other = next(each for each in CORPORATIONS if each not in deciding["dealt"])
+    decision["options"][0]["details"]["card"] = other
+
+    offered = [other, deciding["dealt"][1]]
+    assert problems(view, decision) == [
+        f"Player {decision['player'] + 1} is offered the Corporations {offered}, not those dealt to them"
+    ]
+
+
+def test_a_first_action_on_a_corporation_without_one_or_left_out_breaks_an_invariant():
+    view, decision = position(scenario(player(corporation="helion"), player()))
+    view["players"][0]["first_action_due"] = True
+    assert problems(view, decision)[0] == "Player 1 has a first action due with helion"
+
+    view, decision = position(scenario(player(corporation="inventrix", first_action_due=True), player()))
+    decision["options"] = [option for option in decision["options"] if option["details"]["type"] == "pass"]
+    assert problems(view, decision) == [
+        "Player 1 must take the first action of inventrix first, but is offered ['pass']"
+    ]
+
+
+def test_offering_united_nations_mars_initiatives_action_without_a_raise_breaks_an_invariant():
+    game = scenario(player(corporation="united_nations_mars_initiative"), player())
+    pick(game, "Asteroid")
+    view, decision = position(game)
+    view["players"][0]["terraform_rating_raised"] = False
+
+    assert problems(view, decision) == [
+        "Player 1 is offered the action of 'united_nations_mars_initiative' without a raise this Generation"
+    ]
+
+
+def test_a_discount_a_corporation_gives_that_is_not_taken_off_breaks_an_invariant():
+    view, decision = position(scenario(player(corporation="teractor", hand=["sponsors"]), player()))
+    view["players"][0]["card_costs"]["sponsors"] = 6
+
+    assert problems(view, decision) == ["Player 1's Sponsors costs 6, not 3"]
+
+
+def test_a_standard_project_at_the_wrong_cost_breaks_an_invariant():
+    view, decision = position(scenario(player(corporation="thorgate"), player()))
+    (power_plant,) = [option for option in decision["options"] if option["details"].get("project") == "power_plant"]
+    power_plant["details"]["cost"] = 11
+
+    assert problems(view, decision) == ["Power Plant (8 MegaCredits) is offered at 11, not at 8"]
+
+
+def test_converting_the_wrong_number_of_plants_breaks_an_invariant():
+    view, decision = position(scenario(player(corporation="ecoline", plants=7), player()))
+    (convert,) = [option for option in decision["options"] if option["details"]["type"] == "convert_plants"]
+    convert["details"]["plants"] = 8
+
+    assert problems(view, decision) == ["Convert 7 plants into a Greenery takes 8 plants, not 7"]
+
+
+def test_a_way_to_pay_with_heat_without_helion_or_that_does_not_cover_the_cost_breaks_an_invariant():
+    game = scenario(player(corporation="helion", megacredits=2, heat=5, hand=["sponsors"]), player())
+    pick(game, "Play Sponsors")
+    view, decision = position(game)
+    view["players"][0]["corporation"] = "thorgate"
+    view["players"][0]["tags"] |= {"space": 0, "power": 1}
+
+    assert problems(view, decision) == [
+        "Pay 2 MegaCredits and 4 heat is offered to Player 1, who may not spend that heat",
+        "Pay 1 MegaCredit and 5 heat is offered to Player 1, who may not spend that heat",
+    ]
+
+    view, decision = position(game)
+    decision["options"][0]["details"]["heat"] = 3
+    assert problems(view, decision) == ["Pay 2 MegaCredits and 4 heat is worth 5, but the cost is 6"]
+
+
+def test_paying_with_the_heat_a_card_loses_breaks_an_invariant():
+    game = scenario(player(corporation="helion", megacredits=1, heat=6, hand=["local_heat_trapping"]), player())
+    pick(game, "Play Local Heat Trapping")
+    view, decision = position(game)
+    view["players"][0]["resources"]["heat"] = 5
+
+    assert problems(view, decision) == ["Pay 1 heat is offered to Player 1, who may not spend that heat"]
+
+
+def test_tags_that_do_not_count_the_corporation_break_an_invariant():
+    view, decision = position(scenario(player(corporation="mining_guild"), player()))
+    view["players"][0]["tags"]["building"] = 0
+
+    assert problems(view, decision) == ["Player 1 shows 0 building Tags, but their Corporation has 2"]
+
+
+def test_robotic_workforce_copying_tharsis_republics_effect_breaks_an_invariant():
+    game = scenario(player(corporation="mining_guild", hand=["robotic_workforce"], played_cards=["mine"]), player())
+    pick(game, "Play Robotic Workforce")
+    view, decision = position(game)
+    view["players"][0]["corporation"] = "tharsis_republic"
+    view["players"][0]["tags"]["building"] = 1
+    decision["options"] = decision["options"][:1]
+    decision["options"][0]["details"]["card"] = "tharsis_republic"
+
+    assert problems(view, decision) == [
+        "Robotic Workforce offers to copy the production box of Tharsis Republic, not a building card of Player 1's"
+    ]
 
 
 def test_a_corporation_or_an_unknown_card_among_the_cards_breaks_an_invariant():

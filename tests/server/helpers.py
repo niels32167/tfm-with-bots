@@ -7,7 +7,7 @@ from typing import Any
 from fastapi.testclient import TestClient
 
 from server.app import create_app
-from tests.helpers import matching_options
+from tests.helpers import corporation_to_choose, matching_options
 
 # A generous guard so a broken server fails the test instead of hanging it.
 MAX_MESSAGES = 10_000
@@ -69,17 +69,27 @@ class Gui:
         self.send({"type": "new_game", "controllers": controllers, "bot_delay": 0, **fields})
         return self.wait_for_human()
 
+    def choose_a_corporation(self, update: dict[str, Any]) -> dict[str, Any]:
+        """The human deciding chooses a Corporation, as `corporation_to_choose` says; returns the first
+        update in which a human must decide next."""
+        decision = update["decision"]
+        self.send({"type": "pick", "sequence": decision["sequence"], "index": corporation_to_choose(decision)})
+        return self.wait_for_human()
+
     def skip_drafting_and_buying(self, update: dict[str, Any]) -> dict[str, Any]:
-        """While a human must draft or buy cards (at setup or in a Research phase), they keep the
-        first card offered in the Draft and are done without buying any; returns the first update
-        in which a human must decide something else."""
+        """While a human must choose a Corporation, draft or buy cards (at setup or in a Research
+        phase), they choose one as `corporation_to_choose` says, keep the first card offered in the
+        Draft and are done without buying any; returns the first update in which a human must decide
+        something else."""
         for _ in range(MAX_MESSAGES):
             decision = update["decision"]
-            if decision is None or decision["kind"] not in ("draft", "buy_cards"):
+            if decision is None or decision["kind"] not in ("corporation", "draft", "buy_cards"):
                 return update
-            label = decision["options"][0]["label"] if decision["kind"] == "draft" else "Done"
-            self.pick(update, label)
-            update = self.wait_for_human()
+            if decision["kind"] == "corporation":
+                update = self.choose_a_corporation(update)
+            else:
+                self.pick(update, decision["options"][0]["label"] if decision["kind"] == "draft" else "Done")
+                update = self.wait_for_human()
         raise AssertionError(f"still drafting or buying after {MAX_MESSAGES} picks")
 
     def pick(self, update: dict[str, Any], label: str) -> None:

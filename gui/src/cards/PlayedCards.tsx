@@ -15,6 +15,7 @@ interface Props {
 
 // Played cards are grouped by type, as on Board Game Arena.
 const PLAYED_GROUPS: { type: CardType; label: string }[] = [
+  { type: "corporation", label: "Corporation" },
   { type: "automated", label: "Automated" },
   { type: "active", label: "Active" },
   { type: "event", label: "Events" },
@@ -52,7 +53,8 @@ function cardResourcesText(kind: string, amount: number): string {
   return `${amount} ${kind}${amount === 1 || kind === "science" ? "" : "s"}`;
 }
 
-/** Under the board: each Player's played cards, grouped by type. They overlap so that each shows
+/** Under the board: each Player's Corporation once it is revealed and played cards, grouped by type.
+ * They overlap so that each shows
  * its cost, title and Tags, and enlarge on hover. A card whose action can be used now, or that the
  * Decision offers to give or take Card Resources, is outlined and clicked to do so; one whose action
  * is used this Generation is dimmed and marked "Used". A card that holds Card Resources shows how
@@ -74,7 +76,8 @@ export function PlayedCards({ game, cards, disabled, onPick }: Props) {
           </h3>
           <div className="played-groups">
             {PLAYED_GROUPS.map(({ type, label }) => {
-              const group = board.played_cards.map(card).filter((each) => each.type === type);
+              const inPlay = board.corporation ? [board.corporation, ...board.played_cards] : board.played_cards;
+              const group = inPlay.map(card).filter((each) => each.type === type);
               return (
                 group.length > 0 && (
                   <div key={type} className="played-group">

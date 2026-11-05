@@ -1315,6 +1315,24 @@ input[aria-invalid="true"] {
   margin-top: -250px;
 }
 
+/* On a player board: their Corporation and its ability. */
+.player-corporation {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin: 4px 0 6px;
+  font-size: 12px;
+  line-height: 1.3;
+}
+
+.player-corporation-name {
+  font-weight: 600;
+}
+
+.player-corporation-ability {
+  opacity: 0.8;
+}
+
 /* On a player board: cards in hand and Tags in play. */
 .player-cards-summary {
   display: flex;

@@ -1,5 +1,5 @@
-"""The fuzzer: it plays Random Bot Games from normal setup and checks the invariants after
-every Decision and at the end of every Game (ticket 06).
+"""The fuzzer: it plays Random Bot Games from normal setup, each Player with a Corporation of those
+dealt, and checks the invariants after every Decision and at the end of every Game (ticket 06).
 
 Game `seed` has the settings `settings_for(seed)`, and its Random Bot picks come from the same
 seed. Every failure (a broken invariant, an error from the engine or from a check, or a

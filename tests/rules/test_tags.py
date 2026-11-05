@@ -1,4 +1,5 @@
-"""Tag counting: a Player's Tags in play are those on their played Automated and Active cards.
+"""Tag counting: a Player's Tags in play are those on their played Automated and Active cards and
+Corporation.
 Events lie face down once played, so none of their Tags count, the Event Tag included (see
 docs/rules-notes.md). Requirements, Milestones, Awards and card Victory Points all count Tags
 this one way."""

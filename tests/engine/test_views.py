@@ -103,7 +103,7 @@ def assert_no_player_view_shows_what_others_draft_or_buy(
 
 
 def test_while_players_buy_at_setup_no_player_view_shows_what_another_player_was_dealt_or_bought():
-    game = tm_engine.Game(seed=7, players=3)
+    game = tm_engine.Game(seed=7, players=3, corporations=False)
     before = game.full_view()["players"]
 
     for _ in range(2):  # the first two Players buy two cards each and are done; the third is deciding
@@ -158,7 +158,7 @@ def test_while_players_draft_no_player_view_shows_what_another_player_holds_kept
 
 
 def test_once_everyone_is_done_buying_the_log_says_how_many_cards_each_player_bought_but_not_which():
-    game = tm_engine.Game(seed=7, players=2)
+    game = tm_engine.Game(seed=7, players=2, corporations=False)
     before = game.full_view()["players"]
     for _ in range(2):
         buy(game, buying(game, game.decision["player"])["dealt"][0])

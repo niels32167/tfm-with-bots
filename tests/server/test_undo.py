@@ -10,7 +10,7 @@ BOT_DELAY = 0.2
 
 def test_undo_returns_to_the_humans_previous_decision_and_drops_the_random_bots_picks_since():
     with connect() as gui:
-        before = gui.start(["human", "random_bot"], seed=5)
+        before = gui.choose_a_corporation(gui.start(["human", "random_bot"], seed=5))
         log_before = gui.log
         gui.pick(before, "Done")  # buying no card at setup
         after = gui.wait_for_human()
@@ -27,13 +27,14 @@ def test_undo_can_go_back_any_number_of_times_until_the_first_human_decision():
     with connect() as gui:
         first = gui.start(["random_bot", "human", "random_bot"], seed=8, draft=False)
         assert not first["can_undo"]
-        update = first
+        update = gui.choose_a_corporation(first)
+        assert update["can_undo"]
         for label in ("Done", "Pass", "Done"):  # at setup, in Generation 1, and in Generation 2's Research phase
             gui.pick(update, label)
             update = gui.wait_for_human()
             assert update["can_undo"]
 
-        for _ in range(3):
+        for _ in range(4):
             update = gui.undo()
 
         assert update["decision"] == first["decision"]
@@ -44,11 +45,10 @@ def test_undo_can_go_back_any_number_of_times_until_the_first_human_decision():
 
 def test_in_hotseat_undo_goes_back_one_human_decision_at_a_time():
     with connect() as gui:
-        first = gui.start(["human", "human"], seed=8)
+        first = gui.choose_a_corporation(gui.start(["human", "human"], seed=8))
         gui.pick(first, "Done")
         second = gui.next_update()
-        gui.pick(second, "Done")
-        gui.next_update()
+        gui.choose_a_corporation(second)
 
         assert gui.undo()["decision"] == second["decision"]
         assert gui.undo()["decision"] == first["decision"]
@@ -91,7 +91,7 @@ def test_undo_after_the_game_is_over_returns_to_the_last_human_decision():
 
 def test_after_undo_the_same_human_picks_bring_the_same_random_bot_picks():
     with connect() as gui:
-        before = gui.start(["human", "random_bot", "random_bot"], seed=5)
+        before = gui.choose_a_corporation(gui.start(["human", "random_bot", "random_bot"], seed=5))
         gui.pick(before, "Done")
         first_time = gui.wait_for_human()
         log_first_time = gui.log

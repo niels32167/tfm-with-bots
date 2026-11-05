@@ -199,6 +199,7 @@ export class MiningGuild extends CorporationCard {
         "tags": ["building", "building"],
         "requirements": [],
         "victory_points": None,
+        "starting_megacredits": 30,
     }
 
 
@@ -298,6 +299,19 @@ def test_every_differing_field_is_a_mismatch():
         ("requirements", [{"type": "oxygen", "min": 5}], [{"type": "oxygen", "min": 4}]),
         ("victory_points", 1, 2),
     ]
+
+
+def test_a_corporations_starting_megacredits_in_its_effect_data_are_compared():
+    corporation = {"number": None, "name": "PhoboLog", "type": "corporation", "cost": None}
+    common = {"corporate_era": False, "tags": [], "requirements": [], "victory_points": None}
+    their_card = {**corporation, **common, "name": "PHOBOLOG", "starting_megacredits": 23}
+
+    same = {**corporation, **common, "id": "phobolog", "effects": {"resources": {"megacredits": 23}}}
+    assert compare([same], [their_card]).mismatches == []
+
+    other = {**corporation, **common, "id": "phobolog", "effects": {"resources": {"megacredits": 30}}}
+    (mismatch,) = compare([other], [their_card]).mismatches
+    assert (mismatch.field, mismatch.ours, mismatch.theirs) == ("starting_megacredits", 30, 23)
 
 
 def test_corporations_are_paired_by_name_and_project_cards_by_number():

@@ -51,6 +51,8 @@ impl Start {
                 seed: scenario.seed,
                 implemented_cards_first: false,
                 draft: scenario.draft,
+                // A Scenario starts past setup: nobody is dealt any, whichever a Player has.
+                corporations: false,
             },
         }
     }

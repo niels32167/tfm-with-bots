@@ -9,6 +9,7 @@
 use crate::card_set::CardSet;
 use crate::cards::LookAt;
 use crate::deck::Deck;
+use crate::expenses::Expense;
 use crate::game::{DecisionOption, Game, Phase, Waiting};
 use crate::log::LogEvent;
 
@@ -29,6 +30,8 @@ pub const PATENT_VALUE: i32 = 1;
 pub struct Buying {
     pub dealt: CardSet,
     pub bought: CardSet,
+    /// How much of the price they pay with heat, once every Player is done buying (Helion).
+    pub heat: i32,
 }
 
 impl Buying {
@@ -86,6 +89,9 @@ impl Game {
     pub(crate) fn begin_setup(&mut self) {
         self.phase = Phase::Setup;
         self.log.push(LogEvent::Setup);
+        if self.settings.corporations {
+            self.deal_corporations();
+        }
         self.deal(SETUP_CARDS);
     }
 
@@ -109,12 +115,14 @@ impl Game {
         self.offer_buying_from(0);
     }
 
-    /// Whether `player` may buy one more of the cards dealt to them: one is left, and they can
-    /// pay for it on top of those they have bought so far.
+    /// Whether `player` has something to decide: a Corporation to choose at setup, or one more of the
+    /// cards dealt to them to buy: one is left, and they can pay for it on top of those they have
+    /// bought so far.
     fn can_buy(&self, player: usize) -> bool {
         let own = &self.players[player];
         let price = CARD_PRICE * (own.buying.bought.len() as i32 + 1);
-        !own.buying.unbought().is_empty() && own.resources.megacredits >= price
+        own.choosing_corporation.is_due()
+            || !own.buying.unbought().is_empty() && self.megacredits_to_buy_with(player) >= price
     }
 
     /// The current Player may buy any card dealt to them that they haven't bought, or be done.
@@ -123,41 +131,65 @@ impl Game {
         unbought.iter().map(DecisionOption::BuyCard).chain([DecisionOption::Done]).collect()
     }
 
-    /// The current Player buys `card`. Once they can buy no more, they are done.
+    /// The current Player buys `card`.
     pub(crate) fn buy(&mut self, card: usize) {
         self.players[self.current_player].buying.bought.insert(card);
+        self.buy_more_or_be_done();
+    }
+
+    /// Once the current Player can buy no more, they are done.
+    pub(crate) fn buy_more_or_be_done(&mut self) {
         if !self.can_buy(self.current_player) {
             self.done_buying();
         }
     }
 
-    /// The current Player is done buying, and the next one decides.
+    /// The current Player is done buying. Unless they say how they will pay with heat first, the
+    /// next one decides.
     pub(crate) fn done_buying(&mut self) {
+        let own = &self.players[self.current_player];
+        if !own.buying.bought.is_empty() && self.usable_heat(self.current_player, 0) > 0 {
+            return self.spend_on(Expense::BoughtCards);
+        }
+        self.next_player_buys();
+    }
+
+    /// The next Player who can buy a card decides.
+    pub(crate) fn next_player_buys(&mut self) {
         self.offer_buying_from(self.index_in_player_order() + 1);
     }
 
     /// Hands buying to the first Player who can buy a card, looking from index `start` in player
-    /// order (0 is the first player). Once nobody can, every Player's buys are carried out.
+    /// order (0 is the first player); at setup, they first choose their Corporation. Once nobody can,
+    /// every Player's buys are carried out.
     pub(crate) fn offer_buying_from(&mut self, start: usize) {
         match self.first_in_player_order_who(start, Game::can_buy) {
-            Some(player) => self.current_player = player,
+            Some(player) => {
+                self.current_player = player;
+                if self.players[player].choosing_corporation.is_due() {
+                    self.wait_on(Waiting::Corporation);
+                }
+            }
             None => self.finish_buying(),
         }
     }
 
-    /// Every Player pays for the cards they bought and takes them into their hand, and the rest
-    /// of the cards dealt go face down to the discard pile. Then the Action phase begins, after
-    /// setup with Generation 1.
+    /// Every Player, in player order, reveals their Corporation if they are choosing one, pays for
+    /// the cards they bought and takes them into their hand, and the rest of the cards dealt go face
+    /// down to the discard pile. Then the Action phase begins, after setup with Generation 1.
     fn finish_buying(&mut self) {
         for player in self.player_order() {
+            self.reveal_corporation(player);
             let own = &mut self.players[player];
             let buying = std::mem::take(&mut own.buying);
-            own.resources.megacredits -= CARD_PRICE * buying.bought.len() as i32;
+            own.resources.megacredits -= CARD_PRICE * buying.bought.len() as i32 - buying.heat;
+            own.resources.heat -= buying.heat;
             own.hand = own.hand.union(buying.bought);
             self.discard = self.discard.union(buying.unbought());
             if !buying.dealt.is_empty() {
                 let (bought, dealt) = (buying.bought.len(), buying.dealt.len());
                 self.log.push(LogEvent::BoughtCards { player, bought, dealt });
+                self.log_heat_paid(player, buying.heat);
             }
         }
         match self.phase {
@@ -214,7 +246,7 @@ impl Game {
         self.log.push(LogEvent::LookedAtCards { player, cards: looking_at.len() });
         let (keep, price) = if buy > 0 { (buy as usize, CARD_PRICE) } else { (keep as usize, 0) };
         let keeping = Keeping { card, looking_at, kept: CardSet::default(), keep, price, for_action };
-        if keeping.needs_a_decision(self.players[player].resources.megacredits) {
+        if keeping.needs_a_decision(self.spendable_megacredits(player)) {
             self.wait_on(Waiting::KeepCards(keeping));
             return true;
         }
@@ -233,13 +265,11 @@ impl Game {
         keeping.looking_at.remove(card);
         keeping.kept.insert(card);
         keeping.keep -= 1;
-        if keeping.keep > 0
-            && keeping.needs_a_decision(self.players[self.current_player].resources.megacredits)
-        {
+        if keeping.keep > 0 && keeping.needs_a_decision(self.spendable_megacredits(self.current_player)) {
             self.waiting = Some(Waiting::KeepCards(keeping));
             return;
         }
-        self.finish_keeping(keeping);
+        self.spend_on(Expense::KeptCards(keeping));
     }
 
     /// The current Player, buying cards they look at, buys no more of them.
@@ -247,14 +277,16 @@ impl Game {
         let Some(Waiting::KeepCards(keeping)) = self.waiting.take() else {
             panic!("only a Player buying cards they look at is done with them")
         };
-        self.finish_keeping(keeping);
+        self.spend_on(Expense::KeptCards(keeping));
     }
 
-    /// The cards kept go into the current Player's hand, and the rest are discarded. Then the
-    /// card they play carries on with its Production change, or the action they use ends.
-    fn finish_keeping(&mut self, keeping: Keeping) {
+    /// The cards kept, which `heat` helped pay for, go into the current Player's hand, and the rest
+    /// are discarded. Then the card they play carries on with its Production change, or the action
+    /// they use ends.
+    pub(crate) fn keep_cards_paid_for(&mut self, keeping: Keeping, heat: i32) {
         let player = self.current_player;
         self.keep_and_discard(player, keeping.kept, keeping.looking_at, keeping.price);
+        self.log_heat_paid(player, heat);
         if keeping.for_action {
             self.finish_card_action(keeping.card);
         } else {
@@ -262,11 +294,10 @@ impl Game {
         }
     }
 
-    /// `player` pays `price` for each card `kept` and takes them into their hand, and `discarded`
-    /// go face down to the discard pile.
+    /// `player`, who has paid `price` for each card `kept`, takes them into their hand, and
+    /// `discarded` go face down to the discard pile.
     fn keep_and_discard(&mut self, player: usize, kept: CardSet, discarded: CardSet, price: i32) {
         let own = &mut self.players[player];
-        own.resources.megacredits -= price * kept.len() as i32;
         own.hand = own.hand.union(kept);
         self.discard = self.discard.union(discarded);
         self.log.push(LogEvent::KeptCards { player, kept: kept.len(), discarded: discarded.len(), price });

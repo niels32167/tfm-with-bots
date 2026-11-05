@@ -20,7 +20,7 @@ def test_a_saved_replay_file_holds_the_replay_and_every_players_controller():
         file = gui.save_replay()
 
     assert file["controllers"] == ["human", "random_bot", "random_bot"]
-    settings = {"players": 3, "seed": 12, "implemented_cards_first": False, "draft": True}
+    settings = {"players": 3, "seed": 12, "implemented_cards_first": False, "draft": True, "corporations": True}
     assert file["replay"]["start"] == {"settings": settings}
     assert len(file["replay"]["picks"]) == update["decision"]["sequence"]
 
@@ -69,8 +69,7 @@ def test_a_broken_replay_file_is_rejected_and_the_current_game_carries_on():
         gui.send({"type": "load_replay", "file": {"controllers": ["human", "human"], "replay": impossible_replay}})
         assert "pick 2 of the Replay" in gui.receive_error()
 
-        gui.pick(update, "Done")
-        assert gui.next_update()["decision"]["sequence"] == update["decision"]["sequence"] + 1
+        assert gui.choose_a_corporation(update)["decision"]["sequence"] == update["decision"]["sequence"] + 1
 
 
 def test_there_is_nothing_to_save_before_a_game_has_started():

@@ -23,7 +23,7 @@ interface Props {
 const PICKED_IN_THE_BAR = new Set(["claim_milestone", "fund_award"]);
 const PICKED_IN_THE_HAND = new Set(Object.keys(HAND_OPTIONS));
 const PICKED_ON_PLAYED_CARDS = new Set(["use_action"]);
-const PICKED_IN_THE_PANEL = new Set(["draft_card", "buy_card", "keep_card"]);
+const PICKED_IN_THE_PANEL = new Set(["choose_corporation", "draft_card", "buy_card", "keep_card"]);
 
 // How the status text names the Areas a Tile goes on when they are not the usual ones, by the
 // Area Options' "on".
@@ -105,6 +105,16 @@ function statusText(game: GameUpdate, cards: Card[]): string {
   if (paidFor) {
     const cost = (decision && view.players[decision.player].card_costs?.[paidFor.id]) ?? paidFor.cost;
     return `${who} must choose how to pay for ${paidFor.name} (${cost} MegaCredits):`;
+  }
+  if (decision?.kind === "payment" && decision.options[0].details.paying_for) {
+    const { paying_for: payingFor, cost } = decision.options[0].details;
+    return `${who} must choose how to pay for ${payingFor as string} (${cost as number} MegaCredits):`;
+  }
+  if (decision?.kind === "corporation") {
+    return `${who} must choose one of the Corporations above: click the one to play.`;
+  }
+  if (decision?.options.some((option) => option.details.type === "first_action")) {
+    return `${who} must take their Corporation's first action, or Pass:`;
   }
   if (decision?.kind === "resources") {
     const card = cards.find((each) => each.id === decision.options[0]?.details.card);
@@ -195,7 +205,7 @@ function statusText(game: GameUpdate, cards: Card[]): string {
     return `${who} may discard a card from the hand to draw one (Mars University): click it, or Done to keep the hand.`;
   }
   if (view.phase === "draft") return `${who} (Random Bot) is drafting cards…`;
-  if (playersAreBuying(view)) return `${who} (Random Bot) is buying cards…`;
+  if (playersAreBuying(view)) return `${who} (Random Bot) is choosing and buying cards…`;
   if (view.phase === "final_greenery") return `${who} (Random Bot) is converting plants into Greeneries…`;
   if (decision) {
     if (view.actions_this_turn === 0) return `${who} must take an Action or Pass:`;

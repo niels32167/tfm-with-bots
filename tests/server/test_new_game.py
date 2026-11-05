@@ -30,8 +30,10 @@ def test_a_single_human_sees_the_cards_dealt_to_them_but_neither_the_random_bots
         update = gui.start(["random_bot", "human"], seed=3)
 
     human, bot = update["view"]["players"][1], update["view"]["players"][0]
-    assert update["decision"]["kind"] == "buy_cards"
+    assert update["decision"]["kind"] == "corporation"
     assert len(human["buying"]["dealt"]) == 10
+    assert len(human["choosing_corporation"]["dealt"]) == 2
+    assert (bot["choosing_corporation"], bot["corporation"]) == (None, None)
     assert (bot["buying"], bot["hand"]) == (None, None)
     assert (update["view"]["deck"], update["view"]["discard"]) == (None, None)
 
@@ -44,7 +46,7 @@ def test_a_random_bot_buys_its_cards_without_pausing_so_waiting_on_it_reveals_no
         update = gui.start(["random_bot", "human"], seed=seed, bot_delay=5)
         waited = time.monotonic() - started
 
-    assert (update["decision"]["kind"], update["decision"]["player"]) == ("buy_cards", 1)
+    assert (update["decision"]["kind"], update["decision"]["player"]) == ("corporation", 1)
     assert waited < 2
 
 

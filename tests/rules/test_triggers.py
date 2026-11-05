@@ -1,4 +1,4 @@
-"""Triggers: what an Active card's Player gains each time something happens while it is in play
+"""Triggers: what an Active card's or a Corporation's Player gains each time something happens while it is in play
 (see "Triggers" in docs/rules-notes.md). They fire for the card's own Player, whoever set them
 off, once for each Tile, card or Tag that sets them off, including the card being played."""
 
@@ -101,11 +101,11 @@ def test_research_counts_as_two_science_tags_played_so_mars_university_fires_twi
     assert offered(game, "End Turn")
 
 
-def test_only_active_cards_have_a_trigger_and_one_that_its_own_play_sets_off_says_so():
+def test_only_active_cards_and_corporations_have_a_trigger_and_one_that_its_own_play_sets_off_says_so():
     # A card's Tags and Tiles set off its own Trigger once it is in play, so only cards printed
     # "including this" may match themselves.
     for card in CARDS_WITH_A_TRIGGER:
-        assert card["type"] == "active", card["name"]
+        assert card["type"] in ("active", "corporation"), card["name"]
         effects = card["effects"]
         for trigger in effects["when"]:
             on = trigger["on"]

@@ -63,6 +63,7 @@ def test_titanium_may_pay_for_water_import_from_europas_action_at_3_megacredits_
         "megacredits": 0,
         "steel": 0,
         "titanium": 4,
+        "heat": 0,
     }
     pick(game, "Pay 6 MegaCredits and 2 titanium")
     assert resources(game, 0)["megacredits"] == 6

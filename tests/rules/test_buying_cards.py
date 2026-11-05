@@ -31,7 +31,7 @@ NO_INCOME = {"terraform_rating": 5, "production": {"megacredits": -5}}
 
 @pytest.mark.parametrize("players", [2, 3, 4, 5])
 def test_a_new_game_deals_each_player_10_cards_to_buy_from_before_generation_1(players):
-    game = tm_engine.Game(seed=7, players=players)
+    game = tm_engine.Game(seed=7, players=players, corporations=False)
 
     view = game.full_view()
     assert view["phase"] == "setup"
@@ -56,7 +56,7 @@ def test_the_deal_comes_from_the_seed():
 
 
 def test_a_player_may_buy_any_card_dealt_to_them_for_3_megacredits_or_be_done():
-    game = tm_engine.Game(seed=7)
+    game = tm_engine.Game(seed=7, corporations=False)
     first = game.decision["player"]
     dealt = buying(game, first)["dealt"]
     names = {card["id"]: card["name"] for card in tm_engine.card_catalog()}
@@ -71,7 +71,7 @@ def test_a_player_may_buy_any_card_dealt_to_them_for_3_megacredits_or_be_done():
 
 
 def test_players_buy_in_player_order_from_the_first_player_and_pay_once_everyone_is_done():
-    game = tm_engine.Game(seed=7, players=3)
+    game = tm_engine.Game(seed=7, players=3, corporations=False)
     first = game.decision["player"]
     order = [(first + offset) % 3 for offset in range(3)]
     dealt = {index: buying(game, index)["dealt"] for index in order}
@@ -101,7 +101,7 @@ def test_players_buy_in_player_order_from_the_first_player_and_pay_once_everyone
 
 
 def test_a_player_who_buys_every_card_dealt_is_done_without_picking_done():
-    game = tm_engine.Game(seed=7)
+    game = tm_engine.Game(seed=7, corporations=False)
     first = game.decision["player"]
 
     for card in buying(game, first)["dealt"]:
@@ -111,8 +111,8 @@ def test_a_player_who_buys_every_card_dealt_is_done_without_picking_done():
     assert len(buying(game, first)["bought"]) == SETUP_CARDS
 
 
-def test_until_corporations_exist_every_player_starts_with_42_megacredits_to_buy_cards_with():
-    game = tm_engine.Game(seed=7)
+def test_without_corporations_every_player_starts_with_42_megacredits_to_buy_cards_with():
+    game = tm_engine.Game(seed=7, corporations=False)
 
     assert [player_board(game, index)["resources"]["megacredits"] for index in (0, 1)] == [42, 42]
     assert game.log[0] == (

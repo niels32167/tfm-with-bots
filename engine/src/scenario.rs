@@ -11,12 +11,13 @@ use crate::board::{Board, Reservation, SpecialTile, Tile, TileKind, find_area, p
 use crate::card_flow::Buying;
 use crate::card_resources::CardResources;
 use crate::card_set::CardSet;
-use crate::cards::{CARD_CATALOG, find_project_card};
+use crate::cards::{CARD_CATALOG, find_corporation, find_project_card};
+use crate::corporations::ChoosingCorporation;
 use crate::deck::Deck;
 use crate::draft::Drafting;
 use crate::game::{
     Game, MAX_OCEANS, MAX_OXYGEN, MAX_TEMPERATURE, MIN_TEMPERATURE, Player, STARTING_TERRAFORM_RATING,
-    TEMPERATURE_STEP, check_player_count, check_seed, starting_resources,
+    TEMPERATURE_STEP, check_player_count, check_seed, resources_without_a_corporation,
 };
 use crate::log::player_name;
 use crate::milestones_and_awards::{AWARD_COSTS, Award, MAX_MILESTONES_CLAIMED, Milestone};
@@ -120,7 +121,8 @@ pub struct FundedAward {
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(default, deny_unknown_fields)]
 pub struct ScenarioPlayer {
-    /// The Resources given, such as `{"plants": 8}`; the rest are what a Player starts with.
+    /// The Resources given, such as `{"plants": 8}`; the rest are what a Player holds without a
+    /// Corporation.
     #[serde(deserialize_with = "over_starting_resources")]
     pub resources: Resources,
     pub production: Resources,
@@ -131,17 +133,24 @@ pub struct ScenarioPlayer {
     pub played_cards: Vec<String>,
     /// The Card Resources on their played cards, by catalog id: `{"tardigrades": 3}`.
     pub card_resources: BTreeMap<String, i32>,
+    /// Their Corporation, by catalog id, revealed. It gives no starting values: the Scenario's
+    /// Resources and Production are what they hold now.
+    pub corporation: Option<String>,
+    /// Whether they must still take their Corporation's first action.
+    pub first_action_due: bool,
 }
 
 impl Default for ScenarioPlayer {
     fn default() -> ScenarioPlayer {
         ScenarioPlayer {
-            resources: starting_resources(),
+            resources: resources_without_a_corporation(),
             production: Resources::default(),
             terraform_rating: STARTING_TERRAFORM_RATING,
             hand: Vec::new(),
             played_cards: Vec::new(),
             card_resources: BTreeMap::new(),
+            corporation: None,
+            first_action_due: false,
         }
     }
 }
@@ -195,10 +204,10 @@ impl ScenarioPlayer {
 }
 
 /// Reads a Scenario Player's Resources given in part, such as `{"plants": 8}`: the
-/// Resources left out keep what a Player starts with.
+/// Resources left out keep what a Player holds without a Corporation.
 fn over_starting_resources<'de, D: Deserializer<'de>>(deserializer: D) -> Result<Resources, D::Error> {
     let given = BTreeMap::<Resource, i32>::deserialize(deserializer)?;
-    let mut resources = starting_resources();
+    let mut resources = resources_without_a_corporation();
     for (resource, amount) in given {
         resources[resource] = amount;
     }
@@ -232,17 +241,34 @@ impl Scenario {
         let mut players = Vec::new();
         for (index, player) in self.players.iter().enumerate() {
             player.check(index)?;
+            let mut played: CardSet =
+                cards_named(&player.played_cards, &mut named_cards)?.into_iter().collect();
+            let corporation = match &player.corporation {
+                Some(id) => Some(corporation_named(id, &mut named_cards)?),
+                None => None,
+            };
+            if let Some(card) = corporation {
+                played.insert(card);
+            }
+            if player.first_action_due
+                && corporation.and_then(|card| CARD_CATALOG[card].first_action()).is_none()
+            {
+                return Err(format!("{} has no first action to take", player_name(index)));
+            }
             players.push(Player {
                 resources: player.resources,
                 production: player.production,
                 terraform_rating: player.terraform_rating,
                 passed: false,
                 hand: cards_named(&player.hand, &mut named_cards)?.into_iter().collect(),
-                played: cards_named(&player.played_cards, &mut named_cards)?.into_iter().collect(),
+                played,
                 used_actions: CardSet::default(),
                 next_card: None,
                 buying: Buying::default(),
                 drafting: Drafting::default(),
+                choosing_corporation: ChoosingCorporation::default(),
+                first_action_due: player.first_action_due,
+                terraform_rating_raised: false,
             });
         }
         let mut card_resources = CardResources::default();
@@ -316,13 +342,24 @@ fn cards_named(ids: &[String], named_so_far: &mut CardSet) -> Result<Vec<usize>,
     ids.iter()
         .map(|id| {
             let card = find_project_card(id).ok_or_else(|| format!("there is no Project Card '{id}'"))?;
-            if named_so_far.contains(card) {
-                return Err(format!("a Scenario can have the '{id}' card in only one place"));
-            }
-            named_so_far.insert(card);
-            Ok(card)
+            named_once(card, id, named_so_far)
         })
         .collect()
+}
+
+/// The Corporation named by `id`, which no other Player may have.
+fn corporation_named(id: &str, named_so_far: &mut CardSet) -> Result<usize, String> {
+    let card = find_corporation(id).ok_or_else(|| format!("there is no Corporation '{id}'"))?;
+    named_once(card, id, named_so_far)
+}
+
+/// `card`, named by `id`, unless the Scenario has named it already.
+fn named_once(card: usize, id: &str, named_so_far: &mut CardSet) -> Result<usize, String> {
+    if named_so_far.contains(card) {
+        return Err(format!("a Scenario can have the '{id}' card in only one place"));
+    }
+    named_so_far.insert(card);
+    Ok(card)
 }
 
 /// Whether `player` is one of the `players` Players; `who` names them in the error.

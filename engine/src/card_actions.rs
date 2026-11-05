@@ -1,10 +1,12 @@
-//! Card actions: the action of a played Active card (its red arrow), which its Player may use as
-//! an Action once per Generation. Actions are effect data like a card's play effects (ADR 0009),
-//! carried out by the same rules, plus Power Infrastructure's and Search for Life's Rust code in
-//! `card_code`. What the Player chooses between for an action works the same for a card being played
+//! Card actions: the action of a played Active card or a Corporation (its red arrow), which its Player
+//! may use as an Action once per Generation. Actions are effect data like a card's play effects (ADR
+//! 0009), carried out by the same rules, plus Power Infrastructure's, Search for Life's and United
+//! Nations Mars Initiative's Rust code in `card_code`. What the Player chooses between for an action works the same for a card being played
 //! (Imported Hydrogen), so that is here too.
 
-use crate::card_code::{POWER_INFRASTRUCTURE, SEARCH_FOR_LIFE, energy_for_megacredits};
+use crate::card_code::{
+    POWER_INFRASTRUCTURE, SEARCH_FOR_LIFE, UNITED_NATIONS_MARS_INITIATIVE, energy_for_megacredits,
+};
 use crate::cards::{ActionCost, CARD_CATALOG};
 use crate::game::{DecisionOption, Game, Waiting};
 use crate::log::LogEvent;
@@ -45,11 +47,13 @@ impl Game {
     /// choose included.
     fn can_use_action(&self, player: usize, card: usize) -> bool {
         let Some(action) = CARD_CATALOG[card].action() else { return false };
-        action.pay.is_none_or(|cost| self.spendable(player, cost.steel, cost.titanium) >= cost.megacredits)
-            && self.can_carry_out(player, action)
+        action.pay.is_none_or(|cost| {
+            self.spendable(player, cost.steel, cost.titanium, action.resources.heat) >= cost.megacredits
+        }) && self.can_carry_out(player, action)
             && self.can_make_a_resource_change(player, card)
             && self.can_move_a_card_resource(player, action)
             && (card != SEARCH_FOR_LIFE || self.can_draw())
+            && (card != UNITED_NATIONS_MARS_INITIATIVE || self.players[player].terraform_rating_raised)
             && (action.choice.is_empty() || self.alternatives(player, card).next().is_some())
     }
 
@@ -123,10 +127,17 @@ impl Game {
     /// Every way `player` may pay for the action of `card`, with the steel or titanium its cost
     /// lets them use, the most MegaCredits first.
     fn action_payments(&self, player: usize, card: usize) -> Vec<Payment> {
+        let action = CARD_CATALOG[card].implemented_action();
         let ActionCost { megacredits, steel, titanium } =
-            CARD_CATALOG[card].implemented_action().pay.expect("only an action with a cost is paid for");
+            action.pay.expect("only an action with a cost is paid for");
         let (steel, titanium) = self.usable_cubes(player, steel, titanium);
-        self.ways_to_pay(player, megacredits, steel, titanium)
+        self.ways_to_pay(
+            player,
+            megacredits,
+            steel,
+            titanium,
+            self.usable_heat(player, action.resources.heat),
+        )
     }
 
     /// `player` uses the action of `card`: it counts as used for this Generation, they pay for it

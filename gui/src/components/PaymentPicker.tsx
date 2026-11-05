@@ -9,11 +9,14 @@ interface Props {
   onPay: (index: number) => void;
 }
 
-type Cube = "steel" | "titanium";
+/** What may be put towards a cost besides MegaCredits. */
+type Part = "steel" | "titanium" | "heat";
+const PARTS: readonly Part[] = ["steel", "titanium", "heat"];
 
-/** The id of the card a payment Decision is about, or null for any other Decision. */
+/** The id of the card a payment Decision is about, or null for any other Decision and for a payment
+ * that is about something else, such as a Standard Project. */
 export function cardBeingPaidFor(decision: Decision | null): string | null {
-  return decision?.kind === "payment" ? (decision.options[0].details.card as string) : null;
+  return decision?.kind === "payment" ? ((decision.options[0].details.card as string | undefined) ?? null) : null;
 }
 
 /** One way to pay, from an Option's details. */
@@ -22,9 +25,10 @@ interface Split {
   megacredits: number;
   steel: number;
   titanium: number;
+  heat: number;
 }
 
-/** Steppers for the steel and titanium to put towards a card, with the MegaCredits that leaves
+/** Steppers for the steel, titanium and heat to put towards a cost, with the MegaCredits that leaves
  * to pay, instead of one button per way to pay. The steppers reach only the offered ways,
  * starting from the first (the most MegaCredits). Remount it for each Decision. */
 export function PaymentPicker({ decision, disabled, onPay }: Props) {
@@ -33,16 +37,20 @@ export function PaymentPicker({ decision, disabled, onPay }: Props) {
     megacredits: option.details.megacredits as number,
     steel: option.details.steel as number,
     titanium: option.details.titanium as number,
+    heat: option.details.heat as number,
   }));
   const [chosen, setChosen] = useState(0);
   const split = splits[chosen];
-  const cubes = (["steel", "titanium"] as const).filter((cube) => splits.some((each) => each[cube] > 0));
+  const parts = PARTS.filter((part) => splits.some((each) => each[part] > 0));
 
-  /** The offered way with one step more (or less) of `cube` than the chosen one, as close to
-   * it as can be in the other cube; null if there is none. */
-  const step = (cube: Cube, direction: 1 | -1): number | null => {
-    const other: Cube = cube === "steel" ? "titanium" : "steel";
-    const distance = (each: Split) => [direction * (each[cube] - split[cube]), Math.abs(each[other] - split[other])];
+  /** The offered way with one step more (or less) of `part` than the chosen one, as close to
+   * it as can be in the others; null if there is none. */
+  const step = (part: Part, direction: 1 | -1): number | null => {
+    const others = PARTS.filter((other) => other !== part);
+    const distance = (each: Split) => [
+      direction * (each[part] - split[part]),
+      others.reduce((total, other) => total + Math.abs(each[other] - split[other]), 0),
+    ];
     let best: number | null = null;
     for (const [position, each] of splits.entries()) {
       const [along, across] = distance(each);
@@ -55,25 +63,25 @@ export function PaymentPicker({ decision, disabled, onPay }: Props) {
 
   return (
     <span className="payment-picker">
-      {cubes.map((cube) => {
-        const less = step(cube, -1);
-        const more = step(cube, 1);
+      {parts.map((part) => {
+        const less = step(part, -1);
+        const more = step(part, 1);
         return (
-          <span key={cube} className="payment-stepper">
+          <span key={part} className="payment-stepper">
             <button
               className="stepper-button"
-              aria-label={`Less ${cube}`}
+              aria-label={`Less ${part}`}
               disabled={disabled || less === null}
               onClick={() => less !== null && setChosen(less)}
             >
               −
             </button>
             <span className="payment-amount">
-              {split[cube]} {cube}
+              {split[part]} {part}
             </span>
             <button
               className="stepper-button"
-              aria-label={`More ${cube}`}
+              aria-label={`More ${part}`}
               disabled={disabled || more === null}
               onClick={() => more !== null && setChosen(more)}
             >

@@ -30,6 +30,7 @@ def test_steel_can_pay_for_a_card_with_a_building_tag_and_each_split_is_an_optio
         "megacredits": 2,
         "steel": 1,
         "titanium": 0,
+        "heat": 0,
     }
 
 

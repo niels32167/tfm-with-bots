@@ -30,6 +30,7 @@ def test_a_human_uses_an_action_pays_for_it_with_titanium_and_places_its_ocean()
         "megacredits": 9,
         "steel": 0,
         "titanium": 1,
+        "heat": 0,
     }
     assert after["view"]["players"][0]["used_actions"] == ["water_import_from_europa"]
     assert after["view"]["oceans"] == 1

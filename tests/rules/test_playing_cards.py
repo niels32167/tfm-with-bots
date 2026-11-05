@@ -97,6 +97,9 @@ PRODUCTION_BOX_IN_THE_ACTION = ("equatorial_magnetizer", "industrial_center", "u
 # The building cards whose printed production box raises the Production their Tile's Area gives,
 # which their Rust code carries out and teaches Robotic Workforce.
 PRODUCTION_BOX_FROM_THE_TILE = ("mining_area", "mining_rights")
+# The Corporation whose printed production box is part of its effect, which the FAQ has Robotic
+# Workforce leave alone.
+PRODUCTION_BOX_IN_THE_EFFECT = ("tharsis_republic",)
 
 
 def test_every_implemented_building_card_has_its_printed_production_box_as_production_data():
@@ -119,4 +122,7 @@ def test_every_implemented_building_card_has_its_printed_production_box_as_produ
         assert not (has_production_data and in_its_action), f"{card['name']} has two production boxes"
         from_the_tile = card["id"] in PRODUCTION_BOX_FROM_THE_TILE
         assert not (has_production_data and from_the_tile), f"{card['name']} has two production boxes"
-        assert (has_production_data or in_its_action or from_the_tile) == has_printed_production_box(card), card["name"]
+        in_its_effect = card["id"] in PRODUCTION_BOX_IN_THE_EFFECT
+        assert (has_production_data or in_its_action or from_the_tile or in_its_effect) == has_printed_production_box(
+            card
+        ), card["name"]

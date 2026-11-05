@@ -70,8 +70,26 @@ pub const PROTECTED_HABITATS: usize = 172;
 /// docs/rules-notes.md).
 pub const VIRAL_ENHANCERS: usize = 73;
 
+/// United Nations Mars Initiative: "Action: If your Terraform Rating was raised this generation, you
+/// may pay 3 MC to raise it 1 step more." Its effect data is the cost and the step; the condition is
+/// code.
+pub const UNITED_NATIONS_MARS_INITIATIVE: usize = 217;
+
+/// Helion: "Your may use heat as MC. You may not use MC as heat." Its effect data is what it starts
+/// with; what heat may pay is `Game::usable_heat`.
+pub const HELION: usize = 210;
+
+/// Tharsis Republic: "When any city tile is placed ON MARS, increase your MC production 1 step." Its
+/// Triggers are effect data; Immigrant City's check is the one place that looks ahead to them.
+pub const THARSIS_REPUBLIC: usize = 215;
+
+/// Thorgate: "When playing a power card OR THE STANDARD PROJECT POWER PLANT, you pay 3 MC less for it."
+/// Its effect data is the discount on power cards, which goes for the Power Plant too; see
+/// `Game::standard_project_cost`.
+pub const THORGATE: usize = 216;
+
 /// Every card with code here, and its id.
-pub const CARDS_WITH_CODE: [(usize, &str); 13] = [
+pub const CARDS_WITH_CODE: [(usize, &str); 17] = [
     (ROBOTIC_WORKFORCE, "robotic_workforce"),
     (INSULATION, "insulation"),
     (POWER_INFRASTRUCTURE, "power_infrastructure"),
@@ -85,6 +103,10 @@ pub const CARDS_WITH_CODE: [(usize, &str); 13] = [
     (PETS, "pets"),
     (PROTECTED_HABITATS, "protected_habitats"),
     (VIRAL_ENHANCERS, "viral_enhancers"),
+    (UNITED_NATIONS_MARS_INITIATIVE, "united_nations_mars_initiative"),
+    (HELION, "helion"),
+    (THARSIS_REPUBLIC, "tharsis_republic"),
+    (THORGATE, "thorgate"),
 ];
 
 /// The card played whose Tags Viral Enhancers still asks about, which holds Card Resources, and how
@@ -109,8 +131,8 @@ pub fn energy_for_megacredits(amount: i32) -> Resources {
 
 impl Game {
     /// The cards whose production box `player` may copy with Robotic Workforce: their own played
-    /// Automated and Active cards with a building Tag and a production box they can carry out in
-    /// full. A card's production box is its fixed and per-Tag Production data, or the Production
+    /// Automated and Active cards and Corporation with a building Tag and a production box they can
+    /// carry out in full. A card's production box is its fixed and per-Tag Production data, or the Production
     /// a mining card's Tile gave; a test checks that against every printed box.
     pub(crate) fn copyable_production_boxes(&self, player: usize) -> impl Iterator<Item = usize> {
         self.players[player].played.iter().filter(move |&card| {
@@ -165,11 +187,12 @@ impl Game {
     }
 
     /// Whether `player` can carry out Immigrant City: place its City, then lower their Production
-    /// as printed once its own City has raised their MegaCredit Production 1 step.
+    /// as printed once its own City has raised their MegaCredit Production 1 step, and Tharsis
+    /// Republic's 1 more.
     pub(crate) fn can_carry_out_immigrant_city(&self, player: usize) -> bool {
         let effects = CARD_CATALOG[IMMIGRANT_CITY].implemented_effects();
         let mut production = effects.production;
-        production.megacredits += 1;
+        production.megacredits += 1 + i32::from(self.players[player].played.contains(THARSIS_REPUBLIC));
         self.can_change_production(player, production)
             && effects.tiles.iter().all(|&placement| self.can_take_action_placing(player, Some(placement)))
     }

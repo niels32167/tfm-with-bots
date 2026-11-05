@@ -44,3 +44,7 @@ With the state editor, the user can give a Player Resources or Production, set G
 ### 2026-11-04 — hand-off from ticket 19 (Claude)
 
 Scenarios now take a Player's `"card_resources"`, such as `{"tardigrades": 3}`: the state editor should let the user set them on played cards that hold some (`effects.holds` in the catalog). The Scenario refuses them on a card not played or holding none.
+
+### 2026-11-05 — hand-off from ticket 21 (Claude)
+
+Scenarios now take a Player's `"corporation"`, revealed and giving no starting values, and `"first_action_due"`. The state editor should let the user set both (only Inventrix and Tharsis Republic have a first action). A Scenario can't yet say that a Terraform Rating was raised this Generation (`terraform_rating_raised`, which United Nations Mars Initiative's action needs), nor which actions were used, so a position mid-Generation starts with neither.

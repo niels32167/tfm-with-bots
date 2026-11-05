@@ -5,7 +5,8 @@ the mismatch report, `docs/card-mismatches.md`:
     uv run python -m tools.card_mismatches --download   # fetch them first
 
 The fields compared are the ones the card list could get wrong and the rules depend on:
-Corporate Era, type, cost, Tags, Requirements and Victory Points. Each difference is then
+Corporate Era, type, cost, Tags, Requirements and Victory Points, and a Corporation's starting
+MegaCredits, which our effect data holds. Each difference is then
 settled by the rules authority order (rulebook, FryxGames FAQ, then the open-source game);
 see `docs/rules-notes.md`.
 
@@ -35,7 +36,7 @@ CARD_FOLDERS = ("src/server/cards/base", "src/server/cards/corporation")
 MANIFESTS = "src/server/cards/StandardCardManifests.ts"
 
 # The fields compared, in the report's order.
-COMPARED_FIELDS = ("corporate_era", "type", "cost", "tags", "requirements", "victory_points")
+COMPARED_FIELDS = ("corporate_era", "type", "cost", "tags", "requirements", "victory_points", "starting_megacredits")
 
 
 @dataclass(frozen=True)
@@ -85,6 +86,7 @@ def parse_open_source_card(
     name = re.search(r"\bname\s*[:=]\s*CardName\.(\w+)", source)
     number = re.search(r"cardNumber:\s*'(\w+)'", source)
     card_resource = re.fullmatch(r"CardResource\.(\w+)", fields.get("resourceType", ""))
+    starting = {"starting_megacredits": int(fields["startingMegaCredits"])} if card_type == "corporation" else {}
     return {
         "number": int(number[1]) if number and number[1].isdigit() else None,
         "name": name[1] if name else Path(file_name).stem,
@@ -93,6 +95,7 @@ def parse_open_source_card(
         "tags": [tag.lower() for tag in re.findall(r"Tag\.(\w+)", fields.get("tags", ""))],
         "requirements": _requirements(fields.get("requirements", "")),
         "victory_points": _victory_points(fields.get("victoryPoints", ""), card_resource),
+        **starting,
     }
 
 
@@ -284,7 +287,10 @@ def _label(card: dict[str, Any]) -> str:
 
 
 def _comparable(name: str, card: dict[str, Any]) -> Any:
-    """A field of `card` in a form where order doesn't matter, where it doesn't on the card."""
+    """A field of `card` in a form where order doesn't matter, where it doesn't on the card. Our
+    Corporations have their starting MegaCredits in their effect data."""
+    if name == "starting_megacredits" and name not in card:
+        return card.get("effects", {}).get("resources", {}).get("megacredits")
     value = card[name]
     if name == "tags":
         # The open-source game leaves the Event Tag out of an Event card's Tags.

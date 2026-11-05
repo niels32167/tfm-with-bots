@@ -119,7 +119,7 @@ A mismatch report compares the imported data with the open-source game's card de
   - `Card` denies unknown fields. Declare each hand-written field (effect data) in `engine/src/cards.rs` before adding it to `cards.json`, or the catalog panics on its first read. The catalog tests catch this.
   - Events list the Event Tag among their Tags, as printed; the open-source game leaves it out. Decide whether it counts wherever Tags are counted.
   - Name cards by their `id` in Option details and Scenarios.
-- **Ticket 21:** Corporations' starting MegaCredits, Resources and Production are only in their `text`. Once effect data adds them, the report can compare the open-source game's `startingMegaCredits`.
+- **Ticket 21:** Corporations' starting MegaCredits, Resources and Production are only in their `text`. Once effect data adds them, the report can compare the open-source game's `startingMegaCredits`. (Done on ticket 21.)
 - **`text` on icon-only cards** is thin:
   - Protected Habitats ends at "…MAY NOT REMOVE YOUR";
   - Interstellar Colony Ship and Trans-Neptune Probe have none;

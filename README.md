@@ -26,9 +26,11 @@ gain its Player something each time a Tile, card or Tag sets them off. A card th
 "any Player" lets its Player pick whose Production it lowers or whose Resources it removes.
 Special Tiles show their card's symbol on the board, Noctis City, Phobos Space Haven and Ganymede
 Colony place their Cities on the Areas reserved for them, and Land Claim marks an Area that only
-its Player may place a Tile on. Cards can hold Card Resources, microbes and science so far, which
-show on the played cards and may count for Victory Points. At setup each Player is dealt 10 Project Cards and buys any of
-them for 3 MegaCredits each (everyone starts with 42 MegaCredits until Corporations exist). From Generation 2 each
+its Player may place a Tile on. Cards can hold Card Resources, which show on the played cards and may count for Victory Points. At
+setup each Player is dealt 2 Corporations and 10 Project Cards, chooses a Corporation and buys any of
+the cards for 3 MegaCredits each, all hidden until every Player is done: then each reveals their
+Corporation, gets its starting Resources and Production, and pays. All 12 Corporations work, and each
+Player's shows on their board with its ability. From Generation 2 each
 Research phase has the Draft, on by default and switchable on the setup screen: each Player is
 dealt 4 cards, keeps one and passes the rest to their neighbour (clockwise in even Generations,
 counter-clockwise in odd ones) until every card is kept, then buys any of the cards kept.

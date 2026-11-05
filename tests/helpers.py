@@ -97,6 +97,12 @@ def scenario(*players: dict[str, Any], **fields: Any) -> tm_engine.Game:
 # Every Project Card by catalog id, in number order (#001 first).
 PROJECT_CARDS = [card["id"] for card in tm_engine.card_catalog() if card["type"] != "corporation"]
 
+# Every Corporation by catalog id, in catalog order.
+CORPORATIONS = [card["id"] for card in tm_engine.card_catalog() if card["type"] == "corporation"]
+
+# Every card as printed, by catalog id.
+CARDS = {card["id"]: card for card in tm_engine.card_catalog()}
+
 # Every card's printed name, by catalog id.
 CARD_NAMES = {card["id"]: card["name"] for card in tm_engine.card_catalog()}
 
@@ -114,11 +120,16 @@ TAGS_THAT_COUNT = ("building", "space", "power", "science", "jovian", "earth", "
 RESOURCES = ("megacredits", "steel", "titanium", "plants", "energy", "heat")
 
 
+# A Terraform Rating of 5 and MegaCredit Production of -5 leave a Player's MegaCredits as they are in
+# the Production phase, so a test can set what they buy with in the Research phase.
+NO_INCOME = {"terraform_rating": 5, "production": {"megacredits": -5}}
+
+
 def player(**fields: Any) -> dict[str, Any]:
     """One Player's part of a Scenario.
 
     For example `player(megacredits=30, plants=8, terraform_rating=25, production={"heat": 2},
-    hand=["mine"], played_cards=["trees"])`, naming cards by their catalog id.
+    hand=["mine"], played_cards=["trees"], corporation="helion")`, naming cards by their catalog id.
     Resources are given by name and go into the Scenario's "resources"; the rest is passed as is.
     """
     given = {name: fields.pop(name) for name in RESOURCES if name in fields}
@@ -233,12 +244,40 @@ def keep_the_first_cards_offered(game: tm_engine.Game) -> list[int]:
 
 
 def skip_buying(game: tm_engine.Game) -> None:
-    """In the setup or a Research phase, every Player still to decide is done without buying."""
+    """In the setup or a Research phase, every Player still to decide is done without buying; at
+    setup, each first chooses a Corporation, as `corporation_to_choose` says."""
     for _ in range(MAX_PICKS):
-        if game.decision is None or game.decision["kind"] != "buy_cards":
+        if game.decision is None or game.decision["kind"] not in ("corporation", "buy_cards"):
             return
-        pick(game, "Done")
+        if game.decision["kind"] == "corporation":
+            game.pick(corporation_to_choose(game.decision))
+        else:
+            pick(game, "Done")
     raise AssertionError(f"buying had not ended after {MAX_PICKS} picks")
+
+
+def corporation_to_choose(decision: dict[str, Any]) -> int:
+    """The index of the Corporation a test that doesn't care about them has its Player choose: one
+    without a first action if it can, so that their Turn goes as the test expects."""
+    without = [option for option in decision["options"] if "first_action" not in CARDS[option["details"]["card"]]["effects"]]
+    return (without or decision["options"])[0]["index"]
+
+
+def start_as(corporation: str, *, players: int = 2, buy_everything: bool = False) -> tuple[tm_engine.Game, int]:
+    """A new Game from normal setup, in which the first player was dealt `corporation` and chose
+    it, and every Player bought no cards, or with `buy_everything` the first player bought all they
+    could. Returns the Game, at the start of Generation 1, and the first player."""
+    for seed in range(MAX_PICKS):
+        game = tm_engine.Game(seed=seed, players=players)
+        first = game.decision["player"]
+        if corporation not in player_board(game, first)["choosing_corporation"]["dealt"]:
+            continue
+        pick(game, type="choose_corporation", card=corporation)
+        while buy_everything and game.decision["player"] == first and game.decision["kind"] == "buy_cards":
+            game.pick(0)
+        skip_buying(game)
+        return game, first
+    raise AssertionError(f"no seed below {MAX_PICKS} dealt {corporation} to the first player")
 
 
 def end_the_generation(game: tm_engine.Game) -> None:
@@ -302,7 +341,8 @@ def buying(game: tm_engine.Game, player: int) -> dict[str, list[str]] | None:
     """What a Player is buying from, as that Player sees it, in the setup or a Research phase:
     `{"dealt": [...], "bought": [...]}` by catalog id, the cards bought among those dealt.
     None outside those phases."""
-    return player_board(game, player)["buying"]
+    shown = player_board(game, player)["buying"]
+    return shown and {"dealt": shown["dealt"], "bought": shown["bought"]}
 
 
 def drafting(game: tm_engine.Game, player: int) -> dict[str, Any] | None:
@@ -320,8 +360,14 @@ def keeping(game: tm_engine.Game, player: int) -> dict[str, Any] | None:
     return player_board(game, player)["keeping"]
 
 
+def choosing_corporation(game: tm_engine.Game, player: int) -> dict[str, Any] | None:
+    """The Corporations a Player was dealt and the one they chose, as that Player sees them at
+    setup: `{"dealt": [...], "picked": ...}` by catalog id. None once Corporations are revealed."""
+    return player_board(game, player)["choosing_corporation"]
+
+
 def played_cards(game: tm_engine.Game, player: int) -> list[str]:
-    """The cards a Player has played, by catalog id, as everyone sees them."""
+    """The Project Cards a Player has played, by catalog id, as everyone sees them."""
     return player_board(game, player)["played_cards"]
 
 

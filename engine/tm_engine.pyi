@@ -47,16 +47,22 @@ def card_catalog() -> list[dict[str, Any]]:
     (added to other cards of the Player's, of their picking, a list of {"kind": "microbe",
     "amount": 2}; "kind" left out for any kind, "at_least" for only a card with so many on it,
     and "must_have_card": true if the effects can't be carried out without such a card; otherwise
-    they are lost). An Active card's ongoing effects are "discount"
+    they are lost). An Active card's or a Corporation's ongoing effects are "discount"
     (MegaCredits off each card its Player plays, or only those with a Tag: {"megacredits": 2,
     "tag": "space"}), "cube_values" (MegaCredits more that each steel and titanium pays: {"steel":
     1, "titanium": 1}), "requirement_steps" (how many steps easier its Player's Requirements on a
-    Global Parameter are) and "when" (Triggers: what its Player gains each time something happens,
+    Global Parameter are), "greenery_discount" (how many plants fewer its Player pays to place a
+    Greenery) and "when" (Triggers: what its Player gains each time something happens,
     such as [{"on": {"tile_placed": {"tile": "ocean", "by": "anyone"}}, "resources": {"plants":
-    2}}], "on" being {"tile_placed": {"tile", "by": "you" | "anyone"}}, {"card_played": {"type",
-    "tag"}} (either may be left out), {"tag_played": ["animal", "plant"]} (once per such Tag) or
-    "standard_project" (any but Sell Patents), with "resources", "production" and "card_resources"
-    (on the card itself) gained). An
+    2}}], "on" being {"tile_placed": {"tile", "by": "you" | "anyone"}} ("on_mars": true for only those
+    on Mars), {"card_played": {"type", "tag"}} (either may be left out), {"tag_played": ["animal",
+    "plant"]} (once per such Tag), {"tag_played_by_anyone": ["jovian"]} (the same, for any Player's
+    Tags), "standard_project" (any but Sell Patents), {"cost_at_least": 20} (a card or Standard Project
+    with that printed cost, its Player's) or {"placement_bonus": ["steel", "titanium"]} (its Player
+    gets such a placement bonus, once per Tile), with "resources", "production" and "card_resources"
+    (on the card itself) gained). A Corporation's "resources" and "production" are what it starts with,
+    and its "first_action" (the same shapes, {"draw": 3} or {"tiles": ["city"]}) is what its Player
+    must do as their first action in the Game. An
     Event's "next_card" ({"discount": 8} or {"requirement_steps": 2}) changes the next card its
     Player plays this Generation. A card that takes from a Player its Player picks has
     "any_player", once its Tiles are placed: {"production": {"heat": -2}} (Production lowered, on a
@@ -71,20 +77,28 @@ def card_catalog() -> list[dict[str, Any]]:
     card ({"card_resource": "microbe"}). Cards without "effects" are never offered; a few cards also
     have Rust code of their own (Robotic Workforce, Insulation, Power Infrastructure, Immigrant City,
     Mars University, Flooding, Mining Area, Mining Rights, Olympus Conference, Search for Life, Pets,
-    Protected Habitats and Viral Enhancers).
+    Protected Habitats, Viral Enhancers, United Nations Mars Initiative, Helion and Thorgate).
     Each call returns a new list."""
 
 class Game:
     """A Game of Terraforming Mars, always either over or waiting on one Decision."""
 
     def __init__(
-        self, *, seed: int, players: int = 2, implemented_cards_first: bool = False, draft: bool = True
+        self,
+        *,
+        seed: int,
+        players: int = 2,
+        implemented_cards_first: bool = False,
+        draft: bool = True,
+        corporations: bool = True,
     ) -> None:
         """A new Game from its settings; the first player is drawn from the seed. It begins with
-        the setup buy: each Player is dealt 10 Project Cards from the shuffled deck to buy from.
-        From Generation 2, each Research phase has the Draft unless `draft` is False. While most
-        cards are not implemented yet, `implemented_cards_first` puts the implemented ones, shuffled,
-        on top of the deck.
+        the setup: each Player is dealt 2 Corporations and 10 Project Cards from the shuffled deck, and
+        chooses a Corporation and buys cards, hidden until every Player is done. From Generation 2,
+        each Research phase has the Draft unless `draft` is False. While most cards are not implemented
+        yet, `implemented_cards_first` puts the implemented ones, shuffled, on top of the deck. Without
+        `corporations`, as a Replay saved before they existed plays, each Player starts with 42
+        MegaCredits and no Corporation.
 
         Raises ValueError for an unsupported Player count or a seed above MAX_SEED.
         """
@@ -98,15 +112,17 @@ class Game:
         whether the Research phases have the Draft), and players: a list of
         {"resources": {...}, "production": {...}, "terraform_rating": int,
          "hand": [card id, ...], "played_cards": [card id, ...],
-         "card_resources": {card id: int, ...}}, the Card Resources on their played cards that
-        hold some.
-        Cards are named by their catalog id ("black_polar_dust"); only Project Cards, each in
-        one place at most. "deck" lists the cards on top of the deck, the first drawn first;
+         "card_resources": {card id: int, ...}, "corporation": card id,
+         "first_action_due": bool}, the Card Resources on their played cards that hold some, their
+        Corporation, revealed, which gives no starting values, and whether they must still take its
+        first action.
+        Cards are named by their catalog id ("black_polar_dust"); only Project Cards, but for
+        "corporation", each in one place at most. "deck" lists the cards on top of the deck, the first drawn first;
         every other Project Card is shuffled beneath them with the seed. "discard" lists the cards
         in the discard pile. A Scenario starts in the Action phase.
         Resources and Production name any of the six Resources (megacredits, steel,
         titanium, plants, energy, heat); the rest keep their defaults: 42 MegaCredits and
-        nothing else to start with, and no Production.
+        nothing else, and no Production, with a Corporation or without.
         Each Tile is {"area": "C3", "tile": "ocean" | "greenery" | "city", "owner": 0}, and a
         special Tile names its card, {"area": "C4", "tile": "special", "card": "nuclear_zone",
         "owner": 0} (Capital's is a "city" with "card": "capital"); Oceans have no owner, and the
@@ -148,10 +164,15 @@ class Game:
         {"player": int, "kind": str, "sequence": int,
          "options": [{"index": int, "label": str, "details": {"type": str, ...}}]}
 
-        Kinds: "action" (an Action, End Turn or Pass), "payment" (how to pay for the card
-        being played, with details {"type": "payment", "card": "mine", "megacredits": 2,
-        "steel": 1, "titanium": 0}, or for the action being used, with "action": true as well; it
-        comes only when there is more than one way), "area"
+        Kinds: "corporation" (one of the Corporations dealt at setup, {"type": "choose_corporation",
+        "card": "helion"}), "action" (an Action, End Turn or Pass; while their Corporation's first
+        action is due and can be carried out, only {"type": "first_action", "card": "inventrix"} or
+        Pass), "payment" (how to pay for the card being played, with details {"type": "payment",
+        "card": "mine", "megacredits": 2, "steel": 1, "titanium": 0, "heat": 0}, or for the action being
+        used, with "action": true as well, or for something else with Helion's heat, {"type":
+        "payment", "paying_for": "the Asteroid Standard Project", "cost": 14, "megacredits": 12,
+        "steel": 0, "titanium": 0, "heat": 2}, or "2 cards" bought; it comes only when there is more
+        than one way), "area"
         (where to place a Tile, with details {"type": "area", "area": "C3", "tile": "city"}, plus
         "on" for a Tile that goes on other Areas than usual: "ocean_areas", any free Area reserved
         for Oceans, as Mangrove's Greenery does; "land", any free Area reserved for nothing, as
@@ -236,9 +257,11 @@ class Game:
         "final_greenery" or "over"), the Global Parameters (temperature, oxygen, oceans) and each
         Player's board:
         {"name": "Player 1", "resources": {...}, "production": {...}, "terraform_rating": int,
-         "passed": bool, "hand_size": int, "hand": [card id, ...] | None,
-         "card_costs": {card id: int} | None,
-         "buying": {"dealt": [...], "bought": [...]} | None,
+         "terraform_rating_raised": bool, "passed": bool, "hand_size": int,
+         "hand": [card id, ...] | None, "card_costs": {card id: int} | None,
+         "corporation": card id | None, "first_action_due": bool,
+         "choosing_corporation": {"dealt": [card id, card id], "picked": card id | None} | None,
+         "buying": {"dealt": [...], "bought": [...], "megacredits": int} | None,
          "drafting": {"picking_from": [...], "kept": [...], "passing_to": int} | None,
          "passed_in_draft": [{"generation": int, "to": int, "cards": [...]}, ...] | None,
          "keeping": {"card": card id, "looking_at": [...], "kept": [...], "keep": int,
@@ -248,10 +271,14 @@ class Game:
          "next_card": card id | None,
          "tags": {"building": int, ...}}, where Resources and
         Production each hold all six Resources, cards come in card-number order, and "tags" counts
-        the ten Tags in play (on played Automated and Active cards; no Tag on a played Event
-        counts). "hand", "buying", "drafting", "passed_in_draft" and "keeping" are None but on the
-        viewer's own board. "buying" is the cards dealt to buy from and those bought so far, in the
-        setup and Research phases. "drafting" is the cards being drafted, keeping one and passing
+        the ten Tags in play (on played Automated and Active cards and the Corporation; no Tag on a
+        played Event counts). "hand", "choosing_corporation", "buying", "drafting", "passed_in_draft"
+        and "keeping" are None but on the viewer's own board. "corporation" is None until every Player
+        is done buying at setup, and is not among "played_cards"; until then "choosing_corporation" is
+        the Corporations dealt and the one chosen. "terraform_rating_raised" says whether their
+        Terraform Rating was raised this Generation. "buying" is the cards dealt to buy from and those
+        bought so far, in the setup and Research phases, and what they may spend on them: at setup, the
+        starting MegaCredits of the Corporation they chose. "drafting" is the cards being drafted, keeping one and passing
         the rest to Player "passing_to", and those kept so far, in the Draft. "passed_in_draft"
         lists every set of cards the Player passed on in the Draft this Game, in the order passed.
         "keeping" is, while the Player plays a card such as Business Contacts, the cards they look
@@ -288,7 +315,7 @@ class Game:
         """Everything about the Game, including what Players hide from each other.
 
         For Hotseat and the dev panel, never for an AI Controller. It has the Player View's shape,
-        with "viewer" None, every Player's "hand", "card_costs", "buying", "drafting",
+        with "viewer" None, every Player's "hand", "card_costs", "choosing_corporation", "buying", "drafting",
         "passed_in_draft" and "keeping", the "deck" by catalog id from the top down, and the
         "discard" pile.
         """
