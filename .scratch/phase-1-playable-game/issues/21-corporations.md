@@ -39,3 +39,8 @@ Player's played cards, to their Corporation.
   action: Mining Guild (two building Tags) and its 1 steel Production. Tharsis Republic's
   Production comes from its effect, so it is not copied. `copyable_production_boxes` in
   `engine/src/card_code.rs` looks only at played Project Cards so far.
+
+### 2026-11-05 — hand-off from ticket 20 (Claude)
+
+- **Helion and Local Heat Trapping:** with heat as MegaCredits, the card's 1 MegaCredit must leave 5 heat to spend. `can_carry_out` checks Resources lost against what the Player holds before paying, which holds no longer once heat can pay. The open-source game overrides `canPlay` for this.
+- **Viral Enhancers' plant before a card's loss:** `card_code::plants_from_viral_enhancers` is the one place that says a Trigger's gain comes before the check. A Corporation's Tags aren't set off by `Happened::CardPlayed` when its Player starts with it: check whether any Trigger should count them. The open-source game has `onNonCardTagAdded`, for Ecological Zone and Viral Enhancers among others.

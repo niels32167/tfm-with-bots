@@ -30,7 +30,7 @@ def test_only_the_full_view_shows_the_deck_order():
     assert game.player_view(0)["deck_size"] == 208 - 2 * 10
 
 
-def test_while_most_cards_are_not_implemented_a_new_game_can_deal_the_implemented_ones_first():
+def test_a_new_game_can_deal_the_implemented_cards_first():
     game = tm_engine.Game(seed=7, players=2, implemented_cards_first=True)
 
     view = game.full_view()
@@ -43,9 +43,9 @@ def test_while_most_cards_are_not_implemented_a_new_game_can_deal_the_implemente
 
 
 def test_a_new_game_deals_from_the_whole_shuffled_deck_by_default():
-    deals = [set(dealt_cards(tm_engine.Game(seed=seed, players=5).full_view())) for seed in range(3)]
+    view = tm_engine.Game(seed=7, players=5).full_view()
 
-    assert not all(dealt <= IMPLEMENTED for dealt in deals)
+    assert sorted(dealt_cards(view) + view["deck"]) == sorted(PROJECT_CARDS)
     assert tm_engine.Game(seed=7).replay["start"]["settings"]["implemented_cards_first"] is False
 
 

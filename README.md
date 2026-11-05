@@ -19,8 +19,8 @@ fuzzer plays Random Bot Games and checks them after every Decision, and a benchm
 measures the engine's speed. The card catalog holds the printed data of all 208 Project
 Cards and 12 Corporations, and the GUI's card gallery draws every card as the fan-made card
 list does. Players play Project Cards from their hand, paying with MegaCredits, steel and
-titanium, once the cards' Requirements are met; 191 cards work so far, 111 Automated, 48 Active
-and 32 Events. An Active card's action is an Action its Player may use once per Generation, and
+titanium, once the cards' Requirements are met; all 208 Project Cards work, 112 Automated, 59 Active
+and 37 Events. An Active card's action is an Action its Player may use once per Generation, and
 its ongoing effects lower card costs, raise what steel and titanium pay, ease Requirements or
 gain its Player something each time a Tile, card or Tag sets them off. A card that takes from
 "any Player" lets its Player pick whose Production it lowers or whose Resources it removes.
@@ -35,8 +35,8 @@ counter-clockwise in odd ones) until every card is kept, then buys any of the ca
 Without the Draft each Player draws 4 cards to buy from. The cards not bought go face down to
 the discard pile, which is shuffled into a new deck when the deck runs out. Drafting and buying
 are hidden from the other Players, and each Player sees the cards they passed. The hand sits in
-a dock at the bottom of the window. While most cards are not implemented, the setup screen's
-"Deal the implemented cards first" (on by default) puts the playable ones on top of the deck.
+a dock at the bottom of the window. The setup screen's "Deal the implemented cards first" changes
+nothing now that every Project Card is implemented.
 
 ## How it fits together
 
@@ -115,11 +115,11 @@ A card is implemented once it has `"effects"` in the card file (ADR 0009), such 
 `"effects": {"production": {"megacredits": -2, "heat": 3}, "tiles": ["ocean"]}` for Black Polar
 Dust; cards without it are never offered. Effects can gain or lose Resources, change
 Production, raise Temperature and Oxygen, raise Terraform Rating, draw cards, let the Player
-look at cards to keep some of them, place Tiles (special Tiles too, as `"special"`) and claim
-an Area (Land Claim's `"claim_area"`), add Card Resources to the card itself or to another of the
-Player's (`"card_resources"`, `"add_to_another"`; the card names what it holds in `"holds"`); an
-Active card can also have an action, whose effects the Player may choose between (`"choice"`),
-discounts, steel and titanium values, Requirement steps and Triggers (`"when"`), and an Event an
+look at cards to keep some of them, place Tiles (special Tiles too, as `"special"`), let the Player
+choose between effects (`"choice"`) and claim an Area (Land Claim's `"claim_area"`), add Card
+Resources to the card itself or to another of the Player's (`"card_resources"`, `"add_to_another"`;
+the card names what it holds in `"holds"`); an Active card can also have an action, which may let
+the Player choose between effects too, as well as discounts, steel and titanium values, Requirement steps and Triggers (`"when"`), and an Event an
 effect on the next card played.
 Declare any new field in `engine/src/cards.rs` first, since the card file allows no unknown
 field. Each card's scenario tests live in `tests/cards/test_<id>.py`, and the coverage report

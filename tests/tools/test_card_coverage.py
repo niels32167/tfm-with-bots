@@ -18,12 +18,12 @@ def test_a_card_counts_as_tested_once_it_has_its_own_test_file(tmp_path):
 
 
 def test_the_report_names_each_untested_card_by_number_and_name():
-    cards = [card for card in untested_cards() if card["id"] in ("birds", "credicor")]
+    cards = [card for card in untested_cards() if card["id"] in ("credicor", "ecoline")]
 
     assert report(cards).splitlines() == [
         "2 of 220 cards have no scenario test (tests/cards/test_<id>.py):",
-        "  #072 Birds (birds)",
         "  CrediCor (credicor)",
+        "  EcoLine (ecoline)",
     ]
     assert report([]) == "All 220 cards have a scenario test."
 

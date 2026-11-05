@@ -80,11 +80,13 @@ def use_the_action_of(game: tm_engine.Game, card: str) -> None:
 
 @pytest.mark.parametrize("card", CARDS_WITH_AN_ACTION)
 def test_every_cards_action_is_used_once_per_generation_and_is_available_again_in_the_next(card):
-    # Symbiotic Fungus needs another card to add to, Ants a card to take from.
+    # Symbiotic Fungus needs another card to add to, Ants and Predators a card to take from.
     played = [card, "tardigrades"] if card == "symbiotic_fungus" else [card]
     using = player(**PLENTY, production={"energy": 6}, played_cards=played)
-    holding = player(played_cards=["decomposers"], card_resources={"decomposers": 9})
-    game = scenario(using, holding, deck=["mine", "trees", "birds", "fish"], draft=False)
+    holding = player(
+        played_cards=["decomposers", "herbivores"], card_resources={"decomposers": 9, "herbivores": 9}
+    )
+    game = scenario(using, holding, deck=["mine", "trees", "comet", "asteroid"], draft=False)
     assert offered(game, type="use_action", card=card)
 
     use_the_action_of(game, card)

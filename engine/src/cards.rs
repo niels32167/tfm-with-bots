@@ -126,9 +126,14 @@ impl Card {
         self.effects.as_ref().and_then(|effects| effects.action.as_deref())
     }
 
-    /// The effects at `index` among those the Player chooses one of for its action.
-    pub fn action_alternative(&self, index: usize) -> &Effects {
-        &self.implemented_action().choice[index]
+    /// The effects its Player chooses one of when it is played (Imported Hydrogen) or for its action
+    /// (Regolith Eaters). No card has both.
+    pub fn alternatives(&self) -> &[Effects] {
+        let effects = self.implemented_effects();
+        match &effects.action {
+            Some(action) if effects.choice.is_empty() => &action.choice,
+            _ => &effects.choice,
+        }
     }
 
     /// The action of a card that has one, as every card whose action is used does.
@@ -141,8 +146,9 @@ impl Card {
 /// action's payment, Card Resources on the card itself, Resources (fixed, then per Tag or Tile),
 /// Production (fixed, then per Tag or Tile, then for having at least so many), Temperature and
 /// Oxygen steps, Terraform Rating (fixed, then per Tag), cards drawn, cards looked at to keep or buy
-/// some of, the Production or Resource change or the effects the Player chooses, the Tiles one at a
-/// time, Card Resources added to other cards, and then what it takes from any Player. Claiming an
+/// some of, the Production or Resource change the Player chooses, an action's effects the Player
+/// chooses, the Tiles one at a time, a played card's effects the Player chooses, Card Resources added
+/// to other cards, and then what it takes from any Player. Claiming an
 /// Area (Land Claim) is a card's only effect. For the cards described this way the order never
 /// changes the outcome; a card whose effects depend on their order gets its own Rust code.
 #[derive(Debug, Default, Serialize, Deserialize)]
@@ -174,9 +180,10 @@ pub struct Effects {
     /// Only for an action: Resource changes the Player chooses one of, such as 1 plant or 1 steel
     /// for 7 MegaCredits (Electro Catapult). Empty for an action with no such choice.
     pub resources_choice: Vec<Resources>,
-    /// Only for an action: effects the Player chooses one of, each carried out as `Effects` are
-    /// (Regolith Eaters' 1 microbe added, or 2 removed to raise Oxygen). Empty for an action with no
-    /// such choice.
+    /// Effects the Player chooses one of, each carried out as `Effects` are: for an action, before its
+    /// Tile (Regolith Eaters' 1 microbe added, or 2 removed to raise Oxygen); for a card being played,
+    /// once its Tiles are placed (Imported Hydrogen's 3 plants, 3 microbes or 2 animals). Empty with
+    /// no such choice.
     #[serde(skip_serializing_if = "Vec::is_empty")]
     pub choice: Vec<Effects>,
     /// Temperature steps raised.
@@ -293,6 +300,15 @@ impl AddToAnother {
     }
 }
 
+/// One of the alternatives a card removes from one Player: up to these Resources, or up to `amount`
+/// Card Resources of this kind from one of their cards (Virus' 2 animals).
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(untagged, deny_unknown_fields)]
+pub enum Removal {
+    FromACard { card_resource: CardResource, amount: i32 },
+    Resources(Resources),
+}
+
 /// What a card takes from one Player, whom its Player picks. Lowering Production must be carried
 /// out in full, on a Player who can lose every step, the card's Player included. Removing
 /// Resources is up to the amounts written, from whoever has some, and may be left undone (see
@@ -302,13 +318,14 @@ impl AddToAnother {
 pub enum AnyPlayer {
     /// Production steps lowered, written below zero: Heat Trappers' `{"heat": -2}`.
     Production(Resources),
-    /// Resources removed, up to these amounts, as one of these alternatives: Asteroid's 3 plants,
-    /// or Sabotage's 3 titanium, 4 steel or 7 MegaCredits.
-    Remove(Vec<Resources>),
-    /// Like `Remove`, but the card's Player gains what is removed (Hired Raiders).
-    Steal(Vec<Resources>),
-    /// Only for an action: 1 Card Resource of this kind moved from any card to this one (Ants). It is
-    /// the action's cost, so unlike `Remove` it can't be left undone.
+    /// Removed as one of these alternatives: Asteroid's 3 plants, or Sabotage's 3 titanium, 4 steel or
+    /// 7 MegaCredits, or Virus' 2 animals or 5 plants.
+    Remove(Vec<Removal>),
+    /// Like `Remove`, but the card's Player gains what is removed, which is Resources only (Hired
+    /// Raiders).
+    Steal(Vec<Removal>),
+    /// Only for an action: 1 Card Resource of this kind moved from any card to this one (Ants,
+    /// Predators). It is the action's cost, so unlike `Remove` it can't be left undone.
     MoveCardResource(CardResource),
 }
 

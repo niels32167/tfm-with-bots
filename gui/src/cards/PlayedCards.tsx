@@ -38,6 +38,7 @@ const PICKED_ON_A_CARD: Record<string, string> = {
   use_action: "card",
   add_card_resources: "to",
   move_card_resource: "from",
+  remove_card_resources: "from",
 };
 
 /** The Options picked by clicking a played card, by the card's id. */

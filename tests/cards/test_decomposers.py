@@ -56,6 +56,15 @@ def test_an_animal_tag_adds_a_microbe_and_each_matching_tag_on_a_card_counts():
     assert "Player 1 adds 3 microbes to Decomposers." in game.log
 
 
+def test_an_animal_card_adds_a_microbe():
+    playing = player(megacredits=9, hand=["fish"], played_cards=["decomposers"])
+    game = scenario(playing, player(production={"plants": 1}), temperature=2)
+
+    pick(game, "Play Fish")
+
+    assert card_resources(game, 0) == {"decomposers": 1, "fish": 0}
+
+
 def test_other_tags_add_nothing():
     game = scenario(
         player(megacredits=30, hand=["mine"], played_cards=["decomposers"]), player()

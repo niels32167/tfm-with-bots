@@ -8,6 +8,7 @@ use crate::game::{DecisionOption, Game, Waiting};
 use crate::log::LogEvent;
 use crate::resources::{Resource, Resources};
 use crate::targets::Targeting;
+use crate::triggers::Happened;
 
 /// #086 Robotic Workforce: "Duplicate only the production box of one of your building cards."
 pub const ROBOTIC_WORKFORCE: usize = 85;
@@ -56,8 +57,21 @@ pub const MINING_AREA: usize = SpecialTile::MiningArea.card();
 /// Increase that production 1 step." Like Mining Area, but anywhere on such an Area.
 pub const MINING_RIGHTS: usize = SpecialTile::MiningRights.card();
 
+/// #172 Pets: "Animals may not be removed from this card." The sentence is printed on the card, but
+/// not in its text in the card file.
+pub const PETS: usize = 171;
+
+/// #173 Protected Habitats: "Opponents may not remove your plants, animals or microbes."
+pub const PROTECTED_HABITATS: usize = 172;
+
+/// #074 Viral Enhancers: "When you play a plant, microbe, or an animal tag, including this, gain 1
+/// plant or add 1 resource to THAT CARD." Its Trigger is effect data, the plant; a card that holds Card
+/// Resources lets its Player choose for each such Tag, after the card's other effects (see
+/// docs/rules-notes.md).
+pub const VIRAL_ENHANCERS: usize = 73;
+
 /// Every card with code here, and its id.
-pub const CARDS_WITH_CODE: [(usize, &str); 10] = [
+pub const CARDS_WITH_CODE: [(usize, &str); 13] = [
     (ROBOTIC_WORKFORCE, "robotic_workforce"),
     (INSULATION, "insulation"),
     (POWER_INFRASTRUCTURE, "power_infrastructure"),
@@ -68,7 +82,18 @@ pub const CARDS_WITH_CODE: [(usize, &str); 10] = [
     (MINING_RIGHTS, "mining_rights"),
     (OLYMPUS_CONFERENCE, "olympus_conference"),
     (SEARCH_FOR_LIFE, "search_for_life"),
+    (PETS, "pets"),
+    (PROTECTED_HABITATS, "protected_habitats"),
+    (VIRAL_ENHANCERS, "viral_enhancers"),
 ];
+
+/// The card played whose Tags Viral Enhancers still asks about, which holds Card Resources, and how
+/// many times more.
+#[derive(Clone, Copy, Debug)]
+pub struct ViralEnhancing {
+    pub card: usize,
+    pub times: u32,
+}
 
 /// Insulation's Production change for `steps`: that many steps of heat Production traded for as
 /// many of MegaCredit Production.
@@ -200,6 +225,50 @@ impl Game {
         }
         self.wait_on(Waiting::DiscardToDraw);
         true
+    }
+
+    /// Offers the current Player what Viral Enhancers does for a card they played that holds Card
+    /// Resources, and returns whether the Game now waits on it. It comes last of what the card sets
+    /// off, which is never worse: the plant or Card Resource gives nothing to the others, and a card
+    /// they draw may tell them which to take.
+    pub(crate) fn offer_viral_enhancers(&mut self) -> bool {
+        if self.viral_enhancing.is_none() {
+            return false;
+        }
+        self.wait_on(Waiting::ViralEnhancers);
+        true
+    }
+
+    /// The current Player chooses what Viral Enhancers does for the card played.
+    pub(crate) fn viral_enhancers_options(&self) -> Vec<DecisionOption> {
+        let card = self.viral_enhancing.expect("Viral Enhancers asks only while it is due").card;
+        [true, false].map(|add| DecisionOption::ViralEnhancers { card, add }).to_vec()
+    }
+
+    /// The current Player adds 1 Card Resource to `card`, or gains 1 plant. Then Viral Enhancers asks
+    /// again for the next Tag, or the Action ends.
+    pub(crate) fn viral_enhancers(&mut self, card: usize, add: bool) {
+        self.waiting = None;
+        let times = self.viral_enhancing.expect("Viral Enhancers asks only while it is due").times - 1;
+        self.viral_enhancing = (times > 0).then_some(ViralEnhancing { card, times });
+        let player = self.current_player;
+        if add {
+            self.change_card_resources(player, card, 1);
+        } else {
+            self.change_resources(player, Resources { plants: 1, ..Resources::default() });
+        }
+        self.finish_unless_placing();
+    }
+
+    /// The plants `player` gains from Viral Enhancers as soon as they play `card`, before its effects:
+    /// one for each such Tag, unless the card holds Card Resources and they may choose those instead.
+    pub(crate) fn plants_from_viral_enhancers(&self, player: usize, card: usize) -> i32 {
+        if !self.players[player].played.contains(VIRAL_ENHANCERS) || CARD_CATALOG[card].holds().is_some() {
+            return 0;
+        }
+        let happened = Happened::CardPlayed { player, card };
+        let triggers = &CARD_CATALOG[VIRAL_ENHANCERS].implemented_effects().when;
+        triggers.iter().map(|trigger| trigger.resources.plants * happened.times(&trigger.on, player)).sum()
     }
 
     /// The current Player may discard any card from their hand to draw one, or be done.

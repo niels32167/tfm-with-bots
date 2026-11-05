@@ -76,6 +76,7 @@ OTHER_AREAS = {
     "next_to_two_cities": " next to at least 2 Cities",
     "next_to_no_other_tile": " next to no other Tile",
     "next_to_a_city": " next to a City",
+    "next_to_a_greenery": " next to a Greenery",
     "volcanoes": " on a volcano",
     "steel_or_titanium_bonus": " on a steel or titanium bonus",
     "steel_or_titanium_bonus_next_to_own_tile": " on a steel or titanium bonus next to its owner's Tile",
@@ -234,8 +235,9 @@ def cities_apart(view: View, tiles: dict[str, dict[str, Any]]) -> Iterator[str]:
 def special_tiles_where_their_cards_put_them(view: View, decision: Decision | None) -> Iterator[str]:
     """Each special Tile lies where its card puts it, as far as later Tiles can't change it: Lava
     Flows' on a volcano, the Mining cards' on land with a steel or titanium bonus, Mining Area's next
-    to another of its owner's Tiles, Industrial Center's next to a City and Mohole Area's on an Area
-    reserved for Oceans. (Natural Preserve's was next to no Tile only when placed.)"""
+    to another of its owner's Tiles, Industrial Center's next to a City, Ecological Zone's next to a
+    Greenery and Mohole Area's on an Area reserved for Oceans. (Natural Preserve's was next to no Tile
+    only when placed.)"""
     tiles = tiles_on_the_board(view)
 
     def next_to(area_id: str, wanted: Callable[[dict[str, Any]], bool]) -> bool:
@@ -252,6 +254,7 @@ def special_tiles_where_their_cards_put_them(view: View, decision: Decision | No
                 and next_to(area_id, lambda each, owner=owner: each["owner"] == owner),
             ),
             "industrial_center": ("next to a City", next_to(area_id, lambda each: each["type"] == "city")),
+            "ecological_zone": ("next to a Greenery", next_to(area_id, lambda each: each["type"] == "greenery")),
             "mohole_area": ("on an Area reserved for Oceans", area_id in OCEAN_AREAS),
         }.get(card)
         if where is not None and not where[1]:
@@ -319,6 +322,7 @@ def legal_areas(view: View, tile: str, player: int, on: str = "usual") -> set[st
     - "next_to_two_cities" (Urbanized Area's City): any free land next to at least 2 Cities;
     - "next_to_no_other_tile" (Research Outpost's City): any free land next to no Tile;
     - "next_to_a_city" (Industrial Center's Tile): any free land next to a City;
+    - "next_to_a_greenery" (Ecological Zone's Tile): any free land next to a Greenery, whoever owns it;
     - "volcanoes" (Lava Flows' Tile): any free volcano;
     - "steel_or_titanium_bonus" (Mining Rights' Tile): any free land with such a bonus;
     - "steel_or_titanium_bonus_next_to_own_tile" (Mining Area's): the same, next to its owner's Tile;
@@ -345,6 +349,8 @@ def legal_areas(view: View, tile: str, player: int, on: str = "usual") -> set[st
         return free_land
     if on == "next_to_a_city":
         return {area_id for area_id in free_land if cities_next_to(area_id) >= 1}
+    if on == "next_to_a_greenery":
+        return {area_id for area_id in free_land if next_to(area_id, lambda each: each["type"] == "greenery")}
     if on == "volcanoes":
         return free_land & set(VOLCANOES)
     if on == "steel_or_titanium_bonus":
@@ -486,22 +492,48 @@ def cards_with_card_resources(player_board: dict[str, Any], kind: str | None) ->
     ]
 
 
+# The kinds of Card Resource that Protected Habitats keeps from its Player's opponents.
+PROTECTED_KINDS = ("animal", "microbe")
+# The card whose Card Resources nobody may remove, as printed.
+CARDS_NOBODY_REMOVES_FROM = ("pets",)
+
+
+def has_protected_habitats(board: dict[str, Any]) -> bool:
+    return "protected_habitats" in board["played_cards"]
+
+
+def cards_to_remove_from(view: View, owner: int, kind: str, by: int) -> list[str]:
+    """The cards of `owner`'s that Player `by` may remove a Card Resource of `kind` from: those with
+    some on them, but for Pets, and none of an opponent's with Protected Habitats."""
+    board = view["players"][owner]
+    if owner != by and kind in PROTECTED_KINDS and has_protected_habitats(board):
+        return []
+    return [
+        card_id
+        for card_id in cards_with_card_resources(board, kind)
+        if board["card_resources"][card_id] > 0 and card_id not in CARDS_NOBODY_REMOVES_FROM
+    ]
+
+
 def card_resource_actions_can_be_carried_out(view: View, decision: Decision | None) -> Iterator[str]:
     """The actions spending Resources or Card Resources for Card Resources are offered only if they
     can be carried out: Physics Complex with 6 energy, Search for Life with a MegaCredit and a card
-    to reveal, and Ants with a microbe on any card."""
+    to reveal, Security Fleet with a titanium, and Ants and Predators with a card to take a microbe or
+    an animal from."""
     if decision is None:
         return
-    board = view["players"][decision["player"]]
-    microbes = any(
-        other["card_resources"][card_id] > 0
-        for other in view["players"]
-        for card_id in cards_with_card_resources(other, "microbe")
-    )
+    player = decision["player"]
+    board = view["players"][player]
+
+    def can_take(kind: str) -> bool:
+        return any(cards_to_remove_from(view, owner, kind, player) for owner in range(len(view["players"])))
+
     can_carry_out = {
         "physics_complex": board["resources"]["energy"] >= 6,
         "search_for_life": board["resources"]["megacredits"] >= 1 and bool(view["deck"] or view["discard"]),
-        "ants": microbes,
+        "security_fleet": board["resources"]["titanium"] >= 1,
+        "ants": can_take("microbe"),
+        "predators": can_take("animal"),
     }
     for option in decision["options"]:
         details = option["details"]
@@ -509,13 +541,18 @@ def card_resource_actions_can_be_carried_out(view: View, decision: Decision | No
             yield f"{option['label']} is offered, but {board['name']} cannot carry it out"
 
 
-# The cards that add Card Resources to another card, as printed: the kind (any, for None), how many,
-# and how many the card must have on it already.
+# The cards that add Card Resources to another card, as printed, each addition: the kind (any, for
+# None), how many, and how many the card must have on it already.
 ADDING_TO_ANOTHER_CARD = {
-    "aerobraked_ammonia_asteroid": ("microbe", 2, 0),
-    "symbiotic_fungus": ("microbe", 1, 0),
-    "extreme_cold_fungus": ("microbe", 2, 0),
-    "ceos_favorite_project": (None, 1, 1),
+    "aerobraked_ammonia_asteroid": (("microbe", 2, 0),),
+    "symbiotic_fungus": (("microbe", 1, 0),),
+    "extreme_cold_fungus": (("microbe", 2, 0),),
+    "ceos_favorite_project": ((None, 1, 1),),
+    "eos_chasma_national_park": (("animal", 1, 0),),
+    "imported_hydrogen": (("microbe", 3, 0), ("animal", 2, 0)),
+    "large_convoy": (("animal", 4, 0),),
+    "imported_nitrogen": (("microbe", 3, 0), ("animal", 2, 0)),
+    "local_heat_trapping": (("animal", 2, 0),),
 }
 
 
@@ -531,15 +568,17 @@ def cards_to_add_to_are_those_the_rules_allow(view: View, decision: Decision | N
         yield f"an add_to_card Decision is about {sorted(cards)}, not one card that adds to another"
         return
     card_id = cards.pop()
-    kind, amount, at_least = ADDING_TO_ANOTHER_CARD[card_id]
+    found = [
+        (option["details"]["to"], option["details"]["kind"], option["details"]["amount"])
+        for option in decision["options"]
+    ]
+    # A card that adds two kinds asks about one at a time, so the Options say which this is.
+    additions = ADDING_TO_ANOTHER_CARD[card_id]
+    kind, amount, at_least = next((each for each in additions if each[0] in (None, found[0][1])), additions[0])
     wanted = [
         (to, CARDS_HOLDING_CARD_RESOURCES[to], amount)
         for to in cards_with_card_resources(board, kind)
         if board["card_resources"][to] >= at_least
-    ]
-    found = [
-        (option["details"]["to"], option["details"]["kind"], option["details"]["amount"])
-        for option in decision["options"]
     ]
     if found != wanted:
         yield f"{CARDS[card_id]['name']} offers to add {found}, not {wanted}"
@@ -549,11 +588,20 @@ def cards_to_add_to_are_those_the_rules_allow(view: View, decision: Decision | N
 
 # The actions with alternatives that remove Card Resources from the card itself, and how many.
 REMOVING_FROM_ITSELF = {"regolith_eaters": 2, "ghg_producing_bacteria": 2, "nitrite_reducing_bacteria": 3}
+# The cards that let their Player choose their effects when played, as printed: for each alternative,
+# the kind of Card Resource it adds to another card, or None for the plants.
+ALTERNATIVES_WHEN_PLAYED = {
+    "imported_hydrogen": (None, "microbe", "animal"),
+    "large_convoy": (None, "animal"),
+    "local_heat_trapping": (None, "animal"),
+}
 
 
 def effects_offered_are_those_the_rules_allow(view: View, decision: Decision | None) -> Iterator[str]:
     """An action's alternatives come as a Decision only when both can be carried out: the Card
-    Resources they remove are on the card, or there is a card to add them to."""
+    Resources they remove are on the card, or there is a card to add them to. A card played offers
+    its plants, and adding Card Resources only with a card for them, with a Decision only if there
+    is more than the plants."""
     if decision is None or decision["kind"] != "effects":
         return
     board = view["players"][decision["player"]]
@@ -562,7 +610,19 @@ def effects_offered_are_those_the_rules_allow(view: View, decision: Decision | N
         yield f"an effects Decision is about {sorted(cards)}, not one card"
         return
     card_id = cards.pop()
-    if [option["details"]["alternative"] for option in decision["options"]] != [0, 1]:
+    offered = [option["details"]["alternative"] for option in decision["options"]]
+    if card_id in ALTERNATIVES_WHEN_PLAYED:
+        wanted = [
+            index
+            for index, kind in enumerate(ALTERNATIVES_WHEN_PLAYED[card_id])
+            if kind is None or cards_with_card_resources(board, kind)
+        ]
+        if offered != wanted:
+            yield f"{CARDS[card_id]['name']} offers the alternatives {offered}, not {wanted}"
+        if len(offered) < 2:
+            yield f"{CARDS[card_id]['name']}'s effects Decision has {len(offered)} Option"
+        return
+    if offered != [0, 1]:
         yield f"{CARDS[card_id]['name']}'s effects Decision does not offer its 2 alternatives"
     if card_id == "extreme_cold_fungus":
         if not cards_with_card_resources(board, "microbe"):
@@ -602,6 +662,25 @@ def olympus_conference_offers_what_the_card_says(view: View, decision: Decision 
         yield f"Olympus Conference's Decision offers {offered[2:]} without Mars University in play"
 
 
+def viral_enhancers_offers_what_the_card_says(view: View, decision: Decision | None) -> Iterator[str]:
+    """Viral Enhancers asks only about a card its Player has played that holds a Card Resource and has
+    a plant, microbe or animal Tag, offering to add 1 to that card or gain 1 plant."""
+    if decision is None or decision["kind"] != "viral_enhancers":
+        return
+    board = view["players"][decision["player"]]
+    offered = [option["details"] for option in decision["options"]]
+    card_id = offered[0]["card"]
+    wanted = [{"type": "viral_enhancers", "card": card_id, "add": add} for add in (True, False)]
+    if offered != wanted:
+        yield f"Viral Enhancers' Decision offers {offered}, not {wanted}"
+    if "viral_enhancers" not in board["played_cards"]:
+        yield f"{board['name']} is offered Viral Enhancers' Decision without having played it"
+    if card_id not in board["played_cards"] or card_id not in CARDS_HOLDING_CARD_RESOURCES:
+        yield f"Viral Enhancers asks about '{card_id}', not a card of {board['name']}'s that holds Card Resources"
+    if not set(CARDS[card_id]["tags"]) & {"plant", "microbe", "animal"}:
+        yield f"Viral Enhancers asks about {CARDS[card_id]['name']}, which has no plant, microbe or animal Tag"
+
+
 def discard_to_draw_offers_every_card_in_hand(view: View, decision: Decision | None) -> Iterator[str]:
     """Mars University's Decision offers to discard each card in the deciding Player's hand, or to
     be done."""
@@ -625,6 +704,10 @@ PRODUCTION_TAKEN = {
     "heat_trappers": ("heat", 2),
     "biomass_combustors": ("plants", 1),
     "energy_tapping": ("energy", 1),
+    "fish": ("plants", 1),
+    "small_animals": ("plants", 1),
+    "birds": ("plants", 2),
+    "herbivores": ("plants", 1),
 }
 RESOURCES_TAKEN = {
     "asteroid": (("plants", 3),),
@@ -636,10 +719,13 @@ RESOURCES_TAKEN = {
     "sabotage": (("titanium", 3), ("steel", 4), ("megacredits", 7)),
     "hired_raiders": (("steel", 2), ("megacredits", 3)),
     "flooding": (("megacredits", 4),),
+    "virus": (("plants", 5),),
 }
+# What each card that removes Card Resources from one card takes, as printed, up to this many.
+CARD_RESOURCES_TAKEN = {"virus": ("animal", 2)}
 STEALING_CARDS = ("hired_raiders",)
 # The actions that move 1 Card Resource from any card to themselves, and its kind.
-MOVING_A_CARD_RESOURCE = {"ants": "microbe"}
+MOVING_A_CARD_RESOURCE = {"ants": "microbe", "predators": "animal"}
 # Flooding takes only from the owners of Tiles next to its Ocean, which the view doesn't name.
 TAKING_NEXT_TO_ITS_OCEAN = ("flooding",)
 
@@ -648,10 +734,11 @@ def targets_offered_are_those_the_rules_allow(view: View, decision: Decision | N
     """A target Decision is about one card's taking. Lowering Production: it offers every opponent
     who can lose every step, or if none can, only the deciding Player, and there is a Decision
     only with two targets or more. Removing Resources: it offers each opponent who has some of an
-    alternative's Resources, as much as they have up to the amount printed, then Remove nothing
-    (for Flooding, some of those opponents). Moving a Card Resource: it offers each opponent's card
-    with some, or if they have none, the deciding Player's own, and there is a Decision only with
-    two cards or more."""
+    alternative's Resources, as much as they have up to the amount printed, and for Virus each of
+    their cards with animals on it, then Remove nothing (for Flooding, some of those opponents).
+    Protected Habitats keeps its Player's plants, animals and microbes from their opponents. Moving a
+    Card Resource: it offers each opponent's card they may take from, or if there is none, the
+    deciding Player's own, and there is a Decision only with two cards or more."""
     if decision is None or decision["kind"] != "target":
         return
     player, players = decision["player"], view["players"]
@@ -682,19 +769,34 @@ def targets_offered_are_those_the_rules_allow(view: View, decision: Decision | N
     if card_id not in RESOURCES_TAKEN:
         yield f"a target Decision is about '{card_id}', which takes nothing from any Player"
         return
-    wanted = [
-        (index, resource, -min(amount, board["resources"][resource]))
-        for index, board in enumerate(players)
-        if index != player
-        for resource, amount in RESOURCES_TAKEN[card_id]
-        if board["resources"][resource] > 0
-    ]
+    wanted = []
+    for index, board in enumerate(players):
+        if index == player:
+            continue
+        if card_id in CARD_RESOURCES_TAKEN:
+            kind, amount = CARD_RESOURCES_TAKEN[card_id]
+            wanted += [
+                (index, other, -min(amount, board["card_resources"][other]))
+                for other in cards_to_remove_from(view, index, kind, player)
+            ]
+        protected = has_protected_habitats(board)
+        wanted += [
+            (index, resource, -min(amount, board["resources"][resource]))
+            for resource, amount in RESOURCES_TAKEN[card_id]
+            if board["resources"][resource] > 0 and not (resource == "plants" and protected)
+        ]
     removals = offered[:-1]
-    found = [
-        (details["player"], *next(iter(changed(details["resources"]).items())))
-        for details in removals
+    from_cards = {
+        index: (details["player"], details["from"], -details["amount"])
+        for index, details in enumerate(removals)
+        if details["type"] == "remove_card_resources"
+    }
+    resources_taken = {
+        index: (details["player"], *next(iter(changed(details["resources"]).items())))
+        for index, details in enumerate(removals)
         if details["type"] == "remove_resources" and len(changed(details["resources"])) == 1
-    ]
+    }
+    found = [{**from_cards, **resources_taken}[index] for index in sorted({*from_cards, *resources_taken})]
     complete = card_id not in TAKING_NEXT_TO_ITS_OCEAN
     if len(found) != len(removals) or (found != wanted if complete else not set(found) <= set(wanted)):
         yield f"{CARDS[card_id]['name']} offers to remove {found}, not {wanted}"
@@ -711,13 +813,11 @@ def cards_to_take_from_are_those_the_rules_allow(
     """See `targets_offered_are_those_the_rules_allow`."""
     players, kind = view["players"], MOVING_A_CARD_RESOURCE[card_id]
 
-    def with_some(index: int) -> list[tuple[int, str]]:
-        board = players[index]
-        cards = cards_with_card_resources(board, kind)
-        return [(index, other) for other in cards if board["card_resources"][other] > 0]
+    def of_owner(index: int) -> list[tuple[int, str]]:
+        return [(index, other) for other in cards_to_remove_from(view, index, kind, player)]
 
-    from_opponents = [each for index in range(len(players)) if index != player for each in with_some(index)]
-    wanted = from_opponents or with_some(player)
+    from_opponents = [each for index in range(len(players)) if index != player for each in of_owner(index)]
+    wanted = from_opponents or of_owner(player)
     found = [(details.get("player"), details.get("from")) for details in offered]
     if found != wanted:
         yield f"{CARDS[card_id]['name']} offers to take from {found}, not {wanted}"
@@ -933,6 +1033,7 @@ AFTER_EVERY_DECISION: tuple[Check, ...] = (
     cards_to_add_to_are_those_the_rules_allow,
     effects_offered_are_those_the_rules_allow,
     olympus_conference_offers_what_the_card_says,
+    viral_enhancers_offers_what_the_card_says,
     targets_offered_are_those_the_rules_allow,
     at_most_three_milestones_and_awards,
     every_card_in_exactly_one_place,

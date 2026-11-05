@@ -34,6 +34,7 @@ const SPECIAL_SYMBOLS: Record<string, string> = {
   commercial_district: "€",
   nuclear_zone: "☢",
   industrial_center: "⚙",
+  ecological_zone: "🐾︎",
   lava_flows: "▲",
   mohole_area: "♨",
   restricted_area: "⊘",

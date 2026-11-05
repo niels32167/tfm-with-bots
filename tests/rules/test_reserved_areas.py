@@ -33,6 +33,7 @@ PLACING_CARDS = [
     "commercial_district",
     "nuclear_zone",
     "industrial_center",
+    "ecological_zone",
     "urbanized_area",
     "mangrove",
     "lava_flows",

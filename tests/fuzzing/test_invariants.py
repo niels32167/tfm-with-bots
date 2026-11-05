@@ -961,6 +961,162 @@ def test_ants_taking_from_its_players_own_card_while_an_opponent_has_some_breaks
     ]
 
 
+def test_predators_taking_from_pets_or_protected_habitats_breaks_an_invariant():
+    game = scenario(
+        player(played_cards=["predators"]),
+        player(played_cards=["fish", "pets"], card_resources={"fish": 1, "pets": 2}),
+        player(played_cards=["birds", "protected_habitats"], card_resources={"birds": 1}),
+        player(played_cards=["livestock"], card_resources={"livestock": 1}),
+    )
+    pick(game, "Use the action of Predators")
+    view, decision = position(game)
+    assert problems(view, decision) == []
+    decision["options"][0]["details"] |= {"from": "pets"}
+    decision["options"][1]["details"] |= {"player": 2, "from": "birds"}
+
+    assert problems(view, decision) == [
+        "Predators offers to take from [(1, 'pets'), (2, 'birds')], not [(1, 'fish'), (3, 'livestock')]"
+    ]
+
+
+def play_protected_habitats(view: dict[str, Any], owner: int) -> None:
+    """Moves Protected Habitats from the deck of the view to the played cards of Player `owner`."""
+    view["deck"].remove("protected_habitats")
+    view["deck_size"] -= 1
+    view["players"][owner]["played_cards"].append("protected_habitats")
+
+
+def test_ants_with_only_a_protected_microbe_to_take_breaks_an_invariant():
+    game = scenario(
+        player(played_cards=["ants", "tardigrades"], card_resources={"ants": 1}),
+        player(played_cards=["decomposers"], card_resources={"decomposers": 3}),
+    )
+    view, decision = position(game)
+    assert problems(view, decision) == []
+    view["players"][0]["card_resources"]["ants"] = 0
+    play_protected_habitats(view, 1)
+
+    assert problems(view, decision) == ["Use the action of Ants is offered, but Player 1 cannot carry it out"]
+
+
+def test_security_fleet_and_predators_with_nothing_to_spend_break_an_invariant():
+    game = scenario(
+        player(titanium=1, played_cards=["security_fleet", "predators"]),
+        player(played_cards=["pets", "fish"], card_resources={"fish": 1}),
+    )
+    view, decision = position(game)
+    assert problems(view, decision) == []
+    view["players"][0]["resources"]["titanium"] = 0
+    view["players"][1]["card_resources"]["fish"] = 0
+    view["players"][1]["card_resources"]["pets"] = 3
+
+    assert problems(view, decision) == [
+        "Use the action of Predators is offered, but Player 1 cannot carry it out",
+        "Use the action of Security Fleet is offered, but Player 1 cannot carry it out",
+    ]
+
+
+def test_virus_offering_a_protected_players_plants_or_animals_or_too_many_breaks_an_invariant():
+    game = scenario(
+        player(megacredits=1, hand=["virus"]),
+        player(plants=9, played_cards=["fish"], card_resources={"fish": 1}),
+        player(plants=2, played_cards=["birds"], card_resources={"birds": 5}),
+    )
+    pick(game, "Play Virus")
+    view, decision = position(game)
+    assert problems(view, decision) == []
+    decision["options"][2]["details"]["amount"] = 5
+    play_protected_habitats(view, 1)
+
+    assert problems(view, decision) == [
+        (
+            "Virus offers to remove [(1, 'fish', -1), (1, 'plants', -5), (2, 'birds', -5), (2, 'plants', -2)], "
+            "not [(2, 'birds', -2), (2, 'plants', -2)]"
+        )
+    ]
+
+
+def test_asteroid_offering_a_protected_players_plants_breaks_an_invariant():
+    game = scenario(
+        player(megacredits=14, hand=["asteroid"]),
+        player(plants=9),
+        player(plants=2),
+    )
+    pick(game, "Play Asteroid")
+    view, decision = position(game)
+    assert problems(view, decision) == []
+    play_protected_habitats(view, 1)
+
+    assert problems(view, decision) == [
+        "Asteroid offers to remove [(1, 'plants', -3), (2, 'plants', -2)], not [(2, 'plants', -2)]"
+    ]
+
+
+def test_a_card_played_offering_the_wrong_alternatives_breaks_an_invariant():
+    game = scenario(
+        player(megacredits=1, heat=5, hand=["local_heat_trapping"], played_cards=["fish"]),
+        player(),
+    )
+    pick(game, "Play Local Heat Trapping")
+    view, decision = position(game)
+    assert problems(view, decision) == []
+    decision["options"][1]["details"]["alternative"] = 2
+
+    assert problems(view, decision) == ["Local Heat Trapping offers the alternatives [0, 2], not [0, 1]"]
+    del decision["options"][1]
+    assert problems(view, decision) == [
+        "Local Heat Trapping offers the alternatives [0], not [0, 1]",
+        "Local Heat Trapping's effects Decision has 1 Option",
+    ]
+
+
+def test_imported_nitrogen_adding_an_amount_not_printed_breaks_an_invariant():
+    game = scenario(
+        player(megacredits=23, hand=["imported_nitrogen"], played_cards=["tardigrades", "fish", "birds"]),
+        player(),
+    )
+    pick(game, "Play Imported Nitrogen")
+    view, decision = position(game)
+    assert decision["kind"] == "add_to_card"
+    assert problems(view, decision) == []
+    decision["options"][0]["details"]["amount"] = 3
+
+    assert problems(view, decision) == [
+        (
+            "Imported Nitrogen offers to add [('fish', 'animal', 3), ('birds', 'animal', 2)], "
+            "not [('fish', 'animal', 2), ('birds', 'animal', 2)]"
+        )
+    ]
+
+
+def test_viral_enhancers_asking_about_a_card_that_holds_nothing_breaks_an_invariant():
+    game = scenario(player(megacredits=4, hand=["tardigrades"], played_cards=["viral_enhancers"]), player())
+    pick(game, "Play Tardigrades")
+    view, decision = position(game)
+    assert decision["kind"] == "viral_enhancers"
+    assert problems(view, decision) == []
+    for option in decision["options"]:
+        option["details"]["card"] = "mine"
+
+    assert problems(view, decision) == [
+        "Viral Enhancers asks about 'mine', not a card of Player 1's that holds Card Resources",
+        "Viral Enhancers asks about Mine, which has no plant, microbe or animal Tag",
+    ]
+
+
+def test_ecological_zones_tile_not_next_to_a_greenery_breaks_an_invariant():
+    game = scenario(
+        player(played_cards=["ecological_zone"]),
+        player(),
+        tiles=[greenery("C3", owner=0), special("C4", "ecological_zone", owner=0)],
+    )
+    view, decision = position(game)
+    assert problems(view, decision) == []
+    next(entry for entry in view["board"] if entry["area"] == "C3")["tile"] = None
+
+    assert problems(view, decision) == ["the Ecological Zone Tile on C4 is not next to a Greenery"]
+
+
 def test_an_olympus_conference_decision_without_a_science_or_its_options_breaks_an_invariant():
     game = scenario(
         player(

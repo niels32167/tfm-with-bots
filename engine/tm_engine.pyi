@@ -29,11 +29,13 @@ def card_catalog() -> list[dict[str, Any]]:
     or some bought at 3 MegaCredits each, {"cards": 1, "buy": 1}) and "tiles" (a list such as
     ["ocean", "ocean"], with {"tile": "greenery", "on": "ocean_areas"} for a Tile that goes on
     other Areas than usual: "ocean_areas", "land", "next_to_two_cities", "next_to_no_other_tile",
-    "next_to_a_city", "volcanoes", "steel_or_titanium_bonus",
+    "next_to_a_city", "next_to_a_greenery", "volcanoes", "steel_or_titanium_bonus",
     "steel_or_titanium_bonus_next_to_own_tile", or a card's reserved Area, "noctis_city",
     "phobos_space_haven" or "ganymede_colony"; "special" is the card's special Tile, printed with
     its symbol, and Capital's City is its special Tile too) and "claim_area" (true for Land Claim,
-    whose Player claims an Area only they may place a Tile on). An Active card's
+    whose Player claims an Area only they may place a Tile on), and "choice" (effects the Player
+    chooses one of once the Tiles are placed, Imported Hydrogen's [{"resources": {"plants": 3}},
+    {"add_to_another": [...]}, ...]; the same shapes again). An Active card's
     action is "action", the same shapes again (its cost as Resources lost), plus "pay" (MegaCredits
     that steel or titanium may pay, such as {"megacredits": 12, "titanium": true}),
     "resources_per" (Resources gained per Tag or Tile, such as {"resource": "megacredits",
@@ -59,15 +61,17 @@ def card_catalog() -> list[dict[str, Any]]:
     Player plays this Generation. A card that takes from a Player its Player picks has
     "any_player", once its Tiles are placed: {"production": {"heat": -2}} (Production lowered, on a
     Player who can lose every step), {"remove": [{"plants": 3}]} (Resources removed up to these
-    amounts, as one of the alternatives listed: Sabotage lists three), {"steal": [...]} (removed
+    amounts, as one of the alternatives listed: Sabotage lists three; {"card_resource": "animal",
+    "amount": 2} is up to so many from one of a Player's cards, Virus), {"steal": [...]} (removed
     and gained, Hired Raiders) or, only in an action, {"move_card_resource": "microbe"} (1 moved
-    from any card to this one, Ants). Besides Tags ({"tag": "earth"}) and Tiles ({"tiles_in_play":
+    from any card to this one, Ants and Predators). Besides Tags ({"tag": "earth"}) and Tiles ({"tiles_in_play":
     "city"}, {"tiles_on_mars": "city"}, and for Victory Points the Tiles next to the card's own Tile,
     {"adjacent": "ocean"}), "of" may count the opponents' Tags ({"tags_of_opponents":
     "space"}), every Event played ("events_played") or for Victory Points the Card Resources on the
     card ({"card_resource": "microbe"}). Cards without "effects" are never offered; a few cards also
     have Rust code of their own (Robotic Workforce, Insulation, Power Infrastructure, Immigrant City,
-    Mars University, Flooding, Mining Area, Mining Rights, Olympus Conference and Search for Life).
+    Mars University, Flooding, Mining Area, Mining Rights, Olympus Conference, Search for Life, Pets,
+    Protected Habitats and Viral Enhancers).
     Each call returns a new list."""
 
 class Game:
@@ -166,9 +170,12 @@ class Game:
         or be done and discard them; it comes only when they can pay for one), "resources"
         (the Resource change the action being used makes, {"type": "choose_resources", "card":
         "electro_catapult", "resources": {...}} with all six Resources; it comes only when there
-        is more than one to choose from), "effects" (the effects the action being used carries out,
-        {"type": "choose_effects", "card": "regolith_eaters", "alternative": 1}, the index in its
-        "choice"; it comes only when there is more than one it can carry out), "add_to_card" (which of
+        is more than one to choose from), "effects" (the effects the card being played or the action
+        being used carries out, {"type": "choose_effects", "card": "regolith_eaters", "alternative":
+        1}, the index in its "choice"; it comes only when there is more than one it can carry out),
+        "viral_enhancers" (add 1 Card Resource to the card played or gain 1 plant, {"type":
+        "viral_enhancers", "card": "fish", "add": true}, once for each plant, microbe or animal Tag on
+        a card that holds Card Resources, after what else the card does), "add_to_card" (which of
         the Player's cards gets the Card Resources being added, {"type": "add_card_resources", "card":
         "aerobraked_ammonia_asteroid", "to": "tardigrades", "kind": "microbe", "amount": 2}; it
         comes only with more than one such card), "olympus_conference" (add a science to Olympus

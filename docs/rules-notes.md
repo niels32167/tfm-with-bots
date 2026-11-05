@@ -250,6 +250,13 @@ The same check covers a Resource the card makes its Player lose: Moss "requires 
 plant", so it is not offered to a Player with no plant (open-source game: `player.plants >= 1`),
 and Nitrophilic Moss, which loses 2, not to a Player with fewer than 2 (`player.plants >= 2`).
 
+**Viral Enhancers' plant comes first.** With Viral Enhancers in play, a Moss's plant Tag gains a plant
+before the card loses any, so Moss is offered with no plant and Nitrophilic Moss with 1. The rulebook lets
+the Player perform a card's effects and what it triggers "in any order you choose", and gaining first is
+never worse, so that order is used without a Decision. The open-source game's `bespokeCanPlay` says the
+same for both cards. Chosen by Claude (2026-11-05), on the user's instruction to make the ticket 20 calls
+without asking. The test is in `tests/cards/test_viral_enhancers.py`.
+
 **Tests:** `tests/cards/test_nuclear_power.py::test_nuclear_power_cannot_take_megacredit_production_below_minus_5`,
 `tests/cards/test_black_polar_dust.py::test_black_polar_dust_cannot_take_megacredit_production_below_minus_5`,
 `tests/cards/test_strip_mine.py::test_strip_mine_needs_2_energy_production_to_lower`,
@@ -266,7 +273,8 @@ Temperature and Oxygen steps, Terraform Rating (fixed, then per Tag), cards draw
 at to keep or buy some of (see "Looking at cards to keep some of them" and "Buying the card
 looked at" below), the Production or Resource change the Player chooses (see "A Production
 change to choose" and "A Resource change to choose for an action" below), then the Tiles one at
-a time. An action is paid for first (see "Card actions" below). A Tile that a track bonus
+a time, then the effects a played card lets the Player choose (see "Effects chosen when a card is
+played" below). An action is paid for first (see "Card actions" below). A Tile that a track bonus
 gives along the way (the Ocean at 0 °C) is placed before the card's own Tiles. When Strip
 Mine's first Oxygen step reaches 8 % and that Temperature step reaches 0 °C, its second Oxygen
 step comes before the Ocean is placed. Triggers on the card played come once it is paid for,
@@ -967,6 +975,8 @@ once the card's other effects and its Tiles are done, and before Mars University
   plants" is read as every red-bordered removal is: up to 2, or none.
 - **Never offered**, as Options that only do worse for the Player: their own Resources, their own
   Production while an opponent can lose it, and partial amounts below what the card can take.
+- **Protected** plants and Card Resources aren't offered either (see "Pets and Protected Habitats"), and
+  Virus adds a card's animals as an alternative (see "Virus").
 - **One target only** is taken without a Decision, as with any Decision with one Option.
 - **Flooding** may remove 4 MegaCredits (up to 4) only from an opponent who owns a Tile next to its
   Ocean, or nothing. Once all 9 Oceans are placed, it places none and removes nothing.
@@ -1132,7 +1142,8 @@ invariant tests in `tests/fuzzing/test_invariants.py`, among them
 ### Card Resources
 
 **Call:** A card holds Card Resources only if printed with one to hold, of one kind, and only once
-played. Those 9 cards hold 0 when played, unless they say otherwise (Nitrite Reducing Bacteria's 3);
+played. Those 18 cards hold 0 when played, unless they say otherwise (Nitrite Reducing Bacteria's 3,
+Herbivores' and Pets' 1);
 the Player View's `"card_resources"` lists each such played card, even with 0 on it, and the GUI
 draws the count next to the Card Resource's icon. They count for Victory Points only on the card
 they are on: 1 per 4 microbes on Tardigrades, with 3 microbes on it giving none. Search for Life
@@ -1143,7 +1154,7 @@ is fixed, whatever is on it. The game log says "Player 1 adds 2 microbes to Tard
 **Why:** The rulebook: "Other resources (including animals and microbes) are collected on their
 respective cards, which also define what they do", and "If a card adds a non-standard resource, it
 is generally placed on that same card" (rulespal.com's copy). The open-source game gives each such
-card a `resourceType` and a `resourceCount`, and agrees on all 9. Chosen by Claude (2026-11-04), on
+card a `resourceType` and a `resourceCount`, and agrees on all 18. Chosen by Claude (2026-11-04), on
 the user's instruction to make the ticket 19 calls without asking: effect data (`"holds"`,
 `"card_resources"`), counted in one small array on the Game for the 18 cards that hold any (ADR
 0004).
@@ -1169,7 +1180,8 @@ placed.
 - A Decision with one Option is no Decision, as everywhere.
 
 Chosen by Claude (2026-11-04), on the user's instruction to make the ticket 19 calls without asking:
-effect data, an action's `"choice"`, which ticket 20's cards can extend to a card's play.
+effect data, an action's `"choice"`, which ticket 20's cards extend to a card's play (see "Effects
+chosen when a card is played").
 
 **Tests:** `tests/cards/test_regolith_eaters.py`, `tests/cards/test_ghg_producing_bacteria.py`,
 `tests/cards/test_nitrite_reducing_bacteria.py`, `tests/cards/test_extreme_cold_fungus.py`.
@@ -1181,7 +1193,8 @@ microbes, of their picking, once the card's Tiles are placed. With one such card
 a Decision. Otherwise an "add_to_card" Decision offers each one, as a button and as an outlined played
 card.
 - **Without such a card, a card can still be played**, and the microbes are lost: Aerobraked Ammonia
-  Asteroid still raises its Production ("Player 1 has no card to add 2 microbes to.").
+  Asteroid still raises its Production ("Player 1 has no card to add 2 microbes to."). The same goes for
+  Eos Chasma National Park's animal and for each of Imported Nitrogen's two additions.
 - **So can an action**: Symbiotic Fungus is offered without another card that holds microbes, and the
   microbe is lost. Extreme-Cold Fungus only gains its plant then, without a Decision, as its other
   alternative can't be carried out.
@@ -1296,6 +1309,136 @@ which covered asking about an order that doesn't dominate. Rust code for the Dec
 `test_carrying_out_olympus_conference_first_leaves_mars_universitys_discard_with_the_card_drawn` and
 `test_carrying_out_mars_university_first_leaves_olympus_conferences_choice`.
 
+### Effects chosen when a card is played
+
+**Call:** Imported Hydrogen, Large Convoy and Local Heat Trapping let their Player choose between effects
+with the "effects" Decision, as an action's alternatives do ("Gain 3 plants", "Add 3 microbes to another
+card", "Add 2 animals to another card"). The choice comes **once the card's Ocean is placed**. Adding is
+offered only with a card for those Card Resources, so with none the card simply gains its plants without a
+Decision. Local Heat Trapping isn't offered with fewer than 5 heat.
+
+**Why:**
+- The cards; the open-source game's `bespokePlay` offers the plants always and adding only with a card
+  for it, and picks by itself with one Option.
+- The rulebook: "These effects (and other effects triggered by the card you just played) are performed in
+  any order you choose" (rulespal.com's copy). Placing the Ocean first is never worse, as its placement bonus
+  may draw a card that shows which alternative is better, and choosing first gives nothing in return. So
+  it comes first without a Decision (see "When the 0 °C Ocean is placed").
+- Adding to no card when the plants are there to gain only does worse, so the rulebook's exception for
+  Card Resources that can't be placed doesn't leave it offered.
+
+Chosen by Claude (2026-11-05), on the user's instruction to make the ticket 20 calls without asking:
+effect data, `"choice"` on the card as on an action.
+
+**Tests:** `tests/cards/test_imported_hydrogen.py`, among them
+`test_the_card_the_oceans_placement_bonus_draws_is_seen_before_the_choice`;
+`tests/cards/test_large_convoy.py`; `tests/cards/test_local_heat_trapping.py`.
+
+### Predators
+
+**Call:** Predators works as Ants (see "Ants"): its action moves 1 animal from any card to itself, with no
+"Remove nothing". Opponents' cards come first, and once none can be taken from, the Player's own, Predators
+itself included. Pets and Protected Habitats limit which cards count (see "Pets and Protected Habitats").
+
+**Why:** The rulebook's "you must first pay any cost stated to the left of the arrow"; the open-source
+game's `removeResourcesFromAnyCard` with `source: 'all'`. A no-op move back onto itself keeps its Player in
+the Generation, so it isn't dominated. Chosen by Claude (2026-11-05), on the user's instruction to make the
+ticket 20 calls without asking.
+
+**Tests:** `tests/cards/test_predators.py`, among them
+`test_the_player_picks_among_the_opponents_cards_with_animals_and_their_own_are_left_out` and
+`test_with_animals_only_on_predators_itself_the_action_moves_one_back_onto_it`.
+
+### Virus
+
+**Call:** Virus uses the "target" Decision. For each opponent it offers each of their cards with an animal on
+it ("Remove 2 animals from Player 2's Fish", or 1 from a card with 1), then their plants ("Remove 5 plants
+from Player 2"), then "Remove nothing" at the end. **All the animals come from one card**, so 1 each from two
+cards of the same Player is not offered. With nothing of an opponent's to remove, it can still be played and
+removes nothing, without a Decision. The Player's own animals and plants are never offered.
+
+**Why:**
+- The rulebook: red-bordered removals are optional, may be done "partly, or not at all", and "All removed
+  resources must come from the same player". It doesn't say whether they must come from one card.
+- The rulebook being silent and the FAQ out of reach, the open-source game decides: `RemoveResourcesFromCard`
+  picks one card. The printed text could also be read as allowing a split between a Player's cards, so
+  this call is flagged for the play-test.
+- Taking from themselves only does worse than removing nothing (see "Taking from any Player").
+- The *Comprehensive FAQ* could not be checked: the PDF and BoardGameGeek refuse the download.
+
+Chosen by Claude (2026-11-05), on the user's instruction to make the ticket 20 calls without asking: effect
+data, `{"remove": [{"card_resource": "animal", "amount": 2}, {"plants": 5}]}`.
+
+**Tests:** `tests/cards/test_virus.py`, among them
+`test_it_offers_each_opponents_animal_cards_and_plants_then_remove_nothing`;
+`tests/fuzzing/test_invariants.py::test_virus_offering_a_protected_players_plants_or_animals_or_too_many_breaks_an_invariant`.
+
+### Pets and Protected Habitats
+
+**Call:**
+- **Pets:** nobody may remove animals from it, its own Player included. Predators and Virus leave it out,
+  and with animals only on Pets, Predators' action isn't offered. CEO's Favorite Project may still add to it.
+- **Protected Habitats:** an opponent may not remove its Player's plants, animals or microbes. Asteroid,
+  Comet, Big Asteroid, Deimos Down, Mining Expedition, Giant Ice Asteroid and Virus leave that Player's
+  plants out, Virus and Predators their animals, and Ants their microbes. With every opponent protected,
+  Predators and Ants turn to the Player's own cards, as they do when no opponent has any.
+- It protects **nothing else**: not Production (Fish, Birds), and not MegaCredits, steel or titanium (Sabotage,
+  Flooding, Hired Raiders). Its Player may still remove from their own cards.
+
+**Why:** Pets is printed "Animals may not be removed from this card", a sentence the card file's text leaves
+out; the open-source game has it as `protectedResources`, which leaves the card out for everyone. For
+Protected Habitats, the card; the open-source game's `RemoveResourcesFromCard` leaves out an opponent's animal
+and microbe cards, and `RemoveAnyPlants` their plants. Chosen by Claude (2026-11-05), on the user's
+instruction to make the ticket 20 calls without asking: Rust code in `targets.rs`, as protection is about the
+other cards' takings.
+
+**Tests:** `tests/cards/test_pets.py`, `tests/cards/test_protected_habitats.py`, among them
+`test_the_cards_that_remove_plants_leave_its_player_out` and `test_it_does_not_protect_production`;
+`tests/fuzzing/test_invariants.py::test_predators_taking_from_pets_or_protected_habitats_breaks_an_invariant`.
+
+### Viral Enhancers
+
+**Call:** Each plant, microbe or animal Tag its Player plays, its own microbe Tag included and an Event's too,
+gains 1 plant or adds 1 Card Resource to the card played.
+- **A card that holds none** gains the plants at once, with no Decision: the card has nothing to add to.
+  Viral Enhancers itself gains 1 plant, and Advanced Ecosystems 3.
+- **A card that holds some** asks once for each such Tag, with a "viral_enhancers" Decision ("Add 1 microbe to
+  Tardigrades", "Gain 1 plant"). Ecological Zone asks twice.
+- **That Decision comes last** of what the card sets off, after its Tiles, its taking from any Player, and
+  Olympus Conference and Mars University. So there is no Decision about the order.
+- **The plant loss is checked after the gain.** See "Production at its limit": with Viral Enhancers in play,
+  Moss can be played with no plant, and Nitrophilic Moss with 1.
+
+**Why:**
+- The card; the open-source game's `onCardPlayed` gains plants at once for a card that holds no animals or
+  microbes, and otherwise asks for each Tag. No card with these Tags holds science or fighters.
+- The rulebook: effects triggered by the card just played "are performed in any order you choose". The
+  order is skipped when one is never worse (the user's rule, see "When the 0 °C Ocean is placed"), and it is
+  here: the plant or Card Resource changes nothing about the card's other effects or the other two Triggers,
+  while what they draw may show which to take. GHG Producing Bacteria's science and microbe Tags can
+  set off all three.
+- The *Comprehensive FAQ* could not be checked: the PDF and BoardGameGeek refuse the download.
+
+Chosen by Claude (2026-11-05), on the user's instruction to make the ticket 20 calls without asking: the
+Trigger's plant is effect data; the Decision is Rust code (`card_code::VIRAL_ENHANCERS`).
+
+**Tests:** `tests/cards/test_viral_enhancers.py`, among them
+`test_with_olympus_conference_and_mars_university_their_decision_comes_first` and
+`test_moss_can_be_played_with_no_plant_as_its_plant_tag_gains_one_first`.
+
+### Ecological Zone
+
+**Call:** Ecological Zone needs a Greenery of its Player's own to be played. Its special Tile, printed with a paw
+symbol, goes on free land next to any Greenery, whoever owns that Greenery. With no such Area, the card isn't
+offered. Each animal or plant Tag its Player plays adds an animal, so its own two Tags add 2 when it is played.
+
+**Why:** The card ("including these", "adjacent to any greenery tile"); the open-source game's
+`getAvailableSpaces` and `cardTagCount`, and its symbol. Chosen by Claude (2026-11-05), on the user's instruction
+to make the ticket 20 calls without asking: effect data, `{"tile": "special", "on": "next_to_a_greenery"}`.
+
+**Tests:** `tests/cards/test_ecological_zone.py`, among them
+`test_its_tile_goes_next_to_any_greenery_whoever_owns_it` and `test_its_own_two_tags_add_2_animals`.
+
 ## Card flow
 
 ### What setup cards cost until Corporations exist (temporary)
@@ -1398,16 +1541,16 @@ and `tests/rules/test_placement_bonuses.py::test_a_card_bonus_with_the_deck_and_
 **Call:** A Game setting, `implemented_cards_first`, shuffles the implemented cards and puts them
 on top of the shuffled deck, so with 2 Players almost all of them are dealt at setup. Off (the
 engine's default), the deck is shuffled as the rules say. The GUI's setup screen has it on by
-default until every card is implemented; the fuzzer has it on for seeds 4 to 7, 12 to 15 and so
-on. Cards not implemented can still be dealt, bought, held and sold, but are never offered
-to play.
+default; the fuzzer has it on for seeds 4 to 7, 12 to 15 and so on. Since ticket 20 every Project
+Card is implemented, so the setting changes nothing about which cards can be played: only a shuffle
+more is made. It stays until someone removes it, as old Replays name it.
 
 **Why:** Not a rules question but a play-testing aid: with 23 of 208 cards implemented, about 1
 dealt card in 9 would be playable. Chosen by the user (2026-10-24).
 
-**Tests:** `tests/rules/test_deck.py::test_while_most_cards_are_not_implemented_a_new_game_can_deal_the_implemented_ones_first`,
+**Tests:** `tests/rules/test_deck.py::test_a_new_game_can_deal_the_implemented_cards_first`,
 `test_a_new_game_deals_from_the_whole_shuffled_deck_by_default` and
-`tests/rules/test_playing_cards.py::test_a_card_that_is_not_implemented_yet_is_never_offered`.
+`tests/rules/test_playing_cards.py::test_every_project_card_is_implemented`.
 
 ## Draft
 

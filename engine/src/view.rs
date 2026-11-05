@@ -94,6 +94,14 @@ pub enum OptionDetails {
         from: &'static str,
         kind: CardResource,
     },
+    /// Remove `amount` Card Resources from the card `from`, of `player`'s, with `card` (Virus).
+    RemoveCardResources {
+        card: &'static str,
+        player: usize,
+        from: &'static str,
+        kind: CardResource,
+        amount: i32,
+    },
     /// Remove, or steal, nothing with `card`.
     RemoveNothing {
         card: &'static str,
@@ -102,6 +110,11 @@ pub enum OptionDetails {
     OlympusConference {
         card: &'static str,
         draw: bool,
+    },
+    /// Add 1 Card Resource to `card`, which is being played (`add`), or gain 1 plant (Viral Enhancers).
+    ViralEnhancers {
+        card: &'static str,
+        add: bool,
     },
     /// Sell a card from the hand with Sell Patents, named by its catalog id, for `megacredits`.
     SellCard {
@@ -131,8 +144,8 @@ pub enum OptionDetails {
         card: &'static str,
         resources: Resources,
     },
-    /// One of the alternatives the action of `card`, being used, lets its Player choose: the one at
-    /// `alternative` in its effect data's `"choice"`.
+    /// One of the alternatives `card`, being played, or its action, being used, lets its Player
+    /// choose: the one at `alternative` in its effect data's `"choice"`.
     ChooseEffects {
         card: &'static str,
         alternative: usize,
@@ -535,6 +548,7 @@ fn decision_view(game: &Game, decision: &Decision) -> DecisionView {
             DecisionKind::SellPatents => "sell_patents",
             DecisionKind::DiscardToDraw => "discard_to_draw",
             DecisionKind::OlympusConference => "olympus_conference",
+            DecisionKind::ViralEnhancers => "viral_enhancers",
             DecisionKind::Target => "target",
             DecisionKind::FinalGreenery => "final_greenery",
         },
@@ -576,6 +590,13 @@ fn label(game: &Game, player: usize, option: &DecisionOption) -> String {
         DecisionOption::OlympusConference { draw: true } => {
             format!("Remove 1 science from {} to draw a card", CARD_CATALOG[OLYMPUS_CONFERENCE].name)
         }
+        DecisionOption::ViralEnhancers { card, add: true } => {
+            let printed = &CARD_CATALOG[*card];
+            format!("Add {} to {}", printed.held().counted(1), printed.name)
+        }
+        DecisionOption::ViralEnhancers { add: false, .. } => {
+            format!("Gain {}", Resource::Plants.counted(1))
+        }
         DecisionOption::Target { card, player: target, alternative } => {
             taking_label(game.taking(*card, *target, *alternative), *target == player, *target)
         }
@@ -586,6 +607,15 @@ fn label(game: &Game, player: usize, option: &DecisionOption) -> String {
                 "Remove {} from {whose} {}",
                 CARD_CATALOG[*from].held().counted(1),
                 CARD_CATALOG[*from].name
+            )
+        }
+        DecisionOption::RemoveFromCard { owner, from, amount, .. } => {
+            let printed = &CARD_CATALOG[*from];
+            format!(
+                "Remove {} from {}'s {}",
+                printed.held().counted(*amount),
+                player_name(*owner),
+                printed.name
             )
         }
         DecisionOption::RemoveNothing(card) => {
@@ -658,12 +688,12 @@ fn capitalized(text: String) -> String {
     letters.next().map(|first| first.to_uppercase().chain(letters).collect()).unwrap_or_default()
 }
 
-/// An action's alternative as a label writes it: "Add 1 microbe to Regolith Eaters", "Remove 2
-/// microbes from Regolith Eaters to raise Oxygen 1 step", "Gain 1 plant" or "Add 2 microbes to
+/// A card's or an action's alternative as a label writes it: "Add 1 microbe to Regolith Eaters",
+/// "Remove 2 microbes from Regolith Eaters to raise Oxygen 1 step", "Gain 1 plant" or "Add 2 microbes to
 /// another card".
 fn alternative_label(card: usize, alternative: usize) -> String {
     let printed = &CARD_CATALOG[card];
-    let effects = printed.action_alternative(alternative);
+    let effects = &printed.alternatives()[alternative];
     let amount = |by: i32| printed.holds().map_or(String::new(), |held| held.counted(by.abs()));
     let mut gains: Vec<String> = Resource::ALL
         .into_iter()
@@ -740,6 +770,9 @@ fn details(game: &Game, player: usize, option: &DecisionOption) -> OptionDetails
         DecisionOption::OlympusConference { draw } => {
             OptionDetails::OlympusConference { card: &CARD_CATALOG[OLYMPUS_CONFERENCE].id, draw: *draw }
         }
+        DecisionOption::ViralEnhancers { card, add } => {
+            OptionDetails::ViralEnhancers { card: &CARD_CATALOG[*card].id, add: *add }
+        }
         DecisionOption::Target { card, player: target, alternative } => {
             let id = &CARD_CATALOG[*card].id;
             match game.taking(*card, *target, *alternative) {
@@ -756,6 +789,13 @@ fn details(game: &Game, player: usize, option: &DecisionOption) -> OptionDetails
             player: *owner,
             from: &CARD_CATALOG[*from].id,
             kind: CARD_CATALOG[*from].held(),
+        },
+        DecisionOption::RemoveFromCard { card, owner, from, amount } => OptionDetails::RemoveCardResources {
+            card: &CARD_CATALOG[*card].id,
+            player: *owner,
+            from: &CARD_CATALOG[*from].id,
+            kind: CARD_CATALOG[*from].held(),
+            amount: *amount,
         },
         DecisionOption::RemoveNothing(card) => OptionDetails::RemoveNothing { card: &CARD_CATALOG[*card].id },
         DecisionOption::Pay { card, payment } => {

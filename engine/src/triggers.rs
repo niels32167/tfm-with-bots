@@ -1,9 +1,10 @@
 //! Triggers: what an Active card's Player gains each time something happens while the card is in
 //! play, such as Arctic Algae's 2 plants when anyone places an Ocean. They are effect data
-//! (`cards::Trigger`), plus Mars University's and Olympus Conference's Rust code in `card_code`.
+//! (`cards::Trigger`), plus Mars University's, Olympus Conference's and Viral Enhancers' Rust code in
+//! `card_code`.
 
 use crate::board::TileKind;
-use crate::card_code::{MARS_UNIVERSITY, OLYMPUS_CONFERENCE};
+use crate::card_code::{MARS_UNIVERSITY, OLYMPUS_CONFERENCE, VIRAL_ENHANCERS, ViralEnhancing};
 use crate::cards::{CARD_CATALOG, CARDS_WITH, Owner, TriggerCondition};
 use crate::game::Game;
 use crate::log::LogEvent;
@@ -22,7 +23,7 @@ pub enum Happened {
 impl Happened {
     /// How many times this sets off `on` for a card of `owner`'s: once, or once for each Tag
     /// played, or not at all.
-    fn times(self, on: &TriggerCondition, owner: usize) -> i32 {
+    pub(crate) fn times(self, on: &TriggerCondition, owner: usize) -> i32 {
         match (self, on) {
             (Happened::TilePlaced { player, tile }, TriggerCondition::TilePlaced { tile: kind, by }) => {
                 i32::from(tile == *kind && (*by == Owner::Anyone || player == owner))
@@ -48,22 +49,31 @@ impl Game {
     /// Every Trigger that `happened` sets off is carried out, for whichever Player's card it is
     /// on: Players in player number order, and each Player's cards in card-number order. A card
     /// in play counts itself: Immigrant City's own City sets it off. The order never changes the
-    /// outcome: each Trigger only gains its Player something, but Mars University's, which lets
-    /// its Player discard once the card being played is done (see `card_code`).
+    /// outcome: each Trigger only gains its Player something, but Mars University's, Olympus
+    /// Conference's and Viral Enhancers' on a card that holds Card Resources, which let their Player
+    /// choose once the card being played is done (see `card_code`).
     pub(crate) fn set_off(&mut self, happened: Happened) {
         for owner in 0..self.players.len() {
             for card in self.players[owner].played.intersection(CARDS_WITH.triggers).iter() {
                 for trigger in &CARD_CATALOG[card].implemented_effects().when {
                     let times = happened.times(&trigger.on, owner);
-                    if times > 0 && card == MARS_UNIVERSITY {
-                        self.discards_to_draw += times as u32;
-                    } else if times > 0 && card == OLYMPUS_CONFERENCE {
-                        self.olympus_conference_due += times as u32;
-                    } else if times > 0 {
-                        self.log.push(LogEvent::TriggerTakesEffect { player: owner, card });
-                        self.change_resources(owner, trigger.resources.times(times));
-                        self.change_productions(owner, trigger.production.times(times));
-                        self.change_card_resources(owner, card, trigger.card_resources * times);
+                    if times == 0 {
+                        continue;
+                    }
+                    match (card, happened) {
+                        (MARS_UNIVERSITY, _) => self.discards_to_draw += times as u32,
+                        (OLYMPUS_CONFERENCE, _) => self.olympus_conference_due += times as u32,
+                        (VIRAL_ENHANCERS, Happened::CardPlayed { card: played, .. })
+                            if CARD_CATALOG[played].holds().is_some() =>
+                        {
+                            self.viral_enhancing = Some(ViralEnhancing { card: played, times: times as u32 });
+                        }
+                        _ => {
+                            self.log.push(LogEvent::TriggerTakesEffect { player: owner, card });
+                            self.change_resources(owner, trigger.resources.times(times));
+                            self.change_productions(owner, trigger.production.times(times));
+                            self.change_card_resources(owner, card, trigger.card_resources * times);
+                        }
                     }
                 }
             }

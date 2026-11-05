@@ -15,3 +15,9 @@
 - [ ] The card coverage check from ticket 08 now fails when any Project Card or Corporation lacks a scenario test, and it passes.
 - [ ] The card mismatch report has no open entries.
 - [ ] The rules notes list every judgment call made.
+
+## Comments
+
+### 2026-11-05 — hand-off from ticket 20 (Claude)
+
+Every Project Card is implemented now, so the `implemented_cards_first` setting and the setup screen's "Deal the implemented cards first" change nothing about which cards can be played. They were left in, as old Replays name the setting. Decide here whether to remove them (`docs/rules-notes.md`, "Dealing the implemented cards first").

@@ -33,6 +33,7 @@ const OTHER_AREAS: Record<string, string> = {
   next_to_two_cities: " next to at least 2 Cities",
   next_to_no_other_tile: " next to no other Tile",
   next_to_a_city: " next to a City",
+  next_to_a_greenery: " next to a Greenery",
   volcanoes: " on a volcano",
   steel_or_titanium_bonus: " on an Area with a steel or titanium bonus",
   steel_or_titanium_bonus_next_to_own_tile: " on an Area with a steel or titanium bonus, next to one of their Tiles",
@@ -116,12 +117,19 @@ function statusText(game: GameUpdate, cards: Card[]): string {
     if (first?.type === "move_card_resource") {
       return `${who} must choose the card ${card} removes 1 ${first.kind} from: click a button or a highlighted played card.`;
     }
+    if (decision.options.some((option) => option.details.type === "remove_card_resources")) {
+      return `${who} may choose what ${card} removes: click a button or a highlighted played card.`;
+    }
     const steals = decision.options.some((option) => option.details.stolen);
     return `${who} may choose whom ${card} ${steals ? "steals" : "removes"} Resources from:`;
   }
   if (decision?.kind === "effects") {
     const card = cards.find((each) => each.id === decision.options[0]?.details.card);
-    return `${who} must choose what the action of ${card?.name} does:`;
+    return `${who} must choose what ${card?.effects?.action ? "the action of " : ""}${card?.name} does:`;
+  }
+  if (decision?.kind === "viral_enhancers") {
+    const card = cards.find((each) => each.id === decision.options[0]?.details.card);
+    return `${who} must choose what Viral Enhancers does for a Tag of ${card?.name}:`;
   }
   if (decision?.kind === "add_to_card") {
     const card = cards.find((each) => each.id === decision.options[0]?.details.card);

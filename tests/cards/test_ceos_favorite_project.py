@@ -28,6 +28,22 @@ def test_it_adds_1_to_the_only_card_with_some_without_a_decision():
     assert game.decision["kind"] == "action"
 
 
+def test_it_can_target_animal_and_fighter_cards():
+    playing = player(
+        megacredits=1,
+        hand=["ceos_favorite_project"],
+        played_cards=["security_fleet", "fish", "birds"],
+        card_resources={"security_fleet": 1, "fish": 2},
+    )
+    game = scenario(playing, player())
+
+    pick(game, "Play CEO's Favorite Project")
+
+    assert labels(game) == ["Add 1 fighter to Security Fleet", "Add 1 animal to Fish"]
+    pick(game, "Add 1 animal to Fish")
+    assert card_resources(game, 0) == {"birds": 0, "fish": 3, "security_fleet": 1}
+
+
 def test_it_can_add_any_kind_of_card_resource_and_the_player_picks_the_card():
     playing = player(
         megacredits=1,

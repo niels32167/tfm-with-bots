@@ -295,11 +295,12 @@ pub enum SpecialTile {
     LavaFlows,
     MoholeArea,
     RestrictedArea,
+    EcologicalZone,
 }
 
 impl SpecialTile {
     /// In card-number order.
-    pub const ALL: [SpecialTile; 10] = [
+    pub const ALL: [SpecialTile; 11] = [
         SpecialTile::Capital,
         SpecialTile::NaturalPreserve,
         SpecialTile::MiningArea,
@@ -307,6 +308,7 @@ impl SpecialTile {
         SpecialTile::CommercialDistrict,
         SpecialTile::NuclearZone,
         SpecialTile::IndustrialCenter,
+        SpecialTile::EcologicalZone,
         SpecialTile::LavaFlows,
         SpecialTile::MoholeArea,
         SpecialTile::RestrictedArea,
@@ -322,6 +324,7 @@ impl SpecialTile {
             SpecialTile::CommercialDistrict => 84,
             SpecialTile::NuclearZone => 96,
             SpecialTile::IndustrialCenter => 122,
+            SpecialTile::EcologicalZone => 127,
             SpecialTile::LavaFlows => 139,
             SpecialTile::MoholeArea => 141,
             SpecialTile::RestrictedArea => 198,
@@ -361,6 +364,9 @@ pub enum Areas {
     /// Any free Area on Mars reserved for nothing and next to a City, as for Industrial Center's
     /// Tile.
     NextToACity,
+    /// Any free Area on Mars reserved for nothing and next to a Greenery, whoever owns it, as for
+    /// Ecological Zone's Tile.
+    NextToAGreenery,
     /// Any free volcano: Tharsis Tholus, Ascraeus Mons, Pavonis Mons or Arsia Mons, as for Lava
     /// Flows' Tile.
     Volcanoes,
@@ -582,6 +588,7 @@ impl Board {
             (Areas::NextToTwoCities, _) => self.adjacent(area, TileKind::City) >= 2,
             (Areas::NextToNoOtherTile, _) => adjacent_areas(area).all(|next| self.tiles[next].is_none()),
             (Areas::NextToACity, _) => self.next_to_a_city(area),
+            (Areas::NextToAGreenery, _) => self.adjacent(area, TileKind::Greenery) > 0,
             // The four volcanoes are the Areas on Mars with a printed name but reserved for nothing.
             (Areas::Volcanoes, _) => printed(area).name.is_some(),
             (Areas::SteelOrTitaniumBonus, _) => mining_resource(area).is_some(),

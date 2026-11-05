@@ -40,6 +40,15 @@ CARDS_HOLDING_CARD_RESOURCES = {
     "decomposers": "microbe",
     "nitrite_reducing_bacteria": "microbe",
     "olympus_conference": "science",
+    "predators": "animal",
+    "security_fleet": "fighter",
+    "fish": "animal",
+    "small_animals": "animal",
+    "birds": "animal",
+    "ecological_zone": "animal",
+    "herbivores": "animal",
+    "pets": "animal",
+    "livestock": "animal",
 }
 # Every Area on Mars that is reserved for nothing, in board order.
 LAND_AREAS = [name for name in AREAS_ON_MARS if name not in OCEAN_AREAS and name != NOCTIS_CITY]

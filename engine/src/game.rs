@@ -11,7 +11,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::board::{Areas, Board, BonusItem, Placement, SpecialTile, Tile, TileKind, printed};
 use crate::card_actions::ResourceChange;
-use crate::card_code::FLOODING;
+use crate::card_code::{FLOODING, ViralEnhancing};
 use crate::card_flow::{Buying, Keeping};
 use crate::card_resources::{Adding, CardResources};
 use crate::card_set::CardSet;
@@ -230,7 +230,7 @@ pub enum DecisionKind {
     KeepCards,
     /// Choose the Resource change the action being used makes.
     Resources,
-    /// Choose which effects the action being used carries out.
+    /// Choose which effects the card being played, or the action being used, carries out.
     Effects,
     /// Choose which of the Player's cards gets the Card Resources being added.
     AddToCard,
@@ -245,6 +245,8 @@ pub enum DecisionKind {
     /// Add a science to Olympus Conference, or remove one to draw a card, or first discard a card
     /// to draw one with Mars University.
     OlympusConference,
+    /// Add 1 Card Resource to the card played, or gain 1 plant (Viral Enhancers).
+    ViralEnhancers,
     /// Choose whom the card being played takes Production or Resources from, or the card that the
     /// action being used takes a Card Resource from.
     Target,
@@ -281,11 +283,23 @@ pub enum DecisionOption {
         owner: usize,
         from: usize,
     },
+    /// Remove `amount` Card Resources with `card` from `from`, a card of `owner`'s (Virus).
+    RemoveFromCard {
+        card: usize,
+        owner: usize,
+        from: usize,
+        amount: i32,
+    },
     /// Remove, or steal, nothing with `card`, which may remove Resources from any Player.
     RemoveNothing(usize),
     /// Remove a science from Olympus Conference to draw a card (`draw`), or add one to it.
     OlympusConference {
         draw: bool,
+    },
+    /// Add 1 Card Resource to `card`, which is being played (`add`), or gain 1 plant (Viral Enhancers).
+    ViralEnhancers {
+        card: usize,
+        add: bool,
     },
     /// Keep this card, one of those the card being played lets its Player look at.
     KeepCard(usize),
@@ -309,8 +323,8 @@ pub enum DecisionOption {
         card: usize,
         change: ResourceChange,
     },
-    /// Carry out the alternative at `alternative` of the effects the action of `card`, which is
-    /// being used, chooses between.
+    /// Carry out the alternative at `alternative` of the effects `card`, which is being played, or
+    /// its action, which is being used, chooses between.
     ChooseEffects {
         card: usize,
         alternative: usize,
@@ -361,7 +375,8 @@ pub enum Waiting {
     ActionPayment(usize),
     /// The Resource change the action of this card, which they are using, makes.
     Resources(usize),
-    /// Which effects the action of this card, which they are using, carries out.
+    /// Which effects this card, which they are playing, or its action, which they are using, carries
+    /// out.
     Effects(usize),
     /// Which of their cards gets the Card Resources that `card` adds.
     AddToCard { card: usize, add: AddToAnother },
@@ -371,6 +386,8 @@ pub enum Waiting {
     DiscardToDraw,
     /// What Olympus Conference does for a science Tag played, or which card they discard first.
     OlympusConference,
+    /// What Viral Enhancers does for a Tag played.
+    ViralEnhancers,
     /// Whom a card takes Production or Resources from, or the card it takes a Card Resource from.
     Target(Targeting),
     /// Which Area they claim with Land Claim, which they are playing.
@@ -434,12 +451,17 @@ pub struct Game {
     pub waiting: Option<Waiting>,
     /// The card whose Tiles the current Player is placing, while it has any left to place.
     pub placing_for: Option<CardTiles>,
+    /// The card the current Player is playing, while the effects it lets them choose are still due.
+    pub choosing_for: Option<usize>,
     /// How many more times the current Player may discard a card from their hand to draw one
     /// (Mars University), once the card they are playing is done.
     pub discards_to_draw: u32,
     /// How many more times the current Player chooses what Olympus Conference does, once the card
     /// they are playing is done.
     pub olympus_conference_due: u32,
+    /// What Viral Enhancers still asks about for the card the current Player is playing, once it is
+    /// done.
+    pub viral_enhancing: Option<ViralEnhancing>,
     /// What a card takes from any Player, due once the card the current Player is playing is done
     /// with its Tiles.
     pub targeting: Option<Targeting>,
@@ -502,8 +524,10 @@ impl Game {
             actions_this_turn: 0,
             waiting: None,
             placing_for: None,
+            choosing_for: None,
             discards_to_draw: 0,
             olympus_conference_due: 0,
+            viral_enhancing: None,
             targeting: None,
             waiting_bonus: None,
             card_resources: CardResources::default(),
@@ -542,9 +566,7 @@ impl Game {
             (Some(Waiting::Resources(card)), _) => {
                 (DecisionKind::Resources, self.resource_change_options(self.current_player, card))
             }
-            (Some(Waiting::Effects(card)), _) => {
-                (DecisionKind::Effects, self.action_alternative_options(card))
-            }
+            (Some(Waiting::Effects(card)), _) => (DecisionKind::Effects, self.alternative_options(card)),
             (Some(Waiting::AddToCard { card, add }), _) => {
                 (DecisionKind::AddToCard, self.add_to_card_options(card, add))
             }
@@ -554,6 +576,9 @@ impl Game {
             }
             (Some(Waiting::OlympusConference), _) => {
                 (DecisionKind::OlympusConference, self.olympus_conference_options())
+            }
+            (Some(Waiting::ViralEnhancers), _) => {
+                (DecisionKind::ViralEnhancers, self.viral_enhancers_options())
             }
             (Some(Waiting::Target(targeting)), _) => (DecisionKind::Target, self.target_options(targeting)),
             (None, Phase::Draft) => (DecisionKind::Draft, self.drafting_options()),
@@ -721,7 +746,7 @@ impl Game {
                 self.change_resources_as_chosen(player, card, change)
             }
             DecisionOption::ChooseEffects { card, alternative } => {
-                self.carry_out_action_alternative(player, card, alternative)
+                self.carry_out_alternative(player, card, alternative)
             }
             DecisionOption::AddToCard { to, amount, .. } => self.add_to_card(to, amount),
             DecisionOption::DraftCard(card) => self.draft(card),
@@ -737,8 +762,12 @@ impl Game {
             DecisionOption::MoveCardResource { card, owner, from } => {
                 self.move_card_resource_as_picked(card, owner, from)
             }
+            DecisionOption::RemoveFromCard { owner, from, amount, .. } => {
+                self.remove_from_card(owner, from, amount)
+            }
             DecisionOption::RemoveNothing(card) => self.remove_nothing(card),
             DecisionOption::OlympusConference { draw } => self.olympus_conference(draw),
+            DecisionOption::ViralEnhancers { card, add } => self.viral_enhancers(card, add),
             DecisionOption::KeepCard(card) => self.keep_card(card),
             // It has no price: the Player picks the cards to sell next.
             DecisionOption::UseStandardProject(StandardProject::SellPatents) => {
@@ -826,18 +855,21 @@ impl Game {
         }
     }
 
-    /// Unless a Tile is still to be placed, a card's included, Card Resources are added to another
-    /// card of the Player's picking, the card played takes from a Player of its Player's picking, or
-    /// the science Tags played call on Olympus Conference or Mars University: the current Action
-    /// ends, or in the final Greenery conversion, the current Player may convert again.
+    /// Unless a Tile is still to be placed, a card's included, the card played lets its Player choose
+    /// its effects, Card Resources are added to another card of the Player's picking, the card played
+    /// takes from a Player of its Player's picking, or the Tags played call on Olympus Conference, Mars
+    /// University or Viral Enhancers: the current Action ends, or in the final Greenery conversion,
+    /// the current Player may convert again.
     pub(crate) fn finish_unless_placing(&mut self) {
         if !self.is_placing() {
             self.place_next_card_tile();
         }
         if self.is_placing()
+            || self.offer_alternatives()
             || self.offer_card_to_add_to()
             || self.offer_target()
             || self.offer_science_tag_effects()
+            || self.offer_viral_enhancers()
         {
             return;
         }

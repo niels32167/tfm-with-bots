@@ -29,11 +29,10 @@ def test_each_playable_card_in_hand_is_an_option_naming_the_card_and_its_cost_in
     ]
 
 
-def test_a_card_that_is_not_implemented_yet_is_never_offered():
-    # Birds (Active, animals) comes with ticket 20.
-    game = scenario(player(megacredits=100, hand=["birds"]), player(), oxygen=13)
+def test_every_project_card_is_implemented():
+    missing = [card["id"] for card in tm_engine.card_catalog() if card["type"] != "corporation" and "effects" not in card]
 
-    assert not offered(game, "Play Birds")
+    assert missing == []
 
 
 def test_a_card_is_not_offered_without_the_megacredits_to_pay_for_it():

@@ -140,6 +140,13 @@ pub enum LogEvent {
         from: usize,
         card: usize,
     },
+    /// `player` removes `amount` Card Resources from `from`, a card of `owner`'s.
+    RemovedFromCard {
+        player: usize,
+        owner: usize,
+        from: usize,
+        amount: i32,
+    },
     /// `player` lowers `target`'s Production of `resource` `by` steps with a card that lowers any
     /// Player's; `target` may be `player` themselves.
     LoweredProductionOf {
@@ -413,6 +420,13 @@ impl LogEvent {
                     CARD_CATALOG[card].name
                 )
             }
+            LogEvent::RemovedFromCard { player, owner, from, amount } => format!(
+                "{} removes {} from {}'s {}.",
+                player_name(player),
+                CARD_CATALOG[from].held().counted(amount),
+                player_name(owner),
+                CARD_CATALOG[from].name
+            ),
             LogEvent::LoweredProductionOf { player, target, resource, by } => {
                 let whose = if target == player {
                     "their own".to_string()

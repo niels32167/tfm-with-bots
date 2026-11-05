@@ -23,6 +23,15 @@ PRINTED_VICTORY_POINTS = {
     "tardigrades": [(3, 0), (4, 1), (9, 2)],
     "physics_complex": [(0, 0), (1, 2), (4, 8)],
     "decomposers": [(2, 0), (3, 1), (7, 2)],
+    "predators": [(0, 0), (1, 1), (6, 6)],
+    "security_fleet": [(0, 0), (1, 1), (5, 5)],
+    "fish": [(0, 0), (1, 1), (5, 5)],
+    "small_animals": [(1, 0), (2, 1), (5, 2)],
+    "birds": [(0, 0), (1, 1), (4, 4)],
+    "ecological_zone": [(1, 0), (2, 1), (7, 3)],
+    "herbivores": [(1, 0), (2, 1), (7, 3)],
+    "pets": [(1, 0), (2, 1), (5, 2)],
+    "livestock": [(0, 0), (1, 1), (6, 6)],
 }
 
 
@@ -35,14 +44,15 @@ def test_card_resources_count_for_victory_points_as_printed(card, points_with):
         assert final_scores(game)[0]["cards"] == points, f"{amount} on {card}"
 
 
-def test_a_played_card_not_yet_implemented_counts_as_holding_none():
-    # Birds holds animals once ticket 20 is done. Until then, nothing is on it, whatever else is in play.
+def test_a_played_card_that_holds_none_counts_as_holding_none():
+    # Trees' Victory Point is fixed, whatever is on the card next to it.
     holding = player(
-        played_cards=["birds", "physics_complex"], card_resources={"physics_complex": 2}
+        played_cards=["trees", "physics_complex"], card_resources={"physics_complex": 2}
     )
     game = scenario(holding, player(), **terraformed_mars())
 
-    assert final_scores(game)[0]["cards"] == 4
+    assert card_resources(game, 0) == {"physics_complex": 2}
+    assert final_scores(game)[0]["cards"] == 5
 
 
 def test_a_card_counts_only_the_card_resources_on_itself():

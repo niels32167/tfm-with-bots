@@ -22,3 +22,9 @@ Polish:
 - [ ] Every element in the list above is restyled, and side-by-side screenshots against Board Game Arena are attached under Comments.
 - [ ] The layout works on desktop browser widths from 1366 to 2560 pixels without horizontal scrolling.
 - [ ] Nothing in the dev panel or in gameplay breaks; the WebSocket smoke test and the scenario tests still pass.
+
+## Comments
+
+### 2026-11-05 — hand-off from ticket 20 (Claude)
+
+Ecological Zone's Tile uses the card's paw (U+1F43E) in `SPECIAL_SYMBOLS`. Unlike the other symbols, the browser draws it from a colour emoji font: blue here, ignoring `.special-symbol`'s fill, and small on the tile. It is legible but differs by system; a drawn SVG paw would match the other Tiles.

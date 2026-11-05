@@ -140,7 +140,11 @@ impl Game {
             && if card == IMMIGRANT_CITY {
                 self.can_carry_out_immigrant_city(player)
             } else {
-                self.can_carry_out(player, effects)
+                self.can_carry_out_with_plants(
+                    player,
+                    effects,
+                    self.plants_from_viral_enhancers(player, card),
+                )
             }
             && self.can_make_a_production_change(player, card)
     }
@@ -226,15 +230,22 @@ impl Game {
         }
     }
 
-    /// Whether `player` can carry out `effects`: on their own Resources and Production, with
-    /// someone to lower the Production it lowers on any Player, with an Area for each Tile (an
-    /// Ocean always, as Aquifer: see docs/rules-notes.md), with an Area to claim, and with a card
-    /// for the Card Resources that need one. Resources
-    /// lost are checked against what the Player holds before paying for the card; no card yet both
-    /// costs steel or titanium and loses some.
+    /// Whether `player` can carry out `effects`, as `can_carry_out_with_plants` says, with no plant
+    /// gained first.
     pub(crate) fn can_carry_out(&self, player: usize, effects: &Effects) -> bool {
-        let own = &self.players[player];
-        Resource::ALL.into_iter().all(|resource| own.resources[resource] + effects.resources[resource] >= 0)
+        self.can_carry_out_with_plants(player, effects, 0)
+    }
+
+    /// Whether `player` can carry out `effects`, having gained `plants` first (Viral Enhancers): on
+    /// their own Resources and Production, with someone to lower the Production it lowers on any
+    /// Player, with an Area for each Tile (an Ocean always, as Aquifer: see docs/rules-notes.md), with
+    /// an Area to claim, and with a card for the Card Resources that need one. Resources lost are
+    /// checked against what the Player holds before paying for the card; no card yet both costs steel
+    /// or titanium and loses some.
+    pub(crate) fn can_carry_out_with_plants(&self, player: usize, effects: &Effects, plants: i32) -> bool {
+        let mut resources = self.players[player].resources;
+        resources.plants += plants;
+        Resource::ALL.into_iter().all(|resource| resources[resource] + effects.resources[resource] >= 0)
             && self.can_change_production(player, effects.production)
             && self.someone_can_lose_production(player, effects)
             && effects.tiles.iter().all(|&placement| self.can_take_action_placing(player, Some(placement)))
@@ -397,11 +408,14 @@ impl Game {
     }
 
     /// The Tiles of `card`, which is being played, are placed one at a time, or the Area it claims
-    /// is chosen; then the Action ends.
+    /// is chosen; then the effects it lets its Player choose follow, and the Action ends.
     fn place_card_tiles(&mut self, card: usize) {
         let effects = CARD_CATALOG[card].implemented_effects();
         if !effects.tiles.is_empty() {
             self.placing_for = Some(CardTiles { card, placed: 0 });
+        }
+        if !effects.choice.is_empty() {
+            self.choosing_for = Some(card);
         }
         if effects.claim_area {
             self.wait_on(Waiting::ClaimArea);

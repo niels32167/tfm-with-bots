@@ -114,7 +114,7 @@ def test_only_active_cards_have_a_trigger_and_one_that_its_own_play_sets_off_say
             )
             own_tag = isinstance(on, dict) and set(on.get("tag_played", [])) & set(card["tags"])
             if own_tile or own_tag:
-                assert "including this" in card["text"], card["name"]
+                assert "including this" in card["text"] or "including these" in card["text"], card["name"]
             if isinstance(on, dict) and "card_played" in on:
                 wanted = on["card_played"]
                 assert wanted.get("type", card["type"]) != card["type"] or wanted.get("tag") not in card["tags"]

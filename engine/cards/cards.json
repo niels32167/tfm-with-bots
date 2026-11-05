@@ -264,7 +264,8 @@
       "requirements": [],
       "victory_points": null,
       "text": "(Gain 3 Plants, or add 3 Microbes or 2 Animals to ANOTHER card. Place an ocean tile.)",
-      "face": {"content": {"tag": "div", "class": "content", "children": [" ", {"tag": "span", "children": ["3"]}, " ", {"tag": "div", "class": "resource plant"}, " OR ", {"tag": "span", "children": ["3"]}, " ", {"tag": "div", "class": "resource microbe"}, " * OR ", {"tag": "span", "children": ["2"]}, " ", {"tag": "div", "class": "resource animal"}, " * ", {"tag": "br"}, " ", {"tag": "div", "class": "tile ocean-tile"}, " ", {"tag": "div", "class": "description", "children": [" (Gain 3 Plants, or add 3 Microbes or 2 Animals to ANOTHER card. Place an ocean tile.) "]}, " "]}}
+      "face": {"content": {"tag": "div", "class": "content", "children": [" ", {"tag": "span", "children": ["3"]}, " ", {"tag": "div", "class": "resource plant"}, " OR ", {"tag": "span", "children": ["3"]}, " ", {"tag": "div", "class": "resource microbe"}, " * OR ", {"tag": "span", "children": ["2"]}, " ", {"tag": "div", "class": "resource animal"}, " * ", {"tag": "br"}, " ", {"tag": "div", "class": "tile ocean-tile"}, " ", {"tag": "div", "class": "description", "children": [" (Gain 3 Plants, or add 3 Microbes or 2 Animals to ANOTHER card. Place an ocean tile.) "]}, " "]}},
+      "effects": {"choice": [{"resources": {"plants": 3}}, {"add_to_another": [{"kind": "microbe", "amount": 3, "must_have_card": true}]}, {"add_to_another": [{"kind": "animal", "amount": 2, "must_have_card": true}]}], "tiles": ["ocean"]}
     },
     {
       "id": "research_outpost",
@@ -333,7 +334,8 @@
       "requirements": [{"type": "oxygen", "min": 11}],
       "victory_points": {"points": 1, "per": 1, "of": {"card_resource": "animal"}},
       "text": "(Action: Remove 1 Animal from any card and add it to this card.)\n(Requires 11% oxygen. 1 VP per Animal on this card.)",
-      "face": {"content": {"tag": "div", "class": "content", "children": [" ", {"tag": "div", "class": "points", "children": [" 1/ ", {"tag": "div", "class": "animal resource"}, " "]}, " ", {"tag": "div", "class": "requirements", "children": ["11% O2"]}, " ", {"tag": "div", "class": "resource animal red-outline"}, " ", {"tag": "div", "class": "red-arrow"}, " ", {"tag": "div", "class": "animal resource"}, " ", {"tag": "div", "class": "description", "children": [" (Action: Remove 1 Animal from any card and add it to this card.) "]}, " ", {"tag": "br"}, " ", {"tag": "div", "class": "description", "children": [" (Requires 11% oxygen. 1 VP per Animal on this card.) "]}, " "]}}
+      "face": {"content": {"tag": "div", "class": "content", "children": [" ", {"tag": "div", "class": "points", "children": [" 1/ ", {"tag": "div", "class": "animal resource"}, " "]}, " ", {"tag": "div", "class": "requirements", "children": ["11% O2"]}, " ", {"tag": "div", "class": "resource animal red-outline"}, " ", {"tag": "div", "class": "red-arrow"}, " ", {"tag": "div", "class": "animal resource"}, " ", {"tag": "div", "class": "description", "children": [" (Action: Remove 1 Animal from any card and add it to this card.) "]}, " ", {"tag": "br"}, " ", {"tag": "div", "class": "description", "children": [" (Requires 11% oxygen. 1 VP per Animal on this card.) "]}, " "]}},
+      "effects": {"holds": "animal", "action": {"any_player": {"move_card_resource": "animal"}}}
     },
     {
       "id": "space_station",
@@ -360,7 +362,8 @@
       "requirements": [{"type": "temperature", "min": -12}],
       "victory_points": 1,
       "text": "(Requires -12 C or warmer. Add 1 Animal TO ANY ANIMAL CARD. Gain 3 Plants. Increase your MC production 2 steps.)",
-      "face": {"content": {"tag": "div", "class": "content", "children": [" ", {"tag": "div", "class": "points points-big", "children": ["1"]}, " ", {"tag": "div", "class": "requirements", "children": ["-12 C"]}, " ", {"tag": "div", "class": "resource animal"}, " * ", {"tag": "div", "class": "resource plant", "style": {"margin-left": "15px"}}, " ", {"tag": "div", "class": "resource plant"}, " ", {"tag": "div", "class": "resource plant"}, " ", {"tag": "br"}, " ", {"tag": "div", "class": "production-box production-box", "children": [" ", {"tag": "div", "class": "money production", "children": ["2"]}, " "]}, " ", {"tag": "div", "class": "description", "children": [" (Requires -12 C or warmer. Add 1 Animal TO ANY ANIMAL CARD. Gain 3 Plants. Increase your MC production 2 steps.) "]}, " "]}}
+      "face": {"content": {"tag": "div", "class": "content", "children": [" ", {"tag": "div", "class": "points points-big", "children": ["1"]}, " ", {"tag": "div", "class": "requirements", "children": ["-12 C"]}, " ", {"tag": "div", "class": "resource animal"}, " * ", {"tag": "div", "class": "resource plant", "style": {"margin-left": "15px"}}, " ", {"tag": "div", "class": "resource plant"}, " ", {"tag": "div", "class": "resource plant"}, " ", {"tag": "br"}, " ", {"tag": "div", "class": "production-box production-box", "children": [" ", {"tag": "div", "class": "money production", "children": ["2"]}, " "]}, " ", {"tag": "div", "class": "description", "children": [" (Requires -12 C or warmer. Add 1 Animal TO ANY ANIMAL CARD. Gain 3 Plants. Increase your MC production 2 steps.) "]}, " "]}},
+      "effects": {"resources": {"plants": 3}, "production": {"megacredits": 2}, "add_to_another": [{"kind": "animal", "amount": 1}]}
     },
     {
       "id": "interstellar_colony_ship",
@@ -387,7 +390,8 @@
       "requirements": [],
       "victory_points": {"points": 1, "per": 1, "of": {"card_resource": "fighter"}},
       "text": "(Action: Spend 1 titanium to add 1 fighter resource to this card.)\n(1 VP for each fighter resource on this card.)",
-      "face": {"content": {"tag": "div", "class": "content", "children": [" ", {"tag": "div", "class": "points", "children": [" 1/ ", {"tag": "div", "class": "resource fighter"}, " "]}, " ", {"tag": "div", "class": "resource titanium"}, " ", {"tag": "div", "class": "red-arrow"}, " ", {"tag": "div", "class": "resource fighter"}, " ", {"tag": "div", "class": "description", "children": [" (Action: Spend 1 titanium to add 1 fighter resource to this card.) "]}, " ", {"tag": "div", "class": "description", "children": [" (1 VP for each fighter resource on this card.) "]}, " "]}}
+      "face": {"content": {"tag": "div", "class": "content", "children": [" ", {"tag": "div", "class": "points", "children": [" 1/ ", {"tag": "div", "class": "resource fighter"}, " "]}, " ", {"tag": "div", "class": "resource titanium"}, " ", {"tag": "div", "class": "red-arrow"}, " ", {"tag": "div", "class": "resource fighter"}, " ", {"tag": "div", "class": "description", "children": [" (Action: Spend 1 titanium to add 1 fighter resource to this card.) "]}, " ", {"tag": "div", "class": "description", "children": [" (1 VP for each fighter resource on this card.) "]}, " "]}},
+      "effects": {"holds": "fighter", "action": {"resources": {"titanium": -1}, "card_resources": 1}}
     },
     {
       "id": "cupola_city",
@@ -694,7 +698,8 @@
       "requirements": [],
       "victory_points": null,
       "text": "(Remove up to 2 Animals or 5 Plants from any player.)",
-      "face": {"content": {"tag": "div", "class": "content", "children": [" ", {"tag": "div", "class": "minus"}, " 2 ", {"tag": "div", "class": "resource animal red-outline"}, " OR ", {"tag": "div", "class": "minus"}, " 5 ", {"tag": "div", "class": "resource plant red-outline"}, " ", {"tag": "div", "class": "description", "children": [" (Remove up to 2 Animals or 5 Plants from any player.) "]}, " "]}}
+      "face": {"content": {"tag": "div", "class": "content", "children": [" ", {"tag": "div", "class": "minus"}, " 2 ", {"tag": "div", "class": "resource animal red-outline"}, " OR ", {"tag": "div", "class": "minus"}, " 5 ", {"tag": "div", "class": "resource plant red-outline"}, " ", {"tag": "div", "class": "description", "children": [" (Remove up to 2 Animals or 5 Plants from any player.) "]}, " "]}},
+      "effects": {"any_player": {"remove": [{"card_resource": "animal", "amount": 2}, {"plants": 5}]}}
     },
     {
       "id": "miranda_resort",
@@ -721,7 +726,8 @@
       "requirements": [{"type": "temperature", "min": 2}],
       "victory_points": {"points": 1, "per": 1, "of": {"card_resource": "animal"}},
       "text": "(Action: Add 1 Animal to this card.)\n(Requires +2 C or warmer. Decrease any Plant production 1 step. 1 VP for each Animal on this card.)",
-      "face": {"content": {"tag": "div", "class": "content", "children": [" ", {"tag": "div", "class": "points", "children": [" 1/ ", {"tag": "div", "class": "animal resource"}, " "]}, " ", {"tag": "div", "class": "requirements", "children": ["+2 C"]}, " ", {"tag": "span", "class": "red-arrow"}, " ", {"tag": "div", "class": "animal resource"}, " ", {"tag": "div", "class": "description", "children": [" (Action: Add 1 Animal to this card.) "]}, " ", {"tag": "br"}, " ", {"tag": "div", "class": "production-box production-box-size1a", "style": {"margin-top": "-10px"}, "children": [" ", {"tag": "div", "class": "production-prefix", "children": [{"tag": "div", "class": "minus"}]}, " ", {"tag": "div", "class": "plant production red-outline"}, " "]}, " ", {"tag": "div", "class": "description", "style": {"text-align": "left", "margin-top": "-5px"}, "children": [" (Requires +2 C or warmer. Decrease any Plant production 1 step.", {"tag": "br"}, " 1 VP for each Animal ", {"tag": "br"}, " on this card.) "]}, " "]}}
+      "face": {"content": {"tag": "div", "class": "content", "children": [" ", {"tag": "div", "class": "points", "children": [" 1/ ", {"tag": "div", "class": "animal resource"}, " "]}, " ", {"tag": "div", "class": "requirements", "children": ["+2 C"]}, " ", {"tag": "span", "class": "red-arrow"}, " ", {"tag": "div", "class": "animal resource"}, " ", {"tag": "div", "class": "description", "children": [" (Action: Add 1 Animal to this card.) "]}, " ", {"tag": "br"}, " ", {"tag": "div", "class": "production-box production-box-size1a", "style": {"margin-top": "-10px"}, "children": [" ", {"tag": "div", "class": "production-prefix", "children": [{"tag": "div", "class": "minus"}]}, " ", {"tag": "div", "class": "plant production red-outline"}, " "]}, " ", {"tag": "div", "class": "description", "style": {"text-align": "left", "margin-top": "-5px"}, "children": [" (Requires +2 C or warmer. Decrease any Plant production 1 step.", {"tag": "br"}, " 1 VP for each Animal ", {"tag": "br"}, " on this card.) "]}, " "]}},
+      "effects": {"holds": "animal", "any_player": {"production": {"plants": -1}}, "action": {"card_resources": 1}}
     },
     {
       "id": "lake_marineris",
@@ -748,7 +754,8 @@
       "requirements": [{"type": "oxygen", "min": 6}],
       "victory_points": {"points": 1, "per": 2, "of": {"card_resource": "animal"}},
       "text": "(Action: Add 1 Animal to this card.)\n(Requires 6% oxygen. Decrease any Plant production 1 step. 1 VP per 2 Animals on this card.)",
-      "face": {"content": {"tag": "div", "class": "content", "children": [" ", {"tag": "div", "class": "points", "children": [" 1/2 ", {"tag": "div", "class": "animal resource"}, " "]}, " ", {"tag": "div", "class": "requirements", "children": ["6% O2"]}, " ", {"tag": "span", "class": "red-arrow"}, " ", {"tag": "div", "class": "animal resource"}, " ", {"tag": "div", "class": "description", "style": {"margin-bottom": "5px"}, "children": [" (Action: Add 1 Animal to this card.) "]}, " ", {"tag": "div", "class": "production-box production-box-size1a", "children": [" ", {"tag": "div", "class": "production-prefix", "children": [{"tag": "div", "class": "minus"}]}, " ", {"tag": "div", "class": "plant production red-outline"}, " "]}, " ", {"tag": "div", "class": "description", "style": {"text-align": "left"}, "children": [" (Requires 6% oxygen. Decrease any Plant production 1 step. ", {"tag": "br"}, "1 VP per 2 Animals ", {"tag": "br"}, "on this card.) "]}, " "]}}
+      "face": {"content": {"tag": "div", "class": "content", "children": [" ", {"tag": "div", "class": "points", "children": [" 1/2 ", {"tag": "div", "class": "animal resource"}, " "]}, " ", {"tag": "div", "class": "requirements", "children": ["6% O2"]}, " ", {"tag": "span", "class": "red-arrow"}, " ", {"tag": "div", "class": "animal resource"}, " ", {"tag": "div", "class": "description", "style": {"margin-bottom": "5px"}, "children": [" (Action: Add 1 Animal to this card.) "]}, " ", {"tag": "div", "class": "production-box production-box-size1a", "children": [" ", {"tag": "div", "class": "production-prefix", "children": [{"tag": "div", "class": "minus"}]}, " ", {"tag": "div", "class": "plant production red-outline"}, " "]}, " ", {"tag": "div", "class": "description", "style": {"text-align": "left"}, "children": [" (Requires 6% oxygen. Decrease any Plant production 1 step. ", {"tag": "br"}, "1 VP per 2 Animals ", {"tag": "br"}, "on this card.) "]}, " "]}},
+      "effects": {"holds": "animal", "any_player": {"production": {"plants": -1}}, "action": {"card_resources": 1}}
     },
     {
       "id": "kelp_farming",
@@ -999,7 +1006,8 @@
       "requirements": [{"type": "oxygen", "min": 13}],
       "victory_points": {"points": 1, "per": 1, "of": {"card_resource": "animal"}},
       "text": "(Action: Add an animal to this card.)\n(Requires 13% oxygen. Decrease any plant production 2 steps. 1 VP per Animal on this card.)",
-      "face": {"content": {"tag": "div", "class": "content", "children": [" ", {"tag": "div", "class": "points", "children": [" 1/ ", {"tag": "div", "class": "animal resource"}, " "]}, " ", {"tag": "div", "class": "requirements", "style": {"margin-bottom": "5px"}, "children": ["13% O2"]}, " ", {"tag": "div", "class": "red-arrow"}, " ", {"tag": "div", "class": "animal resource"}, " ", {"tag": "div", "class": "description", "style": {"margin-top": "-5px", "margin-bottom": "5px"}, "children": [" (Action: Add an animal to this card.) "]}, " ", {"tag": "div", "class": "production-box production-box-size2a", "children": [" ", {"tag": "div", "class": "production-prefix", "children": [{"tag": "div", "class": "minus"}]}, " ", {"tag": "div", "class": "plant production red-outline"}, " ", {"tag": "div", "class": "plant production red-outline"}, " "]}, " ", {"tag": "div", "class": "description", "style": {"margin-top": "-5px"}, "children": [" (Requires 13% oxygen. Decrease any plant production 2 steps. 1 VP per Animal on this card.) "]}, " "]}}
+      "face": {"content": {"tag": "div", "class": "content", "children": [" ", {"tag": "div", "class": "points", "children": [" 1/ ", {"tag": "div", "class": "animal resource"}, " "]}, " ", {"tag": "div", "class": "requirements", "style": {"margin-bottom": "5px"}, "children": ["13% O2"]}, " ", {"tag": "div", "class": "red-arrow"}, " ", {"tag": "div", "class": "animal resource"}, " ", {"tag": "div", "class": "description", "style": {"margin-top": "-5px", "margin-bottom": "5px"}, "children": [" (Action: Add an animal to this card.) "]}, " ", {"tag": "div", "class": "production-box production-box-size2a", "children": [" ", {"tag": "div", "class": "production-prefix", "children": [{"tag": "div", "class": "minus"}]}, " ", {"tag": "div", "class": "plant production red-outline"}, " ", {"tag": "div", "class": "plant production red-outline"}, " "]}, " ", {"tag": "div", "class": "description", "style": {"margin-top": "-5px"}, "children": [" (Requires 13% oxygen. Decrease any plant production 2 steps. 1 VP per Animal on this card.) "]}, " "]}},
+      "effects": {"holds": "animal", "any_player": {"production": {"plants": -2}}, "action": {"card_resources": 1}}
     },
     {
       "id": "mars_university",
@@ -1026,7 +1034,8 @@
       "requirements": [],
       "victory_points": null,
       "text": "(Effect: When you play a plant, microbe, or an animal tag, including this, gain 1 plant or add 1 resource to THAT CARD.)",
-      "face": {"content": {"tag": "div", "class": "content", "children": [" ", {"tag": "div", "class": "resource-tag tag-plant"}, " / ", {"tag": "div", "class": "resource-tag tag-microbe"}, " / ", {"tag": "div", "class": "resource-tag tag-animal"}, " : ", {"tag": "br"}, " ", {"tag": "div", "class": "plant resource"}, " / ", {"tag": "div", "class": "microbe resource"}, " * / ", {"tag": "div", "class": "animal resource"}, " * ", {"tag": "div", "class": "description", "children": [" (Effect: When you play a plant, microbe, or an animal tag, including this, gain 1 plant or add 1 resource to THAT CARD.) "]}, " "]}}
+      "face": {"content": {"tag": "div", "class": "content", "children": [" ", {"tag": "div", "class": "resource-tag tag-plant"}, " / ", {"tag": "div", "class": "resource-tag tag-microbe"}, " / ", {"tag": "div", "class": "resource-tag tag-animal"}, " : ", {"tag": "br"}, " ", {"tag": "div", "class": "plant resource"}, " / ", {"tag": "div", "class": "microbe resource"}, " * / ", {"tag": "div", "class": "animal resource"}, " * ", {"tag": "div", "class": "description", "children": [" (Effect: When you play a plant, microbe, or an animal tag, including this, gain 1 plant or add 1 resource to THAT CARD.) "]}, " "]}},
+      "effects": {"when": [{"on": {"tag_played": ["plant", "microbe", "animal"]}, "resources": {"plants": 1}}]}
     },
     {
       "id": "towing_a_comet",
@@ -1781,7 +1790,8 @@
       "requirements": [{"type": "tiles", "tile": "greenery", "owner": "you", "min": 1}],
       "victory_points": {"points": 1, "per": 2, "of": {"card_resource": "animal"}},
       "text": "(Effect: When you play an animal or plant tag (including these), add an animal to this card.)\n(Requires that you have a greenery tile. Place this tile adjacent to any greenery tile.\n1 VP per 2 Animals on this card.)",
-      "face": {"content": {"tag": "div", "class": "content", "children": [" ", {"tag": "div", "class": "points", "children": [" 1/2 ", {"tag": "div", "class": "resource animal"}, " "]}, " ", {"tag": "div", "class": "requirements", "children": ["Forest"]}, " ", {"tag": "div", "class": "tag-animal resource-tag"}, " / ", {"tag": "div", "class": "tag-plant resource-tag"}, " : ", {"tag": "div", "class": "animal resource"}, " ", {"tag": "div", "class": "description", "children": [" (Effect: When you play an animal or plant tag (including these), add an animal to this card.) "]}, " ", {"tag": "div", "class": "tile special-tile", "style": {"margin-left": "143px", "font-size": "22px"}, "children": [" 🐾︎ "]}, " ", {"tag": "div", "class": "description", "style": {"text-align": "left", "margin-top": "-55px"}, "children": [" (Requires that you have a ", {"tag": "br"}, "greenery tile. Place this tile ", {"tag": "br"}, " adjacent to any greenery ", {"tag": "br"}, "tile. ", {"tag": "br"}, {"tag": "br"}, "       1 VP per 2 Animals", {"tag": "br"}, "           on this card.) "]}, " "]}}
+      "face": {"content": {"tag": "div", "class": "content", "children": [" ", {"tag": "div", "class": "points", "children": [" 1/2 ", {"tag": "div", "class": "resource animal"}, " "]}, " ", {"tag": "div", "class": "requirements", "children": ["Forest"]}, " ", {"tag": "div", "class": "tag-animal resource-tag"}, " / ", {"tag": "div", "class": "tag-plant resource-tag"}, " : ", {"tag": "div", "class": "animal resource"}, " ", {"tag": "div", "class": "description", "children": [" (Effect: When you play an animal or plant tag (including these), add an animal to this card.) "]}, " ", {"tag": "div", "class": "tile special-tile", "style": {"margin-left": "143px", "font-size": "22px"}, "children": [" 🐾︎ "]}, " ", {"tag": "div", "class": "description", "style": {"text-align": "left", "margin-top": "-55px"}, "children": [" (Requires that you have a ", {"tag": "br"}, "greenery tile. Place this tile ", {"tag": "br"}, " adjacent to any greenery ", {"tag": "br"}, "tile. ", {"tag": "br"}, {"tag": "br"}, "       1 VP per 2 Animals", {"tag": "br"}, "           on this card.) "]}, " "]}},
+      "effects": {"holds": "animal", "tiles": [{"tile": "special", "on": "next_to_a_greenery"}], "when": [{"on": {"tag_played": ["animal", "plant"]}, "card_resources": 1}]}
     },
     {
       "id": "zeppelins",
@@ -1990,7 +2000,8 @@
       "requirements": [],
       "victory_points": 2,
       "text": "(Place an ocean tile and draw 2 cards. Gain 5 Plants or add 4 Animals to ANOTHER card.)",
-      "face": {"content": {"tag": "div", "class": "content", "children": [" ", {"tag": "div", "class": "points points-big", "children": ["2"]}, " ", {"tag": "div", "class": "tile ocean-tile"}, " ", {"tag": "div", "class": "resource card"}, " ", {"tag": "div", "class": "resource card"}, " ", {"tag": "br"}, " 5 ", {"tag": "div", "class": "resource plant"}, " OR 4 ", {"tag": "div", "class": "resource animal"}, " * ", {"tag": "div", "class": "description", "children": [" (Place an ocean tile and draw 2 cards. Gain 5 Plants or add 4 Animals to ANOTHER card.) "]}, " "]}}
+      "face": {"content": {"tag": "div", "class": "content", "children": [" ", {"tag": "div", "class": "points points-big", "children": ["2"]}, " ", {"tag": "div", "class": "tile ocean-tile"}, " ", {"tag": "div", "class": "resource card"}, " ", {"tag": "div", "class": "resource card"}, " ", {"tag": "br"}, " 5 ", {"tag": "div", "class": "resource plant"}, " OR 4 ", {"tag": "div", "class": "resource animal"}, " * ", {"tag": "div", "class": "description", "children": [" (Place an ocean tile and draw 2 cards. Gain 5 Plants or add 4 Animals to ANOTHER card.) "]}, " "]}},
+      "effects": {"draw": 2, "choice": [{"resources": {"plants": 5}}, {"add_to_another": [{"kind": "animal", "amount": 4, "must_have_card": true}]}], "tiles": ["ocean"]}
     },
     {
       "id": "titanium_mine",
@@ -2045,7 +2056,8 @@
       "requirements": [{"type": "oxygen", "min": 8}],
       "victory_points": {"points": 1, "per": 2, "of": {"card_resource": "animal"}},
       "text": "(Effect: When you place a greenery tile, add an Animal to this card.)\n(Requires 8% oxygen. Add 1 Animal to this card. Decrease any Plant production 1 step. 1 VP per 2 Animals on this card.)",
-      "face": {"content": {"tag": "div", "class": "content", "children": [" ", {"tag": "div", "class": "points", "children": [" 1/2 ", {"tag": "div", "class": "animal resource"}, " "]}, " ", {"tag": "div", "class": "requirements", "children": ["8% O2"]}, " ", {"tag": "div", "class": "tile greenery-tile", "style": {"margin-top": "-3px"}}, " : ", {"tag": "div", "class": "animal resource"}, " ", {"tag": "div", "class": "description", "style": {"margin-top": "-8px"}, "children": [" (Effect: When you place a greenery tile, add an Animal to this card.) "]}, " ", {"tag": "div", "class": "animal resource", "style": {"margin-left": "105px"}}, " ", {"tag": "div", "class": "production-box production-box-size1a", "style": {"margin-top": "2px"}, "children": [" ", {"tag": "div", "class": "production-prefix", "children": [{"tag": "div", "class": "minus"}]}, " ", {"tag": "div", "class": "plant production red-outline"}, " "]}, " ", {"tag": "div", "class": "description", "style": {"position": "absolute", "text-align": "left", "margin-top": "-25px"}, "children": [" (Requires 8% oxygen.", {"tag": "br"}, " Add 1 Animal to this card.", {"tag": "br"}, " Decrease any Plant ", {"tag": "br"}, "production 1 step. 1 VP", {"tag": "br"}, " per 2 Animals on this card.) "]}, " "]}}
+      "face": {"content": {"tag": "div", "class": "content", "children": [" ", {"tag": "div", "class": "points", "children": [" 1/2 ", {"tag": "div", "class": "animal resource"}, " "]}, " ", {"tag": "div", "class": "requirements", "children": ["8% O2"]}, " ", {"tag": "div", "class": "tile greenery-tile", "style": {"margin-top": "-3px"}}, " : ", {"tag": "div", "class": "animal resource"}, " ", {"tag": "div", "class": "description", "style": {"margin-top": "-8px"}, "children": [" (Effect: When you place a greenery tile, add an Animal to this card.) "]}, " ", {"tag": "div", "class": "animal resource", "style": {"margin-left": "105px"}}, " ", {"tag": "div", "class": "production-box production-box-size1a", "style": {"margin-top": "2px"}, "children": [" ", {"tag": "div", "class": "production-prefix", "children": [{"tag": "div", "class": "minus"}]}, " ", {"tag": "div", "class": "plant production red-outline"}, " "]}, " ", {"tag": "div", "class": "description", "style": {"position": "absolute", "text-align": "left", "margin-top": "-25px"}, "children": [" (Requires 8% oxygen.", {"tag": "br"}, " Add 1 Animal to this card.", {"tag": "br"}, " Decrease any Plant ", {"tag": "br"}, "production 1 step. 1 VP", {"tag": "br"}, " per 2 Animals on this card.) "]}, " "]}},
+      "effects": {"holds": "animal", "card_resources": 1, "any_player": {"production": {"plants": -1}}, "when": [{"on": {"tile_placed": {"tile": "greenery", "by": "you"}}, "card_resources": 1}]}
     },
     {
       "id": "insects",
@@ -2268,7 +2280,8 @@
       "requirements": [],
       "victory_points": null,
       "text": "(Raise your TR 1 step and gain 4 Plants. Add 3 Microbes to ANOTHER card and 2 Animals to ANOTHER card.)",
-      "face": {"content": {"tag": "div", "class": "content", "children": [" ", {"tag": "div", "class": "rating tile"}, " 4 ", {"tag": "div", "class": "plant resource"}, " 3 ", {"tag": "div", "class": "microbe resource"}, " * 2 ", {"tag": "div", "class": "animal resource"}, " * ", {"tag": "div", "class": "description", "children": [" (Raise your TR 1 step and gain 4 Plants. Add 3 Microbes to ANOTHER card and 2 Animals to ANOTHER card.) "]}, " "]}}
+      "face": {"content": {"tag": "div", "class": "content", "children": [" ", {"tag": "div", "class": "rating tile"}, " 4 ", {"tag": "div", "class": "plant resource"}, " 3 ", {"tag": "div", "class": "microbe resource"}, " * 2 ", {"tag": "div", "class": "animal resource"}, " * ", {"tag": "div", "class": "description", "children": [" (Raise your TR 1 step and gain 4 Plants. Add 3 Microbes to ANOTHER card and 2 Animals to ANOTHER card.) "]}, " "]}},
+      "effects": {"resources": {"plants": 4}, "terraform_rating": 1, "add_to_another": [{"kind": "microbe", "amount": 3}, {"kind": "animal", "amount": 2}]}
     },
     {
       "id": "micro_mills",
@@ -2393,7 +2406,8 @@
       "requirements": [],
       "victory_points": {"points": 1, "per": 2, "of": {"card_resource": "animal"}},
       "text": "(Effect: When any City tile is placed, add an Animal to this card.)\n(Add 1 Animal to this card. 1 VP per 2 Animals here.)",
-      "face": {"content": {"tag": "div", "class": "content", "style": {"font-weight": "normal"}, "children": [" ", {"tag": "div", "class": "points", "children": [" 1/2 ", {"tag": "div", "class": "animal resource"}, " "]}, " ", {"tag": "div", "class": "tile city-tile-small red-outline"}, " : ", {"tag": "div", "class": "animal resource"}, " ", {"tag": "br"}, " ANIMALS MAY NOT BE REMOVED FROM THIS CARD ", {"tag": "div", "class": "description", "children": [" (Effect: When any City tile is placed, add an Animal to this card.) "]}, " ", {"tag": "br"}, " ", {"tag": "div", "class": "animal resource"}, " ", {"tag": "div", "class": "description", "style": {"text-align": "left", "margin-top": "10px"}, "children": [" (Add 1 Animal to this card.", {"tag": "br"}, " 1 VP per 2 Animals here.) "]}, " "]}}
+      "face": {"content": {"tag": "div", "class": "content", "style": {"font-weight": "normal"}, "children": [" ", {"tag": "div", "class": "points", "children": [" 1/2 ", {"tag": "div", "class": "animal resource"}, " "]}, " ", {"tag": "div", "class": "tile city-tile-small red-outline"}, " : ", {"tag": "div", "class": "animal resource"}, " ", {"tag": "br"}, " ANIMALS MAY NOT BE REMOVED FROM THIS CARD ", {"tag": "div", "class": "description", "children": [" (Effect: When any City tile is placed, add an Animal to this card.) "]}, " ", {"tag": "br"}, " ", {"tag": "div", "class": "animal resource"}, " ", {"tag": "div", "class": "description", "style": {"text-align": "left", "margin-top": "10px"}, "children": [" (Add 1 Animal to this card.", {"tag": "br"}, " 1 VP per 2 Animals here.) "]}, " "]}},
+      "effects": {"holds": "animal", "card_resources": 1, "when": [{"on": {"tile_placed": {"tile": "city", "by": "anyone"}}, "card_resources": 1}]}
     },
     {
       "id": "protected_habitats",
@@ -2406,7 +2420,8 @@
       "requirements": [],
       "victory_points": null,
       "text": "OPPONENTS MAY NOT REMOVE YOUR",
-      "face": {"content": {"tag": "div", "class": "content", "style": {"font-weight": "normal"}, "children": [" OPPONENTS MAY NOT REMOVE YOUR", {"tag": "br"}, " ", {"tag": "div", "class": "plant resource"}, " ", {"tag": "div", "class": "animal resource"}, " ", {"tag": "div", "class": "microbe resource"}, " "]}}
+      "face": {"content": {"tag": "div", "class": "content", "style": {"font-weight": "normal"}, "children": [" OPPONENTS MAY NOT REMOVE YOUR", {"tag": "br"}, " ", {"tag": "div", "class": "plant resource"}, " ", {"tag": "div", "class": "animal resource"}, " ", {"tag": "div", "class": "microbe resource"}, " "]}},
+      "effects": {}
     },
     {
       "id": "protected_valley",
@@ -2559,7 +2574,8 @@
       "requirements": [{"type": "oxygen", "min": 9}],
       "victory_points": {"points": 1, "per": 1, "of": {"card_resource": "animal"}},
       "text": "(Action: Add 1 Animal to this card.)\n(Requires 9% oxygen. Decrease your Plant production 1 step and increase your MC production 2 steps. 1 VP for each Animal on this card.",
-      "face": {"content": {"tag": "div", "class": "content", "children": [" ", {"tag": "div", "class": "points", "children": [" 1/ ", {"tag": "div", "class": "animal resource"}, " "]}, " ", {"tag": "div", "class": "requirements", "children": ["9% O2"]}, " ", {"tag": "span", "class": "red-arrow"}, " ", {"tag": "div", "class": "animal resource"}, " ", {"tag": "div", "class": "description", "style": {"margin-bottom": "5px"}, "children": [" (Action: Add 1 Animal to this card.) "]}, " ", {"tag": "div", "class": "production-box production-box-size1a", "style": {"margin-top": "10px", "margin-right": "150px"}, "children": [" ", {"tag": "div", "class": "production-prefix", "children": [{"tag": "div", "class": "minus"}]}, " ", {"tag": "div", "class": "plant production"}, " ", {"tag": "div", "class": "production-prefix", "children": [{"tag": "div", "class": "plus"}]}, " ", {"tag": "div", "class": "money production", "children": ["2"]}, " "]}, " ", {"tag": "div", "class": "description", "style": {"position": "absolute", "margin-top": "-85px", "text-align": "left", "margin-left": "80px", "font-size": "10px"}, "children": [" (Requires 9% oxygen. Decrease your Plant production 1 step and increase your MC production 2 steps. 1 VP for each Animal on this card. "]}, " "]}}
+      "face": {"content": {"tag": "div", "class": "content", "children": [" ", {"tag": "div", "class": "points", "children": [" 1/ ", {"tag": "div", "class": "animal resource"}, " "]}, " ", {"tag": "div", "class": "requirements", "children": ["9% O2"]}, " ", {"tag": "span", "class": "red-arrow"}, " ", {"tag": "div", "class": "animal resource"}, " ", {"tag": "div", "class": "description", "style": {"margin-bottom": "5px"}, "children": [" (Action: Add 1 Animal to this card.) "]}, " ", {"tag": "div", "class": "production-box production-box-size1a", "style": {"margin-top": "10px", "margin-right": "150px"}, "children": [" ", {"tag": "div", "class": "production-prefix", "children": [{"tag": "div", "class": "minus"}]}, " ", {"tag": "div", "class": "plant production"}, " ", {"tag": "div", "class": "production-prefix", "children": [{"tag": "div", "class": "plus"}]}, " ", {"tag": "div", "class": "money production", "children": ["2"]}, " "]}, " ", {"tag": "div", "class": "description", "style": {"position": "absolute", "margin-top": "-85px", "text-align": "left", "margin-left": "80px", "font-size": "10px"}, "children": [" (Requires 9% oxygen. Decrease your Plant production 1 step and increase your MC production 2 steps. 1 VP for each Animal on this card. "]}, " "]}},
+      "effects": {"holds": "animal", "production": {"plants": -1, "megacredits": 2}, "action": {"card_resources": 1}}
     },
     {
       "id": "olympus_conference",
@@ -2642,7 +2658,8 @@
       "requirements": [],
       "victory_points": null,
       "text": "(Spend 5 heat to gain either 4 Plants, or to add 2 Animals to ANOTHER card.)",
-      "face": {"content": {"tag": "div", "class": "content", "children": [" -5 ", {"tag": "div", "class": "resource heat", "style": {"margin-right": "10px"}}, " +   4 ", {"tag": "div", "class": "resource plant"}, " OR 2 ", {"tag": "div", "class": "resource animal"}, " * ", {"tag": "div", "class": "description", "children": [" (Spend 5 heat to gain either 4 Plants, or to add 2 Animals to ANOTHER card.) "]}, " "]}}
+      "face": {"content": {"tag": "div", "class": "content", "children": [" -5 ", {"tag": "div", "class": "resource heat", "style": {"margin-right": "10px"}}, " +   4 ", {"tag": "div", "class": "resource plant"}, " OR 2 ", {"tag": "div", "class": "resource animal"}, " * ", {"tag": "div", "class": "description", "children": [" (Spend 5 heat to gain either 4 Plants, or to add 2 Animals to ANOTHER card.) "]}, " "]}},
+      "effects": {"resources": {"heat": -5}, "choice": [{"resources": {"plants": 4}}, {"add_to_another": [{"kind": "animal", "amount": 2, "must_have_card": true}]}]}
     },
     {
       "id": "permafrost_extraction",
