@@ -10,7 +10,6 @@ interface Props {
   onShowScores?: () => void;
   onShowCards: () => void;
   onNewGame: () => void;
-  onUndo: () => void;
   onSaveReplay: () => void;
   onLoadReplay: (file: File) => void;
   onBotDelay: (delay: number) => void;
@@ -18,14 +17,12 @@ interface Props {
   onToggleDevPanel: () => void;
 }
 
-/** The bar above the status bar: the Generation, the seed, the card gallery, the tools for undo and
- * Replays, and the dev panel's switch. */
+/** The bar across the top: the seed, the card gallery, the tools for Replays, and the dev panel's switch. */
 export function TopBar({
   game,
   onShowScores,
   onShowCards,
   onNewGame,
-  onUndo,
   onSaveReplay,
   onLoadReplay,
   onBotDelay,
@@ -36,7 +33,6 @@ export function TopBar({
   return (
     <header className="top-bar">
       <h1>Terraforming Mars</h1>
-      <span className="generation">Generation {game.view.generation}</span>
       <SeedButton seed={game.seed} />
       {game.viewer === null && (
         <span className="badge full-view" title="Everything is shown, including what Players hide from each other.">
@@ -46,14 +42,6 @@ export function TopBar({
       <div className="top-bar-tools">
         {hasRandomBots && <BotSpeedSelect delay={game.bot_delay} onChange={onBotDelay} />}
         <CardsButton onClick={onShowCards} />
-        <button
-          className="link-button"
-          disabled={!game.can_undo}
-          title="Go back to the last Decision a human answered"
-          onClick={onUndo}
-        >
-          Undo
-        </button>
         <button className="link-button" onClick={onSaveReplay}>
           Save Replay
         </button>

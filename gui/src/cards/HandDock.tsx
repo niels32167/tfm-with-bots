@@ -34,7 +34,7 @@ export function handOptions(decision: Decision | null): Map<string, DecisionOpti
 }
 
 /** The hand, docked at the bottom of the window so it is always in reach. Only the tops of the
- * cards show (cost, Tags, title); hovering one lifts it into full view. Cards that can be played
+ * cards show (cost, Tags, title); pointing at one enlarges it (`CardZoom`). Cards that can be played
  * or sold now are outlined and clicked to do so. In the full view (Hotseat, or only Random Bots)
  * a tab per Player picks whose hand to show, following the Player deciding. It folds away to a
  * single line. */
@@ -96,6 +96,8 @@ export function HandDock({ game, cards, disabled, onPick, folded, onFold }: Prop
                     disabled={disabled}
                     aria-label={`${verb} ${card.name}`}
                     onClick={() => onPick(decision.sequence, option.index)}
+                    data-zoom-card={id}
+                    data-zoom-cost={costs[id]}
                   >
                     <PrintedCard card={card} cost={costs[id]} />
                   </button>
@@ -106,7 +108,14 @@ export function HandDock({ game, cards, disabled, onPick, folded, onFold }: Prop
             const state = id === payingFor ? "being-paid-for" : note && !selling ? "not-implemented" : "";
             return (
               <div key={id} className="hand-slot">
-                <div className={`small-card in-dock ${state}`} tabIndex={0} aria-label={card.name} title={note}>
+                <div
+                  className={`small-card in-dock ${state}`}
+                  tabIndex={0}
+                  aria-label={card.name}
+                  title={note}
+                  data-zoom-card={id}
+                  data-zoom-cost={costs[id]}
+                >
                   <PrintedCard card={card} cost={costs[id]} />
                 </div>
               </div>

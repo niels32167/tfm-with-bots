@@ -12,6 +12,7 @@ interface Props {
 /** What may be put towards a cost besides MegaCredits. */
 type Part = "steel" | "titanium" | "heat";
 const PARTS: readonly Part[] = ["steel", "titanium", "heat"];
+const ICONS = "/card-list/images";
 
 /** The id of the card a payment Decision is about, or null for any other Decision and for a payment
  * that is about something else, such as a Standard Project. */
@@ -76,8 +77,9 @@ export function PaymentPicker({ decision, disabled, onPay }: Props) {
             >
               −
             </button>
-            <span className="payment-amount">
-              {split[part]} {part}
+            <span className="payment-amount" title={`${split[part]} ${part}`}>
+              <img src={`${ICONS}/resources/${part}.png`} alt={part} />
+              {split[part]}
             </span>
             <button
               className="stepper-button"
@@ -90,8 +92,9 @@ export function PaymentPicker({ decision, disabled, onPay }: Props) {
           </span>
         );
       })}
-      <span className="payment-amount">
-        and {split.megacredits} MegaCredit{split.megacredits === 1 ? "" : "s"}
+      <span className="payment-amount" title={`${split.megacredits} MegaCredit${split.megacredits === 1 ? "" : "s"}`}>
+        <img src={`${ICONS}/megacredits/megacredit.png`} alt="MegaCredits" />
+        {split.megacredits}
       </span>
       <button className="option" disabled={disabled} onClick={() => onPay(split.index)}>
         Pay

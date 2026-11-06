@@ -152,9 +152,9 @@ class GameHost:
     async def play_random_bots(self, session: GameSession) -> None:
         """Answers Random Bot Decisions one at a time, at a pace a person can follow. A Random Bot
         drafts and buys cards without pausing, so that how long it takes says nothing about what
-        it keeps or how many it buys."""
+        it keeps or how many it buys, and doesn't pause for a Decision with one Option."""
         while session.waiting_on_random_bot():
-            if not session.waiting_on_random_bot_to_draft_or_buy():
+            if session.random_bot_pauses_before_picking():
                 await asyncio.sleep(session.bot_delay)
             session.pick_for_random_bot()
             for message in session.news():

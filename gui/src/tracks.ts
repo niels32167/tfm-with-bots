@@ -1,5 +1,5 @@
-// The Global Parameter tracks as printed on the board. The engine enforces them; the GUI
-// needs them only to draw the tracks.
+// The Global Parameter tracks and the Milestone and Award prices as printed on the board. The engine
+// enforces them; the GUI needs them only to draw the board.
 
 export const MIN_TEMPERATURE = -30;
 export const MAX_TEMPERATURE = 8;
@@ -14,3 +14,8 @@ export const MAX_OXYGEN = 14;
 export const TEMPERATURE_BONUS_OXYGEN = 8;
 
 export const MAX_OCEANS = 9;
+
+/** What claiming each Milestone costs, in MegaCredits. */
+export const MILESTONE_PRICES = [8, 8, 8];
+/** What funding the first, second and third Award costs, in MegaCredits. */
+export const AWARD_PRICES = [8, 14, 20];

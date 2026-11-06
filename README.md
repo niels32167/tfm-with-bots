@@ -160,22 +160,30 @@ Player's Controller (human or Random Bot), a seed (empty for a random one) and h
 Random Bots pick. With two or more humans (Hotseat), or only Random Bots, the screen shows
 the full view; with one human, only that Player's Player View.
 
-During a Game, the top bar shows the seed (click to copy) and has **Cards**, **Undo** (back
-to the last Decision a human answered, skipping Random Bot picks), **Save Replay**,
-**Load Replay…** and the Random Bot speed. **Cards** (also on the setup screen) opens the
+The screen is laid out like Board Game Arena's: the status bar and the board on the left, with the
+Players' areas beneath them, and the Global Parameters, player boards and game log on the right. The
+hand is docked at the bottom of the window. The board shows Mars on a NASA image, the Oxygen arc over it,
+the thermometer and how many Oceans are left to its right, and the Standard Projects and the
+Milestones and Awards around it; those a Decision offers are lit, and clicked there.
+
+During a Game, the top bar shows the seed (click to copy) and has **Cards**, **Save Replay**,
+**Load Replay…** and the Random Bot speed. **Undo** is in the status bar, in red: it goes back
+to the last Decision a human answered, skipping Random Bot picks. While a Random Bot acts, the
+status bar says what it last did; it doesn't pause for a Decision with one Option. **Cards** (also on the setup screen) opens the
 card gallery: every card, filtered by type, Tag, or name or number; hover over a card to
 enlarge it, or click it to see it large. The server keeps the Game in memory, so
 reloading the page picks it up again.
 
-Below the board are your hand and every Player's played cards, grouped into Automated,
-Active and Events; hover over a card to enlarge it. A card you can play now is outlined:
+Below the board is an area for each Player, you first: their Resources, Production and Tags, then
+their cards in the columns Headquarters, Automated, Effects and Actions. Their Events are folded away
+behind the red button. Hover over a card anywhere to see it large with its details. A card you can play now is outlined:
 click it to play it. A played card whose action you can use now is outlined too: click it to
 use the action. A card whose action is used this Generation is dimmed and marked **Used**. A card
 that holds Card Resources shows how many are on it, next to their icon; when a Decision asks which
 card gets or loses some, the cards it offers are outlined, and each is a button in the status bar
 too.
 When steel or titanium can pay for a card or an action, the status bar shows a payment picker:
-step the steel and titanium up or down, then **Pay** for the rest in MegaCredits.
+step the steel and titanium up or down beside their icons, then **Pay** for the rest in MegaCredits.
 In the full view every hand is shown. Player boards show the cards in hand and the Tags in
 play.
 
@@ -244,10 +252,11 @@ pick(game, "Play Mine")
 | `tests/cards/` | Tests of the card catalog, and each card's scenario tests (`test_<id>.py`) |
 | `tests/helpers.py` | `scenario()`, `player()`, `ocean()`, `city()`, `claimed()`, `funded()`, `terraformed_mars()`, `pick()`, `offered()`, `area()`, `milestone()`, `award()`, `resources()`, `hand()`, `played_cards()`, `final_scores()`, `load_game()`: helpers that make tests read like play |
 | `server/` | The local server and the Random Bot |
-| `gui/src/` | The browser GUI; the board is `gui/src/components/MarsBoard.tsx`, the Milestones and Awards bar `gui/src/components/MilestonesAwards.tsx`, and the printed tracks are in `gui/src/tracks.ts` |
+| `gui/src/` | The browser GUI; the board is one SVG drawn by `gui/src/components/MarsBoard.tsx` with the parts beside it (`OxygenTrack`, `TemperatureTrack`, `OceanTrack`, `StandardProjects`, `MilestonesAwards`), sharing `boardLayout.tsx`, and the printed tracks are in `gui/src/tracks.ts` |
 | `gui/src/components/DevPanel.tsx`, `StateEditor.tsx`, `gui/src/scenario.ts` | The dev panel, its state editor, and the edits it makes to a Scenario |
-| `gui/src/cards/` | Cards drawn as the card list draws them (`PrintedCard.tsx`, `cardList.css`), the card gallery, and the hands and played cards under the board (`PlayerCards.tsx`) |
+| `gui/src/cards/` | Cards drawn as the card list draws them (`PrintedCard.tsx`, `cardList.css`), the card gallery, the hand (`HandDock.tsx`), the played cards under the board (`PlayedCards.tsx`), and the zoom on any card (`CardZoom.tsx`) |
 | `gui/public/card-list/` | The card list's icons and font |
+| `gui/public/mars/` | The NASA image of Mars under the board |
 | `CONTEXT.md` | The glossary; code, tests and messages use its terms |
 | `docs/adr/` | Architecture decisions |
 | `docs/rules-notes.md` | Every rules judgment call |
@@ -257,5 +266,7 @@ pick(game, "Play Mine")
 
 The card faces copy the fan-made Terraforming Mars card list by ssimeonoff
 (github.com/ssimeonoff/ssimeonoff.github.io, BSD-3-Clause): its layout, stylesheet and icons.
-Its title font, Prototype, is free for personal use. Terraforming Mars is a game by
+Its title font, Prototype, is free for personal use. The globe is "Mars Valles Marineris", a Viking 1
+Orbiter mosaic by NASA/USGS (JPL PIA04304), public domain, from
+commons.wikimedia.org/wiki/File:Mars_Valles_Marineris.jpeg. Terraforming Mars is a game by
 FryxGames; this is a private, personal project.

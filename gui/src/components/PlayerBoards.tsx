@@ -2,7 +2,7 @@ import { playersAreBuying } from "../cards/BuyingPanel";
 import { useCardsById } from "../cards/catalog";
 import { signed } from "../format";
 import { controllerLabel, isYou, PLAYER_COLOURS, playerTitle } from "../players";
-import { type Card, type DraftPass, RESOURCES, TAGS, type CountedTag, type Resource } from "../types";
+import { type Card, type CountedTag, type DraftPass, type PlayerBoard, RESOURCES, type Resource, TAGS } from "../types";
 import type { GameUpdate } from "../useGameServer";
 
 export const RESOURCE_NAMES: Record<Resource, string> = {
@@ -33,9 +33,9 @@ interface Props {
   cards: Card[];
 }
 
-/** One board per Player: their Corporation and its ability, Terraform Rating, the six Resources with
- * their Production, Turn state, the first-player marker, cards in hand, the Tags in play, and the
- * cards they passed in the Draft where the view shows them. */
+/** One board per Player, as on Board Game Arena: Terraform Rating, Hand size, the first-player marker
+ * and Turn state, their Corporation and its ability, each Resource over its Production, the Tags in
+ * play, and the cards they passed in the Draft where the view shows them. */
 export function PlayerBoards({ game, cards }: Props) {
   const { view } = game;
   const catalog = useCardsById(cards);
@@ -44,60 +44,37 @@ export function PlayerBoards({ game, cards }: Props) {
       {view.players.map((board, index) => {
         const isCurrent = view.current_player === index;
         return (
-          <article
-            key={index}
-            className={`player-board ${isCurrent ? "current" : ""}`}
-            style={{ borderLeftColor: PLAYER_COLOURS[index] }}
-          >
+          <article key={index} className={`player-board ${isCurrent ? "current" : ""}`}>
             <header className="player-board-header">
-              <span className="player-dot" style={{ background: PLAYER_COLOURS[index] }} />
-              <span className="player-name">{board.name}</span>
+              <span className="player-name" style={{ color: PLAYER_COLOURS[index] }}>
+                {board.name}
+              </span>
               <span className="player-controller">
                 {isYou(game, index) ? "You" : controllerLabel(game, index)}
               </span>
+              {isCurrent && <span className="badge turn">{turnBadge(game)}</span>}
+              {board.passed && view.phase === "action" && <span className="badge passed">Passed</span>}
+            </header>
+            <div className="player-tokens">
+              <TerraformRating value={board.terraform_rating} />
+              <span className="hand-size" title="Cards in hand">
+                <img src="/card-list/images/resources/card.png" alt="Cards in hand" />
+                {board.hand_size}
+              </span>
               {view.first_player === index && (
-                <span className="badge first-player" title="First player: takes the first Turn of this Generation">
-                  First player
+                <span className="first-player-token" title="First player: takes the first Turn of this Generation">
+                  1
                 </span>
               )}
-              {board.passed && view.phase === "action" && <span className="badge passed">Passed</span>}
-              {isCurrent && <span className="badge turn">{turnBadge(game)}</span>}
-              <span className="terraform-rating" title="Terraform Rating">
-                <span className="terraform-rating-label">TR</span> {board.terraform_rating}
-              </span>
-            </header>
-            <CorporationLine game={game} player={index} catalog={catalog} />
-            <dl className="player-stats">
-              {RESOURCES.map((resource) => (
-                <div
-                  key={resource}
-                  className={`stat ${resource}`}
-                  title={`${RESOURCE_NAMES[resource]} (${PRODUCTION_NAMES[resource]})`}
-                >
-                  <dt>{RESOURCE_NAMES[resource]}</dt>
-                  <dd>
-                    <span className="stat-value">{board.resources[resource]}</span>
-                    <span className="stat-production">{signed(board.production[resource])}</span>
-                  </dd>
-                </div>
-              ))}
-            </dl>
-            <div className="player-cards-summary">
-              <span className="hand-size" title="Cards in hand">
-                Hand {board.hand_size}
-              </span>
               {board.next_card && (
                 <span className="badge next-card" title={`${catalog.get(board.next_card)?.name}: the next card they play this Generation`}>
                   Next card: {nextCardEffect(catalog.get(board.next_card))}
                 </span>
               )}
-              {COUNTED_TAGS.filter((tag) => board.tags[tag] > 0).map((tag) => (
-                <span key={tag} className="tag-count" title={`${board.tags[tag]} ${tag} Tags in play`}>
-                  <img src={`/card-list/images/tags/${tag}.png`} alt={`${tag} Tags`} />
-                  {board.tags[tag]}
-                </span>
-              ))}
             </div>
+            <CorporationLine game={game} player={index} catalog={catalog} />
+            <ResourceCells board={board} />
+            <TagCounts board={board} />
             {board.passed_in_draft && board.passed_in_draft.length > 0 && (
               <PassedInDraft
                 game={game}
@@ -109,6 +86,72 @@ export function PlayerBoards({ game, cards }: Props) {
         );
       })}
     </section>
+  );
+}
+
+/** A Player's Terraform Rating, in an orange token. */
+export function TerraformRating({ value }: { value: number }) {
+  return (
+    <span className="terraform-rating" title="Terraform Rating">
+      {value}
+    </span>
+  );
+}
+
+const RESOURCE_ICONS: Record<Resource, string> = {
+  megacredits: "megacredits/megacredit",
+  steel: "resources/steel",
+  titanium: "resources/titanium",
+  plants: "resources/plant",
+  energy: "resources/power",
+  heat: "resources/heat",
+};
+
+/** The six Resources in a row, each with its icon and count over its Production. */
+export function ResourceCells({ board }: { board: PlayerBoard }) {
+  return (
+    <dl className="resource-cells">
+      {RESOURCES.map((resource) => (
+        <div
+          key={resource}
+          className={`resource-cell ${resource}`}
+          title={`${RESOURCE_NAMES[resource]} (${PRODUCTION_NAMES[resource]})`}
+        >
+          <dt>
+            <img src={`/card-list/images/${RESOURCE_ICONS[resource]}.png`} alt={RESOURCE_NAMES[resource]} />
+          </dt>
+          <dd>
+            <span className="resource-count">{board.resources[resource]}</span>
+            <span className="resource-production">{signed(board.production[resource])}</span>
+          </dd>
+        </div>
+      ))}
+    </dl>
+  );
+}
+
+/** A round counter for each Tag in play. */
+export function TagCounts({ board }: { board: PlayerBoard }) {
+  return (
+    <div className="tag-counts">
+      {COUNTED_TAGS.filter((tag) => board.tags[tag] > 0).map((tag) => (
+        <span key={tag} className="tag-count" title={`${board.tags[tag]} ${tag} Tags in play`}>
+          <img src={`/card-list/images/tags/${tag}.png`} alt={`${tag} Tags`} />
+          {board.tags[tag]}
+        </span>
+      ))}
+    </div>
+  );
+}
+
+/** A revealed Corporation's name, which enlarges the card when pointed at. */
+export function CorporationName({ id, catalog }: { id: string | null; catalog: Map<string, Card> }) {
+  const corporation = id ? catalog.get(id) : undefined;
+  if (!corporation) return null;
+  return (
+    <span className="corporation-name" tabIndex={0} data-zoom-card={corporation.id}>
+      {corporation.name}
+    </span>
   );
 }
 
@@ -140,7 +183,7 @@ function CorporationLine({ game, player, catalog }: CorporationLineProps) {
     <div className="player-corporation">
       {corporation ? (
         <>
-          <span className="player-corporation-name">
+          <span className="player-corporation-name" tabIndex={0} data-zoom-card={corporation.id}>
             {corporation.name}
             {!board.corporation && " (hidden for now)"}
           </span>

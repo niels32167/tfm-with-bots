@@ -20,3 +20,7 @@ Worth watching while playing: choosing a Corporation with the 10 Project Cards s
 ### 2026-11-06 — hand-off from ticket 22 (Claude)
 
 For a bug found in play: **Dev panel** in the top bar steps back through the Game and shows the Decision and Option picked at each step. **Save Replay** gives the file for the ticket, and `load_game(path)` in `tests/helpers.py` starts its regression test from that file. The state editor can cut it down to the position that matters.
+
+### 2026-11-06 — hand-off from ticket 23 (Claude)
+
+The board now scales to the window as one picture. At 1366×768, its smallest, it is 609 px wide, or 695 px with the hand folded, so the Milestones and Awards text is about 6.5 px. In play, say whether that reads well enough, or whether the board should take more of the height there.

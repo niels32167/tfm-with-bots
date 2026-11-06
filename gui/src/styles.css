@@ -1,18 +1,22 @@
 :root {
-  --background: #0e0f15;
+  --background: #05060c;
   --panel: rgba(255, 255, 255, 0.06);
   --panel-border: rgba(255, 255, 255, 0.12);
   --text: #ece9e4;
   --text-dim: #a9a49c;
-  --status-background: #f3eee4;
-  --status-text: #1f1d1a;
-  --button: #4871b6;
-  --button-hover: #355a98;
+  --status-background: #f4f4f4;
+  --status-text: #000;
+  --button: rgba(33, 150, 243, 0.78);
+  --button-hover: #1976d2;
   --mercury: #e2452c;
   --ocean: #2f6fb4;
   --accent: #f0b54a;
+  /* Panels on the starfield, in Board Game Arena's translucent grey, and its player boards. */
+  --table-panel: rgba(190, 190, 190, 0.22);
+  --player-board: #bdbdbd;
+  --side-width: clamp(250px, 17vw, 320px);
   color-scheme: dark;
-  font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  font-family: Roboto, system-ui, -apple-system, "Segoe UI", Arial, sans-serif;
   color: var(--text);
   background: var(--background);
 }
@@ -21,13 +25,22 @@
   box-sizing: border-box;
 }
 
+/* A starfield, drawn: small dots in tiles of different sizes, so that no pattern shows. */
 body {
   margin: 0;
   min-height: 100vh;
-  background:
-    radial-gradient(ellipse at 70% 20%, rgba(180, 70, 40, 0.18), transparent 60%),
-    radial-gradient(ellipse at 10% 90%, rgba(60, 80, 160, 0.12), transparent 55%),
-    var(--background);
+  background-color: var(--background);
+  background-image:
+    radial-gradient(1px 1px at 20px 30px, #fff, transparent),
+    radial-gradient(1px 1px at 90px 140px, rgba(255, 255, 255, 0.8), transparent),
+    radial-gradient(1.5px 1.5px at 160px 70px, rgba(255, 255, 255, 0.9), transparent),
+    radial-gradient(1px 1px at 230px 210px, rgba(200, 220, 255, 0.8), transparent),
+    radial-gradient(1px 1px at 310px 40px, rgba(255, 255, 255, 0.6), transparent),
+    radial-gradient(1.5px 1.5px at 60px 330px, rgba(255, 235, 210, 0.8), transparent),
+    radial-gradient(1px 1px at 400px 280px, rgba(255, 255, 255, 0.7), transparent),
+    radial-gradient(ellipse at 70% 20%, rgba(90, 60, 120, 0.16), transparent 60%),
+    radial-gradient(ellipse at 10% 90%, rgba(50, 70, 140, 0.12), transparent 55%);
+  background-size: 317px 293px, 379px 347px, 431px 401px, 283px 331px, 467px 389px, 353px 419px, 509px 443px, 100% 100%, 100% 100%;
 }
 
 h1,
@@ -53,8 +66,9 @@ code {
   color: white;
   border: none;
   border-radius: 6px;
-  padding: 7px 16px;
-  font-weight: 600;
+  padding: 6px 14px;
+  font-size: 14px;
+  font-weight: 700;
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
 }
 
@@ -67,9 +81,13 @@ code {
   cursor: default;
 }
 
-.option.big {
-  font-size: 1.15rem;
-  padding: 12px 28px;
+/* Undo is red and stands apart, as on Board Game Arena. */
+.option.undo {
+  background: #e60000;
+}
+
+.option.undo:hover:not(:disabled) {
+  background: #b30000;
 }
 
 .link-button {
@@ -246,39 +264,71 @@ input[aria-invalid="true"] {
   font-size: 0.9rem;
 }
 
-/* Top bar and status bar. */
+/* Top bar and status bar, white as on Board Game Arena. */
 .top-bar {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 10px 16px;
-  padding: 10px 16px;
-  border-bottom: 1px solid var(--panel-border);
+  gap: 4px 14px;
+  padding: 5px 12px;
+  background: #fff;
+  color: #222;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.6);
 }
 
 .top-bar h1 {
-  font-size: 1.15rem;
-  letter-spacing: 0.04em;
+  font-size: 1.05rem;
+  letter-spacing: 0.03em;
 }
 
 .top-bar-tools {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
   margin-left: auto;
+}
+
+.top-bar .link-button {
+  color: #333;
+  border-color: #bbb;
+  padding: 3px 10px;
+  font-size: 0.85rem;
+}
+
+.top-bar .link-button:hover:not(:disabled) {
+  color: #000;
+  border-color: #666;
+}
+
+.top-bar .bot-speed {
+  color: #555;
+}
+
+.top-bar select {
+  color: #222;
+  background: #f4f4f4;
+  border-color: #bbb;
+  padding: 2px 6px;
+  color-scheme: light;
+}
+
+.top-bar .badge.full-view {
+  background: #d7e6fa;
+  color: #123a6b;
 }
 
 .seed {
   background: transparent;
-  color: var(--text-dim);
+  color: #666;
   border: none;
-  padding: 4px 0;
+  padding: 2px 0;
+  font-size: 0.85rem;
 }
 
 .seed-value {
   user-select: all;
-  color: var(--text);
+  color: #222;
   font-weight: 600;
   font-variant-numeric: tabular-nums;
 }
@@ -288,15 +338,7 @@ input[aria-invalid="true"] {
 }
 
 .seed-copied {
-  color: var(--accent);
-}
-
-.generation {
-  background: var(--accent);
-  color: #241a05;
-  font-weight: 700;
-  border-radius: 999px;
-  padding: 4px 14px;
+  color: #b07a12;
 }
 
 .status-bar {
@@ -306,41 +348,64 @@ input[aria-invalid="true"] {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 10px 14px;
-  min-height: 54px;
-  padding: 8px 16px;
+  justify-content: center;
+  gap: 6px 12px;
+  min-height: 48px;
+  padding: 7px 14px;
   background: var(--status-background);
   color: var(--status-text);
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.6);
+  text-align: center;
 }
 
 .status-text {
-  font-weight: 600;
+  font-size: 1.05rem;
+  font-weight: 700;
 }
 
 .status-options {
   display: flex;
   flex-wrap: wrap;
-  gap: 8px;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
 }
 
 .status-error {
+  flex-basis: 100%;
   color: #b3261e;
   font-weight: 600;
 }
 
 .status-hint {
-  align-self: center;
   color: #5b564e;
   font-style: italic;
+  font-size: 0.9rem;
 }
 
-/* The table: board area and side panel. */
+/* While a Random Bot acts: what it last did, on a line of its own. */
+.status-latest {
+  flex-basis: 100%;
+  font-weight: 600;
+}
+
+.log-player {
+  font-weight: 700;
+}
+
+/* The table: the status bar, board and Players' areas beside the side panel. */
 .table {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 360px;
-  gap: 16px;
-  padding: 16px;
+  grid-template-columns: minmax(0, 1fr) var(--side-width);
+  gap: 6px;
+  padding: 6px;
+}
+
+.table-main {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
 }
 
 @media (max-width: 900px) {
@@ -349,42 +414,20 @@ input[aria-invalid="true"] {
   }
 }
 
-/* Mars between its tracks, with the Milestones and Awards bar underneath. */
+/* The board, one picture on the starfield. It takes the height left between the bars and the hand
+   dock, but no less than stays readable. */
 .board-area {
   position: relative;
   display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 12px;
-  padding: 16px;
-}
-
-.mars-and-tracks {
-  /* The most Mars may take: room is left above for the top and status bars, and below for the
-     Milestones and Awards bar and the hand dock. The thermometer shrinks with it. */
-  --mars-size: min(calc(100vh - 300px - var(--hand-dock-height)), 680px);
-  display: flex;
-  align-items: flex-start;
   justify-content: center;
-  gap: 40px;
-  width: 100%;
-}
-
-/* Mars: the Tharsis board drawn as SVG (simple styling until ticket 23). */
-.mars-column {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 8px;
-  flex: 1 1 0;
-  min-width: 0;
 }
 
 .mars-board {
-  width: 100%;
-  max-width: var(--mars-size);
-  aspect-ratio: 1;
-  filter: drop-shadow(0 0 40px rgba(220, 100, 60, 0.3));
+  --board-height: max(500px, calc(100vh - 150px - var(--hand-dock-height)));
+  display: block;
+  width: min(100%, calc(var(--board-height) * 770 / 640));
+  height: auto;
+  aspect-ratio: 770 / 640;
 }
 
 .mars-board text {
@@ -394,52 +437,109 @@ input[aria-invalid="true"] {
   user-select: none;
 }
 
+.mars-glow {
+  fill: #000;
+  filter: drop-shadow(0 0 14px rgba(235, 170, 110, 0.55));
+}
+
+/* The Viking mosaic is yellow-brown; on the board it reads a little warmer and brighter. */
+.mars-globe {
+  filter: saturate(1.2) brightness(1.08) hue-rotate(-8deg);
+}
+
+.place-name {
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  fill: rgba(50, 25, 10, 0.55);
+}
+
+.deck-counts text {
+  text-anchor: start;
+  font-size: 10.5px;
+  font-weight: 600;
+  fill: #d8d4cc;
+}
+
 .area .area-shape {
-  fill: rgba(255, 240, 220, 0.1);
-  stroke: rgba(255, 240, 220, 0.4);
-  stroke-width: 1;
+  stroke: rgba(255, 255, 255, 0.55);
+  stroke-width: 0.9;
 }
 
-.area.reserved-ocean .area-shape {
-  fill: rgba(70, 140, 220, 0.35);
+.area:not(.tile) .area-shape {
+  fill: transparent;
 }
 
-.area.reserved-card .area-shape {
-  stroke: #f0d48a;
+.area.reserved-ocean:not(.tile) .area-shape {
+  fill: rgba(60, 130, 225, 0.32);
+}
+
+.area.reserved-card:not(.tile) .area-shape {
+  stroke: #f6e08f;
   stroke-dasharray: 4 3;
 }
 
-.area.off-mars .area-shape {
-  fill: rgba(20, 20, 30, 0.8);
+.area.off-mars:not(.tile) .area-shape {
+  fill: #6e6a70;
+  stroke: #d8d4cc;
 }
 
-.area.tile-ocean .area-shape {
-  fill: var(--ocean);
+.area.ganymede_colony:not(.tile) .area-shape {
+  fill: #5d4c7e;
 }
 
-/* Olive, so that a green Player's owner marker still stands out. */
-.area.tile-greenery .area-shape {
-  fill: #5d7f2a;
+.area.tile .area-shape {
+  stroke: rgba(255, 255, 255, 0.8);
 }
 
-.area.tile-city .area-shape {
-  fill: #7a7d84;
+/* A Tile just placed arrives with a small bounce, so a Random Bot's placing catches the eye. */
+.tile-mark {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: tile-arrives 500ms ease-out;
 }
 
-/* Brown, as special Tiles are printed. */
-.area.tile-special .area-shape {
-  fill: #8a5a32;
+@keyframes tile-arrives {
+  from {
+    opacity: 0;
+    transform: scale(2);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tile-mark {
+    animation: none;
+  }
+}
+
+.ocean-waves {
+  fill: none;
+  stroke: rgba(235, 247, 255, 0.75);
+  stroke-width: 1.5;
+  stroke-linecap: round;
+}
+
+.greenery-trees {
+  fill: rgba(25, 60, 15, 0.75);
+}
+
+.city-skyline {
+  fill: #33353b;
 }
 
 .special-symbol {
-  font-size: 15px;
+  font-size: 17px;
   font-weight: 700;
   fill: #fbe9c8;
 }
 
 .special-symbol.on-city {
-  font-size: 11px;
+  font-size: 12px;
   fill: #ffd54a;
+}
+
+.special-paw {
+  fill: #fbe9c8;
 }
 
 /* Land Claim's marker: a ring in the claiming Player's colour on an Area still free. */
@@ -450,49 +550,28 @@ input[aria-invalid="true"] {
 }
 
 .area-id {
-  font-size: 7px;
-  fill: rgba(255, 245, 230, 0.55);
+  font-size: 6.5px;
+  fill: rgba(255, 255, 255, 0.7);
+  paint-order: stroke;
+  stroke: rgba(0, 0, 0, 0.45);
+  stroke-width: 1.5px;
 }
 
 .area-name {
-  font-size: 6.5px;
+  font-size: 7px;
   font-weight: 700;
-  fill: #f6e7c4;
-}
-
-.bonus-letter {
-  font-size: 8px;
-  font-weight: 800;
   fill: #fff;
+  paint-order: stroke;
+  stroke: rgba(0, 0, 0, 0.7);
+  stroke-width: 2px;
 }
 
-.bonus-steel {
-  fill: #9a6234;
-  stroke: #3a2210;
+.bonus image {
+  filter: drop-shadow(0 0 1px #000);
 }
 
-.bonus-titanium {
-  fill: #3b3b44;
-  stroke: #f0d060;
-}
-
-.bonus-plant {
-  fill: #59b043;
-  stroke: #1d4a14;
-}
-
-.bonus-card {
-  fill: #f4efe2;
-  stroke: #6d5d40;
-}
-
-.city-skyline {
-  fill: #3b3d43;
-}
-
-.owner-marker {
-  stroke: #fff;
-  stroke-width: 1.5;
+.player-cube {
+  filter: drop-shadow(0 1px 1px rgba(0, 0, 0, 0.7));
 }
 
 /* While a human chooses an Area, the legal ones stand out and the rest step back. */
@@ -506,232 +585,254 @@ input[aria-invalid="true"] {
 }
 
 .area.choosable .area-shape {
-  stroke: #ffd54a;
+  stroke: #ffe45c;
   stroke-width: 2.5;
+}
+
+.area.choosable:not(.tile) .area-shape {
+  fill: rgba(255, 228, 92, 0.2);
 }
 
 .area.choosable:hover .area-shape,
 .area.choosable:focus-visible .area-shape {
-  fill: rgba(255, 213, 74, 0.45);
+  fill: rgba(255, 228, 92, 0.7);
   stroke-width: 3.5;
 }
 
-/* The tracks beside Mars: the thermometer and the Ocean counter. */
-.thermometer,
-.ocean-track {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 6px;
-}
-
-.track-title {
-  font-size: 0.8rem;
-  text-transform: uppercase;
-  letter-spacing: 0.1em;
-  color: var(--text-dim);
-}
-
-.track-reading {
-  font-weight: 700;
-  font-variant-numeric: tabular-nums;
-}
-
-.track-reading .maxed {
-  color: var(--accent);
-  font-weight: 600;
-}
-
-.thermometer-steps {
-  list-style: none;
-  margin: 0;
-  padding: 4px;
-  width: 64px;
-  border: 2px solid var(--panel-border);
-  border-radius: 32px 32px 8px 8px;
-  background: rgba(0, 0, 0, 0.35);
-}
-
-/* A step is at most 23 pixels high, and less on a short window, so that the 20 steps, the title,
-   the bulb and the reading (about 162 pixels together) are no taller than Mars. */
-.thermometer-step {
-  --step-height: clamp(14px, calc((var(--mars-size) - 162px) / 20), 23px);
-  position: relative;
-  height: var(--step-height);
-  margin: 1px 0;
-  border-radius: 4px;
-  text-align: center;
-  font-size: 0.78rem;
-  line-height: var(--step-height);
-  color: var(--text-dim);
-  font-variant-numeric: tabular-nums;
-}
-
-.thermometer-step.filled {
-  background: linear-gradient(90deg, #b92d18, var(--mercury), #b92d18);
-  color: #ffe9e2;
-}
-
-.thermometer-step.current {
-  outline: 2px solid white;
-  font-weight: 800;
-  color: white;
-}
-
-.thermometer-bulb {
-  width: 44px;
-  height: 44px;
-  margin-top: -12px;
-  border-radius: 50%;
-  background: radial-gradient(circle at 40% 35%, #ff7a5c, var(--mercury) 50%, #8f1f0e);
-}
-
-/* Track bonuses printed beside a step. */
-.thermometer-step .track-bonus {
-  position: absolute;
-  top: 2px;
-  left: calc(100% + 10px);
-  width: 19px;
-  height: 19px;
-}
-
-.track-bonus.heat-production {
-  border: 2px solid #8a5a2b;
-  border-radius: 4px;
-  background: #3a2414;
-  color: #ff8a3d;
-  font-size: 0.68rem;
-  font-weight: 800;
-  line-height: 15px;
-}
-
-.track-bonus.ocean-bonus {
-  background: var(--ocean);
-  clip-path: polygon(50% 0, 100% 25%, 100% 75%, 50% 100%, 0 75%, 0 25%);
-}
-
-.temperature-bonus rect,
-.temperature-bonus circle {
-  fill: var(--mercury);
-  stroke: #ffe9e2;
-  stroke-width: 1;
-}
-
-/* The Ocean counter: one slot per Ocean, filled from the bottom. */
-.ocean-slots {
-  list-style: none;
-  margin: 0;
-  padding: 6px;
-  border: 2px solid var(--panel-border);
-  border-radius: 8px;
-  background: rgba(0, 0, 0, 0.35);
-}
-
-.ocean-slot {
-  width: 34px;
-  height: 38px;
-  margin: 3px 0;
-  clip-path: polygon(50% 0, 100% 25%, 100% 75%, 50% 100%, 0 75%, 0 25%);
-  background: rgba(255, 255, 255, 0.1);
-  text-align: center;
-  line-height: 38px;
-  font-size: 0.8rem;
-  color: var(--text-dim);
-  font-variant-numeric: tabular-nums;
-}
-
-.ocean-slot.placed {
-  background: var(--ocean);
-  color: white;
-  font-weight: 700;
-}
-
-/* The Oxygen track, an arc round the top of Mars (inside the board's SVG). */
+/* The Oxygen arc over Mars. */
 .oxygen-band {
   fill: none;
-  stroke: rgba(0, 0, 0, 0.45);
   stroke-linecap: round;
 }
 
-.oxygen-step circle {
-  fill: rgba(255, 255, 255, 0.08);
-  stroke: rgba(255, 255, 255, 0.25);
-  stroke-width: 1.5;
+.oxygen-lit {
+  fill: none;
+  stroke: rgba(235, 150, 40, 0.55);
+  stroke-linecap: round;
 }
 
 .oxygen-step text {
-  font-size: 12px;
-  font-weight: 600;
-  fill: var(--text-dim);
+  font-size: 15px;
+  font-weight: 700;
+  fill: #fdf2d0;
+  paint-order: stroke;
+  stroke: rgba(40, 25, 5, 0.55);
+  stroke-width: 2px;
 }
 
-.oxygen-step.filled circle {
-  fill: #7fc8e8;
-  stroke: #d6f1ff;
-}
-
-.oxygen-step.filled text {
-  fill: #08303f;
+.oxygen-step.last text {
+  fill: #ffd54a;
 }
 
 .oxygen-step.current circle {
-  stroke: white;
-  stroke-width: 3;
+  fill: #3a2a12;
+  stroke: #ffd54a;
+  stroke-width: 2.5;
 }
 
-.oxygen-step.current text {
+/* The thermometer to the right of Mars. */
+.thermometer-tube {
+  stroke: #e8e8ec;
+  stroke-width: 2;
+}
+
+.thermometer-cold {
+  fill: rgba(8, 8, 18, 0.72);
+}
+
+.thermometer-step text {
+  font-size: 10.5px;
+  font-weight: 700;
+  fill: #fff;
+  font-variant-numeric: tabular-nums;
+}
+
+.thermometer-step.current rect {
+  fill: #fff;
+  stroke: #222;
+  stroke-width: 1;
+}
+
+.thermometer-step.current text {
+  fill: #000;
+  font-size: 12px;
   font-weight: 800;
 }
 
-.oxygen-title {
-  font-size: 11px;
-  letter-spacing: 0.1em;
-  fill: var(--text-dim);
+.thermometer-bulb circle {
+  stroke: #e8e8ec;
+  stroke-width: 2.5;
 }
 
-.oxygen-reading {
-  font-size: 15px;
-  font-weight: 700;
-  fill: var(--text);
+.thermometer-bulb.current circle {
+  stroke: #ffd54a;
+  stroke-width: 4;
 }
 
-.oxygen-track .maxed {
-  font-size: 12px;
+.thermometer-bulb text {
+  font-size: 12.5px;
+  font-weight: 800;
+  fill: #fff;
+}
+
+.track-bonus-production {
+  fill: #6d4524;
+  stroke: #d8b48a;
+  stroke-width: 1;
+}
+
+.track-bonus-ocean {
+  fill: var(--ocean);
+  stroke: #cfe4fb;
+  stroke-width: 1;
+}
+
+/* The Ocean counter and the Generation, above the thermometer. */
+.ocean-counter-rim {
+  fill: #cfe4fb;
+}
+
+.ocean-counter text {
+  font-size: 30px;
+  font-weight: 800;
+  fill: #fff;
+}
+
+.ocean-counter .ocean-counter-label {
+  font-size: 9.5px;
   font-weight: 600;
-  fill: var(--accent);
+  fill: #cfe4fb;
 }
 
-/* Side panel: player boards and game log. */
+.generation-mark circle {
+  fill: #191a22;
+  stroke: #e0483a;
+  stroke-width: 3;
+}
+
+.generation-mark text {
+  font-size: 20px;
+  font-weight: 800;
+  fill: #fff;
+}
+
+.generation-mark .generation-mark-label {
+  font-size: 8.5px;
+  font-weight: 600;
+  fill: #d8d4cc;
+}
+
+/* The gold price tokens shared by the Standard Projects, Milestones and Awards. */
+.price-token {
+  fill: #edc14a;
+  stroke: #8a6a15;
+  stroke-width: 1;
+}
+
+.price-token-text {
+  font-size: 12px;
+  font-weight: 800;
+  fill: #2a1e02;
+}
+
+.price-token-text.small {
+  font-size: 10.5px;
+}
+
+/* The Standard Projects panel, pale as on the board. */
+.standard-projects-panel {
+  fill: rgba(236, 232, 220, 0.94);
+  stroke: #8d8778;
+}
+
+.standard-projects-title {
+  font-size: 10.5px;
+  font-weight: 800;
+  fill: #2d2a22;
+}
+
+.standard-project-row {
+  fill: rgba(255, 255, 255, 0.55);
+  stroke: rgba(0, 0, 0, 0.12);
+}
+
+.standard-project-name {
+  text-anchor: start !important;
+  font-size: 10px;
+  font-weight: 700;
+  fill: #2d2a22;
+}
+
+.standard-project.not-offered {
+  opacity: 0.45;
+}
+
+.standard-project.offered {
+  cursor: pointer;
+  outline: none;
+}
+
+.standard-project.offered .standard-project-row {
+  fill: #fff6c9;
+  stroke: #d99a14;
+  stroke-width: 2;
+}
+
+.standard-project.offered:hover .standard-project-row,
+.standard-project.offered:focus-visible .standard-project-row {
+  fill: #ffe27a;
+}
+
+/* Side panel: the readings, the player boards and the game log. */
 .side-panel {
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 6px;
   min-width: 0;
 }
 
-.player-boards {
+.global-readings {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 2px;
+  margin: 0;
+  padding: 6px 4px;
+  background: var(--player-board);
+  color: #000;
+  border-radius: 8px 0 0 8px;
+}
+
+.global-reading {
   display: flex;
   flex-direction: column;
-  gap: 10px;
-}
-
-.player-board {
-  background: var(--panel);
-  border: 1px solid var(--panel-border);
-  border-left: 6px solid;
-  border-radius: 8px;
-  padding: 10px 12px;
-}
-
-.player-board.current {
-  box-shadow: 0 0 0 2px var(--accent);
-}
-
-.player-board-header {
-  display: flex;
-  flex-wrap: wrap;
   align-items: center;
-  gap: 8px;
+  gap: 3px;
+}
+
+.global-reading dt {
+  height: 28px;
+}
+
+.global-reading img {
+  display: block;
+  height: 28px;
+  max-width: 28px;
+  object-fit: contain;
+}
+
+.global-reading dd {
+  margin: 0;
+  font-size: 0.8rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.global-reading-maximum {
+  color: #8d1a10;
+  font-size: 0.68rem;
+  font-weight: 800;
+  text-transform: uppercase;
 }
 
 .player-dot {
@@ -743,42 +844,63 @@ input[aria-invalid="true"] {
   vertical-align: middle;
 }
 
+.player-boards {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.player-board {
+  background: var(--player-board);
+  color: #000;
+  border-radius: 8px 0 0 8px;
+  padding: 7px 8px;
+}
+
+.player-board.current {
+  box-shadow: inset 0 0 0 2px #fff, 0 0 8px 1px rgba(255, 255, 255, 0.6);
+}
+
+.player-board-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 2px 8px;
+}
+
 .player-name {
-  font-weight: 700;
+  font-weight: 800;
+  font-size: 1.02rem;
+  text-shadow: 0 0 1px rgba(255, 255, 255, 0.6);
 }
 
 .player-controller {
-  color: var(--text-dim);
-  font-size: 0.85rem;
+  color: #333;
+  font-size: 0.8rem;
 }
 
 .badge {
-  font-size: 0.72rem;
+  font-size: 0.68rem;
   font-weight: 700;
   text-transform: uppercase;
-  letter-spacing: 0.05em;
+  letter-spacing: 0.04em;
   border-radius: 999px;
-  padding: 2px 8px;
+  padding: 1px 7px;
 }
 
 .badge.turn {
-  background: var(--accent);
-  color: #241a05;
+  background: #1d1d1d;
+  color: #ffd54a;
 }
 
 .badge.passed {
-  background: rgba(255, 255, 255, 0.14);
-  color: var(--text-dim);
-}
-
-.badge.first-player {
-  background: #e8e2d4;
-  color: #241a05;
+  background: rgba(0, 0, 0, 0.22);
+  color: #222;
 }
 
 .badge.next-card {
-  background: rgba(214, 79, 61, 0.3);
-  color: var(--text);
+  background: #f4c9c0;
+  color: #4a140c;
   text-transform: none;
   letter-spacing: 0;
 }
@@ -788,74 +910,145 @@ input[aria-invalid="true"] {
   color: var(--text);
 }
 
-.player-stats {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 8px;
-  margin: 10px 0 0;
-}
-
-.stat {
-  background: rgba(0, 0, 0, 0.25);
-  border-radius: 6px;
-  padding: 6px 10px;
-}
-
-.stat dt {
-  font-size: 0.72rem;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-  color: var(--text-dim);
-}
-
-.stat dd {
-  margin: 2px 0 0;
+.player-tokens {
   display: flex;
-  align-items: baseline;
-  gap: 8px;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 10px;
+  margin-top: 5px;
 }
 
-.stat-value {
-  font-size: 1.5rem;
-  font-weight: 750;
-  font-variant-numeric: tabular-nums;
-}
-
-.stat.megacredits .stat-value {
-  color: #f6cf57;
-}
-
+/* The Terraform Rating's orange token. */
 .terraform-rating {
-  margin-left: auto;
+  display: inline-block;
+  min-width: 30px;
+  padding: 2px 5px;
+  border: 2px solid #5a2c08;
+  border-radius: 6px;
+  background: #ee7d21;
+  color: #fff;
+  text-align: center;
   font-weight: 800;
-  font-size: 1.1rem;
+  font-size: 0.95rem;
+  font-variant-numeric: tabular-nums;
+  text-shadow: 0 1px 1px rgba(0, 0, 0, 0.5);
+}
+
+.hand-size {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  font-weight: 700;
+}
+
+.hand-size img {
+  height: 22px;
+}
+
+/* The first player's token: a red disc with a 1. */
+.first-player-token {
+  display: inline-block;
+  width: 24px;
+  height: 24px;
+  border: 2px solid #f4d9d4;
+  border-radius: 50%;
+  background: #c62518;
+  color: #fff;
+  text-align: center;
+  line-height: 20px;
+  font-weight: 800;
+  font-size: 0.85rem;
+}
+
+/* The six Resources in a row: icon and count over Production on brown. */
+.resource-cells {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 3px;
+  margin: 6px 0 0;
+}
+
+.resource-cell {
+  min-width: 0;
+  border-radius: 5px;
+  overflow: hidden;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.45);
+  background: #555;
+  color: #fff;
+  text-align: center;
+}
+
+.resource-cell.megacredits {
+  background: #e3b02b;
+  color: #000;
+}
+
+.resource-cell.steel {
+  background: #9a6a3c;
+}
+
+.resource-cell.titanium {
+  background: #2f2f33;
+}
+
+.resource-cell.plants {
+  background: #4f9e3a;
+}
+
+.resource-cell.energy {
+  background: #6b3fa0;
+}
+
+.resource-cell.heat {
+  background: #d9531e;
+}
+
+.resource-cell dt {
+  padding-top: 3px;
+  height: 22px;
+}
+
+.resource-cell img {
+  display: block;
+  height: 19px;
+  margin: 0 auto;
+}
+
+.resource-cell dd {
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.resource-count {
+  font-size: 1.02rem;
+  font-weight: 800;
+  line-height: 1.2;
   font-variant-numeric: tabular-nums;
 }
 
-.terraform-rating-label {
-  font-size: 0.72rem;
-  letter-spacing: 0.06em;
-  color: var(--text-dim);
-}
-
-.stat-production {
-  font-size: 0.85rem;
-  color: var(--text-dim);
+.resource-production {
+  background: #6b4a2a;
+  color: #fff;
+  font-size: 0.74rem;
+  font-weight: 700;
+  line-height: 1.45;
+  font-variant-numeric: tabular-nums;
 }
 
 .game-log {
-  background: var(--panel);
-  border: 1px solid var(--panel-border);
-  border-radius: 8px;
-  padding: 10px 12px;
+  background: #fff;
+  color: #000;
+  border-radius: 8px 0 0 8px;
+  padding: 6px 8px;
 }
 
 .game-log h2 {
-  font-size: 0.8rem;
+  font-size: 0.75rem;
   text-transform: uppercase;
-  letter-spacing: 0.1em;
-  color: var(--text-dim);
-  margin-bottom: 6px;
+  letter-spacing: 0.08em;
+  color: #555;
+  margin-bottom: 4px;
 }
 
 .game-log-lines {
@@ -864,18 +1057,20 @@ input[aria-invalid="true"] {
   padding: 0;
   max-height: 46vh;
   overflow-y: auto;
-  font-size: 0.86rem;
-  line-height: 1.45;
+  font-size: 0.85rem;
+  line-height: 1.35;
 }
 
 .game-log-lines li {
   padding: 3px 0;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  border-bottom: 1px solid #000;
 }
 
 .game-log-lines li.generation-line {
-  color: var(--accent);
+  background: #1c1c22;
+  color: #ffd54a;
   font-weight: 700;
+  padding-left: 6px;
 }
 
 /* Final score screen. */
@@ -955,91 +1150,94 @@ input[aria-invalid="true"] {
   gap: 12px;
 }
 
-/* The Milestones and Awards bar under Mars. */
-.milestones-awards {
-  width: 100%;
-  max-width: 1100px;
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 16px;
+/* The Milestones and Awards along the bottom of the board, in silver and gold. */
+.milestones-awards-panel {
+  stroke: #6f747a;
 }
 
-.milestones-awards-group h2 {
-  margin: 0 0 6px;
-  font-size: 0.75rem;
+.milestones-awards-plate {
+  stroke: #7a5610;
+}
+
+.milestones-awards-title {
+  font-size: 10.5px;
+  font-weight: 800;
+  letter-spacing: 0.14em;
   text-transform: uppercase;
-  letter-spacing: 0.08em;
-  color: var(--text-dim);
+  fill: #2a1e02;
 }
 
-.milestones-awards-price {
-  margin-left: 6px;
-  text-transform: none;
-  letter-spacing: 0;
-  color: var(--accent);
+.milestones-awards-prices .used .price-token {
+  fill: #b9b4a3;
 }
 
-.milestones-awards-entries {
-  display: grid;
-  grid-template-columns: repeat(5, minmax(0, 1fr));
-  gap: 6px;
+.price-used {
+  stroke: #8d1a10;
+  stroke-width: 2;
+  stroke-linecap: round;
 }
 
-.milestones-awards-entry {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 3px;
-  min-width: 0;
-  padding: 6px 4px;
-  color: var(--text);
-  background: var(--panel);
-  border: 2px solid var(--panel-border);
-  border-radius: 8px;
-  font-size: 0.8rem;
-  text-align: center;
+.milestones-awards-entry-box {
+  fill: rgba(255, 255, 255, 0.55);
+  stroke: rgba(0, 0, 0, 0.3);
 }
 
-.milestones-awards-entry.taken {
-  background: rgba(255, 255, 255, 0.1);
+.milestones-awards-entry.taken .milestones-awards-entry-box {
+  fill: rgba(255, 255, 255, 0.82);
+  stroke-width: 2.5;
 }
 
 .milestones-awards-entry.offered {
-  border-color: var(--accent);
-  box-shadow: 0 0 10px rgba(240, 181, 74, 0.55);
+  cursor: pointer;
+  outline: none;
 }
 
-.milestones-awards-entry.offered:hover:not(:disabled) {
-  background: rgba(240, 181, 74, 0.2);
+.milestones-awards-entry.offered .milestones-awards-entry-box {
+  fill: #fff6c9;
+  stroke: #d99a14;
+  stroke-width: 2.5;
+  filter: drop-shadow(0 0 4px rgba(240, 181, 74, 0.9));
+}
+
+.milestones-awards-entry.offered:hover .milestones-awards-entry-box,
+.milestones-awards-entry.offered:focus-visible .milestones-awards-entry-box {
+  fill: #ffe27a;
 }
 
 .milestones-awards-name {
-  font-weight: 700;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  max-width: 100%;
+  font-size: 8.3px;
+  font-weight: 800;
+  letter-spacing: 0.01em;
+  text-transform: uppercase;
+  fill: #1e2024;
 }
 
-.milestones-awards-counts {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: center;
-  gap: 2px 6px;
-  font-weight: 700;
+.standing-chip {
+  stroke: rgba(0, 0, 0, 0.35);
+}
+
+/* White with a dark edge, so that it reads on every Player's colour. */
+.standing-chip-text {
+  font-size: 9.5px;
+  font-weight: 800;
+  fill: #fff;
+  paint-order: stroke;
+  stroke: rgba(0, 0, 0, 0.6);
+  stroke-width: 2px;
   font-variant-numeric: tabular-nums;
 }
 
 .milestones-awards-needs {
-  font-size: 0.72rem;
-  color: var(--text-dim);
+  font-size: 9px;
+  font-weight: 600;
+  fill: #3b3e44;
 }
 
 .milestones-awards-taken {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  font-size: 0.72rem;
-  color: var(--text-dim);
+  text-anchor: start !important;
+  font-size: 8.5px;
+  font-weight: 700;
+  fill: #1e2024;
 }
 
 /* The card gallery: every card in the catalog over the whole window, drawn by PrintedCard. */
@@ -1157,34 +1355,153 @@ input[aria-invalid="true"] {
   cursor: zoom-out;
 }
 
-/* Under the board: the hands shown and every Player's played cards, drawn at 60 % of a
-   printed card (149 by 191 pixels) and enlarged on hover. */
+/* Under the board: each Player's area, on a translucent panel outlined in their colour, with their
+   cards drawn at 60 % of a printed card (149 by 191 pixels) in columns by type. */
 .player-cards {
-  grid-column: 1 / -1;
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 8px;
 }
 
-.card-row {
-  background: var(--panel);
-  border: 1px solid var(--panel-border);
-  border-left: 6px solid;
-  border-radius: 8px;
-  padding: 10px 14px 14px;
+.player-area {
+  background: var(--table-panel);
+  border: 1px solid;
+  border-radius: 9px;
+  padding: 0 8px 10px;
 }
 
-.card-row h3 {
-  margin: 0 0 10px;
-  font-size: 0.95rem;
-  font-weight: 650;
+.player-area-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 12px;
+  padding: 6px 0;
 }
 
-.card-row h4 {
+.player-area-name {
+  padding: 2px 12px;
+  border-radius: 0 0 8px 8px;
+  margin-top: -6px;
+  color: #fff;
+  font-weight: 800;
+  text-shadow: 0 1px 1px rgba(0, 0, 0, 0.6);
+}
+
+.corporation-name {
+  font-weight: 700;
+  color: #f3f0ea;
+  cursor: help;
+}
+
+.player-area-header .resource-cells {
+  width: 264px;
+  margin: 0;
+}
+
+.tag-counts {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 3px 7px;
+}
+
+.player-board .tag-counts {
+  margin-top: 6px;
+}
+
+.tag-count {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  font-weight: 700;
+  font-size: 0.85rem;
+}
+
+.tag-count img {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+}
+
+/* The red box that folds the Events away. */
+.events-toggle {
+  margin-left: auto;
+  padding: 2px 10px;
+  border: 1px solid #f3b4a9;
+  border-radius: 6px;
+  background: #c94a3a;
+  color: #fff;
+  font-size: 0.82rem;
+  font-weight: 700;
+}
+
+.events-toggle:hover {
+  background: #a93a2c;
+}
+
+.played-groups {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+.played-group {
+  width: 158px;
+}
+
+.played-group h4 {
+  display: flex;
+  align-items: center;
+  gap: 6px;
   margin: 0 0 6px;
-  font-size: 0.8rem;
-  font-weight: 600;
-  color: var(--text-dim);
+  padding: 3px 7px;
+  border-radius: 6px;
+  color: #000;
+  font-size: 0.86rem;
+  font-weight: 700;
+}
+
+.played-group-count {
+  min-width: 18px;
+  padding: 0 4px;
+  border-radius: 4px;
+  background: rgba(0, 0, 0, 0.72);
+  color: #fff;
+  text-align: center;
+  font-size: 0.78rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.played-group-headquarters h4 {
+  background: #d4d4d4;
+}
+
+.played-group-automated h4 {
+  background: #b6e3a5;
+}
+
+.played-group-effects h4 {
+  background: #7cc0ee;
+}
+
+.played-group-actions h4 {
+  background: #3e94dc;
+}
+
+.played-group-events h4 {
+  background: #ee9c8f;
+}
+
+/* An empty column is an outline, as on Board Game Arena. */
+.card-stack {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  min-height: 40px;
+  border: 1px dashed rgba(255, 255, 255, 0.28);
+  border-radius: 8px;
+  padding: 2px 0;
 }
 
 .no-cards {
@@ -1199,14 +1516,7 @@ input[aria-invalid="true"] {
   border: none;
   background: none;
   border-radius: 20px;
-  transition: transform 150ms ease-in-out;
-}
-
-.small-card:hover,
-.small-card:focus-visible {
-  position: relative;
-  z-index: 3;
-  transform: scale(1.7);
+  transition: transform 120ms ease-in-out;
 }
 
 .small-card.playable {
@@ -1253,12 +1563,13 @@ input[aria-invalid="true"] {
   gap: 6px;
   align-items: center;
   padding: 2px 10px 2px 4px;
-  border: 2px solid var(--text-dim);
+  border: 2px solid #fff;
   border-radius: 16px;
-  background: var(--background);
-  color: var(--text);
+  background: #1c1c22;
+  color: #fff;
   font-size: 1.6rem;
   font-weight: 700;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.6);
 }
 
 /* The card list's icon for a Card Resource draws only inside a printed card, so this is one with no
@@ -1286,95 +1597,125 @@ input[aria-invalid="true"] {
 .used-action-badge {
   padding: 2px 12px;
   border-radius: 12px;
-  background: var(--text-dim);
-  color: var(--background);
+  background: #1c1c22;
+  color: #ffd54a;
   font-size: 1.4rem;
   font-weight: 700;
   letter-spacing: 0.05em;
   text-transform: uppercase;
 }
 
-.played-groups {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 18px;
-}
-
 /* Played cards of a type overlap, so that each shows its cost, title and Tags. */
-.card-stack {
-  display: flex;
-  flex-direction: column;
-}
-
 .small-card.stacked {
   position: relative;
-  transform-origin: center top;
 }
 
 .small-card.stacked + .small-card.stacked {
   margin-top: -250px;
 }
 
-/* On a player board: their Corporation and its ability. */
+/* A Player's Corporation and its ability, on their board. */
 .player-corporation {
   display: flex;
   flex-direction: column;
-  gap: 2px;
-  margin: 4px 0 6px;
-  font-size: 12px;
-  line-height: 1.3;
+  gap: 1px;
+  margin-top: 5px;
+  font-size: 11px;
+  line-height: 1.25;
 }
 
 .player-corporation-name {
-  font-weight: 600;
+  font-size: 0.85rem;
+  font-weight: 800;
+  cursor: help;
 }
 
 .player-corporation-ability {
-  opacity: 0.8;
+  color: #222;
 }
 
-/* On a player board: cards in hand and Tags in play. */
-.player-cards-summary {
+/* The card zoom: Board Game Arena's cream tooltip beside the card pointed at, the card large with
+   its details in words. It takes no clicks, so it can never get in the way of a card under it. */
+.card-zoom {
+  position: fixed;
+  z-index: 25;
   display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 4px 10px;
-  margin-top: 8px;
-  font-size: 0.85rem;
-  color: var(--text-dim);
+  gap: 12px;
+  width: 540px;
+  padding: 8px;
+  background: #f1e3c6;
+  color: #1c150a;
+  border: 1px solid #8b7448;
+  border-radius: 8px;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.7);
+  pointer-events: none;
 }
 
-.tag-count {
+.card-zoom-card {
+  flex: none;
+}
+
+.card-zoom-details {
+  min-width: 0;
+  font-size: 0.86rem;
+  line-height: 1.3;
+}
+
+.card-zoom-details h3 {
+  margin: 0;
+  font-size: 1rem;
+  text-transform: uppercase;
+}
+
+.card-zoom-details p {
+  margin: 5px 0 0;
+}
+
+.card-zoom-type {
+  font-weight: 600;
+  color: #5a4a2c;
+}
+
+.card-zoom-tags span {
   display: inline-flex;
   align-items: center;
-  gap: 3px;
-  color: var(--text);
-  font-weight: 600;
+  gap: 2px;
+  margin-right: 6px;
 }
 
-.tag-count img {
-  width: 18px;
-  height: 18px;
+.card-zoom-tags img {
+  width: 16px;
+  height: 16px;
   border-radius: 50%;
 }
 
-/* The payment picker in the status bar: steppers for steel and titanium, then Pay. */
+.card-zoom-note {
+  font-weight: 700;
+  color: #7a1f12;
+}
+
+.card-zoom-text {
+  white-space: pre-line;
+}
+
+/* The payment picker in the status bar: steppers for steel, titanium and heat, then Pay. */
 .payment-picker {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 10px 16px;
+  justify-content: center;
+  gap: 6px 12px;
 }
 
 .payment-stepper {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
+  gap: 4px;
 }
 
 .stepper-button {
-  width: 28px;
-  height: 28px;
+  width: 26px;
+  height: 26px;
   border-radius: 50%;
   border: 1px solid #b9b1a3;
   background: white;
@@ -1383,15 +1724,27 @@ input[aria-invalid="true"] {
   line-height: 1;
 }
 
+.stepper-button:hover:not(:disabled) {
+  background: #d7e6fa;
+}
+
 .stepper-button:disabled {
   opacity: 0.35;
   cursor: default;
 }
 
 .payment-amount {
-  font-weight: 600;
-  min-width: 4.5em;
-  text-align: center;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  min-width: 3.2em;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+}
+
+.payment-amount img {
+  height: 22px;
 }
 
 /* The game page leaves room at the bottom for the hand dock, which is fixed to the window. */
@@ -1405,7 +1758,7 @@ input[aria-invalid="true"] {
 }
 
 /* The hand dock: only the tops of the cards show (cost, Tags, title); the rest lies below the
-   window's edge, and hovering a card lifts it into full view. */
+   window's edge, and pointing at a card enlarges it (the card zoom). */
 .hand-dock {
   position: fixed;
   left: 0;
@@ -1413,9 +1766,9 @@ input[aria-invalid="true"] {
   bottom: 0;
   z-index: 6;
   height: var(--hand-dock-height);
-  padding: 0 16px;
-  background: rgba(14, 15, 21, 0.95);
-  border-top: 4px solid;
+  padding: 0 12px;
+  background: #3c3c42;
+  border-top: 3px solid;
   box-shadow: 0 -4px 14px rgba(0, 0, 0, 0.55);
 }
 
@@ -1423,7 +1776,7 @@ input[aria-invalid="true"] {
   display: flex;
   align-items: center;
   gap: 14px;
-  height: 36px;
+  height: 34px;
 }
 
 .hand-dock-header h2 {
@@ -1440,7 +1793,7 @@ input[aria-invalid="true"] {
 }
 
 .hand-dock-hint {
-  color: var(--accent);
+  color: #ffd54a;
   font-size: 0.9rem;
 }
 
@@ -1463,14 +1816,12 @@ input[aria-invalid="true"] {
   min-width: 30px;
 }
 
-.small-card.in-dock {
-  transform-origin: center bottom;
-}
-
-/* Lifts the card until its bottom is just above the window's edge, then enlarges it upwards. */
+/* The card pointed at rises a little and comes out from under the next one. */
 .small-card.in-dock:hover,
 .small-card.in-dock:focus-visible {
-  transform: translateY(-225px) scale(1.5);
+  position: relative;
+  z-index: 3;
+  transform: translateY(-12px);
 }
 
 .small-card.sellable,
@@ -1489,19 +1840,20 @@ input[aria-invalid="true"] {
 /* The buying panel covers the board while Players buy cards; hidden, only its header shows. */
 .buying-panel {
   position: absolute;
-  inset: 0;
+  inset: 0 0 auto;
+  min-height: 100%;
   z-index: 4;
   display: flex;
   flex-direction: column;
   gap: 12px;
   padding: 12px 16px;
-  background: rgba(14, 15, 21, 0.94);
+  background: rgba(14, 15, 21, 0.97);
   border: 1px solid var(--panel-border);
   border-radius: 12px;
 }
 
 .buying-panel.hidden {
-  bottom: auto;
+  min-height: 0;
 }
 
 .buying-panel-header {
@@ -1553,13 +1905,6 @@ input[aria-invalid="true"] {
   outline-offset: 3px;
 }
 
-/* Hovering enlarges a card to read it, as in the hand; the panel sets how much. */
-.buy-card:hover,
-.buy-card:focus-visible {
-  z-index: 3;
-  transform: scale(var(--hover-scale));
-}
-
 .buy-card.buyable:disabled {
   cursor: default;
   opacity: 0.6;
@@ -1597,7 +1942,7 @@ input[aria-invalid="true"] {
 }
 
 /* Above the cards in the buying panel: the cards kept in the Draft, and those passed on this
-   Generation, small; hovering one enlarges it downwards to read. */
+   Generation, small; pointing at one enlarges it to read. */
 .buying-panel-strip {
   display: flex;
   flex-wrap: wrap;
@@ -1633,19 +1978,14 @@ input[aria-invalid="true"] {
 
 .small-card.in-strip {
   zoom: 0.32;
-  transform-origin: center top;
 }
 
-.small-card.in-strip:hover,
-.small-card.in-strip:focus-visible {
-  transform: scale(2.6);
-}
 
 /* On a player board: the cards they passed in the Draft, folded away. */
 .passed-in-draft {
   margin-top: 6px;
   font-size: 0.8rem;
-  color: var(--text-dim);
+  color: #222;
 }
 
 .passed-in-draft summary {
@@ -1809,15 +2149,36 @@ input[aria-invalid="true"] {
   overflow-y: auto;
 }
 
+/* The panel keeps the dark colours under its game log. */
+.dev-panel .game-log {
+  background: var(--panel);
+  color: var(--text);
+  border: 1px solid var(--panel-border);
+  border-radius: 8px;
+}
+
+.dev-panel .game-log h2 {
+  color: var(--text-dim);
+}
+
 .dev-panel .game-log-lines {
   max-height: 40vh;
+}
+
+.dev-panel .game-log-lines li {
+  border-bottom-color: rgba(255, 255, 255, 0.08);
+}
+
+.dev-panel .game-log-lines li.generation-line {
+  background: none;
+  color: var(--accent);
+  padding-left: 0;
 }
 
 .dev-looking-back {
   background: var(--accent);
   color: #241a05;
   font-weight: 600;
-  padding: 10px 16px;
 }
 
 .state-editor {

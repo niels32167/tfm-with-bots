@@ -1,31 +1,35 @@
-import type { KeyboardEvent, ReactNode } from "react";
+import type { ReactNode } from "react";
 
 import { TILE_NAMES } from "../format";
 import { PLAYER_COLOURS } from "../players";
 import type { Area, BonusItem, Card, Decision, DecisionOption, Tile } from "../types";
+import type { GameUpdate } from "../useGameServer";
+import { BOARD_HEIGHT, BOARD_WIDTH, BoardIcon, GLOBE_RADIUS, GLOBE_X, GLOBE_Y, hexagonPoints, PlayerCube, svgButton } from "./boardLayout";
+import { MilestonesAwards } from "./MilestonesAwards";
+import { OceanTrack } from "./OceanTrack";
 import { OxygenTrack } from "./OxygenTrack";
+import { StandardProjects } from "./StandardProjects";
+import { TemperatureTrack } from "./TemperatureTrack";
 
 // Areas are hexagons with a corner at the top. SIZE is the distance from the centre of
-// an Area to its corners, in the SVG's own units.
-const SIZE = 30;
+// an Area to its corners, in the board's own units.
+const SIZE = 31;
 const WIDTH = Math.sqrt(3) * SIZE;
 const ROW_HEIGHT = 1.5 * SIZE;
 const WIDEST_ROW = 9;
 const MIDDLE_ROW = 5;
-const GLOBE_RADIUS = 8.2 * SIZE;
-// The Oxygen track runs round the globe, with room for it inside the view.
-const OXYGEN_TRACK_RADIUS = GLOBE_RADIUS + 22;
-const VIEW_RADIUS = OXYGEN_TRACK_RADIUS + 20;
-
-const HEXAGON = [30, 90, 150, 210, 270, 330]
-  .map((degrees) => {
-    const angle = (degrees * Math.PI) / 180;
-    return `${(SIZE * Math.cos(angle)).toFixed(2)},${(SIZE * Math.sin(angle)).toFixed(2)}`;
-  })
-  .join(" ");
+const HEXAGON = hexagonPoints(SIZE);
+// Where the Areas off Mars sit, from the globe's centre, in the board's order.
+const OFF_MARS: [number, number][] = [
+  [-288, -226],
+  [-296, -68],
+];
+const OFF_MARS_RADIUS = 34;
+// Phobos Space Haven is a rock.
+const ASTEROID = "-30,-8 -22,-26 -4,-33 16,-28 31,-14 34,6 22,26 2,32 -18,28 -32,12";
 
 // The symbol drawn on each special Tile, by its card's id, after the card's own art where it has
-// one. Capital's City gets a star over its skyline.
+// one. Capital's City gets a star over its skyline. Ecological Zone's paw is drawn: see `Paw`.
 const SPECIAL_SYMBOLS: Record<string, string> = {
   capital: "★",
   natural_preserve: "✿",
@@ -34,29 +38,38 @@ const SPECIAL_SYMBOLS: Record<string, string> = {
   commercial_district: "€",
   nuclear_zone: "☢",
   industrial_center: "⚙",
-  ecological_zone: "🐾︎",
   lava_flows: "▲",
   mohole_area: "♨",
   restricted_area: "⊘",
 };
 
+// The places printed on the globe: their name, where from its centre, and their angle.
+const PLACE_NAMES: [string, number, number, number][] = [
+  ["TEMPE TERRA", 25, -196, 0],
+  ["LUNAE PLANUM", 80, -101, 0],
+  ["SINAI PLANUM", -34, 61, 0],
+  ["SOLIS PLANUM", -14, 143, 0],
+  ["SYRIA PLANUM", -166, 88, 62],
+  ["THAUMASIA FOSSAE", -96, 186, 36],
+  ["AONIA TERRA", 148, 160, -38],
+];
+
 interface Props {
-  board: Area[];
-  /** In percent, for the Oxygen track. */
-  oxygen: number;
-  /** Each Player's name, by index, for the tooltips. */
-  playerNames: string[];
+  game: GameUpdate;
   /** The card catalog, for the names of special Tiles. */
   cards: Card[];
-  /** The Decision a human at the screen must answer, if any. Its Areas are highlighted and clickable. */
-  decision: Decision | null;
   /** True while a pick is on its way to the server. */
   disabled: boolean;
   onPick: (sequence: number, index: number) => void;
 }
 
-/** Mars with every Area, its placement bonus and its Tile, as on the Tharsis board, and the Oxygen track round it. */
-export function MarsBoard({ board, oxygen, playerNames, cards, decision, disabled, onPick }: Props) {
+/** The board, one picture as on Board Game Arena: Mars on a NASA image with every Area, its placement
+ * bonus and its Tile, the Oxygen arc over it, the thermometer and Ocean counter to its right, the
+ * Standard Projects to its left, and the Milestones and Awards along the bottom. */
+export function MarsBoard({ game, cards, disabled, onPick }: Props) {
+  const { view, decision } = game;
+  const { board } = view;
+  const playerNames = view.players.map((player) => player.name);
   const options = areaOptions(decision);
   const rowLengths = new Map<number, number>();
   for (const area of board) {
@@ -70,41 +83,123 @@ export function MarsBoard({ board, oxygen, playerNames, cards, decision, disable
   return (
     <svg
       className={`mars-board ${options.size > 0 ? "choosing" : ""}`}
-      viewBox={`${-VIEW_RADIUS} ${-VIEW_RADIUS} ${2 * VIEW_RADIUS} ${2 * VIEW_RADIUS}`}
+      viewBox={`0 0 ${BOARD_WIDTH} ${BOARD_HEIGHT}`}
       role="group"
       aria-label="Mars"
     >
-      <defs>
-        <radialGradient id="mars-globe" cx="38%" cy="32%" r="75%">
-          <stop offset="0%" stopColor="#e89366" />
-          <stop offset="30%" stopColor="#c45c36" />
-          <stop offset="65%" stopColor="#8a3420" />
-          <stop offset="100%" stopColor="#3a120a" />
-        </radialGradient>
-      </defs>
-      <circle className="mars-globe" r={GLOBE_RADIUS} fill="url(#mars-globe)" />
-      <OxygenTrack oxygen={oxygen} radius={OXYGEN_TRACK_RADIUS} />
-      {board.map((area, index) => {
-        const [x, y] =
-          area.row !== null && area.position !== null
-            ? centreOnMars(area.row, area.position, rowLengths.get(area.row) ?? WIDEST_ROW)
-            : centreOffMars(index - firstOffMars);
-        return (
-          <AreaMark
-            key={area.area}
-            area={area}
-            x={x}
-            y={y}
-            offMars={area.row === null}
-            ownerName={area.tile?.owner != null ? playerNames[area.tile.owner] : null}
-            claimantName={area.claimed_by !== null ? playerNames[area.claimed_by] : null}
-            specialName={cards.find((card) => card.id === area.tile?.card)?.name ?? null}
-            option={options.get(area.area)}
-            onPick={pick}
-          />
-        );
-      })}
+      <BoardDefinitions />
+      <g className="deck-counts">
+        <text x={8} y={12}>
+          Draw {view.deck_size} · Discard {view.discard_size}
+        </text>
+      </g>
+      <circle className="mars-glow" cx={GLOBE_X} cy={GLOBE_Y} r={GLOBE_RADIUS + 2} />
+      <image
+        className="mars-globe"
+        href="/mars/mars-valles-marineris.jpeg"
+        x={GLOBE_X - GLOBE_RADIUS}
+        y={GLOBE_Y - GLOBE_RADIUS}
+        width={2 * GLOBE_RADIUS}
+        height={2 * GLOBE_RADIUS}
+        clipPath="url(#mars-clip)"
+      />
+      <OxygenTrack oxygen={view.oxygen} />
+      <TemperatureTrack temperature={view.temperature} />
+      <OceanTrack oceans={view.oceans} />
+      <GenerationMark generation={view.generation} />
+      <g transform={`translate(${GLOBE_X} ${GLOBE_Y})`}>
+        {PLACE_NAMES.map(([name, x, y, angle]) => (
+          <text key={name} className="place-name" transform={`translate(${x} ${y}) rotate(${angle})`}>
+            {name}
+          </text>
+        ))}
+        {board.map((area, index) => {
+          const [x, y] =
+            area.row !== null && area.position !== null
+              ? centreOnMars(area.row, area.position, rowLengths.get(area.row) ?? WIDEST_ROW)
+              : OFF_MARS[index - firstOffMars];
+          return (
+            <AreaMark
+              key={area.area}
+              area={area}
+              x={x}
+              y={y}
+              offMars={area.row === null}
+              ownerName={area.tile?.owner != null ? playerNames[area.tile.owner] : null}
+              claimantName={area.claimed_by !== null ? playerNames[area.claimed_by] : null}
+              specialName={cards.find((card) => card.id === area.tile?.card)?.name ?? null}
+              option={options.get(area.area)}
+              onPick={pick}
+            />
+          );
+        })}
+      </g>
+      <StandardProjects decision={decision} disabled={disabled} onPick={onPick} />
+      <MilestonesAwards game={game} disabled={disabled} onPick={onPick} />
     </svg>
+  );
+}
+
+/** The colours the board's parts share. */
+function BoardDefinitions() {
+  return (
+    <defs>
+      <clipPath id="mars-clip">
+        <circle cx={GLOBE_X} cy={GLOBE_Y} r={GLOBE_RADIUS} />
+      </clipPath>
+      <linearGradient id="tile-ocean" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0%" stopColor="#2f7fd6" />
+        <stop offset="100%" stopColor="#134a94" />
+      </linearGradient>
+      <linearGradient id="tile-greenery" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0%" stopColor="#7cab3f" />
+        <stop offset="100%" stopColor="#47701f" />
+      </linearGradient>
+      <linearGradient id="tile-city" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0%" stopColor="#a4a7ad" />
+        <stop offset="100%" stopColor="#6b6e75" />
+      </linearGradient>
+      <linearGradient id="tile-special" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0%" stopColor="#a56f3f" />
+        <stop offset="100%" stopColor="#6d4524" />
+      </linearGradient>
+      <linearGradient id="oxygen-band" x1="0" y1="0" x2="1" y2="0">
+        <stop offset="0%" stopColor="#6d6455" />
+        <stop offset="50%" stopColor="#a89c86" />
+        <stop offset="100%" stopColor="#6d6455" />
+      </linearGradient>
+      <linearGradient id="thermometer-mercury" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0%" stopColor="#e8341c" />
+        <stop offset="45%" stopColor="#a02a8c" />
+        <stop offset="100%" stopColor="#2b5fd0" />
+      </linearGradient>
+      <radialGradient id="thermometer-bulb" cx="40%" cy="35%" r="75%">
+        <stop offset="0%" stopColor="#7cc4ff" />
+        <stop offset="100%" stopColor="#1a58c4" />
+      </radialGradient>
+      <linearGradient id="silver-panel" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0%" stopColor="#eceff1" />
+        <stop offset="60%" stopColor="#c3c8cd" />
+        <stop offset="100%" stopColor="#9aa0a6" />
+      </linearGradient>
+      <linearGradient id="gold-plate" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0%" stopColor="#f6d27a" />
+        <stop offset="100%" stopColor="#c98f22" />
+      </linearGradient>
+    </defs>
+  );
+}
+
+/** The Generation in a ringed circle, above the thermometer. */
+function GenerationMark({ generation }: { generation: number }) {
+  return (
+    <g className="generation-mark" transform="translate(726 36)" role="img" aria-label={`Generation ${generation}`}>
+      <circle r={20} />
+      <text>{generation}</text>
+      <text className="generation-mark-label" y={29}>
+        Generation
+      </text>
+    </g>
   );
 }
 
@@ -122,12 +217,6 @@ function areaOptions(decision: Decision | null): Map<string, DecisionOption> {
 function centreOnMars(row: number, position: number, rowLength: number): [number, number] {
   const halfColumn = 2 * (position - 1) + (WIDEST_ROW - rowLength);
   return [((halfColumn - (WIDEST_ROW - 1)) * WIDTH) / 2, (row - MIDDLE_ROW) * ROW_HEIGHT];
-}
-
-/** The Areas off Mars sit in the bottom corners, away from the globe and the Oxygen track. */
-function centreOffMars(index: number): [number, number] {
-  const corner = GLOBE_RADIUS * 0.86;
-  return [index === 0 ? -corner : corner, corner];
 }
 
 interface AreaMarkProps {
@@ -148,35 +237,29 @@ interface AreaMarkProps {
 function AreaMark({ area, x, y, offMars, ownerName, claimantName, specialName, option, onPick }: AreaMarkProps) {
   const classes = [
     "area",
-    offMars ? "off-mars" : "",
+    offMars ? `off-mars ${area.area}` : "",
     area.reserved ? `reserved-${area.reserved === "ocean" ? "ocean" : "card"}` : "",
     area.tile ? `tile tile-${area.tile.type}` : "",
     option ? "choosable" : "",
   ];
-  const interactive = option
-    ? {
-        role: "button",
-        tabIndex: 0,
-        "aria-label": option.label,
-        onClick: () => onPick(option),
-        onKeyDown: (event: KeyboardEvent) => {
-          if (event.key === "Enter" || event.key === " ") {
-            event.preventDefault();
-            onPick(option);
-          }
-        },
-      }
-    : {};
+  const interactive = option ? svgButton(option.label, () => onPick(option)) : {};
+  const fill = area.tile ? `url(#tile-${area.tile.type})` : undefined;
   return (
     <g className={classes.join(" ")} transform={`translate(${x.toFixed(2)} ${y.toFixed(2)})`} {...interactive}>
       <title>{describe(area, ownerName, claimantName, specialName)}</title>
-      {offMars ? <circle className="area-shape" r={SIZE * 0.8} /> : <polygon className="area-shape" points={HEXAGON} />}
+      {!offMars ? (
+        <polygon className="area-shape" points={HEXAGON} fill={fill} />
+      ) : area.area === "phobos_space_haven" ? (
+        <polygon className="area-shape" points={ASTEROID} fill={fill} />
+      ) : (
+        <polygon className="area-shape" points={hexagonPoints(OFF_MARS_RADIUS)} fill={fill} />
+      )}
       {area.tile ? <TileMark tile={area.tile} /> : <BonusMarks bonus={area.bonus} />}
       {!area.tile && area.claimed_by !== null && (
         <circle className="claim-marker" r={SIZE * 0.62} stroke={PLAYER_COLOURS[area.claimed_by]} />
       )}
       {area.name && (
-        <text className="area-name" y={offMars ? SIZE * 1.25 : -SIZE * 0.5}>
+        <text className="area-name" y={offMars ? OFF_MARS_RADIUS + 9 : -SIZE * 0.62}>
           {area.name}
         </text>
       )}
@@ -189,34 +272,50 @@ function AreaMark({ area, x, y, offMars, ownerName, claimantName, specialName, o
   );
 }
 
-/** A Tile: its colour shows its type, a special Tile's symbol its card, and a disc in its owner's
- * colour whose it is. */
+/** A Tile: its colour and drawing show its type, a special Tile's symbol its card, and a cube in its
+ * owner's colour whose it is. */
 function TileMark({ tile }: { tile: Tile }) {
   const symbol = tile.card ? SPECIAL_SYMBOLS[tile.card] : undefined;
-  const markerY = tile.type === "city" ? 8 : tile.type === "special" ? 10 : 0;
+  const markerY = tile.type === "city" ? 9 : tile.type === "special" ? 13 : 0;
   return (
     <g className="tile-mark">
-      {tile.type === "city" && <path className="city-skyline" d="M-11,2 v-9 h5 v-5 h6 v8 h5 v-4 h6 v10 z" />}
+      {tile.type === "ocean" && (
+        <path
+          className="ocean-waves"
+          d="M-15,-6 q3.75,-5 7.5,0 t7.5,0 t7.5,0 t7.5,0 M-15,2 q3.75,-5 7.5,0 t7.5,0 t7.5,0 t7.5,0 M-15,10 q3.75,-5 7.5,0 t7.5,0 t7.5,0 t7.5,0"
+        />
+      )}
+      {tile.type === "greenery" && (
+        <path className="greenery-trees" d="M-14,-4 l5,-10 l5,10 z M4,-4 l5,-10 l5,10 z M-14,14 l5,-10 l5,10 z M4,14 l5,-10 l5,10 z" />
+      )}
+      {tile.type === "city" && <path className="city-skyline" d="M-16,6 v-11 h6 v-7 h7 v10 h6 v-6 h7 v8 h6 v6 z" />}
+      {tile.card === "ecological_zone" && <Paw />}
       {symbol && (
-        <text className={`special-symbol ${tile.type === "city" ? "on-city" : ""}`} y={tile.type === "city" ? -14 : -3}>
+        <text className={`special-symbol ${tile.type === "city" ? "on-city" : ""}`} y={tile.type === "city" ? -17 : -4}>
           {symbol}
         </text>
       )}
-      {tile.owner !== null && (
-        <circle
-          className="owner-marker"
-          cy={markerY}
-          r={tile.type === "special" ? 5.5 : 7}
-          fill={PLAYER_COLOURS[tile.owner]}
-        />
-      )}
+      {tile.owner !== null && <PlayerCube colour={PLAYER_COLOURS[tile.owner]} y={markerY} size={tile.type === "special" ? 6 : 7.5} />}
+    </g>
+  );
+}
+
+/** Ecological Zone's symbol: drawn, as a browser would take the paw character from a colour emoji font. */
+function Paw() {
+  return (
+    <g className="special-paw" transform="translate(0 -4)">
+      <ellipse cy={3.5} rx={6} ry={5} />
+      <ellipse cx={-7.5} cy={-2} rx={2.3} ry={3.1} />
+      <ellipse cx={-2.8} cy={-6.5} rx={2.3} ry={3.1} />
+      <ellipse cx={2.8} cy={-6.5} rx={2.3} ry={3.1} />
+      <ellipse cx={7.5} cy={-2} rx={2.3} ry={3.1} />
     </g>
   );
 }
 
 /** The placement bonus, one small mark per item, side by side. */
 function BonusMarks({ bonus }: { bonus: BonusItem[] }) {
-  const spacing = 15;
+  const spacing = 16;
   const left = (-(bonus.length - 1) * spacing) / 2;
   return (
     <g className="bonus">
@@ -230,20 +329,10 @@ function BonusMarks({ bonus }: { bonus: BonusItem[] }) {
 }
 
 const BONUS_MARKS: Record<BonusItem, ReactNode> = {
-  steel: (
-    <>
-      <rect className="bonus-steel" x={-6} y={-6} width={12} height={12} rx={2} />
-      <text className="bonus-letter">S</text>
-    </>
-  ),
-  titanium: (
-    <>
-      <polygon className="bonus-titanium" points="0,-7 6.5,0 0,7 -6.5,0" />
-      <text className="bonus-letter">T</text>
-    </>
-  ),
-  plant: <path className="bonus-plant" d="M0,7 C-8,2 -6,-6 0,-7 C6,-6 8,2 0,7 Z" />,
-  card: <rect className="bonus-card" x={-5} y={-7} width={10} height={14} rx={1.5} />,
+  steel: <BoardIcon path="resources/steel" size={15} />,
+  titanium: <BoardIcon path="resources/titanium" size={15} />,
+  plant: <BoardIcon path="resources/plant" size={15} />,
+  card: <BoardIcon path="resources/card" size={11} height={16} />,
 };
 
 /** The tooltip: everything about an Area in words. */

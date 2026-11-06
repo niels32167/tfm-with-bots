@@ -1,25 +1,30 @@
 import { CARD_PRICE, playersAreBuying } from "../cards/BuyingPanel";
 import { HAND_OPTIONS } from "../cards/HandDock";
 import { TILE_NAMES } from "../format";
-import { playerTitle } from "../players";
+import { PLAYER_COLOURS, playerTitle } from "../players";
 import type { Card, TileType } from "../types";
 import type { GameUpdate } from "../useGameServer";
+import { LogLine } from "./GameLog";
 import { cardBeingPaidFor, PaymentPicker } from "./PaymentPicker";
 
 interface Props {
   game: GameUpdate;
   /** The card catalog. */
   cards: Card[];
+  /** The latest line of the game log, shown while a Random Bot acts. */
+  latest: string | undefined;
   error: string | null;
   /** True while a pick is on its way to the server. */
   disabled: boolean;
   onPick: (sequence: number, index: number) => void;
+  onUndo: () => void;
 }
 
-// Options picked where they are drawn rather than as buttons here: Milestones and Awards in
-// their bar, cards to play, sell or discard in the hand, card actions on the played cards, and
-// cards to keep or buy in the buying panel. (A card to give or take Card Resources is both a button
+// Options picked where they are drawn rather than as buttons here: Standard Projects in their panel,
+// Milestones and Awards in their bar, cards to play, sell or discard in the hand, card actions on the
+// played cards, and cards to keep or buy in the buying panel. (A card to give or take Card Resources is both a button
 // here and a card outlined among the played cards, which may be out of view when one must be picked.)
+const PICKED_IN_THE_PROJECTS = new Set(["standard_project"]);
 const PICKED_IN_THE_BAR = new Set(["claim_milestone", "fund_award"]);
 const PICKED_IN_THE_HAND = new Set(Object.keys(HAND_OPTIONS));
 const PICKED_ON_PLAYED_CARDS = new Set(["use_action"]);
@@ -42,23 +47,29 @@ const OTHER_AREAS: Record<string, string> = {
   ganymede_colony: " on the Area reserved for it",
 };
 
-/** The current Decision, with its Options as buttons, like Board Game Arena's title bar. A
- * payment Decision gets the payment picker instead. */
-export function StatusBar({ game, cards, error, disabled, onPick }: Props) {
-  const { decision } = game;
+/** The current Decision, with its Options as buttons and Undo at the end, like Board Game Arena's title
+ * bar: a centred sentence naming the Player in their colour, and while a Random Bot acts, what it last
+ * did underneath. A payment Decision gets the payment picker instead. */
+export function StatusBar({ game, cards, latest, error, disabled, onPick, onUndo }: Props) {
+  const { decision, view } = game;
   const options = decision?.options ?? [];
   const pickedElsewhere = (type: string) =>
-    [PICKED_IN_THE_BAR, PICKED_IN_THE_HAND, PICKED_ON_PLAYED_CARDS, PICKED_IN_THE_PANEL].some((set) => set.has(type));
+    [PICKED_IN_THE_PROJECTS, PICKED_IN_THE_BAR, PICKED_IN_THE_HAND, PICKED_ON_PLAYED_CARDS, PICKED_IN_THE_PANEL].some(
+      (set) => set.has(type),
+    );
   const buttons = options.filter((option) => !pickedElsewhere(option.details.type));
   // Where else an Action can be picked; buying and selling say so in the status text.
   const elsewhere = [
     options.some((option) => option.details.type === "play_card") && "card in the hand",
     options.some((option) => PICKED_ON_PLAYED_CARDS.has(option.details.type)) && "played card's action",
+    options.some((option) => PICKED_IN_THE_PROJECTS.has(option.details.type)) && "Standard Project",
     options.some((option) => PICKED_IN_THE_BAR.has(option.details.type)) && "Milestone or Award",
   ].filter((place): place is string => Boolean(place));
   return (
     <div className="status-bar" role="status">
-      <span className="status-text">{statusText(game, cards)}</span>
+      <span className="status-text">
+        <StatusSentence game={game} text={statusText(game, cards)} />
+      </span>
       {decision?.kind === "payment" && (
         <PaymentPicker
           key={decision.sequence}
@@ -82,13 +93,41 @@ export function StatusBar({ game, cards, error, disabled, onPick }: Props) {
           {elsewhere.length > 0 && <span className="status-hint">{elsewhereHint(elsewhere)}</span>}
         </span>
       )}
+      {game.can_undo && <UndoButton onUndo={onUndo} />}
       {error && <span className="status-error">{error}</span>}
+      {!decision && view.phase !== "over" && latest && (
+        <span className="status-latest">
+          <LogLine line={latest} players={view.players.map((player) => player.name)} />
+        </span>
+      )}
     </div>
   );
 }
 
+/** Undo, in red, at the end of the status bar. */
+export function UndoButton({ onUndo }: { onUndo: () => void }) {
+  return (
+    <button className="option undo" title="Go back to the last Decision a human answered" onClick={onUndo}>
+      Undo
+    </button>
+  );
+}
+
+/** The sentence, with the Player it starts with in their colour. */
+function StatusSentence({ game, text }: { game: GameUpdate; text: string }) {
+  const { current_player: current } = game.view;
+  const who = current === null ? null : playerTitle(game, current);
+  if (current === null || who === null || !text.startsWith(who)) return <>{text}</>;
+  return (
+    <>
+      <span style={{ color: PLAYER_COLOURS[current] }}>{who}</span>
+      {text.slice(who.length)}
+    </>
+  );
+}
+
 /** Where else Options are picked: "or click a highlighted card in the hand, played card's action,
- * Milestone or Award". */
+ * Standard Project, Milestone or Award". */
 function elsewhereHint(places: string[]): string {
   return `or click a highlighted ${places.join(", ")}`;
 }

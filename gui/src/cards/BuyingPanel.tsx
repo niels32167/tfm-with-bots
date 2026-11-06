@@ -1,4 +1,4 @@
-import { type CSSProperties, useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import { isYou, playerTitle } from "../players";
 import type { Card, Decision, View } from "../types";
@@ -12,8 +12,6 @@ export const CARD_PRICE = 3;
 
 // Pixels between the cards.
 const GAP = 14;
-// Hovering a card enlarges it to about this zoom, so a small one becomes readable.
-const HOVER_ZOOM = 0.85;
 
 interface Props {
   game: GameUpdate;
@@ -225,7 +223,7 @@ interface SmallCardsProps {
   groups: Card[][];
 }
 
-/** A labelled row of small cards; hovering one enlarges it to read. */
+/** A labelled row of small cards; pointing at one enlarges it to read (`CardZoom`). */
 function SmallCards({ label, groups }: SmallCardsProps) {
   return (
     <div className="buying-panel-small-cards">
@@ -233,7 +231,7 @@ function SmallCards({ label, groups }: SmallCardsProps) {
       {groups.map((group, index) => (
         <div key={index} className="small-card-group">
           {group.map((card) => (
-            <div key={card.id} className="small-card in-strip" tabIndex={0} aria-label={card.name}>
+            <div key={card.id} className="small-card in-strip" tabIndex={0} aria-label={card.name} data-zoom-card={card.id}>
               <PrintedCard card={card} />
             </div>
           ))}
@@ -259,7 +257,7 @@ interface PanelCardsProps {
 function PanelCards({ cards, bought, options, verb, disabled, onPick }: PanelCardsProps) {
   const cardsRef = useRef<HTMLDivElement>(null);
   const zoom = useFitZoom(cardsRef, cards.length, GAP);
-  const style = { zoom, "--hover-scale": Math.max(1.05, HOVER_ZOOM / zoom) } as CSSProperties;
+  const style = { zoom };
   return (
     <div ref={cardsRef} className="buying-panel-cards" style={{ gap: GAP }}>
       {cards.map((card) => {
@@ -283,6 +281,7 @@ function PanelCards({ cards, bought, options, verb, disabled, onPick }: PanelCar
               title={note}
               aria-label={`${verb} ${card.name}`}
               onClick={() => onPick(optionIndex)}
+              data-zoom-card={card.id}
             >
               {face}
             </button>
@@ -296,6 +295,7 @@ function PanelCards({ cards, bought, options, verb, disabled, onPick }: PanelCar
             tabIndex={0}
             aria-label={card.name}
             title={note}
+            data-zoom-card={card.id}
           >
             {face}
           </div>

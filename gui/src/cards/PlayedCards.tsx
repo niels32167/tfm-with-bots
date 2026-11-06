@@ -1,5 +1,8 @@
+import { useState } from "react";
+
+import { CorporationName, ResourceCells, TagCounts, TerraformRating } from "../components/PlayerBoards";
 import { isYou, PLAYER_COLOURS } from "../players";
-import type { Card, CardType, Decision, DecisionOption } from "../types";
+import type { Card, Decision, DecisionOption, PlayerBoard } from "../types";
 import type { GameUpdate } from "../useGameServer";
 import { useCardsById } from "./catalog";
 import { PrintedCard } from "./PrintedCard";
@@ -13,13 +16,14 @@ interface Props {
   onPick: (sequence: number, index: number) => void;
 }
 
-// Played cards are grouped by type, as on Board Game Arena.
-const PLAYED_GROUPS: { type: CardType; label: string }[] = [
-  { type: "corporation", label: "Corporation" },
-  { type: "automated", label: "Automated" },
-  { type: "active", label: "Active" },
-  { type: "event", label: "Events" },
+// A Player's area has these columns, as on Board Game Arena; the Events are folded away beside them.
+const COLUMNS: { key: string; label: string; holds: (card: Card) => boolean }[] = [
+  { key: "headquarters", label: "Headquarters", holds: (card) => card.type === "corporation" },
+  { key: "automated", label: "Automated", holds: (card) => card.type === "automated" },
+  { key: "effects", label: "Effects", holds: (card) => card.type === "active" && !card.effects?.action },
+  { key: "actions", label: "Actions", holds: (card) => card.type === "active" && Boolean(card.effects?.action) },
 ];
+const EVENTS = { key: "events", label: "Events", holds: (card: Card) => card.type === "event" };
 
 /** The card whose action is being carried out while the Game waits on how to pay for it, what it
  * spends or does, which card it buys, or which card it adds to or takes from; null otherwise. */
@@ -53,99 +57,149 @@ function cardResourcesText(kind: string, amount: number): string {
   return `${amount} ${kind}${amount === 1 || kind === "science" ? "" : "s"}`;
 }
 
-/** Under the board: each Player's Corporation once it is revealed and played cards, grouped by type.
- * They overlap so that each shows
- * its cost, title and Tags, and enlarge on hover. A card whose action can be used now, or that the
- * Decision offers to give or take Card Resources, is outlined and clicked to do so; one whose action
- * is used this Generation is dimmed and marked "Used". A card that holds Card Resources shows how
- * many are on it. (The hands are in the hand dock.) */
+/** Under the board: an area for each Player, the human at the screen first, as on Board Game Arena: a
+ * strip with their Resources, Production and Tags, and their cards in columns by type. In a column the
+ * cards overlap so that each shows its cost, title and Tags; the Events are folded away until opened. A
+ * card whose action can be used now, or that the Decision offers to give or take Card Resources, is
+ * outlined and clicked to do so; one whose action is used this Generation is dimmed and marked "Used".
+ * A card that holds Card Resources shows how many are on it. (The hands are in the hand dock.) */
 export function PlayedCards({ game, cards, disabled, onPick }: Props) {
   const catalog = useCardsById(cards);
+  const [eventsOpen, setEventsOpen] = useState<number[]>([]);
   if (catalog.size === 0) return null;
-  const card = (id: string) => catalog.get(id)!;
-  const { decision } = game;
-  const clickable = cardOptions(decision);
-  const underWay = actionUnderWay(game);
+  const { view, viewer } = game;
+  const players = view.players.map((_, player) => player).sort((a, b) => Number(b === viewer) - Number(a === viewer));
+  const toggleEvents = (player: number) =>
+    setEventsOpen((open) => (open.includes(player) ? open.filter((each) => each !== player) : [...open, player]));
 
   return (
     <section className="player-cards" aria-label="Played cards">
-      {game.view.players.map((board, player) => (
-        <div key={player} className="card-row played" style={{ borderLeftColor: PLAYER_COLOURS[player] }}>
-          <h3>
-            {isYou(game, player) ? "Your" : `${board.name}'s`} played cards ({board.played_cards.length})
-          </h3>
-          <div className="played-groups">
-            {PLAYED_GROUPS.map(({ type, label }) => {
-              const inPlay = board.corporation ? [board.corporation, ...board.played_cards] : board.played_cards;
-              const group = inPlay.map(card).filter((each) => each.type === type);
-              return (
-                group.length > 0 && (
-                  <div key={type} className="played-group">
-                    <h4>
-                      {label} ({group.length})
-                    </h4>
-                    <div className="card-stack">
-                      {group.map((each) => {
-                        const option = clickable.get(each.id);
-                        const used = board.used_actions.includes(each.id);
-                        const onCard = board.card_resources[each.id];
-                        const onCardText =
-                          onCard === undefined ? "" : cardResourcesText(each.effects?.holds as string, onCard);
-                        const badges = (used || onCard !== undefined) && (
-                          <span className="card-badges">
-                            {onCard !== undefined && (
-                              <span className="card-resource-badge" title={onCardText}>
-                                <span className="printed-card card-resource-icon">
-                                  <span className={`resource ${each.effects?.holds as string}`} />
-                                </span>
-                                {onCard}
-                              </span>
-                            )}
-                            {used && (
-                              <span className="used-action-badge" aria-hidden>
-                                Used
-                              </span>
-                            )}
-                          </span>
-                        );
-                        const named = onCard === undefined ? each.name : `${each.name}, ${onCardText} on it`;
-                        if (decision && option !== undefined) {
-                          return (
-                            <button
-                              key={each.id}
-                              className="small-card stacked playable"
-                              disabled={disabled}
-                              aria-label={onCard === undefined ? option.label : `${option.label}, ${onCardText} on it`}
-                              onClick={() => onPick(decision.sequence, option.index)}
-                            >
-                              <PrintedCard card={each} />
-                              {badges}
-                            </button>
-                          );
-                        }
-                        // The card whose action is under way is outlined rather than dimmed.
-                        const state = each.id === underWay ? "action-under-way" : used ? "used-action" : "";
-                        return (
-                          <div
-                            key={each.id}
-                            className={`small-card stacked ${state}`}
-                            tabIndex={0}
-                            aria-label={used ? `${named} (action used this Generation)` : named}
-                          >
-                            <PrintedCard card={each} />
-                            {badges}
-                          </div>
-                        );
-                      })}
-                    </div>
-                  </div>
-                )
-              );
-            })}
-            {board.played_cards.length === 0 && <p className="no-cards">No cards played yet.</p>}
-          </div>
-        </div>
-      ))}
+      {players.map((player) => {
+        const board = view.players[player];
+        const inPlay = (board.corporation ? [board.corporation, ...board.played_cards] : board.played_cards).map(
+          (id) => catalog.get(id)!,
+        );
+        const events = inPlay.filter(EVENTS.holds);
+        const open = eventsOpen.includes(player);
+        const columnProps = { game, board, disabled, onPick };
+        return (
+          <article key={player} className="player-area" style={{ borderColor: PLAYER_COLOURS[player] }}>
+            <header className="player-area-header">
+              <span className="player-area-name" style={{ background: PLAYER_COLOURS[player] }}>
+                {isYou(game, player) ? "You" : board.name}
+              </span>
+              <CorporationName id={board.corporation} catalog={catalog} />
+              <TerraformRating value={board.terraform_rating} />
+              <ResourceCells board={board} />
+              <TagCounts board={board} />
+              <button
+                className="events-toggle"
+                aria-expanded={open}
+                title={open ? "Fold the Events away" : "Show the Events played"}
+                onClick={() => toggleEvents(player)}
+              >
+                {events.length} Events {open ? "▴" : "▾"}
+              </button>
+            </header>
+            <div className="played-groups">
+              {COLUMNS.map(({ key, label, holds }) => (
+                <PlayedColumn key={key} column={key} label={label} group={inPlay.filter(holds)} {...columnProps} />
+              ))}
+              {open && <PlayedColumn column={EVENTS.key} label={EVENTS.label} group={events} {...columnProps} />}
+            </div>
+          </article>
+        );
+      })}
     </section>
+  );
+}
+
+interface PlayedColumnProps {
+  column: string;
+  label: string;
+  group: Card[];
+  game: GameUpdate;
+  board: PlayerBoard;
+  disabled: boolean;
+  onPick: (sequence: number, index: number) => void;
+}
+
+function PlayedColumn({ column, label, group, game, board, disabled, onPick }: PlayedColumnProps) {
+  return (
+    <div className={`played-group played-group-${column}`}>
+      <h4>
+        <span className="played-group-count">{group.length}</span> {label}
+      </h4>
+      <div className="card-stack">
+        {group.map((card) => (
+          <PlayedCard key={card.id} card={card} game={game} board={board} disabled={disabled} onPick={onPick} />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+interface PlayedCardProps {
+  card: Card;
+  game: GameUpdate;
+  board: PlayerBoard;
+  disabled: boolean;
+  onPick: (sequence: number, index: number) => void;
+}
+
+function PlayedCard({ card, game, board, disabled, onPick }: PlayedCardProps) {
+  const { decision } = game;
+  const option = cardOptions(decision).get(card.id);
+  const used = board.used_actions.includes(card.id);
+  const onCard = board.card_resources[card.id];
+  const onCardText = onCard === undefined ? "" : cardResourcesText(card.effects?.holds as string, onCard);
+  const zoomNote = [onCard !== undefined && `${onCardText} on it`, used && "Action used this Generation"]
+    .filter(Boolean)
+    .join(" · ");
+  const zoom = { "data-zoom-card": card.id, "data-zoom-note": zoomNote || undefined };
+  const badges = (used || onCard !== undefined) && (
+    <span className="card-badges">
+      {onCard !== undefined && (
+        <span className="card-resource-badge" title={onCardText}>
+          <span className="printed-card card-resource-icon">
+            <span className={`resource ${card.effects?.holds as string}`} />
+          </span>
+          {onCard}
+        </span>
+      )}
+      {used && (
+        <span className="used-action-badge" aria-hidden>
+          Used
+        </span>
+      )}
+    </span>
+  );
+  const named = onCard === undefined ? card.name : `${card.name}, ${onCardText} on it`;
+  if (decision && option !== undefined) {
+    return (
+      <button
+        className="small-card stacked playable"
+        disabled={disabled}
+        aria-label={onCard === undefined ? option.label : `${option.label}, ${onCardText} on it`}
+        onClick={() => onPick(decision.sequence, option.index)}
+        {...zoom}
+      >
+        <PrintedCard card={card} />
+        {badges}
+      </button>
+    );
+  }
+  // The card whose action is under way is outlined rather than dimmed.
+  const state = card.id === actionUnderWay(game) ? "action-under-way" : used ? "used-action" : "";
+  return (
+    <div
+      className={`small-card stacked ${state}`}
+      tabIndex={0}
+      aria-label={used ? `${named} (action used this Generation)` : named}
+      {...zoom}
+    >
+      <PrintedCard card={card} />
+      {badges}
+    </div>
   );
 }

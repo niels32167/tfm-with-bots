@@ -2,19 +2,18 @@ import { useEffect, useState } from "react";
 
 import { BuyingPanel, cardsShownFor } from "./cards/BuyingPanel";
 import { CardGallery } from "./cards/CardGallery";
+import { CardZoom } from "./cards/CardZoom";
 import { HandDock, handOptions } from "./cards/HandDock";
 import { PlayedCards } from "./cards/PlayedCards";
 import { DEFAULT_BOT_DELAY } from "./components/BotSpeedSelect";
 import { DevPanel } from "./components/DevPanel";
 import { FinalScores } from "./components/FinalScores";
 import { GameLog } from "./components/GameLog";
+import { GlobalReadings } from "./components/GlobalReadings";
 import { MarsBoard } from "./components/MarsBoard";
-import { MilestonesAwards } from "./components/MilestonesAwards";
 import { NewGameSetup } from "./components/NewGameSetup";
-import { OceanTrack } from "./components/OceanTrack";
 import { PlayerBoards } from "./components/PlayerBoards";
-import { StatusBar } from "./components/StatusBar";
-import { TemperatureTrack } from "./components/TemperatureTrack";
+import { StatusBar, UndoButton } from "./components/StatusBar";
 import { TopBar } from "./components/TopBar";
 import type { Controller, NewGameSettings, Scenario } from "./types";
 import { type GameUpdate, useGameServer } from "./useGameServer";
@@ -133,54 +132,44 @@ export function App() {
         onShowScores={scores && !showScores ? () => setShowScores(true) : undefined}
         onShowCards={() => setShowCards(true)}
         onNewGame={openSetup}
-        onUndo={server.undo}
         onSaveReplay={server.saveReplay}
         onLoadReplay={(file) => loadReplay(file, game.bot_delay)}
         onBotDelay={server.setBotDelay}
         devPanelOpen={devPanelOpen}
         onToggleDevPanel={() => (devPanelOpen ? closeDevPanel() : setDevPanelOpen(true))}
       />
-      {lookingBack ? (
-        <div className="status-bar dev-looking-back">
-          Looking back at step {devView.step} of {devView.steps}: nothing can be picked here, and the Game carries on
-          without it.
-        </div>
-      ) : (
-        <StatusBar
-          game={shown}
-          cards={server.cards}
-          error={error}
-          disabled={picking}
-          onPick={server.pick}
-        />
-      )}
       <div className="table">
-        <main className="board-area">
-          {cardsShownFor(shown) !== null && (
-            <BuyingPanel game={shown} cards={server.cards} disabled={picking} onPick={server.pick} />
-          )}
-          <div className="mars-and-tracks">
-            <TemperatureTrack temperature={shown.view.temperature} />
-            <div className="mars-column">
-              <MarsBoard
-                board={shown.view.board}
-                oxygen={shown.view.oxygen}
-                playerNames={shown.view.players.map((board) => board.name)}
-                cards={server.cards}
-                decision={shown.decision}
-                disabled={picking}
-                onPick={server.pick}
-              />
+        <div className="table-main">
+          {lookingBack ? (
+            <div className="status-bar dev-looking-back">
+              Looking back at step {devView.step} of {devView.steps}: nothing can be picked here, and the Game carries on
+              without it.
+              {game.can_undo && <UndoButton onUndo={server.undo} />}
             </div>
-            <OceanTrack oceans={shown.view.oceans} />
-          </div>
-          <MilestonesAwards game={shown} disabled={picking} onPick={server.pick} />
-        </main>
+          ) : (
+            <StatusBar
+              game={shown}
+              cards={server.cards}
+              latest={log.at(-1)}
+              error={error}
+              disabled={picking}
+              onPick={server.pick}
+              onUndo={server.undo}
+            />
+          )}
+          <main className="board-area">
+            {cardsShownFor(shown) !== null && (
+              <BuyingPanel game={shown} cards={server.cards} disabled={picking} onPick={server.pick} />
+            )}
+            <MarsBoard game={shown} cards={server.cards} disabled={picking} onPick={server.pick} />
+          </main>
+          <PlayedCards game={shown} cards={server.cards} disabled={picking} onPick={server.pick} />
+        </div>
         <aside className="side-panel">
+          <GlobalReadings view={shown.view} />
           <PlayerBoards game={shown} cards={server.cards} />
-          <GameLog log={lookingBack ? devView.log : log} />
+          <GameLog log={lookingBack ? devView.log : log} players={shown.view.players.map((board) => board.name)} />
         </aside>
-        <PlayedCards game={shown} cards={server.cards} disabled={picking} onPick={server.pick} />
       </div>
       <HandDock
         game={shown}
@@ -200,6 +189,7 @@ export function App() {
         />
       )}
       {cardGallery}
+      <CardZoom cards={server.cards} />
       {devPanelOpen && (
         <DevPanel
           key={devPanelKey}

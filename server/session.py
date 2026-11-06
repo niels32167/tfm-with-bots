@@ -107,6 +107,13 @@ class GameSession:
             self.game.decision["kind"] == "payment" and phase == "research"
         )
 
+    def random_bot_pauses_before_picking(self) -> bool:
+        """Whether a person watching needs a moment before this Random Bot pick: not while it drafts or
+        buys, and not where there is one Option and so nothing to choose, such as the one way to pay.
+        Which Decisions have one Option shows only what is public: its hand is hidden, but a card it
+        could play comes with a Pass, and a card in hand with Sell Patents."""
+        return not self.waiting_on_random_bot_to_draft_or_buy() and len(self.game.decision["options"]) > 1
+
     def pick_for_random_bot(self) -> None:
         decision = self.game.decision
         random_numbers = random.Random(f"{self.game.seed}/{decision['sequence']}")
