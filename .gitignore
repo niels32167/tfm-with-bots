@@ -15,3 +15,6 @@ fuzz-failures/
 
 # Downloads the tools keep out of git (the open-source game is GPL-3.0)
 .cache/
+
+# Board Game Arena game logs from tfmstats.com: 147 GB, no licence named, holds player names
+tm_statistics/

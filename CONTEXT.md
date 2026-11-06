@@ -29,6 +29,9 @@ The Research-phase variant where Players pick cards one at a time from hands pas
 **Corporate Era**:
 The rules and extra cards in the base box marked with the Corporate Era symbol. Every Game in this project uses them.
 
+**Prelude**:
+The expansion that gives each Player Prelude Cards at setup, and adds Corporations and Project Cards. A setting of each Game, like the Draft.
+
 ### Mars
 
 **Global Parameter**:
@@ -67,6 +70,10 @@ The card each Player starts the Game with, giving their starting MegaCredits and
 
 **Project Card**:
 A card Players buy and play: Automated (green), Active (blue) or Event (red).
+
+**Prelude Card**:
+A card from Prelude, kept at setup and played at the start of the Game. Not a Project Card.
+_Avoid_: prelude (on its own, for the card)
 
 **Tag**:
 A symbol on a card, such as building, space or science, that card costs, requirements and effects refer to.
@@ -119,6 +126,34 @@ _Avoid_: save state, log (the game log is the human-readable history)
 **Hotseat**:
 Several human Controllers sharing one screen. All hands are visible, since it is a testing setup.
 
+### Building the AI
+
+**Match**:
+A set of Games between two Controllers on fixed seeds, in which each Controller takes each Player in turn on every seed, so that neither gains from the cards or from going first.
+_Avoid_: arena (Board Game Arena has its own Arena mode), tournament
+
+**Recorded Game**:
+A Game humans played on Board Game Arena, as its log describes it. It can't be replayed exactly like a Replay.
+_Avoid_: game log (the engine's plain-language history), log (on its own), Replay
+
+**Price**:
+What something is worth in MegaCredits at a given moment, such as a Production step or a Tag. It depends on the Generations left and on the Player's cards.
+_Avoid_: value (kept for the Value Model), worth (in code)
+
+**Card Economy Bot**:
+A Controller that compares Options by their Prices, computed from the card catalog and fitted to play.
+
+**Imitation Model**:
+A model that predicts what strong Players pick at a Decision, trained on Recorded Games.
+
+**Value Model**:
+A model that estimates a Player's chance of winning from their Player View, trained by self-play.
+
+**Sampled Position**:
+A complete Game made from a Player View by dealing the cards that Player can't see at random, consistent with what they know. It is how a Controller looks ahead without seeing hidden cards.
+_Avoid_: determinization, copy (a copy of a Game keeps its real hidden cards)
+
 ## Flagged ambiguities
 
 - "Action" means the game's Action (above). The reinforcement-learning sense of "action" (one thing the AI picks) is an **Option**.
+- "Log" alone is ambiguous: the engine's history is the **game log**, and a Board Game Arena log describes a **Recorded Game**.
