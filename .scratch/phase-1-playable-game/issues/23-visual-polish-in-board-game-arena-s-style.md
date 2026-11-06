@@ -131,3 +131,11 @@ No login to Board Game Arena was needed: its Example game Replay opens for a vis
 - **Hand-offs:** ticket 25 (how the board reads at 1366×768, its smallest size).
 - **Still open from earlier tickets:** the 100,000-Game run and `implemented_cards_first` (ticket 24).
 - **Status line:** it stays `ready-for-agent`, because `docs/agents/triage-labels.md` has no "done" label.
+
+### 2026-11-06 — after the user's comments on the finished look (Claude)
+
+Asked for by the user:
+- **The hand shows whole cards** when the mouse is over the dock's header ("Your hand", or the tabs in Hotseat). The dock rises over the board without moving it, with the cards in rows and none overlapping, and stays up until the mouse leaves the dock. It works when the hand is folded too.
+- **A card whose action is used turns grey,** stays solid, and has no "Used" label. Its Card Resources badge keeps its colour.
+
+Calls by Claude (2026-11-06, in the spirit of that comment): a card to pick while a pick is on its way also greys rather than going see-through. Clicking Fold or "Show the hand" lowers the dock at once.

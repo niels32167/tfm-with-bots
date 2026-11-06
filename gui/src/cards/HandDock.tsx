@@ -34,7 +34,8 @@ export function handOptions(decision: Decision | null): Map<string, DecisionOpti
 }
 
 /** The hand, docked at the bottom of the window so it is always in reach. Only the tops of the
- * cards show (cost, Tags, title); pointing at one enlarges it (`CardZoom`). Cards that can be played
+ * cards show (cost, Tags, title); pointing at one enlarges it (`CardZoom`), and pointing at the dock's
+ * header raises the dock over the board with every card whole, until the mouse leaves it. Cards that can be played
  * or sold now are outlined and clicked to do so. In the full view (Hotseat, or only Random Bots)
  * a tab per Player picks whose hand to show, following the Player deciding. It folds away to a
  * single line. */
@@ -42,6 +43,7 @@ export function HandDock({ game, cards, disabled, onPick, folded, onFold }: Prop
   const catalog = useCardsById(cards);
   // A hand picked by its tab, for as long as the same Player is deciding.
   const [picked, setPicked] = useState<{ player: number; whileDeciding: number | null } | null>(null);
+  const [raised, setRaised] = useState(false);
   const { view, decision } = game;
   const deciding = decision?.player ?? view.current_player;
   const shown =
@@ -53,8 +55,13 @@ export function HandDock({ game, cards, disabled, onPick, folded, onFold }: Prop
   const costs = view.players[shown].card_costs ?? {};
 
   return (
-    <section className="hand-dock" aria-label="Hand" style={{ borderTopColor: PLAYER_COLOURS[shown] }}>
-      <header className="hand-dock-header">
+    <section
+      className={`hand-dock ${raised ? "raised" : ""}`}
+      aria-label="Hand"
+      style={{ borderTopColor: PLAYER_COLOURS[shown] }}
+      onMouseLeave={() => setRaised(false)}
+    >
+      <header className="hand-dock-header" onMouseEnter={() => setRaised(true)}>
         {game.viewer === null ? (
           <div className="segmented hand-tabs" role="group" aria-label="Whose hand">
             {view.players.map((board, player) => (
@@ -74,14 +81,20 @@ export function HandDock({ game, cards, disabled, onPick, folded, onFold }: Prop
             {isYou(game, shown) ? "Your hand" : `${view.players[shown].name}'s hand`} ({hand.length})
           </h2>
         )}
-        {!folded && options.size > 0 && (
+        {(!folded || raised) && options.size > 0 && (
           <span className="hand-dock-hint">{HAND_OPTIONS[[...options.values()][0].details.type].hint}</span>
         )}
-        <button className="link-button hand-dock-fold" onClick={() => onFold(!folded)}>
+        <button
+          className="link-button hand-dock-fold"
+          onClick={() => {
+            setRaised(false);
+            onFold(!folded);
+          }}
+        >
           {folded ? "Show the hand ▴" : "Fold ▾"}
         </button>
       </header>
-      {!folded && (
+      {(!folded || raised) && (
         <div className="hand-dock-cards">
           {hand.map((id) => {
             const card = catalog.get(id);

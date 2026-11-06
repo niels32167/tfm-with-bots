@@ -162,7 +162,7 @@ the full view; with one human, only that Player's Player View.
 
 The screen is laid out like Board Game Arena's: the status bar and the board on the left, with the
 Players' areas beneath them, and the Global Parameters, player boards and game log on the right. The
-hand is docked at the bottom of the window. The board shows Mars on a NASA image, the Oxygen arc over it,
+hand is docked at the bottom of the window, showing the tops of the cards; hover over its header to see them whole. The board shows Mars on a NASA image, the Oxygen arc over it,
 the thermometer and how many Oceans are left to its right, and the Standard Projects and the
 Milestones and Awards around it; those a Decision offers are lit, and clicked there.
 
@@ -178,7 +178,7 @@ Below the board is an area for each Player, you first: their Resources, Producti
 their cards in the columns Headquarters, Automated, Effects and Actions. Their Events are folded away
 behind the red button. Hover over a card anywhere to see it large with its details. A card you can play now is outlined:
 click it to play it. A played card whose action you can use now is outlined too: click it to
-use the action. A card whose action is used this Generation is dimmed and marked **Used**. A card
+use the action. A card whose action is used this Generation turns grey. A card
 that holds Card Resources shows how many are on it, next to their icon; when a Decision asks which
 card gets or loses some, the cards it offers are outlined, and each is a button in the status bar
 too.

@@ -1527,7 +1527,7 @@ input[aria-invalid="true"] {
 
 .small-card.playable:disabled {
   cursor: default;
-  opacity: 0.6;
+  filter: grayscale(0.6);
 }
 
 .small-card.being-paid-for,
@@ -1540,9 +1540,10 @@ input[aria-invalid="true"] {
   opacity: 0.45;
 }
 
-/* A played card whose action is used this Generation: dimmed, with a badge. */
+/* A played card whose action is used this Generation turns grey, and stays solid over the cards
+   beneath it. */
 .small-card.used-action > :not(.card-badges) {
-  opacity: 0.5;
+  filter: grayscale(1) brightness(0.82);
 }
 
 /* What a played card's badges are drawn in: side by side at the top, from its cost towards its Tags,
@@ -1592,17 +1593,6 @@ input[aria-invalid="true"] {
   width: 34px;
   height: 34px;
   transform: none;
-}
-
-.used-action-badge {
-  padding: 2px 12px;
-  border-radius: 12px;
-  background: #1c1c22;
-  color: #ffd54a;
-  font-size: 1.4rem;
-  font-weight: 700;
-  letter-spacing: 0.05em;
-  text-transform: uppercase;
 }
 
 /* Played cards of a type overlap, so that each shows its cost, title and Tags. */
@@ -1814,6 +1804,22 @@ input[aria-invalid="true"] {
 .hand-slot {
   flex: 0 1 152px;
   min-width: 30px;
+}
+
+/* Raised by pointing at the header: over the board, with the cards whole and in rows, none overlapping. */
+.hand-dock.raised {
+  height: auto;
+  max-height: calc(100vh - 8px);
+  overflow-y: auto;
+}
+
+.hand-dock.raised .hand-dock-cards {
+  flex-wrap: wrap;
+  padding: 14px 0 12px;
+}
+
+.hand-dock.raised .hand-slot {
+  flex: 0 0 152px;
 }
 
 /* The card pointed at rises a little and comes out from under the next one. */

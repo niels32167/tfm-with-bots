@@ -61,7 +61,7 @@ function cardResourcesText(kind: string, amount: number): string {
  * strip with their Resources, Production and Tags, and their cards in columns by type. In a column the
  * cards overlap so that each shows its cost, title and Tags; the Events are folded away until opened. A
  * card whose action can be used now, or that the Decision offers to give or take Card Resources, is
- * outlined and clicked to do so; one whose action is used this Generation is dimmed and marked "Used".
+ * outlined and clicked to do so; one whose action is used this Generation turns grey.
  * A card that holds Card Resources shows how many are on it. (The hands are in the hand dock.) */
 export function PlayedCards({ game, cards, disabled, onPick }: Props) {
   const catalog = useCardsById(cards);
@@ -157,21 +157,14 @@ function PlayedCard({ card, game, board, disabled, onPick }: PlayedCardProps) {
     .filter(Boolean)
     .join(" · ");
   const zoom = { "data-zoom-card": card.id, "data-zoom-note": zoomNote || undefined };
-  const badges = (used || onCard !== undefined) && (
+  const badges = onCard !== undefined && (
     <span className="card-badges">
-      {onCard !== undefined && (
-        <span className="card-resource-badge" title={onCardText}>
-          <span className="printed-card card-resource-icon">
-            <span className={`resource ${card.effects?.holds as string}`} />
-          </span>
-          {onCard}
+      <span className="card-resource-badge" title={onCardText}>
+        <span className="printed-card card-resource-icon">
+          <span className={`resource ${card.effects?.holds as string}`} />
         </span>
-      )}
-      {used && (
-        <span className="used-action-badge" aria-hidden>
-          Used
-        </span>
-      )}
+        {onCard}
+      </span>
     </span>
   );
   const named = onCard === undefined ? card.name : `${card.name}, ${onCardText} on it`;
@@ -189,7 +182,7 @@ function PlayedCard({ card, game, board, disabled, onPick }: PlayedCardProps) {
       </button>
     );
   }
-  // The card whose action is under way is outlined rather than dimmed.
+  // The card whose action is under way is outlined rather than grey.
   const state = card.id === actionUnderWay(game) ? "action-under-way" : used ? "used-action" : "";
   return (
     <div
