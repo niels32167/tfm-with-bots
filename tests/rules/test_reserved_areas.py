@@ -85,9 +85,7 @@ def test_each_reserved_areas_card_places_its_city_there_and_nowhere_else(card):
 def test_in_random_games_each_reserved_area_holds_only_its_cards_city_and_a_claimed_area_only_its_players_tiles():
     used = {card: 0 for card in RESERVED_AREAS} | {"land_claim": 0}
     for seed in range(40):
-        game = tm_engine.Game(
-            seed=seed, players=2 + seed % 4, implemented_cards_first=True
-        )
+        game = tm_engine.Game(seed=seed, players=2 + seed % 4)
         play_randomly(game, seed=seed)
         view = game.full_view()
         played = [set(each["played_cards"]) for each in view["players"]]

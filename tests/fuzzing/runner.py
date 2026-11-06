@@ -18,7 +18,12 @@ from typing import Any
 
 import tm_engine
 
-from tests.fuzzing.invariants import AFTER_EVERY_DECISION, AT_THE_END_OF_THE_GAME, Check
+from tests.fuzzing.invariants import (
+    AFTER_EVERY_DECISION,
+    AT_THE_END_OF_THE_GAME,
+    Check,
+    cards_in_play,
+)
 
 FAILURES_FOLDER = Path(__file__).parents[2] / "fuzz-failures"
 
@@ -40,11 +45,9 @@ def pick_at_random(random_numbers: random.Random, decision: dict[str, Any]) -> i
 
 
 def settings_for(seed: int) -> dict[str, Any]:
-    """The settings of fuzzed Game `seed`: 2, 3, 4 and 5 Players in turn; for seeds 4 to 7, 12 to
-    15 and so on the implemented cards dealt first, so that Random Bots play more cards; and the
-    Draft on for seeds 0 to 7, 16 to 23 and so on, and off for the others, so that every Player
-    count meets every setting."""
-    return {"players": 2 + seed % 4, "implemented_cards_first": seed // 4 % 2 == 1, "draft": seed // 8 % 2 == 0}
+    """The settings of fuzzed Game `seed`: 2, 3, 4 and 5 Players in turn, and the Draft on for seeds
+    0 to 3, 8 to 11 and so on, and off for the others, so that every Player count meets both."""
+    return {"players": 2 + seed % 4, "draft": seed // 4 % 2 == 0}
 
 
 @dataclass(frozen=True)
@@ -71,13 +74,13 @@ class FuzzedGame:
     decisions: int
     generations: int
     failure: Failure | None
+    cards_played: frozenset[str]
 
 
 def fuzz_game(
     seed: int,
     players: int,
     *,
-    implemented_cards_first: bool = False,
     draft: bool = True,
     after_every_decision: Sequence[Check] = AFTER_EVERY_DECISION,
     at_the_end: Sequence[Check] = AT_THE_END_OF_THE_GAME,
@@ -87,13 +90,14 @@ def fuzz_game(
 ) -> FuzzedGame:
     """Plays one Game with a Random Bot for every Player, checking it after every Decision,
     until it is over or something goes wrong."""
-    game = tm_engine.Game(seed=seed, players=players, implemented_cards_first=implemented_cards_first, draft=draft)
+    game = tm_engine.Game(seed=seed, players=players, draft=draft)
     start = game.replay["start"]
     random_numbers = random.Random(seed)
     picks: list[int] = []
     generation = 1
     decision = None
     failing_pick = None
+    view = None
     try:
         while True:
             view, decision = game.full_view(), game.decision
@@ -120,7 +124,9 @@ def fuzz_game(
         problems = [f"{what_was_going_on(decision, failing_pick)} raised {type(error).__name__}: {error}"]
     replay = {"start": start, "picks": picks}
     failure = Failure(seed, players, problems, replay, failing_pick) if problems else None
-    return FuzzedGame(seed, players, len(picks), generation, failure)
+    boards = view["players"] if view else []
+    cards_played = frozenset(card for board in boards for card in cards_in_play(board))
+    return FuzzedGame(seed, players, len(picks), generation, failure, cards_played)
 
 
 def what_was_going_on(decision: dict[str, Any] | None, failing_pick: int | None) -> str:
@@ -138,11 +144,18 @@ class FuzzRun:
     decisions: int = 0
     most_generations: int = 0
     failures: list[Failure] = field(default_factory=list)
+    cards_played: set[str] = field(default_factory=set)
+
+    @property
+    def cards_never_played(self) -> list[str]:
+        """The catalog's cards, Corporations included, that no fuzzed Game had in play at its end."""
+        return [card["id"] for card in tm_engine.card_catalog() if card["id"] not in self.cards_played]
 
     def add(self, game: FuzzedGame) -> None:
         self.games += 1
         self.decisions += game.decisions
         self.most_generations = max(self.most_generations, game.generations)
+        self.cards_played |= game.cards_played
         if game.failure:
             self.failures.append(game.failure)
 

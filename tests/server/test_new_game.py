@@ -50,15 +50,6 @@ def test_a_random_bot_buys_its_cards_without_pausing_so_waiting_on_it_reveals_no
     assert waited < 2
 
 
-def test_a_new_game_can_deal_the_implemented_cards_first():
-    with connect() as gui:
-        gui.start(["human", "human"], seed=3, implemented_cards_first=True)
-        assert gui.save_replay()["replay"]["start"]["settings"]["implemented_cards_first"] is True
-
-        gui.send({"type": "new_game", "controllers": ["human", "human"], "implemented_cards_first": "yes"})
-        assert "implemented_cards_first must be true or false" in gui.receive_error()
-
-
 def test_a_new_game_has_the_draft_unless_it_is_switched_off():
     with connect() as gui:
         gui.start(["human", "human"], seed=3)

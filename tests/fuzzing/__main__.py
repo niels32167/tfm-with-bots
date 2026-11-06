@@ -48,6 +48,7 @@ def main() -> int:
         f"({run.decisions / seconds:,.0f} Decisions per second, checked). "
         f"The longest Game lasted {run.most_generations} Generations (the limit is {GENERATION_LIMIT})."
     )
+    print(f"{len(run.cards_played)} cards were played; never played: {', '.join(run.cards_never_played) or 'none'}.")
     if not run.failures:
         print("No failures.")
         return 0

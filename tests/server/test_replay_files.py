@@ -20,7 +20,7 @@ def test_a_saved_replay_file_holds_the_replay_and_every_players_controller():
         file = gui.save_replay()
 
     assert file["controllers"] == ["human", "random_bot", "random_bot"]
-    settings = {"players": 3, "seed": 12, "implemented_cards_first": False, "draft": True, "corporations": True}
+    settings = {"players": 3, "seed": 12, "draft": True, "corporations": True}
     assert file["replay"]["start"] == {"settings": settings}
     assert len(file["replay"]["picks"]) == update["decision"]["sequence"]
 

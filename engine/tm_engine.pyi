@@ -88,17 +88,14 @@ class Game:
         *,
         seed: int,
         players: int = 2,
-        implemented_cards_first: bool = False,
         draft: bool = True,
         corporations: bool = True,
     ) -> None:
         """A new Game from its settings; the first player is drawn from the seed. It begins with
         the setup: each Player is dealt 2 Corporations and 10 Project Cards from the shuffled deck, and
         chooses a Corporation and buys cards, hidden until every Player is done. From Generation 2,
-        each Research phase has the Draft unless `draft` is False. While most cards are not implemented
-        yet, `implemented_cards_first` puts the implemented ones, shuffled, on top of the deck. Without
-        `corporations`, as a Replay saved before they existed plays, each Player starts with 42
-        MegaCredits and no Corporation.
+        each Research phase has the Draft unless `draft` is False. Without `corporations`, as a Replay
+        saved before they existed plays, each Player starts with 42 MegaCredits and no Corporation.
 
         Raises ValueError for an unsupported Player count or a seed above MAX_SEED.
         """
@@ -264,9 +261,12 @@ class Game:
     def replay(self) -> dict[str, Any]:
         """The Replay so far: where this Game started and the index of every Option picked.
 
-        {"start": {"settings": {"players": int, "seed": int, "implemented_cards_first": bool,
-         "draft": bool}} or {"scenario": {...}},
+        {"start": {"settings": {"players": int, "seed": int, "draft": bool, "corporations": bool}}
+         or {"scenario": {...}},
          "picks": [int, ...]}
+
+        A Replay saved before ticket 24 may also have "implemented_cards_first": true in its
+        settings, which means one more shuffle at setup, and it stays there when it is loaded.
         """
 
     def player_view(self, player: int) -> dict[str, Any]:

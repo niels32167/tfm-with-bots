@@ -40,19 +40,12 @@ struct PyGame {
 
 #[pymethods]
 impl PyGame {
-    /// A new Game from its settings, with the Draft unless `draft` is false. While most cards
-    /// are not implemented yet, `implemented_cards_first` deals the implemented ones first. Without
+    /// A new Game from its settings, with the Draft unless `draft` is false. Without
     /// `corporations`, as a Replay saved before they existed plays, nobody has one.
     #[new]
-    #[pyo3(signature = (*, seed, players = 2, implemented_cards_first = false, draft = true, corporations = true))]
-    fn new(
-        seed: u64,
-        players: usize,
-        implemented_cards_first: bool,
-        draft: bool,
-        corporations: bool,
-    ) -> PyResult<Self> {
-        let settings = game::Settings { players, seed, implemented_cards_first, draft, corporations };
+    #[pyo3(signature = (*, seed, players = 2, draft = true, corporations = true))]
+    fn new(seed: u64, players: usize, draft: bool, corporations: bool) -> PyResult<Self> {
+        let settings = game::Settings { players, seed, implemented_cards_first: false, draft, corporations };
         let game = game::Game::new(settings).map_err(PyValueError::new_err)?;
         Ok(PyGame { game })
     }

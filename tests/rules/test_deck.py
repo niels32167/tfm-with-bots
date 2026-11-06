@@ -6,11 +6,6 @@ import tm_engine
 
 from tests.helpers import PROJECT_CARDS, hand, pick, played_cards, player, scenario
 
-# The cards implemented so far: those with effect data. A card without it is never offered.
-IMPLEMENTED = {
-    card["id"] for card in tm_engine.card_catalog() if card.get("effects") is not None and card["type"] != "corporation"
-}
-
 
 def dealt_cards(view):
     """Every card dealt to a Player to buy from, as the full view shows them."""
@@ -32,23 +27,38 @@ def test_only_the_full_view_shows_the_deck_order():
     assert game.player_view(0)["deck_size"] == 208 - 2 * 10
 
 
-def test_a_new_game_can_deal_the_implemented_cards_first():
-    game = tm_engine.Game(seed=7, players=2, implemented_cards_first=True)
-
-    view = game.full_view()
-    dealt = dealt_cards(view)
-    assert len(dealt) == 20
-    assert set(dealt) <= IMPLEMENTED
-    assert set(view["deck"][: len(IMPLEMENTED) - 20]) == IMPLEMENTED - set(dealt)
-    assert sorted(dealt + view["deck"]) == sorted(PROJECT_CARDS)
-    assert game.replay["start"]["settings"]["implemented_cards_first"] is True
-
-
-def test_a_new_game_deals_from_the_whole_shuffled_deck_by_default():
+def test_a_new_game_deals_from_the_whole_shuffled_deck():
     view = tm_engine.Game(seed=7, players=5).full_view()
 
     assert sorted(dealt_cards(view) + view["deck"]) == sorted(PROJECT_CARDS)
-    assert tm_engine.Game(seed=7).replay["start"]["settings"]["implemented_cards_first"] is False
+
+
+def test_a_new_replay_does_not_name_the_old_setting_for_dealing_implemented_cards_first():
+    assert "implemented_cards_first" not in tm_engine.Game(seed=7).replay["start"]["settings"]
+
+
+def test_a_replay_saved_with_the_implemented_cards_dealt_first_still_deals_the_same_cards():
+    # The GUI had that setting on by default until ticket 24, so most saved Replays name it. It meant
+    # one more shuffle, so this seed deals as it did then; these cards were recorded at ticket 23.
+    settings = {"players": 2, "seed": 7, "implemented_cards_first": True, "draft": True, "corporations": True}
+
+    game = tm_engine.Game.from_replay({"start": {"settings": settings}, "picks": []})
+
+    view = game.full_view()
+    assert view["players"][0]["buying"]["dealt"] == [
+        "nuclear_power",
+        "miranda_resort",
+        "urbanized_area",
+        "sabotage",
+        "power_plant",
+        "nitrite_reducing_bacteria",
+        "power_supply_consortium",
+        "permafrost_extraction",
+        "energy_tapping",
+        "special_design",
+    ]
+    assert view["deck"][:3] == ["bushes", "physics_complex", "advanced_ecosystems"]
+    assert game.replay["start"]["settings"] == settings
 
 
 def test_a_scenario_puts_cards_in_hands_and_among_played_cards():

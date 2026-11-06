@@ -303,14 +303,21 @@ the rulebook lets cards that raise it be played anyway. Chosen by Claude (2026-1
 following the Aquifer call.
 
 The Events that place Oceans follow the same call: Ice Asteroid with 8 Oceans placed places
-one, Subterranean Reservoir with 9 places none, and Towing a Comet with 9 still gains its plants
-and raises Oxygen.
+one, Subterranean Reservoir with 9 places none, Towing a Comet with 9 still gains its plants
+and raises Oxygen, and Convoy From Europa with 9 still draws its card.
 
-**Tests:** `tests/cards/test_lake_marineris.py::test_with_8_oceans_placed_lake_marineris_places_the_last_one`,
+While fewer than 9 Oceans are placed, nothing checks that a free Area is left for one, as there always
+is: of the 12 Areas reserved for Oceans, other Tiles take at most 3 (Mangrove, Protected Valley and
+Mohole Area), and Artificial Lake's Ocean goes on land. The fuzzer's `every_decision_has_an_option`
+would catch an Ocean with nowhere to go. Chosen by Claude (2026-10-27), on ticket 11.
+
+**Tests:** `tests/fuzzing/test_fuzzing.py::test_about_a_thousand_fuzzed_games_break_no_invariant_and_play_nearly_every_card`,
+`tests/cards/test_lake_marineris.py::test_with_8_oceans_placed_lake_marineris_places_the_last_one`,
 `tests/cards/test_black_polar_dust.py::test_once_9_oceans_are_placed_black_polar_dust_only_changes_production`,
 `tests/cards/test_ice_asteroid.py::test_with_8_oceans_placed_ice_asteroid_places_the_last_one`,
-`tests/cards/test_subterranean_reservoir.py::test_once_9_oceans_are_placed_subterranean_reservoir_is_still_offered_and_places_none`
-and `tests/cards/test_towing_a_comet.py::test_once_9_oceans_are_placed_towing_a_comet_still_gains_plants_and_raises_oxygen`.
+`tests/cards/test_subterranean_reservoir.py::test_once_9_oceans_are_placed_subterranean_reservoir_is_still_offered_and_places_none`,
+`tests/cards/test_towing_a_comet.py::test_once_9_oceans_are_placed_towing_a_comet_still_gains_plants_and_raises_oxygen`
+and `tests/cards/test_convoy_from_europa.py::test_once_9_oceans_are_placed_convoy_from_europa_still_draws_its_card`.
 
 ### A card's City or Greenery needs an Area
 
@@ -881,7 +888,7 @@ instruction to make the remaining ticket 16 calls without asking.
 `test_a_trigger_fires_for_its_cards_player_not_for_the_player_who_sets_it_off`,
 `test_a_trigger_fires_once_for_each_tile_that_sets_it_off`,
 `test_a_card_played_sets_off_its_own_trigger_when_it_matches_immigrant_citys_own_city` and
-`test_only_active_cards_have_a_trigger_and_one_that_its_own_play_sets_off_says_so`; and the card
+`test_only_active_cards_and_corporations_have_a_trigger_and_one_that_its_own_play_sets_off_says_so`; and the card
 files of the seven cards.
 
 ### Immigrant City's own City
@@ -1278,6 +1285,10 @@ into a new deck if the deck has run out), and stays open once a science is on th
 the card revealed and discards it. Chosen by Claude (2026-11-04), on the user's instruction to make the
 ticket 19 calls without asking: Rust code for the reveal (`card_code::SEARCH_FOR_LIFE`).
 
+The mismatch report can't compare its Victory Points, as the open-source game works them out in code, so
+they were checked by hand (ticket 24): its `getVictoryPoints` gives 3 with any resource on the card and 0
+without, as our card file does.
+
 **Tests:** `tests/cards/test_search_for_life.py`.
 
 ### Olympus Conference and Mars University
@@ -1443,6 +1454,16 @@ to make the ticket 20 calls without asking: effect data, `{"tile": "special", "o
 **Tests:** `tests/cards/test_ecological_zone.py`, among them
 `test_its_tile_goes_next_to_any_greenery_whoever_owns_it` and `test_its_own_two_tags_add_2_animals`.
 
+### Card names
+
+**Call:** A card's name is in title case throughout, so the card list's "Underground city" and
+"Anti-gravity Technology" are "Underground City" and "Anti-Gravity Technology" here.
+
+**Why:** Not a rules question: the printed cards show titles in capitals, so the card list's capitals say
+nothing, and these two are slips. Decided with the user (2026-10-23).
+
+**Tests:** `tests/cards/test_catalog.py::test_names_are_in_title_case_where_the_card_list_slipped`.
+
 ## Card flow
 
 ### Without a Corporation: 42 MegaCredits
@@ -1485,7 +1506,7 @@ choose the recommended decisions.
 ### A Corporation counts as a card in play
 
 **Call:** Once revealed, a Player's Corporation is among their cards in play: its Tags count for
-Requirements, Milestones, Awards and Victory Points like a played card's, its ongoing effects work,
+Requirements, Milestones, Awards, Toll Station and Victory Points like a played card's, its ongoing effects work,
 and its Tags are put into play at the reveal. It is not one of the Project Cards in "played cards":
 the view gives it apart, as "corporation". A Scenario names it apart too, and gives no starting values,
 as a Scenario says what a Player holds now.
@@ -1549,8 +1570,7 @@ instruction to choose the recommended decisions.
 
 ### The other Corporations' abilities
 
-**Call and why,** each chosen by Claude (2026-11-05), on the user's instruction to choose the recommended
-decisions, following the card and the open-source game; the FAQ couldn't be checked:
+**Call:**
 - **CrediCor:** the "basic cost" is the printed one, before discounts, so Mohole Area with a discount
   still counts; among Standard Projects Greenery and City count, and Aquifer at 18 doesn't. The 4
   MegaCredits come after paying and before the card's effects, as a Trigger's gain does.
@@ -1575,6 +1595,9 @@ decisions, following the card and the open-source game; the FAQ couldn't be chec
 
 Point Luna, mentioned in ticket 16's hand-off, is not in the catalog or in ticket 21's list, so it isn't
 added.
+
+**Why:** Each call above follows the card and the open-source game; the FAQ couldn't be checked. Chosen by
+Claude (2026-11-05), on the user's instruction to choose the recommended decisions.
 
 **Tests:** `tests/cards/test_<id>.py` for each of the 12.
 
@@ -1657,20 +1680,27 @@ the remaining ticket 09 calls without asking.
 `tests/rules/test_buying_cards.py::test_the_research_phase_draws_from_the_reshuffled_discard_pile_once_the_deck_runs_out`
 and `tests/rules/test_placement_bonuses.py::test_a_card_bonus_with_the_deck_and_the_discard_pile_empty_draws_nothing`.
 
-### Dealing the implemented cards first (a setting, temporary)
+### Dealing the implemented cards first (only in old Replays)
 
-**Call:** A Game setting, `implemented_cards_first`, shuffles the implemented cards and puts them
-on top of the shuffled deck, so with 2 Players almost all of them are dealt at setup. Off (the
-engine's default), the deck is shuffled as the rules say. The GUI's setup screen has it on by
-default; the fuzzer has it on for seeds 4 to 7, 12 to 15 and so on. Since ticket 20 every Project
-Card is implemented, so the setting changes nothing about which cards can be played: only a shuffle
-more is made. It stays until someone removes it, as old Replays name it.
+**Call:** A new Game always shuffles the deck as the rules say: nothing can turn on the
+`implemented_cards_first` setting any more, not the engine's `Game`, the server, the setup screen or
+the fuzzer. Only a Replay saved before ticket 24 can name it. If such a Replay has it on, setup
+shuffles all the Project Cards once more before shuffling the deck, and the Replay keeps naming it
+when saved again. New Replays leave it out. A Replay saved before ticket 20, while only some cards were implemented, shuffled
+fewer cards and played without their effects, so it may not replay as it was played; that was
+already so before this call.
 
-**Why:** Not a rules question but a play-testing aid: with 23 of 208 cards implemented, about 1
-dealt card in 9 would be playable. Chosen by the user (2026-10-24).
+**Why:** Not a rules question. It was a play-testing aid while few cards were implemented (with 23
+of 208, about 1 dealt card in 9 would be playable), chosen by the user (2026-10-24). Since ticket 20
+every Project Card is implemented, so it changed nothing about which cards can be played. It
+can't go altogether: the setup screen had it on by default, so most Replays saved from the GUI name
+it, the Replay format refuses unknown settings, and without the extra shuffle they would deal other
+cards (ADR 0010). Chosen by Claude (2026-11-06), on the user's instruction to make the recommended
+calls.
 
-**Tests:** `tests/rules/test_deck.py::test_a_new_game_can_deal_the_implemented_cards_first`,
-`test_a_new_game_deals_from_the_whole_shuffled_deck_by_default` and
+**Tests:** `tests/rules/test_deck.py::test_a_new_game_deals_from_the_whole_shuffled_deck`,
+`test_a_new_replay_does_not_name_the_old_setting_for_dealing_implemented_cards_first`,
+`test_a_replay_saved_with_the_implemented_cards_dealt_first_still_deals_the_same_cards` and
 `tests/rules/test_playing_cards.py::test_every_project_card_is_implemented`.
 
 ## Draft

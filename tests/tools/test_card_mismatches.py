@@ -3,8 +3,18 @@ the open-source game's card definitions. These tests feed it card definitions wr
 same shape as that game's TypeScript."""
 
 import pytest
+import tm_engine
 
-from tools.card_mismatches import compare, corporate_era_classes, parse_open_source_card, report
+from tools.card_mismatches import (
+    CACHE,
+    COMMIT,
+    REPORT,
+    compare,
+    corporate_era_classes,
+    load_open_source_cards,
+    parse_open_source_card,
+    report,
+)
 
 
 def project_card(fields: str, *, number: str = "100", name: str = "TEST_CARD", extra: str = "") -> str:
@@ -359,3 +369,20 @@ def test_the_report_lists_each_mismatch_in_a_table():
 
     assert "| #017 Noctis City | cost | 18 | 19 |" in text
     assert "4d30aa07f14eeb5aa5647775ce5a7c9e49f6ac04" in text
+
+
+def test_the_saved_report_has_no_open_entries():
+    saved = REPORT.read_text(encoding="utf-8")
+
+    assert "## Differences (0)" in saved
+    assert "## Names that differ (0)" in saved
+    assert "## Missing from the open-source game (0)" in saved
+
+
+def test_the_saved_report_is_up_to_date_with_the_card_file():
+    if not (CACHE / COMMIT).exists():
+        pytest.skip("the open-source game's card definitions are not saved here")
+
+    comparison = compare(tm_engine.card_catalog(), load_open_source_cards(COMMIT))
+
+    assert report(comparison, commit=COMMIT) == REPORT.read_text(encoding="utf-8")

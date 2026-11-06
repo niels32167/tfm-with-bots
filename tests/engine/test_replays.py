@@ -29,7 +29,7 @@ def test_a_replay_holds_the_settings_and_seed_and_the_options_picked():
         picked.append(index_of(game, label))
         pick(game, label)
 
-    settings = {"players": 3, "seed": 7, "implemented_cards_first": False, "draft": True, "corporations": False}
+    settings = {"players": 3, "seed": 7, "draft": True, "corporations": False}
     assert game.replay == {"start": {"settings": settings}, "picks": picked}
 
 

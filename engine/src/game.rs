@@ -79,9 +79,10 @@ pub const ACTIONS_PER_TURN: u32 = 2;
 pub struct Settings {
     pub players: usize,
     pub seed: u64,
-    /// While most cards are not implemented yet: the implemented ones are shuffled and put on
-    /// top of the deck, so they are dealt first. Off, the deck is shuffled as the rules say.
-    #[serde(default)]
+    /// Only a Replay saved before ticket 24 can have this on, as the setup screen had it on by
+    /// default: the Project Cards were shuffled once more before the deck was. A new Game never has
+    /// it, and only a Replay that has it on names it.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
     pub implemented_cards_first: bool,
     /// The Draft variant in the Research phase. On by default (ADR 0003), but a Replay saved
     /// before the Draft existed has no such setting, and reads as off, as it was played.
@@ -538,7 +539,7 @@ impl Game {
         game.generation = 1;
         let mut on_top = Vec::new();
         if game.settings.implemented_cards_first {
-            on_top = (0..PROJECT_CARDS).filter(|&card| CARD_CATALOG[card].effects.is_some()).collect();
+            on_top = (0..PROJECT_CARDS).collect();
             game.random_numbers.shuffle(&mut on_top);
         }
         game.deck = Deck::shuffled(CardSet::default(), &on_top, &mut game.random_numbers);

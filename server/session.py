@@ -52,15 +52,10 @@ class GameSession:
         seed: int,
         bot_delay: float,
         *,
-        implemented_cards_first: bool = False,
         draft: bool = True,
     ) -> "GameSession":
-        """A new Game with one Player for each Controller, with the Draft unless `draft` is false.
-        While most cards are not implemented yet, `implemented_cards_first` deals the implemented
-        ones first."""
-        game = tm_engine.Game(
-            seed=seed, players=len(controllers), implemented_cards_first=implemented_cards_first, draft=draft
-        )
+        """A new Game with one Player for each Controller, with the Draft unless `draft` is false."""
+        game = tm_engine.Game(seed=seed, players=len(controllers), draft=draft)
         return cls(game, controllers, bot_delay)
 
     @classmethod

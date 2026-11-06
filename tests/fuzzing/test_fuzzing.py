@@ -13,19 +13,20 @@ from tests.fuzzing.runner import fuzz, fuzz_game, save_failure, settings_for
 from tests.helpers import CORPORATIONS
 
 
-def test_about_a_thousand_fuzzed_games_break_no_invariant():
+def test_about_a_thousand_fuzzed_games_break_no_invariant_and_play_nearly_every_card():
     run = fuzz(games=1000, first_seed=0)
 
     assert run.games == 1000
     assert not run.failures, "\n".join(failure.description() for failure in run.failures)
+    # Random Bots seldom reach some Requirements, such as Anti-Gravity Technology's 7 science Tags.
+    assert len(run.cards_never_played) <= 5, run.cards_never_played
 
 
-def test_fuzzed_games_cover_2_to_5_players_the_implemented_cards_dealt_first_and_the_draft_on_and_off():
-    settings = [settings_for(seed) for seed in range(16)]
+def test_fuzzed_games_cover_2_to_5_players_and_the_draft_on_and_off():
+    settings = [settings_for(seed) for seed in range(8)]
 
-    assert [each["players"] for each in settings] == [2, 3, 4, 5] * 4
-    assert [each["implemented_cards_first"] for each in settings] == ([False] * 4 + [True] * 4) * 2
-    assert [each["draft"] for each in settings] == [True] * 8 + [False] * 8
+    assert [each["players"] for each in settings] == [2, 3, 4, 5] * 2
+    assert [each["draft"] for each in settings] == [True] * 4 + [False] * 4
 
 
 def test_fuzzed_games_play_every_corporation():

@@ -304,7 +304,8 @@ export interface Replay {
         settings: {
           players: number;
           seed: number;
-          implemented_cards_first: boolean;
+          /** Only in a Replay saved before ticket 24: one more shuffle at setup. */
+          implemented_cards_first?: boolean;
           draft: boolean;
           corporations: boolean;
         };
@@ -421,8 +422,6 @@ export interface NewGameSettings {
   controllers: Controller[];
   seed?: number;
   bot_delay: number;
-  /** While most cards are not implemented yet: deal the implemented ones first. */
-  implemented_cards_first: boolean;
   /** Whether the Research phases have the Draft. */
   draft: boolean;
 }

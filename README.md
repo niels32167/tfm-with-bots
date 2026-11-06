@@ -37,8 +37,7 @@ counter-clockwise in odd ones) until every card is kept, then buys any of the ca
 Without the Draft each Player draws 4 cards to buy from. The cards not bought go face down to
 the discard pile, which is shuffled into a new deck when the deck runs out. Drafting and buying
 are hidden from the other Players, and each Player sees the cards they passed. The hand sits in
-a dock at the bottom of the window. The setup screen's "Deal the implemented cards first" changes
-nothing now that every Project Card is implemented.
+a dock at the bottom of the window.
 
 ## How it fits together
 
@@ -124,8 +123,9 @@ the card names what it holds in `"holds"`); an Active card can also have an acti
 the Player choose between effects too, as well as discounts, steel and titanium values, Requirement steps and Triggers (`"when"`), and an Event an
 effect on the next card played.
 Declare any new field in `engine/src/cards.rs` first, since the card file allows no unknown
-field. Each card's scenario tests live in `tests/cards/test_<id>.py`, and the coverage report
-lists the cards that have none yet (the test suite shows the count as a warning):
+field. Each card's scenario tests live in `tests/cards/test_<id>.py`, and at least one must name the card.
+The coverage check lists any card, Project Card or Corporation, that has none, and then both it and
+the test suite fail:
 
 ```bash
 uv run python -m tools.card_coverage
