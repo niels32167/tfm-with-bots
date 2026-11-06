@@ -16,3 +16,7 @@ Every rule bug found is saved as a Replay, filed as a new ticket and fixed. Play
 ### 2026-11-05 — note from ticket 21 (Claude)
 
 Worth watching while playing: choosing a Corporation with the 10 Project Cards shown small above it, Helion's payment Decision with many splits (the heat stepper), and being asked how to pay with heat right after Done in a Research phase.
+
+### 2026-11-06 — hand-off from ticket 22 (Claude)
+
+For a bug found in play: **Dev panel** in the top bar steps back through the Game and shows the Decision and Option picked at each step. **Save Replay** gives the file for the ticket, and `load_game(path)` in `tests/helpers.py` starts its regression test from that file. The state editor can cut it down to the position that matters.

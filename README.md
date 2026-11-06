@@ -179,6 +179,34 @@ step the steel and titanium up or down, then **Pay** for the rest in MegaCredits
 In the full view every hand is shown. Player boards show the cards in hand and the Tags in
 play.
 
+### The dev panel
+
+For hunting rule bugs, **Dev panel** in the top bar opens a panel beside the game view. It never
+changes the Game unless you start from a position in its state editor; closing it brings back the view
+you had.
+
+- **Seed:** the Game's seed.
+- **Full view:** the board and player boards show what Players hide from each other, and the panel lists
+  all hands, the deck from the top and the discard pile. Only this tab sees them.
+- **Replay:** step forwards and backwards through every Option picked. The whole screen shows the state
+  at that step, the panel the Decision waiting there, its Options (another Player's only in the full view),
+  the one picked and the game log so far. Nothing can be picked while looking back, and the Game carries on
+  meanwhile.
+- **State editor:** edits the position shown as a Scenario: Resources and Production, Terraform Rating,
+  Global Parameters, the Generation, who holds the first-player marker and whose Turn it is, cards in a hand
+  or among played cards, Card Resources, Corporations and their first action, actions used, Tiles and
+  Land Claim. **Start from this position** replaces the current Game, and the engine says if it refuses
+  the position. One it accepts but real play can't reach, such as two Cities next to each other, starts and
+  is listed at the top of the panel, with why.
+
+**Save Replay** saves such a Game like any other, and **Load Replay…** opens it again. A saved file can
+start a scenario test directly:
+
+```python
+game = load_game("tests/rules/found_in_the_gui.json")  # from tests/helpers.py
+pick(game, "Play Mine")
+```
+
 ## Other checks
 
 - Rust lint: `cargo clippy --manifest-path engine/Cargo.toml`
@@ -214,9 +242,10 @@ play.
 | `tools/card_mismatches.py` | The mismatch report against the open-source game; the report is `docs/card-mismatches.md` |
 | `tools/card_coverage.py` | The coverage report: catalog cards without a scenario test |
 | `tests/cards/` | Tests of the card catalog, and each card's scenario tests (`test_<id>.py`) |
-| `tests/helpers.py` | `scenario()`, `player()`, `ocean()`, `city()`, `claimed()`, `funded()`, `terraformed_mars()`, `pick()`, `offered()`, `area()`, `milestone()`, `award()`, `resources()`, `hand()`, `played_cards()`, `final_scores()`: helpers that make tests read like play |
+| `tests/helpers.py` | `scenario()`, `player()`, `ocean()`, `city()`, `claimed()`, `funded()`, `terraformed_mars()`, `pick()`, `offered()`, `area()`, `milestone()`, `award()`, `resources()`, `hand()`, `played_cards()`, `final_scores()`, `load_game()`: helpers that make tests read like play |
 | `server/` | The local server and the Random Bot |
 | `gui/src/` | The browser GUI; the board is `gui/src/components/MarsBoard.tsx`, the Milestones and Awards bar `gui/src/components/MilestonesAwards.tsx`, and the printed tracks are in `gui/src/tracks.ts` |
+| `gui/src/components/DevPanel.tsx`, `StateEditor.tsx`, `gui/src/scenario.ts` | The dev panel, its state editor, and the edits it makes to a Scenario |
 | `gui/src/cards/` | Cards drawn as the card list draws them (`PrintedCard.tsx`, `cardList.css`), the card gallery, and the hands and played cards under the board (`PlayerCards.tsx`) |
 | `gui/public/card-list/` | The card list's icons and font |
 | `CONTEXT.md` | The glossary; code, tests and messages use its terms |

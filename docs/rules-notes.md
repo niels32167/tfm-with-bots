@@ -1795,3 +1795,49 @@ Rating starts at 20 and only rises in the base game with Corporate Era. Chosen b
 user (2026-10-23).
 
 **Tests:** `tests/rules/test_starting_a_game.py::test_a_scenario_terraform_rating_is_at_least_5_so_megacredits_never_go_below_zero`
+
+### A Tile only a card puts there
+
+**Call:** A Scenario allows a Player's Greenery on an Area reserved for Oceans once for each card they
+played that puts one there (Mangrove, Protected Valley), and an Ocean on land once for each card played
+by anyone that puts one there (Artificial Lake), as an Ocean belongs to nobody. It reads this from the
+cards' `"tiles"`, so a new card needs no change.
+
+**Why:** Ticket 22's Comments ask for this: otherwise a Scenario can't describe a position after those
+cards. Chosen by Claude (2026-11-06), on the user's instruction to make the ticket's calls without
+asking.
+
+**Tests:** `tests/rules/test_scenarios.py::test_each_card_played_allows_one_greenery_on_an_area_reserved_for_oceans`, `tests/rules/test_scenarios.py::test_an_ocean_goes_on_land_with_artificial_lake_played_by_anyone`
+
+### What a Scenario doesn't refuse
+
+**Call:** A Scenario still accepts Cities next to each other, a special Tile whose card nobody played or
+that lies where its card doesn't allow, and a reserved Area or Land Claim whose card wasn't played. The
+dev panel lists them instead, under "Real play can't reach this position", from the fuzzer's own
+`tiles_only_on_legal_areas`, `special_tiles_where_their_cards_put_them` and
+`each_reserved_area_used_only_by_its_card`.
+
+**Why:** Refusing them in the engine would break Replays and tests that already hold such positions
+(ADR 0010), and a bug hunter may want one, such as a City placed without playing its card, to look at
+one rule alone. So they start, and say why they aren't real. The fuzzer's checks stay the one place that
+says what is legal, at the price of the server importing them from `tests/fuzzing/`. Chosen by Claude
+(2026-11-06), on the user's instruction to make the ticket's calls without asking.
+
+**Tests:** `tests/server/test_dev_panel.py::test_a_position_real_play_cannot_reach_starts_but_the_dev_view_says_why`
+
+### A position in the middle of a Generation
+
+**Call:** A Scenario can say a Terraform Rating was raised this Generation, which actions were used, who
+has passed, which Event waits on the next card, whose Turn it is and how many Actions they have taken.
+With those, `Game.to_scenario` at the start of an Action describes the position exactly but for the cards
+passed in the Draft, which change nothing in the rules, and for the random numbers, which only decide
+later shuffles. A Scenario refuses a Turn of a Player who has passed, and more than 1 Action taken, since
+the Turn would be over. In the middle of a compound Action, or outside the Action phase, what is under way
+is dropped, as a Scenario starts at an Action: such cards go into the deck, beneath the cards it names.
+
+**Why:** Ticket 21's hand-off left open whether to add the first two. Without the rest too, editing one
+number in the middle of a Generation would give back Turns to Players who had passed. All are optional
+with `#[serde(default)]`, so old Replays read as before. Chosen by Claude (2026-11-06), on the user's
+instruction to make the ticket's calls without asking.
+
+**Tests:** `tests/rules/test_scenarios.py::test_every_action_of_a_random_game_is_the_same_position_described_as_a_scenario`

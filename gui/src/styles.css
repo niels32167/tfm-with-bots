@@ -1619,6 +1619,8 @@ input[aria-invalid="true"] {
 
 .small-card-group {
   display: flex;
+  flex-wrap: wrap;
+  min-width: 0;
   gap: 4px;
   min-height: 40px;
 }
@@ -1659,4 +1661,248 @@ input[aria-invalid="true"] {
 .passed-in-draft ul {
   margin: 0;
   padding-left: 18px;
+}
+
+/* The dev panel, beside the game view, which makes room for it. */
+.game.dev-panel-open {
+  margin-right: 440px;
+}
+
+.dev-panel-open .hand-dock {
+  right: 440px;
+}
+
+.dev-panel {
+  position: fixed;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: 440px;
+  z-index: 20;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 12px 14px;
+  overflow-y: auto;
+  background: #17181f;
+  border-left: 1px solid var(--panel-border);
+  font-size: 0.88rem;
+}
+
+@media (max-width: 900px) {
+  .game.dev-panel-open {
+    margin-right: 0;
+  }
+
+  .dev-panel-open .hand-dock {
+    right: 0;
+  }
+
+  .dev-panel {
+    width: 100%;
+  }
+}
+
+/* The panel scrolls as a whole: nothing in it shrinks to fit. */
+.dev-panel > * {
+  flex-shrink: 0;
+}
+
+.dev-panel-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 14px;
+}
+
+.dev-panel-header h2 {
+  font-size: 1rem;
+}
+
+.dev-panel-header .link-button:last-child {
+  margin-left: auto;
+}
+
+.dev-panel-seed {
+  color: var(--text-dim);
+}
+
+.dev-panel-switch {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.dev-panel-tabs {
+  align-self: flex-start;
+}
+
+.dev-panel-error {
+  margin: 0;
+  padding: 6px 10px;
+  border-radius: 6px;
+  background: rgba(226, 69, 44, 0.2);
+  border: 1px solid var(--mercury);
+}
+
+.dev-panel-problems {
+  padding: 6px 10px;
+  border-radius: 6px;
+  background: rgba(240, 181, 74, 0.12);
+  border: 1px solid var(--accent);
+}
+
+.dev-panel-problems h3,
+.dev-panel-section h3 {
+  margin: 0 0 6px;
+  font-size: 0.86rem;
+}
+
+.dev-panel-problems ul {
+  margin: 0;
+  padding-left: 18px;
+}
+
+.dev-panel-section {
+  background: var(--panel);
+  border: 1px solid var(--panel-border);
+  border-radius: 8px;
+  padding: 8px 12px;
+}
+
+.dev-panel-slider {
+  width: 100%;
+}
+
+.dev-panel-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.dev-panel-note {
+  margin: 0;
+  color: var(--text-dim);
+}
+
+.dev-panel-options {
+  margin: 0;
+  padding-left: 26px;
+  max-height: 26vh;
+  overflow-y: auto;
+}
+
+.dev-panel-options li.picked {
+  color: var(--accent);
+  font-weight: 600;
+}
+
+.dev-panel-hidden-cards p {
+  margin: 0 0 6px;
+}
+
+.dev-panel-deck {
+  margin: 4px 0 0;
+  padding-left: 30px;
+  max-height: 30vh;
+  overflow-y: auto;
+}
+
+.dev-panel .game-log-lines {
+  max-height: 40vh;
+}
+
+.dev-looking-back {
+  background: var(--accent);
+  color: #241a05;
+  font-weight: 600;
+  padding: 10px 16px;
+}
+
+.state-editor {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.state-editor-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 0;
+  padding: 8px 12px;
+  background: var(--panel);
+  border: 1px solid var(--panel-border);
+  border-left-width: 4px;
+  border-radius: 8px;
+}
+
+.state-editor-group legend {
+  font-weight: 650;
+}
+
+.state-editor-group h4 {
+  margin: 6px 0 0;
+  font-size: 0.82rem;
+  color: var(--text-dim);
+}
+
+.state-editor-field {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.state-editor input[type="number"] {
+  width: 76px;
+  padding: 3px 6px;
+  border-radius: 4px;
+  border: 1px solid var(--panel-border);
+  background: rgba(0, 0, 0, 0.25);
+  color: var(--text);
+}
+
+.state-editor-resources th {
+  text-align: left;
+  font-weight: 500;
+  padding-right: 8px;
+}
+
+.state-editor-cards {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.state-editor-cards li {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 10px;
+  padding: 2px 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.state-editor-cards label {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--text-dim);
+}
+
+.state-editor-remove {
+  margin-left: auto;
+}
+
+.state-editor-add {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+
+.state-editor-add input[type="text"] {
+  flex: 1;
+  min-width: 140px;
 }

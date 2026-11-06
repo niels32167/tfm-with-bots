@@ -1,13 +1,16 @@
 //! A Scenario: a described position to start a Game from instead of normal setup.
-//! Tests (and later the dev panel's state editor) build Games this way. Anything a
-//! Scenario leaves out takes the normal defaults; an unknown field is an error, so a
-//! typo in a test fails loudly instead of being ignored.
+//! Tests and the dev panel's state editor build Games this way. Anything a Scenario leaves
+//! out takes the normal defaults; an unknown field is an error, so a typo in a test fails
+//! loudly instead of being ignored. `Game::to_scenario` describes a Game's position as one.
 
 use std::collections::BTreeMap;
 
 use serde::{Deserialize, Deserializer, Serialize};
 
-use crate::board::{Board, Reservation, SpecialTile, Tile, TileKind, find_area, printed, row_and_position};
+use crate::board::{
+    AREA_COUNT, Areas, Board, Reservation, SpecialTile, Tile, TileKind, area_id, find_area, printed,
+    row_and_position,
+};
 use crate::card_flow::Buying;
 use crate::card_resources::CardResources;
 use crate::card_set::CardSet;
@@ -16,8 +19,9 @@ use crate::corporations::ChoosingCorporation;
 use crate::deck::Deck;
 use crate::draft::Drafting;
 use crate::game::{
-    Game, MAX_OCEANS, MAX_OXYGEN, MAX_TEMPERATURE, MIN_TEMPERATURE, Player, STARTING_TERRAFORM_RATING,
-    TEMPERATURE_STEP, check_player_count, check_seed, resources_without_a_corporation,
+    ACTIONS_PER_TURN, Game, MAX_OCEANS, MAX_OXYGEN, MAX_TEMPERATURE, MIN_TEMPERATURE, Phase, Player,
+    STARTING_TERRAFORM_RATING, TEMPERATURE_STEP, check_player_count, check_seed,
+    resources_without_a_corporation,
 };
 use crate::log::player_name;
 use crate::milestones_and_awards::{AWARD_COSTS, Award, MAX_MILESTONES_CLAIMED, Milestone};
@@ -34,8 +38,13 @@ const MIN_TERRAFORM_RATING: i32 = -MIN_MEGACREDIT_PRODUCTION;
 pub struct Scenario {
     pub seed: u64,
     pub generation: u32,
-    /// Who holds the first-player marker. The Scenario starts with their Turn.
+    /// Who holds the first-player marker. The Scenario starts with their Turn, unless it says
+    /// whose it is.
     pub first_player: usize,
+    /// Whose Turn it is, in the middle of a Generation. Left out, the first player's.
+    pub current_player: Option<usize>,
+    /// How many Actions they have taken in this Turn.
+    pub actions_this_turn: u32,
     pub temperature: i32,
     pub oxygen: i32,
     /// The Tiles on the board. The number of Oceans is the number of Ocean Tiles.
@@ -62,6 +71,8 @@ impl Default for Scenario {
             seed: 0,
             generation: 1,
             first_player: 0,
+            current_player: None,
+            actions_this_turn: 0,
             temperature: MIN_TEMPERATURE,
             oxygen: 0,
             tiles: Vec::new(),
@@ -138,6 +149,14 @@ pub struct ScenarioPlayer {
     pub corporation: Option<String>,
     /// Whether they must still take their Corporation's first action.
     pub first_action_due: bool,
+    /// Whether they have passed for the rest of this Generation's Action phase.
+    pub passed: bool,
+    /// The played cards, their Corporation included, whose action they have used this Generation.
+    pub used_actions: Vec<String>,
+    /// Whether their Terraform Rating was raised this Generation.
+    pub terraform_rating_raised: bool,
+    /// The Event they played whose effect waits on the next card they play this Generation.
+    pub next_card: Option<String>,
 }
 
 impl Default for ScenarioPlayer {
@@ -151,6 +170,10 @@ impl Default for ScenarioPlayer {
             card_resources: BTreeMap::new(),
             corporation: None,
             first_action_due: false,
+            passed: false,
+            used_actions: Vec::new(),
+            terraform_rating_raised: false,
+            next_card: None,
         }
     }
 }
@@ -182,6 +205,33 @@ impl ScenarioPlayer {
         Ok(())
     }
 
+    /// The cards among `played` whose action this Player has used, or why they can't have.
+    fn used_actions_among(&self, index: usize, played: CardSet) -> Result<CardSet, String> {
+        let mut used = CardSet::default();
+        for id in &self.used_actions {
+            let card = find_project_card(id)
+                .or_else(|| find_corporation(id))
+                .ok_or_else(|| format!("there is no card '{id}'"))?;
+            check_played(index, card, id, played)?;
+            if CARD_CATALOG[card].action().is_none() {
+                return Err(format!("'{id}' has no action"));
+            }
+            used.insert(card);
+        }
+        Ok(used)
+    }
+
+    /// The Event among `played` that waits on this Player's next card, or why it can't.
+    fn event_waiting(&self, index: usize, played: CardSet) -> Result<Option<usize>, String> {
+        let Some(id) = &self.next_card else { return Ok(None) };
+        let card = find_project_card(id).ok_or_else(|| format!("there is no Project Card '{id}'"))?;
+        check_played(index, card, id, played)?;
+        if CARD_CATALOG[card].effects.as_ref().is_none_or(|effects| effects.next_card.is_none()) {
+            return Err(format!("'{id}' does nothing to the next card played"));
+        }
+        Ok(Some(card))
+    }
+
     /// Puts this Player's Card Resources on their played cards, or says why the rules never
     /// allow them there.
     fn put_card_resources(&self, index: usize, on: &mut CardResources) -> Result<(), String> {
@@ -200,6 +250,15 @@ impl ScenarioPlayer {
             on.set(card, amount);
         }
         Ok(())
+    }
+}
+
+/// Whether Player `index` has played `card`, named by `id`, among the cards `played`.
+fn check_played(index: usize, card: usize, id: &str, played: CardSet) -> Result<(), String> {
+    if played.contains(card) {
+        Ok(())
+    } else {
+        Err(format!("{} names '{id}', which they have not played", player_name(index)))
     }
 }
 
@@ -255,6 +314,8 @@ impl Scenario {
             {
                 return Err(format!("{} has no first action to take", player_name(index)));
             }
+            let used_actions = player.used_actions_among(index, played)?;
+            let next_card = player.event_waiting(index, played)?;
             players.push(Player {
                 resources: player.resources,
                 production: player.production,
@@ -262,13 +323,13 @@ impl Scenario {
                 passed: false,
                 hand: cards_named(&player.hand, &mut named_cards)?.into_iter().collect(),
                 played,
-                used_actions: CardSet::default(),
-                next_card: None,
+                used_actions,
+                next_card,
                 buying: Buying::default(),
                 drafting: Drafting::default(),
                 choosing_corporation: ChoosingCorporation::default(),
                 first_action_due: player.first_action_due,
-                terraform_rating_raised: false,
+                terraform_rating_raised: player.terraform_rating_raised,
             });
         }
         let mut card_resources = CardResources::default();
@@ -277,14 +338,15 @@ impl Scenario {
         }
         let top_of_deck = cards_named(&self.deck, &mut named_cards)?;
         let discard = cards_named(&self.discard, &mut named_cards)?.into_iter().collect();
-        let mut game = Game::prepare(Start::Scenario(self.clone()), players);
+        let mut game = Game::prepare(Start::Scenario(Box::new(self.clone())), players);
         game.deck = Deck::shuffled(named_cards, &top_of_deck, &mut game.random_numbers);
         game.discard = discard;
         game.card_resources = card_resources;
         game.temperature = self.temperature;
         game.oxygen = self.oxygen;
+        let mut allowed = AllowedByCards::played_by(&game.players);
         for tile in &self.tiles {
-            let area = tile.check(self.players.len())?;
+            let area = tile.check(self.players.len(), &mut allowed)?;
             if game.board.tile(area).is_some() {
                 return Err(format!("a Scenario cannot put two Tiles on {}", tile.area));
             }
@@ -332,8 +394,115 @@ impl Scenario {
             *funded_by = Some(funding.funded_by);
         }
         game.begin(self.generation, self.first_player);
+        self.resume_the_turn(&mut game)?;
         Ok(game)
     }
+
+    /// Who has passed and whose Turn it is, for a position in the middle of a Generation.
+    fn resume_the_turn(&self, game: &mut Game) -> Result<(), String> {
+        let current = self.current_player.unwrap_or(self.first_player);
+        check_player(current, self.players.len(), "whose Turn it is")?;
+        if self.actions_this_turn >= ACTIONS_PER_TURN {
+            return Err(format!(
+                "a Player has taken at most {} Action when it is still their Turn, not {}",
+                ACTIONS_PER_TURN - 1,
+                self.actions_this_turn
+            ));
+        }
+        if self.players[current].passed {
+            return Err(format!("{} has passed, so it cannot be their Turn", player_name(current)));
+        }
+        for (player, given) in game.players.iter_mut().zip(&self.players) {
+            player.passed = given.passed;
+        }
+        game.current_player = current;
+        game.actions_this_turn = self.actions_this_turn;
+        Ok(())
+    }
+}
+
+impl Game {
+    /// This Game's position as a Scenario. At the start of a Turn or Action it starts the same
+    /// position, but for the cards passed in the Draft and what is yet to be shuffled. Otherwise
+    /// it starts the Action phase of this Generation, and what is under way is dropped: any card
+    /// being played, bought, drafted or looked at is shuffled into the deck, beneath its cards.
+    pub fn to_scenario(&self) -> Scenario {
+        let in_action_phase = self.phase == Phase::Action;
+        Scenario {
+            seed: self.settings.seed,
+            generation: self.generation,
+            first_player: self.first_player,
+            current_player: in_action_phase.then_some(self.current_player),
+            actions_this_turn: if in_action_phase { self.actions_this_turn } else { 0 },
+            temperature: self.temperature,
+            oxygen: self.oxygen,
+            tiles: (0..AREA_COUNT)
+                .filter_map(|area| {
+                    self.board.tile(area).map(|tile| ScenarioTile {
+                        area: area_id(area),
+                        tile: tile.kind,
+                        owner: tile.owner,
+                        card: tile.special,
+                    })
+                })
+                .collect(),
+            land_claim: self
+                .board
+                .claim()
+                .map(|claim| LandClaim { area: area_id(claim.area), player: claim.player }),
+            milestones: Milestone::ALL
+                .into_iter()
+                .filter_map(|milestone| {
+                    let claimed_by = self.claimed_milestones[milestone.index()]?;
+                    Some(ClaimedMilestone { milestone, claimed_by })
+                })
+                .collect(),
+            awards: Award::ALL
+                .into_iter()
+                .filter_map(|award| {
+                    let funded_by = self.funded_awards[award.index()]?;
+                    Some(FundedAward { award, funded_by })
+                })
+                .collect(),
+            players: self.players.iter().map(|player| self.describe(player, in_action_phase)).collect(),
+            deck: ids(self.deck.iter()),
+            discard: ids(self.discard.iter()),
+            draft: self.settings.draft,
+        }
+    }
+
+    fn describe(&self, player: &Player, in_action_phase: bool) -> ScenarioPlayer {
+        ScenarioPlayer {
+            resources: player.resources,
+            production: player.production,
+            terraform_rating: player.terraform_rating,
+            hand: ids(player.hand.iter()),
+            played_cards: ids(player.played_project_cards().iter()),
+            card_resources: player
+                .cards_holding_card_resources()
+                .iter()
+                .map(|card| (card, self.card_resources.on(card)))
+                .filter(|&(_, amount)| amount != 0)
+                .map(|(card, amount)| (id_of(card), amount))
+                .collect(),
+            corporation: player.corporation().map(id_of),
+            first_action_due: player.first_action_due,
+            // Everyone who passed is back in when the next Action phase begins.
+            passed: in_action_phase && player.passed,
+            used_actions: ids(player.used_actions.iter()),
+            terraform_rating_raised: player.terraform_rating_raised,
+            next_card: player.next_card.map(id_of),
+        }
+    }
+}
+
+fn id_of(card: usize) -> String {
+    CARD_CATALOG[card].id.clone()
+}
+
+/// The catalog ids of `cards`.
+fn ids(cards: impl Iterator<Item = usize>) -> Vec<String> {
+    cards.map(id_of).collect()
 }
 
 /// The Project Cards named by `ids`, in order. Each must be named in no other place:
@@ -392,9 +561,52 @@ impl LandClaim {
     }
 }
 
+/// The Tiles still allowed where only a card puts them: one for each card played that does.
+struct AllowedByCards {
+    /// By Player, as a Player's card puts their own Greenery on an Area reserved for Oceans.
+    greeneries_on_ocean_areas: Vec<usize>,
+    /// For all Players together, as an Ocean belongs to nobody.
+    oceans_on_land: usize,
+}
+
+impl AllowedByCards {
+    fn played_by(players: &[Player]) -> AllowedByCards {
+        let placements_by = |player: &Player, tile, on| {
+            let effects = player.played.iter().filter_map(|card| CARD_CATALOG[card].effects.as_ref());
+            effects
+                .flat_map(|effects| &effects.tiles)
+                .filter(|each| each.tile == tile && each.on == on)
+                .count()
+        };
+        AllowedByCards {
+            greeneries_on_ocean_areas: players
+                .iter()
+                .map(|player| placements_by(player, TileKind::Greenery, Areas::ReservedForOceans))
+                .collect(),
+            oceans_on_land: players
+                .iter()
+                .map(|player| placements_by(player, TileKind::Ocean, Areas::Land))
+                .sum(),
+        }
+    }
+
+    /// Whether `owner`'s card allows one more Greenery on an Area reserved for Oceans, using it up.
+    fn take_greenery_on_an_ocean_area(&mut self, owner: Option<usize>) -> bool {
+        let allowed = owner.and_then(|owner| self.greeneries_on_ocean_areas.get_mut(owner));
+        allowed.is_some_and(take_one)
+    }
+}
+
+/// Whether `allowed` has one left, using it up.
+fn take_one(allowed: &mut usize) -> bool {
+    let any_left = *allowed > 0;
+    *allowed = allowed.saturating_sub(1);
+    any_left
+}
+
 impl ScenarioTile {
     /// The Area this Tile is on, or why the rules never allow it there.
-    fn check(&self, players: usize) -> Result<usize, String> {
+    fn check(&self, players: usize, allowed: &mut AllowedByCards) -> Result<usize, String> {
         let area = find_area(&self.area).ok_or_else(|| format!("there is no Area '{}'", self.area))?;
         let tile = self.tile.name();
         match (self.tile, self.card) {
@@ -413,7 +625,8 @@ impl ScenarioTile {
         }
         let reserved = printed(area).reserved;
         if self.tile == TileKind::Ocean {
-            if reserved != Some(Reservation::Ocean) {
+            let on_land_by_a_card = reserved.is_none() && take_one(&mut allowed.oceans_on_land);
+            if reserved != Some(Reservation::Ocean) && !on_land_by_a_card {
                 return Err(format!(
                     "cannot put an Ocean on {}, which is not reserved for Oceans",
                     self.area
@@ -431,6 +644,9 @@ impl ScenarioTile {
             None => {}
             // Mohole Area's Tile goes on an Area reserved for Oceans.
             Some(Reservation::Ocean) if self.card == Some(SpecialTile::MoholeArea) => {}
+            // The Greenery of a card such as Mangrove.
+            Some(Reservation::Ocean)
+                if self.tile == TileKind::Greenery && allowed.take_greenery_on_an_ocean_area(self.owner) => {}
             Some(Reservation::Ocean) => {
                 return Err(format!("cannot put a {tile} on {}, which is reserved for Oceans", self.area));
             }

@@ -67,6 +67,12 @@ impl PyGame {
         Ok(PyGame { game })
     }
 
+    /// This Game's position as a Scenario, in the form `from_scenario` reads.
+    /// For the dev panel; never for an AI Controller, as it holds every hand and the deck order.
+    fn to_scenario<'py>(&self, py: Python<'py>) -> PyResult<Bound<'py, PyAny>> {
+        to_python(py, &self.game.to_scenario())
+    }
+
     /// The Game a Replay describes, rebuilt by replaying its picks from the start: all of
     /// them, or only the first `step` (step 0 is the Game before any pick).
     #[staticmethod]

@@ -10,6 +10,7 @@ game log and the scores. Tests never look inside the engine.
 """
 
 import json
+from pathlib import Path
 from typing import Any
 
 import tm_engine
@@ -92,6 +93,12 @@ def scenario(*players: dict[str, Any], **fields: Any) -> tm_engine.Game:
     if players:
         description["players"] = list(players)
     return tm_engine.Game.from_scenario(description)
+
+
+def load_game(path: str | Path) -> tm_engine.Game:
+    """The Game in a Replay file, as saved from the GUI, so that a position found there, with the dev
+    panel's state editor or not, can start a scenario test."""
+    return tm_engine.Game.from_replay(json.loads(Path(path).read_text())["replay"])
 
 
 # Every Project Card by catalog id, in number order (#001 first).

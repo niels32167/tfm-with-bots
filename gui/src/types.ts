@@ -313,6 +313,77 @@ export interface Replay {
   picks: number[];
 }
 
+/** One Tile of a Scenario. */
+export interface ScenarioTile {
+  /** The Area's name: "E3", or "phobos_space_haven" off Mars. */
+  area: string;
+  tile: TileType;
+  /** The owning Player; an Ocean has none. */
+  owner: number | null;
+  /** For a special Tile, the card whose symbol it is printed with (Capital's City too). */
+  card?: string;
+}
+
+/** One Player's part of a Scenario. */
+export interface ScenarioPlayer {
+  resources: Resources;
+  production: Resources;
+  terraform_rating: number;
+  hand: string[];
+  played_cards: string[];
+  card_resources: Record<string, number>;
+  corporation: string | null;
+  first_action_due: boolean;
+  passed: boolean;
+  used_actions: string[];
+  terraform_rating_raised: boolean;
+  next_card: string | null;
+}
+
+/** A described position to start a Game from, as the engine writes it (Game.to_scenario). */
+export interface Scenario {
+  seed: number;
+  generation: number;
+  first_player: number;
+  current_player: number | null;
+  actions_this_turn: number;
+  temperature: number;
+  oxygen: number;
+  tiles: ScenarioTile[];
+  land_claim: { area: string; player: number } | null;
+  milestones: { milestone: string; claimed_by: number }[];
+  awards: { award: string; funded_by: number }[];
+  players: ScenarioPlayer[];
+  /** From the top down; any Project Card named nowhere is shuffled beneath these. */
+  deck: string[];
+  discard: string[];
+  draft: boolean;
+}
+
+/** The dev panel's look at one step of the Game: it never changes the Game, and only the GUI that
+ * asked gets it, as it holds what Players hide from each other. */
+export interface DevView {
+  /** How many Options had been picked at this step. */
+  step: number;
+  /** How many have been picked so far: the latest step. */
+  steps: number;
+  seed: number;
+  /** This step as the screen shows the Game: a Player View with one human. */
+  view: View;
+  /** The full view at this step. */
+  full_view: View;
+  /** The Decision waiting at this step, whoever answers it. */
+  decision: Decision | null;
+  /** The index of the Option picked for that Decision, or null at the latest step. */
+  picked: number | null;
+  /** The game log up to this step. */
+  log: string[];
+  /** This step's position as a Scenario. */
+  scenario: Scenario;
+  /** Why real play could not reach this position, if it could not. */
+  position_problems: string[];
+}
+
 /** What a saved Replay file holds. */
 export interface ReplayFile {
   controllers: Controller[];
@@ -342,6 +413,7 @@ export type ServerMessage =
   | Update
   | { type: "game_over"; scores: Score[] }
   | { type: "replay_file"; file: ReplayFile }
+  | ({ type: "dev_view" } & DevView)
   | { type: "error"; message: string };
 
 /** What the setup screen asks for. Without a seed, the server picks one at random. */
@@ -361,4 +433,5 @@ export type ClientMessage =
   | { type: "undo" }
   | { type: "save_replay" }
   | { type: "load_replay"; file: unknown; bot_delay: number }
-  | { type: "set_bot_delay"; bot_delay: number };
+  | { type: "set_bot_delay"; bot_delay: number }
+  | { type: "dev_view"; step?: number };

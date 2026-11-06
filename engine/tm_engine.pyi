@@ -107,17 +107,22 @@ class Game:
     def from_scenario(scenario: dict[str, Any]) -> Game:
         """A Game started from a Scenario. Anything left out takes the normal defaults.
 
-        Fields: seed, generation, first_player (default 0, who also takes the first Turn),
+        Fields: seed, generation, first_player (default 0), current_player (whose Turn it is,
+        default the first player), actions_this_turn (how many Actions they have taken, 0 or 1),
         temperature, oxygen, tiles, milestones, awards, deck, discard, draft (default True:
         whether the Research phases have the Draft), and players: a list of
         {"resources": {...}, "production": {...}, "terraform_rating": int,
          "hand": [card id, ...], "played_cards": [card id, ...],
          "card_resources": {card id: int, ...}, "corporation": card id,
-         "first_action_due": bool}, the Card Resources on their played cards that hold some, their
-        Corporation, revealed, which gives no starting values, and whether they must still take its
-        first action.
+         "first_action_due": bool, "passed": bool, "used_actions": [card id, ...],
+         "terraform_rating_raised": bool, "next_card": card id}, the Card Resources on their played
+        cards that hold some, their Corporation, revealed, which gives no starting values, whether
+        they must still take its first action, whether they have passed for this Action phase, the
+        played cards or Corporation whose action they used this Generation, whether their Terraform
+        Rating was raised this Generation, and the played Event that waits on their next card.
         Cards are named by their catalog id ("black_polar_dust"); only Project Cards, but for
-        "corporation", each in one place at most. "deck" lists the cards on top of the deck, the first drawn first;
+        "corporation" and in "used_actions", and each in one place at most, not counting what is said of
+        a played card ("card_resources", "used_actions", "next_card"). "deck" lists the cards on top of the deck, the first drawn first;
         every other Project Card is shuffled beneath them with the seed. "discard" lists the cards
         in the discard pile. A Scenario starts in the Action phase.
         Resources and Production name any of the six Resources (megacredits, steel,
@@ -133,8 +138,22 @@ class Game:
         Raises ValueError for unknown fields or impossible values, such as Card Resources on a
         card not played or that holds none, a negative Resource, MegaCredit Production below -5 or any other Production below 0, a
         Terraform Rating below 5 (so MegaCredits never go below 0), a City on
-        an Area reserved for Oceans (only Mohole Area's Tile goes there, and only a City on an
-        Area reserved for a card's City), or more than 9 Oceans.
+        an Area reserved for Oceans (only Mohole Area's Tile goes there, a Player's Greenery once for
+        each card they played that puts one there, and only a City on an
+        Area reserved for a card's City), an Ocean on land (but once for each card played by anyone
+        that puts one there), a Turn of a Player who has passed, or more than 9 Oceans. It doesn't
+        check everything real play keeps to: that Cities keep apart, or that a special Tile's card
+        was played and allows it there. The dev panel says so of such a position.
+        """
+
+    def to_scenario(self) -> dict[str, Any]:
+        """This Game's position as a Scenario, in the form `from_scenario` reads, with every field.
+
+        At an "action" Decision in the Action phase it starts the same position, the same Decision
+        included, but for what Players passed in the Draft and what is yet to be shuffled. At any other
+        Decision it starts this Generation's Action phase, with what is under way dropped: any card
+        being played, bought, drafted or looked at goes into the deck. For the dev panel, never for an
+        AI Controller, as it holds every hand and the deck order.
         """
 
     @staticmethod

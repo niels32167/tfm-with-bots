@@ -63,6 +63,12 @@ class Gui:
         self.send({"type": "save_replay"})
         return self._receive_until(lambda message: message["type"] == "replay_file", "a Replay file")["file"]
 
+    def dev_view(self, step: int | None = None) -> dict[str, Any]:
+        """What the dev panel shows at `step`, or at the latest step. No other message comes between,
+        unless a Random Bot is picking."""
+        self.send({"type": "dev_view"} if step is None else {"type": "dev_view", "step": step})
+        return self._receive_until(lambda message: message["type"] == "dev_view", "a dev view")
+
     def start(self, controllers: list[str], **fields: Any) -> dict[str, Any]:
         """Starts a new Game (Random Bots pick at once unless `bot_delay` is given) and
         returns the first update in which a human must decide, or the Game is over."""

@@ -5,7 +5,7 @@ import { controllerLabel, isYou, PLAYER_COLOURS, playerTitle } from "../players"
 import { type Card, type DraftPass, RESOURCES, TAGS, type CountedTag, type Resource } from "../types";
 import type { GameUpdate } from "../useGameServer";
 
-const RESOURCE_NAMES: Record<Resource, string> = {
+export const RESOURCE_NAMES: Record<Resource, string> = {
   megacredits: "MegaCredits",
   steel: "Steel",
   titanium: "Titanium",

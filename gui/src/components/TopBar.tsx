@@ -14,10 +14,12 @@ interface Props {
   onSaveReplay: () => void;
   onLoadReplay: (file: File) => void;
   onBotDelay: (delay: number) => void;
+  devPanelOpen: boolean;
+  onToggleDevPanel: () => void;
 }
 
-/** The bar above the status bar: the Generation, the seed, the card gallery, and the tools for
- * undo and Replays. */
+/** The bar above the status bar: the Generation, the seed, the card gallery, the tools for undo and
+ * Replays, and the dev panel's switch. */
 export function TopBar({
   game,
   onShowScores,
@@ -27,6 +29,8 @@ export function TopBar({
   onSaveReplay,
   onLoadReplay,
   onBotDelay,
+  devPanelOpen,
+  onToggleDevPanel,
 }: Props) {
   const hasRandomBots = game.controllers.includes("random_bot");
   return (
@@ -61,6 +65,9 @@ export function TopBar({
         )}
         <button className="link-button" onClick={onNewGame}>
           New Game
+        </button>
+        <button className="link-button" aria-pressed={devPanelOpen} onClick={onToggleDevPanel}>
+          Dev panel
         </button>
       </div>
     </header>

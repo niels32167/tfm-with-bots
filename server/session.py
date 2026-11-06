@@ -5,8 +5,22 @@ from typing import Any, Literal
 
 import tm_engine
 
+from tests.fuzzing.invariants import (
+    each_reserved_area_used_only_by_its_card,
+    special_tiles_where_their_cards_put_them,
+    tiles_only_on_legal_areas,
+)
+
 type Controller = Literal["human", "random_bot"]
 CONTROLLERS: tuple[Controller, ...] = ("human", "random_bot")
+
+# What the fuzzer checks that a position must keep to and a Scenario doesn't refuse, so that the dev
+# panel can say so of a position. They stay the one place that says what is legal.
+POSITION_INVARIANTS = (
+    tiles_only_on_legal_areas,
+    special_tiles_where_their_cards_put_them,
+    each_reserved_area_used_only_by_its_card,
+)
 
 
 class GameSession:
@@ -127,6 +141,34 @@ class GameSession:
         """What a saved Replay file holds: the Replay, plus each Player's Controller."""
         return {"controllers": self.controllers, "replay": self.game.replay}
 
+    def dev_view(self, step: int | None = None) -> dict[str, Any]:
+        """What the dev panel shows at `step`, or at the latest step if it is None or beyond the end:
+        "view" as the screen shows it, and the "full_view". It holds what Players hide from each other,
+        so it goes only to the GUI that asked, and it leaves the Game as it is: an earlier step is a
+        Game rebuilt from the Replay. A position that real play can't reach, which a Scenario may
+        describe, says why in "position_problems"."""
+        picks = self.game.replay["picks"]
+        if step is not None and step < 0:
+            raise ValueError(f"there is no step {step}; the first is step 0")
+        at = len(picks) if step is None else min(step, len(picks))
+        shown = self.game if at == len(picks) else tm_engine.Game.from_replay(self.game.replay, step=at)
+        full_view = shown.full_view()
+        return {
+            "type": "dev_view",
+            "step": at,
+            "steps": len(picks),
+            "seed": shown.seed,
+            "view": self._view_of(shown),
+            "full_view": full_view,
+            "decision": shown.decision,
+            "picked": picks[at] if at < len(picks) else None,
+            "log": shown.log,
+            "scenario": shown.to_scenario(),
+            "position_problems": [
+                problem for invariant in POSITION_INVARIANTS for problem in invariant(full_view, shown.decision)
+            ],
+        }
+
     def catch_up(self) -> list[dict[str, Any]]:
         """Everything a newly connected GUI needs, with the whole game log."""
         return self._messages(log_start=0)
@@ -144,16 +186,20 @@ class GameSession:
         if self.controllers[decision["player"]] == "human":
             self.answered_by_humans.append(decision["sequence"])
 
-    def _messages(self, log_start: int) -> list[dict[str, Any]]:
+    def _view_of(self, game: tm_engine.Game) -> dict[str, Any]:
+        """What the screen shows of `game`: see `viewer`."""
         viewer = self.viewer
+        return game.full_view() if viewer is None else game.player_view(viewer)
+
+    def _messages(self, log_start: int) -> list[dict[str, Any]]:
         update = {
             "type": "update",
             "controllers": self.controllers,
-            "viewer": viewer,
+            "viewer": self.viewer,
             "seed": self.game.seed,
             "bot_delay": self.bot_delay,
             "can_undo": self.can_undo,
-            "view": self.game.full_view() if viewer is None else self.game.player_view(viewer),
+            "view": self._view_of(self.game),
             # The Decision goes to the GUI only when a human must answer it.
             "decision": self.game.decision if self.deciding_controller() == "human" else None,
             "log_start": log_start,

@@ -1,7 +1,16 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import { downloadReplayFile, readReplayFile } from "./replayFiles";
-import type { Card, ClientMessage, NewGameSettings, ServerMessage, Update } from "./types";
+import type {
+  Card,
+  ClientMessage,
+  Controller,
+  DevView,
+  NewGameSettings,
+  Scenario,
+  ServerMessage,
+  Update,
+} from "./types";
 
 /** The server's latest update: Controllers, seed, Player View and Decision (the log is kept apart). */
 export type GameUpdate = Omit<Update, "type" | "log_start" | "log">;
@@ -13,6 +22,8 @@ export function useGameServer() {
   const [cards, setCards] = useState<Card[]>([]);
   const [game, setGame] = useState<GameUpdate | null>(null);
   const [log, setLog] = useState<string[]>([]);
+  // What the dev panel last asked to see.
+  const [devView, setDevView] = useState<DevView | null>(null);
   const [error, setError] = useState<string | null>(null);
   // The Decision a pick was sent for, so its buttons stay disabled until the server answers.
   const [pickedSequence, setPickedSequence] = useState<number | null>(null);
@@ -35,6 +46,7 @@ export function useGameServer() {
         // was shown before belongs to a connection (maybe a server) that is gone.
         setGame(null);
         setLog([]);
+        setDevView(null);
         setError(null);
         setPickedSequence(null);
         setConnected(true);
@@ -66,6 +78,11 @@ export function useGameServer() {
         case "replay_file":
           downloadReplayFile(message.file);
           break;
+        case "dev_view": {
+          const { type: _type, ...shown } = message;
+          setDevView(shown);
+          break;
+        }
         case "error":
           setError(message.message);
           setPickedSequence(null);
@@ -114,6 +131,23 @@ export function useGameServer() {
     [send],
   );
 
+  /** A Replay file of the position alone is what starts a Game from a Scenario. */
+  const startFromScenario = useCallback(
+    (scenario: Scenario, controllers: Controller[], botDelay: number) =>
+      send({
+        type: "load_replay",
+        file: { controllers, replay: { start: { scenario }, picks: [] } },
+        bot_delay: botDelay,
+      }),
+    [send],
+  );
+
+  /** The server answers only this GUI, with `step` or else the latest one; the Game doesn't change. */
+  const askForDevView = useCallback(
+    (step: number | null) => send(step === null ? { type: "dev_view" } : { type: "dev_view", step }),
+    [send],
+  );
+
   const clearError = useCallback(() => setError(null), []);
 
   const setBotDelay = useCallback(
@@ -126,6 +160,7 @@ export function useGameServer() {
     cards,
     game,
     log,
+    devView,
     error,
     clearError,
     pickedSequence,
@@ -134,6 +169,8 @@ export function useGameServer() {
     undo,
     saveReplay,
     loadReplay,
+    startFromScenario,
+    askForDevView,
     setBotDelay,
   };
 }

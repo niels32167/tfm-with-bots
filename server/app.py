@@ -10,6 +10,11 @@ Messages from the GUI:
     {"type": "save_replay"}           answered with a replay_file message
     {"type": "load_replay", "file": {...}, "bot_delay": 0.8}
     {"type": "set_bot_delay", "bot_delay": 0.3}
+    {"type": "dev_view", "step": 12}  answered with a dev_view message; the step is optional, and
+        one left out or beyond the end means the latest
+
+The state editor starts from an edited position with load_replay, as a Replay file whose "replay" is
+{"start": {"scenario": {...}}, "picks": []}.
 
 Messages to the GUI:
     {"type": "card_catalog", "cards": [...]}
@@ -20,6 +25,13 @@ Messages to the GUI:
     {"type": "game_over", "scores": [...]}
     {"type": "replay_file", "file": {"controllers": [...], "replay": {...}}}
         (sent only to the GUI that asked)
+    {"type": "dev_view", "step": 12, "steps": 40, "seed": 7, "view": ..., "full_view": ...,
+     "decision": ... or null, "picked": 0 or null, "log": [...], "scenario": {...},
+     "position_problems": [...]}
+        (the dev panel's look at a step: the view as the screen shows it, the full view, the Decision
+         waiting there whoever answers it and the index picked, the game log so far, that position as a
+         Scenario, and why real play could not reach it, if it couldn't; sent only to the GUI that
+         asked, as it holds what Players hide from each other, and it changes nothing in the Game)
     {"type": "error", "message": "..."}
 
 The server holds one Game at a time, shared by every open connection, so reloading
@@ -73,6 +85,8 @@ class GameHost:
                     await websocket.send_json({"type": "replay_file", "file": file})
                 case "load_replay":
                     await self.start(GameSession.from_replay_file(message["file"], bot_delay(message)))
+                case "dev_view":
+                    await websocket.send_json(self.current_session().dev_view(whole_number_or_none(message, "step")))
                 case "set_bot_delay":
                     self.current_session().bot_delay = bot_delay(message)
                     await self.share_news()
@@ -158,6 +172,14 @@ def true_or_false(message: dict[str, Any], field: str, *, default: bool) -> bool
     if not isinstance(value, bool):
         raise ValueError(f"{field} must be true or false, not {value!r}")
     return value
+
+
+def whole_number_or_none(message: dict[str, Any], field: str) -> int | None:
+    """The message's `field`, which must be a whole number if given."""
+    value = message.get(field)
+    if value is None or type(value) is int:
+        return value
+    raise TypeError(f"{field} must be a whole number, not {value!r}")
 
 
 def bot_delay(message: dict[str, Any]) -> float:
