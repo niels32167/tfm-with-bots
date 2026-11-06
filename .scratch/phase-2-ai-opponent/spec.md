@@ -137,7 +137,7 @@ Stronger Players play closer Games: the winning margin falls from about 30 Victo
   - The `Hand Counter` tracker is often stale.
   - "cancels their move" lines occur, and some moves are credited to the wrong Player.
   - Wording differs by scraper version.
-  - Names differ from the card catalog (Allied Bank/Allied Banks, Excentric/Eccentric Sponsor, CEO's Favourite/Favorite Project).
+  - Names differ from the card catalog (Allied Bank/Allied Banks, CEO's Favourite/Favorite Project).
 - Conceded Games are usable for Decisions, but not as evidence of final scores.
 - Some of the archive's dates are invalid, so a date filter must treat those as unknown.
 

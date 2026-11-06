@@ -17,3 +17,7 @@ The play-test is mine to do. Unlike phase 1's, it records its seeds, so that its
 - [ ] I play two full Prelude Games in the GUI without finding a rule bug, and their Replay files are kept and named under Comments.
 
 ## Comments
+
+### 2026-11-06 — from ticket 01 (Claude)
+
+End the coverage check's exception: remove `test_only_the_prelude_boxs_cards_may_lack_effect_data`'s allowance and make `test_every_project_card_of_the_base_box_is_implemented` cover every card. The numbers to beat, from the commit before Prelude, are in ticket 01's Comments.

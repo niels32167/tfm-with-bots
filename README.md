@@ -17,8 +17,8 @@ most Victory Points wins (MegaCredits break a tie). Each Player is a human or a 
 from a seed, and any Game can be undone, saved as a Replay file and loaded again. A
 fuzzer plays Random Bot Games and checks them after every Decision, and a benchmark
 measures the engine's speed. The card catalog holds the printed data of all 208 Project
-Cards and 12 Corporations, and the GUI's card gallery draws every card as the fan-made card
-list does. Players play Project Cards from their hand, paying with MegaCredits, steel and
+Cards and 12 Corporations, and of Prelude's 47 cards, which no Game holds yet (ADR 0011), and the
+GUI's card gallery draws every card as the fan-made card list does. Players play Project Cards from their hand, paying with MegaCredits, steel and
 titanium, once the cards' Requirements are met; all 208 Project Cards work, 112 Automated, 59 Active
 and 37 Events. An Active card's action is an Action its Player may use once per Generation, and
 its ongoing effects lower card costs, raise what steel and titanium pay, ease Requirements or
@@ -114,7 +114,8 @@ engine module reads the catalog with `tm_engine.card_catalog()`.
 
 A card is implemented once it has `"effects"` in the card file (ADR 0009), such as
 `"effects": {"production": {"megacredits": -2, "heat": 3}, "tiles": ["ocean"]}` for Black Polar
-Dust; cards without it are never offered. Effects can gain or lose Resources, change
+Dust; cards without it are never offered, and no Game holds Prelude's 47 cards, which have none yet.
+Effects can gain or lose Resources, change
 Production, raise Temperature and Oxygen, raise Terraform Rating, draw cards, let the Player
 look at cards to keep some of them, place Tiles (special Tiles too, as `"special"`), let the Player
 choose between effects (`"choice"`) and claim an Area (Land Claim's `"claim_area"`), add Card
@@ -124,15 +125,17 @@ the Player choose between effects too, as well as discounts, steel and titanium 
 effect on the next card played.
 Declare any new field in `engine/src/cards.rs` first, since the card file allows no unknown
 field. Each card's scenario tests live in `tests/cards/test_<id>.py`, and at least one must name the card.
-The coverage check lists any card, Project Card or Corporation, that has none, and then both it and
-the test suite fail:
+The coverage check lists any implemented card that has none, and then both it and the test suite
+fail. A card needs its test as soon as it has `"effects"`; until then the check only counts it as not
+implemented yet:
 
 ```bash
 uv run python -m tools.card_coverage
 ```
 
 The mismatch report, `docs/card-mismatches.md`, compares the card file with the open-source
-game's card definitions (cost, Tags, Requirements, Victory Points, type and Corporate Era):
+game's card definitions (cost, Tags, Requirements, Victory Points, type, Corporate Era and the box
+a card comes in), for the base box and Prelude:
 
 ```bash
 uv run python -m tools.card_mismatches --download

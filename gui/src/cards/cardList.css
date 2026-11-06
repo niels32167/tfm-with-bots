@@ -1,11 +1,12 @@
 /*
  * How cards are drawn: the fan-made card list's own stylesheet (css/mystyles.css at
  * ssimeonoff.github.io, BSD-3-Clause; a copy is in tools/card_list_snapshot/), cut down to
- * the rules the v1 cards use (ADR 0005). Each rule is scoped under .printed-card, so it can't
+ * the rules the catalog's cards use (ADR 0005). Each rule is scoped under .printed-card, so it can't
  * reach the rest of the GUI, and its images are the copies in gui/public/card-list/.
  *
  * Changed from the original: the card frame no longer floats, hides itself or sets its own
- * margins (the gallery lays cards out), and the reset below undoes the GUI's own defaults.
+ * margins (the gallery lays cards out), the reset below undoes the GUI's own defaults, and the
+ * number's place on a Prelude Card, which the card list sets on each card, is a rule here.
  */
 
 /* The card list page uses the browser's defaults, which the GUI's own styles change. */
@@ -106,6 +107,26 @@
   filter: grayscale(1) brightness(1.9) contrast(0.6) hue-rotate(0deg);
 }
 
+.printed-card.prelude-card {
+  height: 240px;
+}
+
+.printed-card.prelude-card::before {
+  content: "";
+  background-size: 1000px;
+  background-image: url("/card-list/images/mars.png");
+  position: absolute;
+  width: 30px;
+  height: 30px;
+  width: 240px;
+  height: 240px;
+  top: 0;
+  left: 0;
+  background-position: -360px -25px;
+  border-radius: 15px;
+  filter: grayscale(1) brightness(1.9) contrast(0.6) hue-rotate(-60deg);
+}
+
 .printed-card .price {
   float: left;
   font-family: Prototype;
@@ -156,6 +177,30 @@
   font-size: 12px;
 }
 
+.printed-card.prelude-card .number {
+  margin-left: 99px;
+}
+
+.printed-card .prelude-label {
+  position: relative;
+  float: left;
+  width: 80px;
+  height: 20px;
+  line-height: 22px;
+  text-align: center;
+  margin-top: -64px;
+  margin-left: 4px;
+  font-size: 12px;
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.6), 0 0 0 2px rgba(0, 0, 0, 0.3);
+  background-color: rgb(235, 118, 171);
+  border-radius: 14px 2px 2px 2px;
+  border-top: 2px solid rgb(221, 221, 221);
+  border-left: 2px solid rgb(221, 221, 221);
+  border-bottom: 2px solid rgb(137, 137, 137);
+  border-right: 2px solid rgb(137, 137, 137);
+  font-family: Prototype;
+}
+
 .printed-card .corporate-icon:after {
   position: absolute;
   border: 1px solid black;
@@ -173,6 +218,32 @@
   background-size: 10px 10px;
   background-position: bottom 4px right 3px;
   background-repeat: no-repeat;
+}
+
+.printed-card .prelude-icon:after {
+  position: absolute;
+  border: 1px solid black;
+  background-color: rgb(235, 118, 171);
+  font-size: 11px;
+  font-weight: bold;
+  line-height: 15px;
+  width: 16px;
+  height: 16px;
+  text-align: center;
+  color: white;
+  border-radius: 50%;
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.4);
+  content: "";
+  background-image: url("/card-list/images/triangle16.png");
+  background-size: 10px 10px;
+  background-position: bottom 4px right 3px;
+  background-repeat: no-repeat;
+  transform: rotate(-90deg);
+}
+
+.printed-card .preludeCard-icon:after {
+  margin-left: -231px;
+  margin-top: 214px;
 }
 
 .printed-card .project-icon:after {
@@ -242,6 +313,18 @@
 
 .printed-card .background-color-events {
   background: linear-gradient(-60deg, #ec6a13 10%, #ec6a1388, #ec6a13 90%);
+}
+
+.printed-card .background-color-prelude {
+  background: linear-gradient(-60deg, rgb(235, 118, 171) 10%, rgba(235, 118, 171, 0.6), rgb(235, 118, 171) 90%);
+}
+
+.printed-card .tag-wild {
+  background-image: url("/card-list/images/tags/wild.png");
+}
+
+.printed-card .wild {
+  background-image: url("/card-list/images/resources/wild.png");
 }
 
 .printed-card .tag-building {
@@ -699,4 +782,41 @@
   padding-top: 2px;
   border-radius: 10px;
   box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.6), 0 0 0 2px rgba(0, 0, 0, 0.3);
+}
+
+/* After .resource, which these change on the Corporations that use them. */
+.printed-card .card-icon {
+  position: absolute;
+  margin-left: 15px;
+  margin-top: -10px;
+  width: 20px;
+  height: 20px;
+  line-height: 20px;
+  border-radius: 10px;
+  background-size: 20px 20px;
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.3);
+}
+
+.printed-card .card-corporation {
+  background-color: rgb(44, 44, 44);
+  background: linear-gradient(to right bottom, black, rgb(60, 60, 60), rgb(150, 150, 150), rgb(60, 60, 60), rgb(60, 60, 60), black);
+  color: black;
+  font-size: 12px;
+  width: 38px;
+  padding-left: 7px;
+  padding-right: 7px;
+  border-radius: 3px;
+  box-shadow: 0 2px 2px 1px rgba(0, 0, 0, 0.8);
+}
+
+.printed-card .robinson {
+  font-family: Prototype;
+  margin-left: 10px;
+  font-size: 20px;
+  line-height: 16px;
+  width: 150px;
+  padding-left: 4px;
+  text-align: center;
+  background: white;
+  font-weight: normal;
 }

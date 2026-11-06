@@ -8,12 +8,14 @@ import pytest
 import tm_engine
 
 from tools.card_import import (
+    CARD_FILE,
     ICONS,
     PAGE,
     PRINTED_FIELDS,
     PROJECT,
     STYLESHEET,
     card_file_text,
+    check_card_set,
     icons_used,
     keep_written_by_hand,
     parse_card_list,
@@ -81,6 +83,7 @@ def test_a_project_card_keeps_its_printed_data_and_its_face():
             "name": "Deep Well Heating",
             "type": "automated",
             "corporate_era": False,
+            "expansion": "base",
             "cost": 13,
             "tags": ["building", "power"],
             "requirements": [],
@@ -180,6 +183,7 @@ def test_a_space_at_the_end_of_an_inline_element_stays_inside_it():
                 {"type": "tag", "tag": "animal", "min": 1},
             ],
         ),
+        ('<div class="requirements">Earth Earth</div>', "", [{"type": "tag", "tag": "earth", "min": 2}]),
         (
             '<div class="requirements">Titanium production</div>',
             "",
@@ -281,6 +285,27 @@ def test_the_text_keeps_paragraphs_apart_and_joins_lines_broken_for_the_layout()
     )
 
 
+def test_a_description_inside_a_description_is_part_of_the_text():
+    # As on Valley Trust, whose starting MegaCredits are drawn beside its text.
+    card = the_card(
+        card_list_with(
+            "",
+            description='<div class="resource money">37</div><div class="description">(You start with 37 MC.)</div>',
+        )
+    )
+
+    assert card["text"] == "(You start with 37 MC.)"
+
+
+def test_a_word_drawn_as_an_icon_is_left_out_of_the_text():
+    # As on Vitor, whose first action is drawn as an orange label reading AWARDS.
+    card = the_card(
+        card_list_with("", description='<span style="background: orange">AWARDS</span><br />(Fund an award for free.)')
+    )
+
+    assert card["text"] == "(Fund an award for free.)"
+
+
 def test_numbers_drawn_as_icons_are_left_out_of_the_text():
     card = the_card(card_list_with("", description='<div class="resource money">57</div><br />(You start with 57 MC.)'))
 
@@ -323,6 +348,7 @@ def test_a_corporation_is_named_after_its_logo_and_has_no_cost_or_number():
         "name": "CrediCor",
         "type": "corporation",
         "corporate_era": False,
+        "expansion": "base",
         "cost": None,
         "tags": [],
         "requirements": [],
@@ -357,21 +383,134 @@ def test_a_corporation_whose_logo_does_not_match_its_name_stops_the_import():
         parse_card_list(f'<ul class="myUL">{corporation(3, "phobolog")}</ul>')
 
 
-def test_promo_and_expansion_cards_are_left_out():
+def test_promo_and_other_expansions_cards_are_left_out():
     page = f"""
     <ul class="myUL">
       <li class="filterDiv automated promo">
         <div class="title background-color-automated">Advertising</div>
         <div class="price">4</div><div class="number">#X14</div><div class="content"></div>
       </li>
-      <li class="filterDiv prelude-card prelude">
-        <div class="title background-color-prelude">Donation</div><div class="content"></div>
+      <li class="filterDiv prelude prelude-card noneTag promo">
+        <div class="title background-color-prelude">Merger</div>
+        <div class="number">#X41</div><div class="content"></div>
       </li>
       {corporation(13, "aphrodite", card_set="venusNext")}
+      {corporation(41, "applied science", card_set="prelude2")}
     </ul>
     """
 
     assert parse_card_list(page) == []
+
+
+DONATION = """
+<li class="filterDiv prelude prelude-card noneTag">
+  <div class="title background-color-prelude">Donation</div>
+  <div class="prelude-label">PRELUDE</div>
+  <div class="number" style="margin-left: 99px">#P08</div>
+  <div class="prelude-icon preludeCard-icon"></div>
+  <div class="content">
+    <div class="resource money">21</div>
+    <div class="description">(Gain 21 MC.)</div>
+  </div>
+</li>
+"""
+
+HOUSE_PRINTING = """
+<li class="filterDiv automated buildingTag prelude">
+  <div class="title background-color-automated">House Printing</div>
+  <div class="price">10</div>
+  <div class="tag tag1 tag-building"></div>
+  <div class="number">#P36</div>
+  <div class="prelude-icon project-icon"></div>
+  <div class="content">
+    <div class="points points-big">1</div>
+    <div class="description">(Increase your steel production 1 step.)</div>
+  </div>
+</li>
+"""
+
+
+def test_a_prelude_card_has_its_own_type_a_number_of_its_own_and_no_cost():
+    [donation] = parse_card_list(f'<ul class="myUL">{DONATION}</ul>')
+
+    assert {key: value for key, value in donation.items() if key != "face"} == {
+        "id": "donation",
+        "number": 8,
+        "name": "Donation",
+        "type": "prelude",
+        "corporate_era": False,
+        "expansion": "prelude",
+        "cost": None,
+        "tags": [],
+        "requirements": [],
+        "victory_points": None,
+        "text": "(Gain 21 MC.)",
+    }
+
+
+def test_a_prelude_card_that_ignores_requirements_has_none_of_its_own():
+    ecology_experts = DONATION.replace(
+        '<div class="resource money">21</div>',
+        '<div class="requirements"><div>X</div><div>Project Requirements</div></div>',
+    )
+
+    assert parse_card_list(f'<ul class="myUL">{ecology_experts}</ul>')[0]["requirements"] == []
+
+
+def test_preludes_project_cards_are_marked_as_prelude_and_keep_their_own_type():
+    [house_printing] = parse_card_list(f'<ul class="myUL">{HOUSE_PRINTING}</ul>')
+
+    assert (house_printing["type"], house_printing["expansion"]) == ("automated", "prelude")
+    assert (house_printing["number"], house_printing["cost"], house_printing["victory_points"]) == (36, 10, 1)
+
+
+@pytest.mark.parametrize(
+    ("page_id", "logo", "card_id", "name"),
+    [
+        (18, "Cheung Shing MARS", "cheung_shing_mars", "Cheung Shing Mars"),
+        (19, "POINT LUNA", "point_luna", "Point Luna"),
+        (20, "ROBINSON INDUSTRIES", "robinson_industries", "Robinson Industries"),
+        (21, "VALLEY TRUST", "valley_trust", "Valley Trust"),
+        (22, "VIT O R", "vitor", "Vitor"),
+    ],
+)
+def test_preludes_corporations_are_named_after_their_logos(page_id, logo, card_id, name):
+    [found] = parse_card_list(f'<ul class="myUL">{corporation(page_id, logo, card_set="prelude")}</ul>')
+
+    assert (found["id"], found["name"], found["type"], found["expansion"]) == (card_id, name, "corporation", "prelude")
+
+
+def test_new_cards_come_after_the_base_box_so_no_card_of_a_game_without_prelude_moves():
+    page = f"""
+    <ul class="myUL">
+      {DONATION}
+      {corporation(19, "POINT LUNA", card_set="prelude")}
+      {corporation(1, "credicor")}
+      {HOUSE_PRINTING}
+      <li class="filterDiv automated standard">
+        <div class="title background-color-automated">Test Card</div>
+        <div class="price">10</div><div class="number">#100</div><div class="content"></div>
+      </li>
+    </ul>
+    """
+
+    assert [card["id"] for card in parse_card_list(page)] == [
+        "test_card",
+        "credicor",
+        "house_printing",
+        "point_luna",
+        "donation",
+    ]
+
+
+def test_a_saved_page_without_all_the_cards_stops_the_import():
+    cards = parse_card_list(PAGE.read_text(encoding="utf-8"))
+
+    check_card_set(cards)
+    with pytest.raises(ValueError, match="46 cards of Prelude"):
+        check_card_set(cards[:-1])
+    with pytest.raises(ValueError, match="#001"):
+        check_card_set(cards[1:])
 
 
 def test_importing_again_updates_the_printed_data_and_keeps_what_was_written_by_hand():
@@ -399,7 +538,7 @@ def test_the_card_file_holds_the_cards_as_json():
     assert json.loads(card_file_text(cards))["cards"] == cards
 
 
-def test_only_the_icons_that_v1_cards_use_are_fetched():
+def test_only_the_icons_that_the_catalogs_cards_use_are_fetched():
     stylesheet = """
     @font-face { font-family: Prototype; src: url(../fonts/Prototype.ttf); }
     .price { background-image: url(../images/megacredits/megacredit.png); }
@@ -421,21 +560,39 @@ def test_only_the_icons_that_v1_cards_use_are_fetched():
 
 
 def test_every_icon_the_cards_use_is_stored_in_the_project():
-    # The GUI must never need the card list's website, so every image and font the v1
+    # The GUI must never need the card list's website, so every image and font the catalog's
     # cards use, and every one the GUI's card stylesheet refers to, is in gui/public/card-list/.
     needed = icons_used(PAGE.read_text(encoding="utf-8"), STYLESHEET.read_text(encoding="utf-8"))
     stylesheet = (PROJECT / "gui" / "src" / "cards" / "cardList.css").read_text(encoding="utf-8")
     referred_to = re.findall(r'url\("/card-list/([^"]+)"\)', stylesheet)
 
-    assert len(needed) == 39
+    assert len(needed) == 41
     assert sorted(set(referred_to)) == needed
     assert [path for path in needed if not (ICONS / path).is_file()] == []
 
 
-def test_names_the_card_list_writes_with_odd_capitals_are_corrected():
-    card = the_card(card_list_with("", name="Anti-gravity Technology"))
+@pytest.mark.parametrize(
+    ("written", "card_id", "name"),
+    [
+        ("Anti-gravity Technology", "anti_gravity_technology", "Anti-Gravity Technology"),
+        ("Metal-rich Asteroid", "metal_rich_asteroid", "Metal-Rich Asteroid"),
+        ("PSYCHROPHILES", "psychrophiles", "Psychrophiles"),
+        ("RESEARCH COORDINATION", "research_coordination", "Research Coordination"),
+        ("SF MEMORIAL", "sf_memorial", "SF Memorial"),
+    ],
+)
+def test_names_the_card_list_writes_with_odd_capitals_are_corrected(written, card_id, name):
+    card = the_card(card_list_with("", name=written))
 
-    assert (card["id"], card["name"]) == ("anti_gravity_technology", "Anti-Gravity Technology")
+    assert (card["id"], card["name"]) == (card_id, name)
+
+
+def test_the_card_file_is_what_importing_again_would_write():
+    # So running the import changes nothing.
+    written = CARD_FILE.read_text(encoding="utf-8")
+    imported = parse_card_list(PAGE.read_text(encoding="utf-8"))
+
+    assert card_file_text(keep_written_by_hand(imported, earlier=json.loads(written)["cards"])) == written
 
 
 def test_the_engine_holds_what_the_import_makes_of_the_saved_card_list():

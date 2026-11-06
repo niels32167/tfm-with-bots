@@ -4,7 +4,7 @@
 //! their played cards, so that its Tags and ongoing effects count as a Project Card's do.
 
 use crate::card_set::CardSet;
-use crate::cards::{CARD_CATALOG, PROJECT_CARDS};
+use crate::cards::{BASE_BOX_CARDS, CARD_CATALOG, PROJECT_CARDS};
 use crate::game::{DecisionOption, Game};
 use crate::log::LogEvent;
 use crate::triggers::Happened;
@@ -31,7 +31,7 @@ impl Game {
     /// Each Player, in player order from the first player, is dealt their Corporations from the
     /// shuffled Corporations. Those left over, and later those not chosen, go back in the box.
     pub(crate) fn deal_corporations(&mut self) {
-        let mut corporations: Vec<usize> = (PROJECT_CARDS..CARD_CATALOG.len()).collect();
+        let mut corporations: Vec<usize> = (PROJECT_CARDS..BASE_BOX_CARDS).collect();
         self.random_numbers.shuffle(&mut corporations);
         let mut dealing = corporations.chunks(CORPORATIONS_DEALT);
         for player in self.player_order() {

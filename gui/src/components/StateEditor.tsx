@@ -63,7 +63,9 @@ interface Props {
 /** Edits a position as a Scenario, and starts a Game from it in place of the current one. Save Replay
  * then saves it like any Replay, and it can start a scenario test. The engine says if it refuses it. */
 export function StateEditor({ cards, edited, board, readFromStep, underWay, onChange, onRead, onStart }: Props) {
-  const projectCards = cards.filter((card) => card.type !== "corporation");
+  // A Scenario can name only the cards a Game can hold, which are so far those of the base box.
+  const baseBox = cards.filter((card) => card.expansion === "base");
+  const projectCards = baseBox.filter((card) => card.type !== "corporation");
   const listId = useId();
   return (
     <div className="state-editor">
@@ -81,7 +83,14 @@ export function StateEditor({ cards, edited, board, readFromStep, underWay, onCh
       </datalist>
       <GlobalFields edited={edited} onChange={onChange} />
       {edited.players.map((_, player) => (
-        <PlayerFields key={player} cards={cards} edited={edited} player={player} listId={listId} onChange={onChange} />
+        <PlayerFields
+          key={player}
+          cards={baseBox}
+          edited={edited}
+          player={player}
+          listId={listId}
+          onChange={onChange}
+        />
       ))}
       <TileFields cards={cards} edited={edited} board={board} onChange={onChange} />
       <div className="dev-panel-buttons">

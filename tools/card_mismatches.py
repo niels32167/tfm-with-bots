@@ -5,8 +5,8 @@ the mismatch report, `docs/card-mismatches.md`:
     uv run python -m tools.card_mismatches --download   # fetch them first
 
 The fields compared are the ones the card list could get wrong and the rules depend on:
-Corporate Era, type, cost, Tags, Requirements and Victory Points, and a Corporation's starting
-MegaCredits, which our effect data holds. Each difference is then
+Corporate Era, the box a card comes in, type, cost, Tags, Requirements and Victory Points, and a
+Corporation's starting MegaCredits, which our effect data holds. Each difference is then
 settled by the rules authority order (rulebook, FryxGames FAQ, then the open-source game);
 see `docs/rules-notes.md`.
 
@@ -24,7 +24,7 @@ from typing import Any
 
 import tm_engine
 
-from tools.card_import import PROJECT, card_id, fetch
+from tools.card_import import PROJECT, card_id, fetch, printed_number
 
 REPORT = PROJECT / "docs" / "card-mismatches.md"
 CACHE = PROJECT / ".cache" / "open-source-cards"
@@ -32,11 +32,25 @@ CACHE = PROJECT / ".cache" / "open-source-cards"
 REPOSITORY = "terraforming-mars/terraforming-mars"
 # The commit compared against; `--commit` picks another.
 COMMIT = "4d30aa07f14eeb5aa5647775ce5a7c9e49f6ac04"
-CARD_FOLDERS = ("src/server/cards/base", "src/server/cards/corporation")
+CARD_FOLDERS = ("src/server/cards/base", "src/server/cards/corporation", "src/server/cards/prelude")
+PRELUDE_FOLDER = "prelude"
 MANIFESTS = "src/server/cards/StandardCardManifests.ts"
 
 # The fields compared, in the report's order.
-COMPARED_FIELDS = ("corporate_era", "type", "cost", "tags", "requirements", "victory_points", "starting_megacredits")
+COMPARED_FIELDS = (
+    "corporate_era",
+    "expansion",
+    "type",
+    "cost",
+    "tags",
+    "requirements",
+    "victory_points",
+    "starting_megacredits",
+)
+
+# Our names that differ from the open-source game's on purpose, each with the evidence for it in
+# docs/rules-notes.md, and the open-source game's name for the card.
+NAMES_SETTLED = {"Allied Banks": "ALLIED_BANK", "Excentric Sponsor": "ECCENTRIC_SPONSOR"}
 
 
 @dataclass(frozen=True)
@@ -52,8 +66,10 @@ class Comparison:
     mismatches: list[Mismatch] = field(default_factory=list)
     # Fields the open-source game works out in code, so there is nothing to compare.
     not_compared: list[str] = field(default_factory=list)
-    # Our card and the open-source game's name for it, where they differ.
+    # Our card and the open-source game's name for it, where they differ and nobody has settled it.
     names_that_differ: list[tuple[str, str]] = field(default_factory=list)
+    # The same, where the rules notes have settled it: those in NAMES_SETTLED.
+    names_settled: list[tuple[str, str]] = field(default_factory=list)
     # Our cards the open-source game has no definition for.
     missing: list[str] = field(default_factory=list)
 
@@ -79,6 +95,8 @@ def parse_open_source_card(
     fields = {name: value or _default(source, name) for name, value in fields.items()}
     if "startingMegaCredits" in fields:
         card_type = "corporation"
+    elif re.search(r"\bextends PreludeCard\b", source):
+        card_type = "prelude"  # its base class gives the type
     elif found := re.fullmatch(r"CardType\.(\w+)", fields.get("type", "")):
         card_type = found[1].lower()
     else:
@@ -88,7 +106,7 @@ def parse_open_source_card(
     card_resource = re.fullmatch(r"CardResource\.(\w+)", fields.get("resourceType", ""))
     starting = {"starting_megacredits": int(fields["startingMegaCredits"])} if card_type == "corporation" else {}
     return {
-        "number": int(number[1]) if number and number[1].isdigit() else None,
+        "number": _number(number[1]) if number else None,
         "name": name[1] if name else Path(file_name).stem,
         "type": card_type,
         "cost": int(fields["cost"]) if "cost" in fields else None,
@@ -97,6 +115,13 @@ def parse_open_source_card(
         "victory_points": _victory_points(fields.get("victoryPoints", ""), card_resource),
         **starting,
     }
+
+
+def _number(written: str) -> int | str | None:
+    """A card's number: 64 for "064", and "P36" for Prelude's. Other forms are not printed numbers."""
+    if written.isdigit():
+        return int(written)
+    return written if re.fullmatch(r"P\d+", written) else None
 
 
 def _super_fields(source: str) -> dict[str, str] | None:
@@ -255,26 +280,38 @@ def _member(written: str) -> str:
 
 
 def compare(ours: list[dict[str, Any]], theirs: list[dict[str, Any]]) -> Comparison:
-    """How our cards differ from the open-source game's. Project Cards are paired by number,
-    Corporations by name."""
-    def key(card: dict[str, Any]) -> Any:
-        return card["number"] if card["type"] != "corporation" else card_id(card["name"]).upper()
+    """How our cards differ from the open-source game's. Project Cards and Prelude Cards are paired
+    by number, Corporations by name."""
+    def their_key(card: dict[str, Any]) -> Any:
+        return card["number"] if card["type"] != "corporation" else card["name"]
 
-    their_cards = {key(card): card for card in theirs}
+    def our_key(card: dict[str, Any]) -> Any:
+        if card["type"] == "corporation":
+            return card_id(card["name"]).upper()
+        return printed_number(card).removeprefix("#") if card["expansion"] == "prelude" else card["number"]
+
+    their_cards = {their_key(card): card for card in theirs}
     comparison = Comparison()
     for our_card in ours:
         label = _label(our_card)
-        their_card = their_cards.get(key(our_card))
+        their_card = their_cards.get(our_key(our_card))
         if their_card is None:
             comparison.missing.append(label)
             continue
         if card_id(our_card["name"]).upper() != their_card["name"]:
-            comparison.names_that_differ.append((label, their_card["name"]))
+            settled = NAMES_SETTLED.get(our_card["name"]) == their_card["name"]
+            names = comparison.names_settled if settled else comparison.names_that_differ
+            names.append((label, their_card["name"]))
         for name in COMPARED_FIELDS:
             if name not in their_card:
                 continue
             if name == "victory_points" and their_card[name] == "special":
                 comparison.not_compared.append(f"{label}: the open-source game works out its Victory Points in code")
+                continue
+            if name == "starting_megacredits" and "effects" not in our_card:
+                comparison.not_compared.append(
+                    f"{label}: not implemented yet, so its starting MegaCredits have no effect data"
+                )
                 continue
             our_value, their_value = _comparable(name, our_card), _comparable(name, their_card)
             if our_value != their_value:
@@ -283,7 +320,8 @@ def compare(ours: list[dict[str, Any]], theirs: list[dict[str, Any]]) -> Compari
 
 
 def _label(card: dict[str, Any]) -> str:
-    return card["name"] if card["number"] is None else f"#{card['number']:03} {card['name']}"
+    number = printed_number(card)
+    return card["name"] if number is None else f"{number} {card['name']}"
 
 
 def _comparable(name: str, card: dict[str, Any]) -> Any:
@@ -311,9 +349,10 @@ def report(comparison: Comparison, *, commit: str) -> str:
         f"compared with the open-source game's card definitions ([{REPOSITORY}](https://github.com/{REPOSITORY})",
         f"at commit `{commit}`). Written by `uv run python -m tools.card_mismatches`; do not edit by hand.",
         "",
-        "Compared: Corporate Era, type, cost, Tags (in any order), Requirements (in any order),",
-        "Victory Points, and a Corporation's starting MegaCredits. The open-source game leaves the",
-        "Event Tag out of an Event card's Tags, so the comparison adds it back. Each difference is",
+        "Compared: Corporate Era, the box a card comes in, type, cost, Tags (in any order),",
+        "Requirements (in any order), Victory Points, and a Corporation's starting MegaCredits, for",
+        "the cards of the base box and of Prelude. The open-source game leaves the Event Tag out of",
+        "an Event card's Tags, so the comparison adds it back. Each difference is",
         "settled by the rules authority order (rulebook, then the FryxGames FAQ, then the open-source",
         "game), and the call is recorded in `docs/rules-notes.md`.",
         "",
@@ -332,6 +371,8 @@ def report(comparison: Comparison, *, commit: str) -> str:
     lines += [f"- {line}" for line in comparison.not_compared] or ["None."]
     lines += ["", f"## Names that differ ({len(comparison.names_that_differ)})", ""]
     lines += [f"- {ours}: `{theirs}`" for ours, theirs in comparison.names_that_differ] or ["None."]
+    lines += ["", f"## Names settled in the rules notes ({len(comparison.names_settled)})", ""]
+    lines += [f"- {ours}: `{theirs}`" for ours, theirs in comparison.names_settled] or ["None."]
     lines += ["", f"## Missing from the open-source game ({len(comparison.missing)})", ""]
     lines += [f"- {card}" for card in comparison.missing] or ["None."]
     return "\n".join(lines) + "\n"
@@ -344,7 +385,8 @@ def _shown(value: Any) -> str:
 
 
 def load_open_source_cards(commit: str) -> list[dict[str, Any]]:
-    """The open-source game's v1 card definitions saved for `commit`, with Corporate Era marked."""
+    """The open-source game's card definitions saved for `commit`, in the catalog's sets, with
+    Corporate Era and the box each comes in marked."""
     folder = CACHE / commit
     corporate_era = corporate_era_classes((folder / Path(MANIFESTS).name).read_text(encoding="utf-8"))
     sources = {path.stem: path.read_text(encoding="utf-8") for path in sorted(folder.glob("*/*.ts"))}
@@ -355,19 +397,23 @@ def load_open_source_cards(commit: str) -> list[dict[str, Any]]:
         except ValueError as problem:
             raise ValueError(f"{path.relative_to(folder)}: {problem}") from None
         if card is not None:
-            cards.append({**card, "corporate_era": path.stem in corporate_era})
+            expansion = "prelude" if path.parent.name == PRELUDE_FOLDER else "base"
+            cards.append({**card, "corporate_era": path.stem in corporate_era, "expansion": expansion})
     return cards
 
 
 def download(commit: str) -> None:
-    """Fetches the open-source game's card definitions and manifests at `commit`."""
+    """Fetches the open-source game's card definitions and manifests at `commit`, except any
+    already saved: a commit's files never change."""
     folder = CACHE / commit
     for card_folder in CARD_FOLDERS:
+        saved = folder / Path(card_folder).name
         listing = json.loads(fetch(f"https://api.github.com/repos/{REPOSITORY}/contents/{card_folder}?ref={commit}"))
-        (folder / Path(card_folder).name).mkdir(parents=True, exist_ok=True)
+        saved.mkdir(parents=True, exist_ok=True)
         for entry in listing:
-            if entry["type"] == "file" and entry["name"].endswith(".ts"):
-                (folder / Path(card_folder).name / entry["name"]).write_bytes(fetch(_raw(commit, entry["path"])))
+            is_a_definition = entry["type"] == "file" and entry["name"].endswith(".ts")
+            if is_a_definition and not (saved / entry["name"]).exists():
+                (saved / entry["name"]).write_bytes(fetch(_raw(commit, entry["path"])))
     (folder / Path(MANIFESTS).name).write_bytes(fetch(_raw(commit, MANIFESTS)))
 
 

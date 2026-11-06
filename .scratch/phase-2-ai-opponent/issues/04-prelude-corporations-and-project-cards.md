@@ -14,3 +14,7 @@ Valley Trust's first action draws on Prelude Cards, so it depends on the setup s
 - [ ] The short fuzz run stays clean with them in play.
 
 ## Comments
+
+### 2026-11-06 — from ticket 01 (Claude)
+
+The coverage check counts a card once it has `"effects"`. The mismatch report compares a Corporation's starting MegaCredits once it has effect data, and Vitor will then differ: 45 as printed, 48 in the open-source game, which adds its own effect's 3. Psychrophiles may need `CARDS_HOLDING_CARD_RESOURCES` raised. See ticket 01's Comments.

@@ -14,6 +14,7 @@ const TYPE_FILTERS: { type: CardType | null; label: string }[] = [
   { type: "active", label: "Active" },
   { type: "event", label: "Event" },
   { type: "corporation", label: "Corporation" },
+  { type: "prelude", label: "Prelude Card" },
 ];
 
 // A card drawn at full size is 248 by 318 pixels; enlarged, it fills the window's height but
@@ -118,11 +119,13 @@ export function CardGallery({ cards, onClose }: Props) {
   );
 }
 
-/** Whether `card` has `search` in its name, or is the card with that number. */
+/** Whether `card` has `search` in its name, or is the card with that number: "56" for #056, and
+ * "P36" for Prelude's #P36. */
 function matchesSearch(card: Card, search: string): boolean {
   const wanted = search.trim().toLowerCase().replace(/^#/, "");
   if (wanted === "") return true;
-  if (/^\d+$/.test(wanted)) return card.number === Number(wanted);
+  const printed = /^(p?)(\d+)$/.exec(wanted);
+  if (printed) return card.number === Number(printed[2]) && (card.expansion === "prelude") === (printed[1] === "p");
   return card.name.toLowerCase().includes(wanted);
 }
 

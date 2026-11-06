@@ -2,10 +2,10 @@
 //! card, so copying a Game stays a plain value copy (ADR 0004), and its cards always come out
 //! in card-number order, never in an order that could differ between runs (ADR 0010).
 
-use crate::cards::{CORPORATIONS, PROJECT_CARDS};
+use crate::cards::CATALOG_CARDS;
 
-const WORDS: usize = 4;
-const _: () = assert!(PROJECT_CARDS + CORPORATIONS <= WORDS * 64, "a CardSet has room for every card");
+const WORDS: usize = 5;
+const _: () = assert!(CATALOG_CARDS <= WORDS * 64, "a CardSet has room for every card");
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub struct CardSet {
@@ -57,17 +57,31 @@ impl CardSet {
 
     /// The cards in card-number order.
     pub fn iter(self) -> impl Iterator<Item = usize> {
-        (0..WORDS).flat_map(move |word| {
-            let mut bits = self.bits[word];
-            std::iter::from_fn(move || {
-                if bits == 0 {
-                    return None;
-                }
-                let bit = bits.trailing_zeros() as usize;
-                bits &= bits - 1;
-                Some(word * 64 + bit)
-            })
-        })
+        CardsInOrder { bits: self.bits, word: 0 }
+    }
+}
+
+/// The cards of a set in card-number order. The Game goes through its sets all the time, and most
+/// words are empty, so going straight to the next card keeps a larger set from costing more.
+struct CardsInOrder {
+    bits: [u64; WORDS],
+    word: usize,
+}
+
+impl Iterator for CardsInOrder {
+    type Item = usize;
+
+    #[inline]
+    fn next(&mut self) -> Option<usize> {
+        while self.word < WORDS {
+            let bits = self.bits[self.word];
+            if bits != 0 {
+                self.bits[self.word] = bits & (bits - 1);
+                return Some(self.word * 64 + bits.trailing_zeros() as usize);
+            }
+            self.word += 1;
+        }
+        None
     }
 }
 

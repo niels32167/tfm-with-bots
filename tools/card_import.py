@@ -3,11 +3,12 @@
     uv run python -m tools.card_import              # from the saved copy of the page
     uv run python -m tools.card_import --download   # fetch the page and the icons again first
 
-The card list's HTML is parsed into one entry per card of the v1 set (ADR 0003): the 208
-Project Cards of the base game and Corporate Era, and their 12 Corporations. Promo and
-expansion cards on the page are left out. Each entry holds the card's printed data (name,
-number, type, cost, Tags, Requirements, Victory Points and text) and its face: the card's
-middle part as a tree of elements, which the GUI draws with the card list's stylesheet.
+The card list's HTML is parsed into one entry per card of the catalog: the base box's 208
+Project Cards and 12 Corporations (ADR 0003), then Prelude's 7 Project Cards, 5 Corporations
+and 35 Prelude Cards (ADR 0011). Promo cards and other expansions on the page are left out.
+Each entry holds the card's printed data (name, number, type, expansion, cost, Tags,
+Requirements, Victory Points and text) and its face: the card's middle part as a tree of
+elements, which the GUI draws with the card list's stylesheet.
 
 The page and its stylesheet are kept in `tools/card_list_snapshot/`, so the import runs
 without the website and a diff shows what changed there. `--download` refreshes them and
@@ -20,6 +21,7 @@ import argparse
 import json
 import re
 import urllib.request
+from collections import Counter
 from dataclasses import dataclass, field
 from html.parser import HTMLParser
 from pathlib import Path
@@ -36,9 +38,14 @@ SITE = "https://ssimeonoff.github.io/"
 PAGE_URL = SITE + "cards-list"
 STYLESHEET_URL = SITE + "css/mystyles.css"
 
-# The v1 card set (ADR 0003).
+# How many cards the catalog has of each kind: in the base box (ADR 0003), and in Prelude (ADR
+# 0011). Prelude numbers its cards on from its Prelude Cards, #P01 to #P35, to its Project Cards,
+# #P36 to #P42.
 PROJECT_CARDS = 208
 CORPORATIONS = 12
+PRELUDE_CARDS = 35
+PRELUDE_PROJECT_CARDS = 7
+PRELUDE_CORPORATIONS = 5
 
 # The fields the import writes. Any other field of a card in the card file was written by
 # hand (ticket 08 onwards: effect data, ADR 0009) and is kept when the import runs again.
@@ -48,6 +55,7 @@ PRINTED_FIELDS = (
     "name",
     "type",
     "corporate_era",
+    "expansion",
     "cost",
     "tags",
     "requirements",
@@ -57,17 +65,25 @@ PRINTED_FIELDS = (
 )
 
 ABOUT_THE_CARD_FILE = (
-    "The v1 card catalog (ADR 0005). tools/card_import.py writes each card's printed fields "
+    "The card catalog (ADR 0005). tools/card_import.py writes each card's printed fields "
     f"({', '.join(PRINTED_FIELDS)}) from the fan-made card list at ssimeonoff.github.io/cards-list, "
     "and rewrites them when run again. Any other field is written by hand and kept."
 )
 
 # The page's own name for each card type.
-CARD_TYPES = {"automated": "automated", "active": "active", "events": "event", "corporation": "corporation"}
+CARD_TYPES = {
+    "automated": "automated",
+    "active": "active",
+    "events": "event",
+    "corporation": "corporation",
+    "prelude-card": "prelude",
+}
 
-# The page's own name for the base game and for Corporate Era. Everything else on the page
-# (promo cards, Venus Next, Prelude, Colonies, Turmoil) is outside v1.
-BASE_GAME, CORPORATE_ERA = "standard", "corporate"
+# The page's own name for the sets in the catalog: the base game, Corporate Era and Prelude. The
+# page marks the promo Prelude Cards (Corporate Archives, Merger and so on) as both Prelude and
+# promo; they, and everything else on the page (Venus Next, Prelude 2, Colonies, Turmoil), are
+# left out.
+BASE_GAME, CORPORATE_ERA, PRELUDE, PROMO = "standard", "corporate", "prelude", "promo"
 
 # Corporations have no title on the card list, only a logo drawn with styled text, so their
 # names come from here, by the page's own id for each. The import checks each logo against
@@ -85,6 +101,11 @@ CORPORATION_NAMES = {
     "#CORP10": "United Nations Mars Initiative",
     "#CORP11": "Teractor",
     "#CORP12": "Saturn Systems",
+    "#CORP18": "Cheung Shing Mars",
+    "#CORP19": "Point Luna",
+    "#CORP20": "Robinson Industries",
+    "#CORP21": "Valley Trust",
+    "#CORP22": "Vitor",
 }
 
 # Names the card list writes with odd capitals. Printed cards show titles in capitals, so
@@ -92,6 +113,10 @@ CORPORATION_NAMES = {
 NAME_CORRECTIONS = {
     "Underground city": "Underground City",
     "Anti-gravity Technology": "Anti-Gravity Technology",
+    "Metal-rich Asteroid": "Metal-Rich Asteroid",
+    "PSYCHROPHILES": "Psychrophiles",
+    "RESEARCH COORDINATION": "Research Coordination",
+    "SF MEMORIAL": "SF Memorial",
 }
 
 # The Tags printed on cards, as the card file names them.
@@ -107,6 +132,7 @@ TAGS = (
     "animal",
     "city",
     "event",
+    "wild",
 )
 
 # The Card Resources Victory Points can count, as the card file names them.
@@ -199,42 +225,62 @@ def _without_comments(css: str) -> str:
 
 
 def parse_card_list(html: str) -> list[dict[str, Any]]:
-    """The printed data of every v1 card on the card list page, in the page's order."""
-    return [_card(item) for item in _v1_cards(parse_html(html))]
+    """The printed data of every catalog card on the card list page, in the catalog's order: the
+    base box's Project Cards and Corporations, then Prelude's Project Cards, Corporations and
+    Prelude Cards. A Game names cards by their place in it, so new cards only ever go last. Within
+    each kind, cards keep the page's order."""
+    return sorted((_card(item) for item in _catalog_cards(parse_html(html))), key=_place_in_catalog)
 
 
-def _v1_cards(page: Element) -> list[Element]:
-    """The page's list item for each v1 card: each card on the page is an <li> with the class
+def _place_in_catalog(card: dict[str, Any]) -> tuple[bool, int]:
+    kind = {"corporation": 1, "prelude": 2}.get(card["type"], 0)
+    return card["expansion"] != "base", kind
+
+
+def _catalog_cards(page: Element) -> list[Element]:
+    """The page's list item for each catalog card: each card on the page is an <li> with the class
     "filterDiv", and classes for its type and its set."""
     return [
         item
         for item in page.outermost("filterDiv")
         if item.tag == "li"
         and any(item.has_class(name) for name in CARD_TYPES)
-        and (item.has_class(BASE_GAME) or item.has_class(CORPORATE_ERA))
+        and (
+            item.has_class(BASE_GAME)
+            or item.has_class(CORPORATE_ERA)
+            or (item.has_class(PRELUDE) and not item.has_class(PROMO))
+        )
     ]
+
+
+def _expansion(item: Element) -> str:
+    """What the box a card comes in is called. Corporate Era is part of the base box."""
+    return "prelude" if item.has_class(PRELUDE) else "base"
 
 
 def _card(item: Element) -> dict[str, Any]:
     card_type = next(CARD_TYPES[name] for name in CARD_TYPES if item.has_class(name))
     if card_type == "corporation":
         return _corporation(item)
+    is_a_prelude_card = card_type == "prelude"
     title = _child(item, "title")
     name = NAME_CORRECTIONS.get(title.text(), title.text())
     content = _child(item, "content")
     text = _text(content)
     try:
-        requirements = _requirements(content, text)
+        # A Prelude Card has no Requirements. What Ecology Experts draws as one is its effect.
+        requirements = [] if is_a_prelude_card else _requirements(content, text)
         victory_points = _victory_points(content, text)
     except ValueError as problem:
         raise ValueError(f"{name}: {problem}") from None
     return {
         "id": card_id(name),
-        "number": int(_child(item, "number").text().removeprefix("#")),
+        "number": int(_child(item, "number").text().removeprefix("#").removeprefix("P")),
         "name": name,
         "type": card_type,
         "corporate_era": item.has_class(CORPORATE_ERA),
-        "cost": int(_child(item, "price").text()),
+        "expansion": _expansion(item),
+        "cost": None if is_a_prelude_card else int(_child(item, "price").text()),
         "tags": _tags(item),
         "requirements": requirements,
         "victory_points": victory_points,
@@ -258,6 +304,7 @@ def _corporation(item: Element) -> dict[str, Any]:
         "name": name,
         "type": "corporation",
         "corporate_era": item.has_class(CORPORATE_ERA),
+        "expansion": _expansion(item),
         "cost": None,
         "tags": _tags(item),
         "requirements": [],
@@ -272,6 +319,13 @@ def _child(item: Element, class_name: str) -> Element:
     if len(found) != 1:
         raise ValueError(f"expected one {class_name!r} in a card, found {len(found)}")
     return found[0]
+
+
+def printed_number(card: dict[str, Any]) -> str | None:
+    """A card's number as printed, "#056" or Prelude's "#P36". Corporations have none."""
+    if card["number"] is None:
+        return None
+    return f"#P{card['number']:02}" if card["expansion"] == "prelude" else f"#{card['number']:03}"
 
 
 def card_id(name: str) -> str:
@@ -315,7 +369,9 @@ def _requirement(printed: Element, text: str) -> list[dict[str, Any]]:
             if (tag := found[2].lower()) in TAGS:
                 return [{"type": "tag", "tag": tag, "min": int(found[1] or 1)}]
         if all(word.lower() in TAGS for word in wording.split()):
-            return [{"type": "tag", "tag": word.lower(), "min": 1} for word in wording.split()]
+            # A Tag drawn twice is two of it: "Earth Earth" on Space Hotels.
+            counted = Counter(word.lower() for word in wording.split())
+            return [{"type": "tag", "tag": tag, "min": count} for tag, count in counted.items()]
         if found := re.fullmatch(r"(Steel|Titanium) production", wording):
             return [{"type": "production", "resource": found[1].lower(), "min": 1}]
         if wording == "Forest":
@@ -384,8 +440,8 @@ _LINE_BREAK = object()
 
 def _paragraphs(description: Element) -> list[str]:
     """The paragraphs of a description. Two line breaks in a row start a new paragraph; a
-    single one only wraps a line to fit the card. Numbers drawn as icons (elements with a
-    class) are not part of the text."""
+    single one only wraps a line to fit the card. A description inside it is part of it. What
+    is drawn as an icon (an element with another class, or a background) is not part of the text."""
     pieces: list[Any] = []
 
     def collect(element: Element) -> None:
@@ -394,7 +450,7 @@ def _paragraphs(description: Element) -> list[str]:
                 pieces.append(HTML_WHITESPACE.sub(" ", child))
             elif child.tag == "br":
                 pieces.append(_LINE_BREAK)
-            elif not child.classes:
+            elif child.has_class("description") or not (child.classes or "background" in child.style):
                 pieces.append(" ")
                 collect(child)
                 pieces.append(" ")
@@ -471,10 +527,10 @@ def card_file_text(cards: list[dict[str, Any]]) -> str:
 
 
 def icons_used(html: str, stylesheet: str) -> list[str]:
-    """The images and fonts the v1 cards need, as paths on the card list site: those of every
-    style rule all of whose classes some v1 card uses, plus the fonts."""
+    """The images and fonts the catalog's cards need, as paths on the card list site: those of every
+    style rule all of whose classes some catalog card uses, plus the fonts."""
     used = set()
-    for item in _v1_cards(parse_html(html)):
+    for item in _catalog_cards(parse_html(html)):
         used.update(item.classes, *(element.classes for element in item.descendants()))
     paths = set()
     for rule in re.finditer(r"([^{}]+)\{([^{}]*)\}", _without_comments(stylesheet)):
@@ -489,10 +545,10 @@ def icons_used(html: str, stylesheet: str) -> list[str]:
 
 
 def import_cards() -> list[dict[str, Any]]:
-    """Parses the saved page, checks that it gives the whole v1 card set, keeps what was
-    written by hand, and writes the card file."""
+    """Parses the saved page, checks that it gives the whole card set, keeps what was written
+    by hand, and writes the card file."""
     imported = parse_card_list(PAGE.read_text(encoding="utf-8"))
-    check_v1_set(imported)
+    check_card_set(imported)
     earlier = json.loads(CARD_FILE.read_text(encoding="utf-8"))["cards"] if CARD_FILE.exists() else []
     cards = keep_written_by_hand(imported, earlier=earlier)
     CARD_FILE.parent.mkdir(exist_ok=True)
@@ -500,20 +556,37 @@ def import_cards() -> list[dict[str, Any]]:
     return cards
 
 
-def check_v1_set(cards: list[dict[str, Any]]) -> None:
-    """Refuses a card list that no longer gives the 208 Project Cards and 12 Corporations."""
-    numbers = [card["number"] for card in cards if card["type"] != "corporation"]
-    corporations = [card for card in cards if card["type"] == "corporation"]
-    if numbers != list(range(1, PROJECT_CARDS + 1)) or len(corporations) != CORPORATIONS:
+def check_card_set(cards: list[dict[str, Any]]) -> None:
+    """Refuses a card list that no longer gives every card of the catalog, in the catalog's order."""
+
+    def numbers(expansion: str, card_types: tuple[str, ...]) -> list[int]:
+        return [card["number"] for card in cards if card["expansion"] == expansion and card["type"] in card_types]
+
+    def corporations(expansion: str) -> int:
+        return len(numbers(expansion, ("corporation",)))
+
+    project_cards = ("automated", "active", "event")
+    prelude_project_cards = range(PRELUDE_CARDS + 1, PRELUDE_CARDS + PRELUDE_PROJECT_CARDS + 1)
+    in_prelude = sum(card["expansion"] == "prelude" for card in cards)
+    if numbers("base", project_cards) != list(range(1, PROJECT_CARDS + 1)) or corporations("base") != CORPORATIONS:
         raise ValueError(
             f"expected Project Cards #001 to #{PROJECT_CARDS:03} in order and {CORPORATIONS} Corporations, "
-            f"found {len(numbers)} Project Cards and {len(corporations)} Corporations"
+            f"found {len(numbers('base', project_cards))} Project Cards and {corporations('base')} Corporations"
+        )
+    if (
+        numbers("prelude", ("prelude",)) != list(range(1, PRELUDE_CARDS + 1))
+        or numbers("prelude", project_cards) != list(prelude_project_cards)
+        or corporations("prelude") != PRELUDE_CORPORATIONS
+    ):
+        raise ValueError(
+            f"expected {PRELUDE_CARDS} Prelude Cards, {PRELUDE_PROJECT_CARDS} Project Cards and "
+            f"{PRELUDE_CORPORATIONS} Corporations in Prelude, found {in_prelude} cards of Prelude"
         )
 
 
 def download() -> None:
-    """Fetches the card list page and its stylesheet into the snapshot, and the icons the v1
-    cards use into the GUI."""
+    """Fetches the card list page and its stylesheet into the snapshot, and the icons the
+    catalog's cards use into the GUI."""
     PAGE.write_bytes(fetch(PAGE_URL))
     STYLESHEET.write_bytes(fetch(STYLESHEET_URL))
     for path in icons_used(PAGE.read_text(encoding="utf-8"), STYLESHEET.read_text(encoding="utf-8")):
@@ -537,9 +610,11 @@ def main() -> None:
         download()
     cards = import_cards()
     corporations = sum(card["type"] == "corporation" for card in cards)
+    prelude_cards = sum(card["type"] == "prelude" for card in cards)
+    project_cards = len(cards) - corporations - prelude_cards
     print(
-        f"Wrote {len(cards) - corporations} Project Cards and {corporations} Corporations to "
-        f"{CARD_FILE.relative_to(PROJECT)}."
+        f"Wrote {project_cards} Project Cards, {corporations} Corporations and {prelude_cards} Prelude Cards "
+        f"to {CARD_FILE.relative_to(PROJECT)}."
     )
 
 

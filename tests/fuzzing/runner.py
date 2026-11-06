@@ -148,8 +148,11 @@ class FuzzRun:
 
     @property
     def cards_never_played(self) -> list[str]:
-        """The catalog's cards, Corporations included, that no fuzzed Game had in play at its end."""
-        return [card["id"] for card in tm_engine.card_catalog() if card["id"] not in self.cards_played]
+        """The catalog's implemented cards, Corporations included, that no fuzzed Game had in play
+        at its end. A card without effect data is never dealt, so it isn't counted."""
+        return [
+            card["id"] for card in tm_engine.card_catalog() if "effects" in card and card["id"] not in self.cards_played
+        ]
 
     def add(self, game: FuzzedGame) -> None:
         self.games += 1

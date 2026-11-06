@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 
 import { formatNumber } from "../format";
 import type { Card } from "../types";
-import { notImplementedNote, useCardsById } from "./catalog";
+import { notImplementedNote, printedNumber, useCardsById } from "./catalog";
 import { PrintedCard } from "./PrintedCard";
 
 // How much larger than printed the card is drawn, and the size of the whole tooltip, in pixels.
@@ -16,6 +16,7 @@ const TYPE_NAMES: Record<Card["type"], string> = {
   active: "Active Project Card",
   event: "Event Project Card",
   corporation: "Corporation",
+  prelude: "Prelude Card",
 };
 
 /** The card an element asks to enlarge, and where that element is. */
@@ -71,7 +72,7 @@ export function CardZoom({ cards }: { cards: Card[] }) {
         <h3>{card.name}</h3>
         <p className="card-zoom-type">
           {TYPE_NAMES[card.type]}
-          {card.number !== null && ` · #${String(card.number).padStart(3, "0")}`}
+          {card.number !== null && ` · ${printedNumber(card)}`}
         </p>
         {costNow !== null && (
           <p>

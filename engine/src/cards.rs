@@ -1,8 +1,8 @@
-//! The card catalog: the printed data of every card in the v1 set (ADR 0003), the 208 Project
-//! Cards and 12 Corporations. It comes from the card file, `engine/cards/cards.json`, which
-//! `tools/card_import.py` imports from the fan-made card list (ADR 0005) and which is built
-//! into the engine. The catalog is read once, the first time it is needed, and never changes,
-//! so a Game can refer to cards without copying them (ADR 0004).
+//! The card catalog: the printed data of the base box's 208 Project Cards and 12 Corporations
+//! (ADR 0003), and of Prelude's 47 cards (ADR 0011). It comes from the card file,
+//! `engine/cards/cards.json`, which `tools/card_import.py` imports from the fan-made card list
+//! (ADR 0005) and which is built into the engine. The catalog is read once, the first time it is
+//! needed, and never changes, so a Game can refer to cards without copying them (ADR 0004).
 
 use std::sync::LazyLock;
 
@@ -16,17 +16,30 @@ use crate::resources::{Resource, Resources};
 
 const CARD_FILE: &str = include_str!("../cards/cards.json");
 
-/// How many Project Cards there are. They come first in the catalog, in number order, so a
-/// Project Card's index in the catalog is its number minus 1. A Game names cards by that index.
+/// How many Project Cards the base box has. They come first in the catalog, in number order, so
+/// such a card's index in the catalog is its number minus 1. A Game names cards by that index.
 pub const PROJECT_CARDS: usize = 208;
 
-/// How many Corporations there are. They follow the Project Cards in the catalog.
+/// How many Corporations the base box has. They follow its Project Cards in the catalog.
 pub const CORPORATIONS: usize = 12;
 
-/// Every card: the Project Cards in number order, then the Corporations.
+/// How many cards the base box has: the only ones a Game holds until it can have Prelude, whose
+/// cards follow them in the catalog so that no card of the base box ever changes its index.
+pub const BASE_BOX_CARDS: usize = PROJECT_CARDS + CORPORATIONS;
+
+/// How many cards the Prelude box has: 7 Project Cards, 5 Corporations and 35 Prelude Cards, in that
+/// order.
+pub const PRELUDE_BOX_CARDS: usize = 47;
+
+/// How many cards the catalog has.
+pub const CATALOG_CARDS: usize = BASE_BOX_CARDS + PRELUDE_BOX_CARDS;
+
+/// Every card: the base box's Project Cards in number order and its Corporations, then Prelude's
+/// Project Cards in number order, its Corporations, and its Prelude Cards in number order.
 pub static CARD_CATALOG: LazyLock<Vec<Card>> = LazyLock::new(|| {
     let file: CardFile = serde_json::from_str(CARD_FILE)
         .unwrap_or_else(|error| panic!("engine/cards/cards.json is not a valid card file: {error}"));
+    assert_eq!(file.cards.len(), CATALOG_CARDS, "the card file does not hold the whole catalog");
     for (card, id) in CARDS_WITH_CODE {
         assert_eq!(
             file.cards[card].id, id,
@@ -45,14 +58,14 @@ pub static CARD_CATALOG: LazyLock<Vec<Card>> = LazyLock::new(|| {
     file.cards
 });
 
-/// The index of the Project Card whose id is `id`, if there is one.
+/// The index of the base box's Project Card whose id is `id`, if there is one.
 pub fn find_project_card(id: &str) -> Option<usize> {
     CARD_CATALOG[..PROJECT_CARDS].iter().position(|card| card.id == id)
 }
 
-/// The index of the Corporation whose id is `id`, if there is one.
+/// The index of the base box's Corporation whose id is `id`, if there is one.
 pub fn find_corporation(id: &str) -> Option<usize> {
-    (PROJECT_CARDS..CARD_CATALOG.len()).find(|&card| CARD_CATALOG[card].id == id)
+    (PROJECT_CARDS..BASE_BOX_CARDS).find(|&card| CARD_CATALOG[card].id == id)
 }
 
 #[derive(Deserialize)]
@@ -66,13 +79,16 @@ struct CardFile {
 pub struct Card {
     /// How Scenarios, Option details and Replays name it: "black_polar_dust".
     pub id: String,
-    /// 1 to 208 for Project Cards. Corporations have no printed number.
+    /// 1 to 208 for the base box's Project Cards. Prelude numbers its own: 1 to 35 for Prelude
+    /// Cards and 36 to 42 for its Project Cards, printed as #P01 to #P42. Corporations have no
+    /// printed number.
     pub number: Option<u16>,
     pub name: String,
     #[serde(rename = "type")]
     pub card_type: CardType,
     pub corporate_era: bool,
-    /// In MegaCredits. Corporations have no cost.
+    pub expansion: Expansion,
+    /// In MegaCredits. Corporations and Prelude Cards have no cost.
     pub cost: Option<i32>,
     /// In the order printed, from the top right corner leftwards.
     pub tags: Vec<Tag>,
@@ -527,6 +543,15 @@ pub enum CardType {
     Active,
     Event,
     Corporation,
+    Prelude,
+}
+
+/// The box a card comes in. Corporate Era's cards are in the base box.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum Expansion {
+    Base,
+    Prelude,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
@@ -543,11 +568,13 @@ pub enum Tag {
     Animal,
     City,
     Event,
+    Wild,
 }
 
 impl Tag {
     /// The Tags that count when played, in the order the card list's filters give them. The
-    /// Event Tag never counts (see `Game::tags`).
+    /// Event Tag never counts (see `Game::tags`). Nor, so far, does the wild Tag, which only
+    /// Prelude's cards have.
     pub const COUNTED: [Tag; 10] = [
         Tag::Building,
         Tag::Space,

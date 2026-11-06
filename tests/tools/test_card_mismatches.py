@@ -250,6 +250,7 @@ def ours(**fields) -> dict:
         "name": "Test Card",
         "type": "automated",
         "corporate_era": False,
+        "expansion": "base",
         "cost": 10,
         "tags": [],
         "requirements": [],
@@ -324,6 +325,19 @@ def test_a_corporations_starting_megacredits_in_its_effect_data_are_compared():
     assert (mismatch.field, mismatch.ours, mismatch.theirs) == ("starting_megacredits", 30, 23)
 
 
+def test_a_corporation_not_implemented_yet_has_no_starting_megacredits_to_compare():
+    corporation = {"number": None, "name": "Point Luna", "type": "corporation", "cost": None}
+    corporation |= {"corporate_era": False, "expansion": "prelude", "tags": [], "requirements": []}
+    corporation |= {"victory_points": None}
+
+    comparison = compare([corporation], [{**corporation, "name": "POINT_LUNA", "starting_megacredits": 38}])
+
+    assert comparison.mismatches == []
+    assert comparison.not_compared == [
+        "Point Luna: not implemented yet, so its starting MegaCredits have no effect data"
+    ]
+
+
 def test_corporations_are_paired_by_name_and_project_cards_by_number():
     corporation = {
         "number": None,
@@ -346,6 +360,91 @@ def test_corporations_are_paired_by_name_and_project_cards_by_number():
 
     assert [(mismatch.card, mismatch.field) for mismatch in comparison.mismatches] == [("PhoboLog", "tags")]
     assert comparison.names_that_differ == []
+
+
+PRELUDE_CARD = """
+export class AlliedBanks extends PreludeCard {
+  constructor() {
+    super({
+      name: CardName.ALLIED_BANK,
+      tags: [Tag.EARTH],
+      behavior: {production: {megacredits: 4}, stock: {megacredits: 3}},
+      metadata: {
+        cardNumber: 'P01',
+        description: 'Increase your M€ production 4 steps. Gain 3 M€.',
+      },
+    });
+  }
+}
+"""
+
+
+def test_a_prelude_card_definition_has_no_type_or_cost_of_its_own_and_a_number_with_a_p():
+    assert parse_open_source_card(PRELUDE_CARD, "AlliedBanks.ts") == {
+        "number": "P01",
+        "name": "ALLIED_BANK",
+        "type": "prelude",
+        "cost": None,
+        "tags": ["earth"],
+        "requirements": [],
+        "victory_points": None,
+    }
+
+
+def test_a_prelude_project_card_definition_has_its_type_and_a_number_with_a_p():
+    source = project_card("type: CardType.ACTIVE, tags: [Tag.MICROBE], cost: 2,", number="P39", name="PSYCHROPHILES")
+
+    card = parse_open_source_card(source, "Psychrophiles.ts")
+
+    assert (card["number"], card["type"], card["cost"]) == ("P39", "active", 2)
+
+
+def test_the_prelude_boxs_cards_are_paired_by_their_own_numbers_not_with_the_base_boxs():
+    allied_banks = ours(number=1, name="Allied Banks", type="prelude", expansion="prelude", cost=None)
+    house_printing = ours(number=36, name="House Printing", expansion="prelude", cost=10)
+
+    comparison = compare(
+        [ours(number=1, name="Mine", cost=4), ours(number=36, name="Trees", cost=13), allied_banks, house_printing],
+        [
+            theirs(number=1, name="MINE", cost=4),
+            theirs(number=36, name="TREES", cost=13),
+            theirs(number="P01", name="ALLIED_BANKS", type="prelude", cost=None),
+            theirs(number="P36", name="HOUSE_PRINTING", cost=11),
+        ],
+    )
+
+    assert [(each.card, each.field, each.ours, each.theirs) for each in comparison.mismatches] == [
+        ("#P36 House Printing", "cost", 10, 11)
+    ]
+    assert comparison.missing == []
+
+
+def test_the_box_a_card_comes_in_is_compared():
+    comparison = compare([ours(number=1, expansion="prelude")], [theirs(number="P01", expansion="base")])
+
+    assert [(each.field, each.ours, each.theirs) for each in comparison.mismatches] == [
+        ("expansion", "prelude", "base")
+    ]
+
+
+def test_a_settled_name_is_listed_apart_from_those_still_open():
+    comparison = compare(
+        [
+            ours(number=11, name="Excentric Sponsor", type="prelude", expansion="prelude", cost=None),
+            ours(number=12, name="Experimental Forrest", type="prelude", expansion="prelude", cost=None),
+        ],
+        [
+            theirs(number="P11", name="ECCENTRIC_SPONSOR", type="prelude", cost=None),
+            theirs(number="P12", name="EXPERIMENTAL_FOREST", type="prelude", cost=None),
+        ],
+    )
+
+    assert comparison.names_settled == [("#P11 Excentric Sponsor", "ECCENTRIC_SPONSOR")]
+    assert comparison.names_that_differ == [("#P12 Experimental Forrest", "EXPERIMENTAL_FOREST")]
+    text = report(comparison, commit="abc")
+    assert "## Names settled in the rules notes (1)" in text
+    assert "- #P11 Excentric Sponsor: `ECCENTRIC_SPONSOR`" in text
+    assert "## Names that differ (1)" in text
 
 
 def test_cards_missing_from_the_open_source_game_names_that_differ_and_special_points_are_listed():

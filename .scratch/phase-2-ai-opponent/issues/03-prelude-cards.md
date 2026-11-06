@@ -12,3 +12,7 @@
 - [ ] Each card is playable in the GUI, and the short fuzz run stays clean with them in play.
 
 ## Comments
+
+### 2026-11-06 — from ticket 01 (Claude)
+
+The coverage check counts a card once it has `"effects"`, so each card needs `tests/cards/test_<id>.py` from then on. Excentric Sponsor is spelled as printed (`excentric_sponsor`). The wild Tag isn't in `Tag::COUNTED` yet. See ticket 01's Comments.

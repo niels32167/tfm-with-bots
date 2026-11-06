@@ -1701,7 +1701,7 @@ calls.
 **Tests:** `tests/rules/test_deck.py::test_a_new_game_deals_from_the_whole_shuffled_deck`,
 `test_a_new_replay_does_not_name_the_old_setting_for_dealing_implemented_cards_first`,
 `test_a_replay_saved_with_the_implemented_cards_dealt_first_still_deals_the_same_cards` and
-`tests/rules/test_playing_cards.py::test_every_project_card_is_implemented`.
+`tests/rules/test_playing_cards.py::test_every_project_card_of_the_base_box_is_implemented`.
 
 ## Draft
 
@@ -1871,3 +1871,27 @@ with `#[serde(default)]`, so old Replays read as before. Chosen by Claude (2026-
 instruction to make the ticket's calls without asking.
 
 **Tests:** `tests/rules/test_scenarios.py::test_every_action_of_a_random_game_is_the_same_position_described_as_a_scenario`
+
+## Prelude
+
+### The names of Prelude's cards
+
+**Call:** The catalog spells Prelude's cards as they are printed, or as the best evidence says they are:
+Excentric Sponsor (not Eccentric), and, with less evidence, Allied Banks (not Allied Bank) and Biolab (not
+Biolabs). Cheung Shing
+Mars is in title case, like every other name in the card file, though its logo writes MARS in capitals.
+
+**Why:**
+- Excentric Sponsor: a photo of the printed card in a [review](https://opinionatedgamers.com/2018/08/31/terraforming-mars-prelude-expansion-review-by-chris-wray/)
+  reads "EXCENTRIC SPONSOR". The card list has it too. The open-source game's "Eccentric Sponsor" corrects
+  the spelling, and the phase 2 spec and ticket 01 first followed it.
+- Allied Banks: no picture of the card could be found. The card list, which got the Excentric spelling
+  right, says Allied Banks, and so does the open-source game's own file and class name (`AlliedBanks`),
+  although its constant and display name say Allied Bank. Worth checking against a printed card.
+- Biolab: the card list and the open-source game agree. No picture of the card could be found either.
+
+Chosen by Claude (2026-11-06), on the user's instruction to settle names by the printed card. The mismatch
+report lists the two that differ from the open-source game under "Names settled in the rules notes".
+
+**Tests:** `tests/cards/test_catalog.py::test_names_are_spelled_as_printed_not_as_other_sources_spell_them` and
+`tests/tools/test_card_mismatches.py::test_a_settled_name_is_listed_apart_from_those_still_open`.

@@ -17,3 +17,7 @@ Research the rules first, in the usual order of authority (ADR 0001), and record
 - [ ] The short fuzz run also covers Prelude Games, with invariants updated (card count conserved, and so on).
 
 ## Comments
+
+### 2026-11-06 — from ticket 01 (Claude)
+
+Ticket 01's Comments list what this ticket must change: the deck's size and range, the `card >= PROJECT_CARDS` checks in `game.rs`, the base-box filters in `tests/helpers.py` and `StateEditor.tsx`, and `find_project_card`. A card without `"effects"` can't be played, so any Prelude card dealt here needs effect data and a scenario test.

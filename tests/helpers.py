@@ -101,11 +101,14 @@ def load_game(path: str | Path) -> tm_engine.Game:
     return tm_engine.Game.from_replay(json.loads(Path(path).read_text())["replay"])
 
 
-# Every Project Card by catalog id, in number order (#001 first).
-PROJECT_CARDS = [card["id"] for card in tm_engine.card_catalog() if card["type"] != "corporation"]
+# The cards of the base box, which are the only ones a Game holds so far (ADR 0011).
+_BASE_BOX = [card for card in tm_engine.card_catalog() if card["expansion"] == "base"]
 
-# Every Corporation by catalog id, in catalog order.
-CORPORATIONS = [card["id"] for card in tm_engine.card_catalog() if card["type"] == "corporation"]
+# Every Project Card a Game can hold, by catalog id, in number order (#001 first).
+PROJECT_CARDS = [card["id"] for card in _BASE_BOX if card["type"] != "corporation"]
+
+# Every Corporation a Game can hold, by catalog id, in catalog order.
+CORPORATIONS = [card["id"] for card in _BASE_BOX if card["type"] == "corporation"]
 
 # Every card as printed, by catalog id.
 CARDS = {card["id"]: card for card in tm_engine.card_catalog()}

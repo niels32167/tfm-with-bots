@@ -24,8 +24,9 @@ const PRODUCTION_NAMES: Record<Resource, string> = {
   heat: "heat Production",
 };
 
-// The Tags a player board counts: every Tag but the Event Tag, which never counts once played.
-const COUNTED_TAGS = TAGS.filter((tag): tag is CountedTag => tag !== "event");
+// The Tags a player board counts: every Tag but the Event Tag, which never counts once played, and,
+// so far, the wild Tag.
+const COUNTED_TAGS = TAGS.filter((tag): tag is CountedTag => tag !== "event" && tag !== "wild");
 
 interface Props {
   game: GameUpdate;

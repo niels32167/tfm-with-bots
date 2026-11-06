@@ -227,7 +227,10 @@ export interface View {
   scores: Score[] | null;
 }
 
-export type CardType = "automated" | "active" | "event" | "corporation";
+export type CardType = "automated" | "active" | "event" | "corporation" | "prelude";
+
+/** The box a card comes in. Corporate Era's cards are in the base box. */
+export type Expansion = "base" | "prelude";
 
 /** The Tags printed on cards, in the order the gallery offers them as filters. */
 export const TAGS = [
@@ -242,10 +245,11 @@ export const TAGS = [
   "animal",
   "city",
   "event",
+  "wild",
 ] as const;
 export type Tag = (typeof TAGS)[number];
-/** The Tags that count once played: every Tag but the Event Tag. */
-export type CountedTag = Exclude<Tag, "event">;
+/** The Tags that count once played: every Tag but the Event Tag and, so far, the wild Tag. */
+export type CountedTag = Exclude<Tag, "event" | "wild">;
 
 /** An element of a card's face as the card list draws it, with its class names, inline style
  * (CSS property names) and children; text is a string. */
@@ -280,12 +284,14 @@ export type VictoryPoints =
 export interface Card {
   /** How Scenarios, Option details and Replays name it: "black_polar_dust". */
   id: string;
-  /** 1 to 208 for Project Cards; null for Corporations. */
+  /** 1 to 208 for the base box's Project Cards; 1 to 42 for Prelude's cards, printed as #P01 to #P42;
+   * null for Corporations. See `printedNumber`. */
   number: number | null;
   name: string;
   type: CardType;
   corporate_era: boolean;
-  /** In MegaCredits; null for Corporations. */
+  expansion: Expansion;
+  /** In MegaCredits; null for Corporations and Prelude Cards. */
   cost: number | null;
   /** In the order printed, from the top right corner leftwards. */
   tags: Tag[];
