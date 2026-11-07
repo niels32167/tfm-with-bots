@@ -40,7 +40,8 @@ export function NewGameSetup({
   const [seedText, setSeedText] = useState("");
   const [botDelay, setBotDelay] = useState(initialBotDelay);
   const [draft, setDraft] = useState(true);
-  const [prelude, setPrelude] = useState(false);
+  // On by default, as the AI is trained and plays with Prelude (ADR 0011).
+  const [prelude, setPrelude] = useState(true);
 
   const controllers = allControllers.slice(0, playerCount);
   const seed = parseSeed(seedText);
@@ -132,8 +133,7 @@ export function NewGameSetup({
           </label>
           <p className="setup-hint">
             At setup, each Player is also dealt 4 Prelude Cards and keeps 2, which they play before Generation 1's
-            first Turn; Prelude's Project Cards join the deck and its Corporations the deal. A Replay of a Game with
-            Prelude saved before all of Prelude worked may not load.
+            first Turn; Prelude's Project Cards join the deck and its Corporations the deal.
           </p>
         </section>
         {seed === "invalid" && (

@@ -4,7 +4,7 @@ Messages from the GUI:
     {"type": "new_game", "controllers": ["human", "random_bot"], "seed": 7, "bot_delay": 0.8, "draft": true,
      "prelude": false}
         (2 to 5 Controllers; seed, bot_delay, draft and prelude are optional; the Draft is on unless draft
-        is false, and Prelude is off unless prelude is true)
+        is false, and Prelude is off unless prelude is true; the setup screen sends it on by default)
     {"type": "pick", "sequence": 12, "index": 0}
     {"type": "undo"}                  back to the Decision a human answered last
     {"type": "save_replay"}           answered with a replay_file message

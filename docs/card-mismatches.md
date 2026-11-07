@@ -5,10 +5,11 @@ compared with the open-source game's card definitions ([terraforming-mars/terraf
 at commit `4d30aa07f14eeb5aa5647775ce5a7c9e49f6ac04`). Written by `uv run python -m tools.card_mismatches`; do not edit by hand.
 
 Compared: Corporate Era, the box a card comes in, type, cost, Tags (in any order),
-Requirements (in any order), Victory Points, and a Corporation's starting MegaCredits (with
-what its own Trigger gives it when revealed, as Vitor's 3), for
-the cards of the base box and of Prelude. The open-source game leaves the Event Tag out of
-an Event card's Tags, so the comparison adds it back. Each difference is
+Requirements (in any order), Victory Points, a Corporation's starting MegaCredits (with
+what its own Trigger gives it when revealed, as Vitor's 3), and what a Prelude Card gains in
+MegaCredits (less its price, as Business Empire's 6), for the cards of the base box and of
+Prelude. The open-source game leaves the Event Tag out of an Event card's Tags, so the
+comparison adds it back. Each difference is
 settled by the rules authority order (rulebook, then the FryxGames FAQ, then the open-source
 game), and the call is recorded in `docs/rules-notes.md`.
 

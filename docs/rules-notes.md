@@ -1899,19 +1899,25 @@ Biolabs confirmed by the user. The mismatch report lists the three that differ f
 
 ### The Prelude setting
 
-**Call:** Prelude is a setting of each Game, like the Draft, and off by default until ticket 05 of phase 2.
-A Replay names it only when it is on, so a Game without Prelude saves, replays and draws its random numbers
-exactly as before, and a Replay saved before Prelude existed plays without it. A Scenario has it too, off
-unless named.
+**Call:** Prelude is a setting of each Game, like the Draft. Since ticket 05 of phase 2 the GUI's setup screen
+has it on by default, but `tm_engine.Game`, the server's `new_game` and Scenarios keep it off unless named, so
+no script, test, Replay or Scenario that leaves it out changes. A Replay names it only when it is on, so a Game
+without Prelude saves, replays and draws its random numbers exactly as before, and a Replay saved before Prelude
+existed plays without it.
 
 **Why:** ADR 0011 makes Prelude a setting, and the phase 2 spec asks that Games and Replays without it stay
 as they are. Checked by saving 120 Random Bot Games (2–5 Players, Draft and Corporations on and off) from the
 commit before, and replaying them and playing them again from their seeds with this one: all identical, Replay
 files included. Chosen by Claude (2026-11-07), on the user's instruction to choose the recommended decisions.
+The default changed only on the setup screen, where Games are started by hand, as changing the engine's would
+change every seed-based test and old Replay: decided with the user (2026-11-07, ticket 05), and the same 120
+Games checked again.
 
 **Tests:** `tests/rules/test_prelude_setup.py::test_a_replay_names_prelude_only_when_it_is_on`,
-`test_a_replay_saved_before_prelude_existed_plays_without_it`, `test_without_prelude_nobody_is_dealt_prelude_cards` and
-`tests/rules/test_games_without_prelude.py`.
+`test_a_replay_saved_before_prelude_existed_plays_without_it`, `test_without_prelude_nobody_is_dealt_prelude_cards`,
+`tests/rules/test_games_without_prelude.py` and
+`tests/server/test_new_game.py::test_a_new_game_has_prelude_only_when_it_is_switched_on`. The setup screen's default
+was checked in the browser, as the GUI has no tests.
 
 ### Prelude Cards at setup
 

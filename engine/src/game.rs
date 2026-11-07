@@ -96,8 +96,9 @@ pub struct Settings {
     #[serde(default)]
     pub corporations: bool,
     /// Whether the Game has Prelude (ADR 0011): Prelude Cards at setup, and Prelude's Project Cards in
-    /// the deck. Off by default for now. A Replay saved before Prelude existed has no such setting,
-    /// and only a Replay that has it on names it, so a Game without Prelude saves as it did.
+    /// the deck. Off unless named; only the GUI's setup screen has it on by default. A Replay saved
+    /// before Prelude existed has no such setting, and only a Replay that has it on names it, so a Game
+    /// without Prelude saves as it did.
     #[serde(default, skip_serializing_if = "std::ops::Not::not")]
     pub prelude: bool,
 }

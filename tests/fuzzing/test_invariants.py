@@ -1433,6 +1433,39 @@ def test_valley_trusts_first_action_reached_by_the_rules_breaks_no_invariant():
     assert problems(*position(game)) == []
 
 
+def test_paying_for_the_card_a_prelude_card_drawn_by_valley_trust_plays_breaks_no_invariant():
+    # Found by the 100,000-Game fuzz run of ticket 05: the payment still follows Ecology Experts.
+    valley_trust = player(corporation="valley_trust", first_action_due=True, played_prelude_cards=["donation", "loan"],
+                          hand=["mine"], megacredits=4, steel=2)
+    game = scenario(valley_trust, player(), prelude=True, prelude_deck=["ecology_experts", "mohole", "supplier"])
+    pick(game, "First action")
+    pick(game, "Play Ecology Experts")
+    pick(game, "Play Mine")
+
+    view, decision = position(game)
+    assert decision["kind"] == "payment"
+    assert problems(view, decision) == []
+
+
+def test_valley_trusts_prelude_card_waiting_through_a_payment_for_anything_else_breaks_an_invariant():
+    valley_trust = player(corporation="valley_trust", first_action_due=True, played_prelude_cards=["donation", "loan"],
+                          hand=["mine"], megacredits=4, steel=2)
+    game = scenario(valley_trust, player(), prelude=True, prelude_deck=["ecology_experts", "mohole", "supplier"])
+    pick(game, "First action")
+    pick(game, "Play Ecology Experts")
+    pick(game, "Play Mine")
+    view, decision = position(game)
+    waiting = "in the action phase, Player 1's next card still waits on the Prelude Card 'ecology_experts'"
+
+    for option in decision["options"]:
+        option["details"]["card"] = "trees"
+    assert waiting in problems(view, decision)
+    for option in decision["options"]:
+        del option["details"]["card"]
+        option["details"] |= {"paying_for": "the Aquifer Standard Project", "cost": 18}
+    assert waiting in problems(view, decision)
+
+
 def test_four_prelude_cards_played_with_valley_trust_breaks_an_invariant():
     four_played = player(corporation="valley_trust", played_prelude_cards=["donation", "loan", "mohole", "supplier"])
     view, decision = position(scenario(four_played, player(), prelude=True))

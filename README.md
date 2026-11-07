@@ -39,7 +39,7 @@ the discard pile, which is shuffled into a new deck when the deck runs out. Draf
 are hidden from the other Players, and each Player sees the cards they passed. The hand sits in
 a dock at the bottom of the window.
 
-Prelude is a setting of each Game, off by default for now and switchable on the setup screen. With
+Prelude is a setting of each Game: on by default on the setup screen, and everywhere else off unless named. With
 it, each Player is also dealt 4 Prelude Cards at setup and keeps 2, chosen after their Corporation and
 hidden until played; then each Player in player order plays both, in the order they choose, before
 Generation 1's first Turn. A Prelude Card that can't be played is discarded for 15 MegaCredits. Played
@@ -99,11 +99,13 @@ Every failure is saved in `fuzz-failures/` as a Replay file: **Load Replay…** 
 the moment it went wrong, with every Player set to human, so **Undo** steps back from there.
 
 The speed benchmark (ADR 0004) reports 2-player Games per second across all cores, how
-long copying a Game takes, and how many Decisions per second a Python loop gets through.
-It exits with status 1 if a target is missed:
+long copying a Game takes, and how many Decisions per second a Python loop gets through,
+and the mean Generations of Random Bot Games without Prelude and with it. `--prelude`
+benchmarks Games with Prelude. It exits with status 1 if a target is missed:
 
 ```bash
 uv run python -m tools.benchmark
+uv run python -m tools.benchmark --prelude
 ```
 
 ## Cards
@@ -145,8 +147,9 @@ uv run python -m tools.card_coverage
 ```
 
 The mismatch report, `docs/card-mismatches.md`, compares the card file with the open-source
-game's card definitions (cost, Tags, Requirements, Victory Points, type, Corporate Era and the box
-a card comes in), for the base box and Prelude:
+game's card definitions (cost, Tags, Requirements, Victory Points, type, Corporate Era, the box
+a card comes in, and the MegaCredits a Corporation starts with or a Prelude Card gains or pays),
+for the base box and Prelude:
 
 ```bash
 uv run python -m tools.card_mismatches --download

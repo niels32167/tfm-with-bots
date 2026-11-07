@@ -5,8 +5,9 @@ the mismatch report, `docs/card-mismatches.md`:
     uv run python -m tools.card_mismatches --download   # fetch them first
 
 The fields compared are the ones the card list could get wrong and the rules depend on:
-Corporate Era, the box a card comes in, type, cost, Tags, Requirements and Victory Points, and a
-Corporation's starting MegaCredits, which our effect data holds. Each difference is then
+Corporate Era, the box a card comes in, type, cost, Tags, Requirements and Victory Points, and the
+starting MegaCredits of a Corporation or a Prelude Card (what it gains, or pays if below 0), which our
+effect data holds. Each difference is then
 settled by the rules authority order (rulebook, FryxGames FAQ, then the open-source game);
 see `docs/rules-notes.md`.
 
@@ -106,7 +107,11 @@ def parse_open_source_card(
     name = re.search(r"\bname\s*[:=]\s*CardName\.(\w+)", source)
     number = re.search(r"cardNumber:\s*'(\w+)'", source)
     card_resource = re.fullmatch(r"CardResource\.(\w+)", fields.get("resourceType", ""))
-    starting = {"starting_megacredits": int(fields["startingMegaCredits"])} if card_type == "corporation" else {}
+    starting = {}
+    if card_type == "corporation":
+        starting = {"starting_megacredits": int(fields["startingMegaCredits"])}
+    elif card_type == "prelude":
+        starting = {"starting_megacredits": _prelude_megacredits(fields)}
     return {
         "number": _number(number[1]) if number else None,
         "name": name[1] if name else Path(file_name).stem,
@@ -117,6 +122,16 @@ def parse_open_source_card(
         "victory_points": _victory_points(fields.get("victoryPoints", ""), card_resource),
         **starting,
     }
+
+
+def _prelude_megacredits(fields: dict[str, str]) -> int:
+    """What a Prelude Card gains in MegaCredits, or costs if below 0: its `startingMegacredits`, or else
+    the MegaCredits in its `behavior.stock`, as the open-source game's PreludeCard reads them."""
+    if "startingMegacredits" in fields:
+        return int(fields["startingMegacredits"])
+    behavior = _objects(fields.get("behavior", ""))
+    stock = _objects(behavior[0].get("stock", "")) if behavior else []
+    return int(stock[0].get("megacredits", 0)) if stock else 0
 
 
 def _number(written: str) -> int | str | None:
@@ -330,7 +345,8 @@ def _comparable(name: str, card: dict[str, Any]) -> Any:
     """A field of `card` in a form where order doesn't matter, where it doesn't on the card. Our
     Corporations have their starting MegaCredits in their effect data, plus what a Trigger set off by the
     Corporation itself gives them when it is revealed (Vitor's 3, "including this"), which the open-source
-    game adds to what it starts with."""
+    game adds to what it starts with. A Prelude Card's are what it gains, less the price it pays
+    ("Pay 6 M€"), which the open-source game writes as -6."""
     if name == "starting_megacredits" and name not in card:
         effects = card.get("effects", {})
         for_itself = sum(
@@ -338,7 +354,8 @@ def _comparable(name: str, card: dict[str, Any]) -> Any:
             for trigger in effects.get("when", [])
             if trigger["on"] in SET_OFF_BY_THE_CORPORATION_ITSELF
         )
-        return effects.get("resources", {}).get("megacredits", 0) + for_itself
+        price = effects.get("pay", {}).get("megacredits", 0)
+        return effects.get("resources", {}).get("megacredits", 0) + for_itself - price
     value = card[name]
     if name == "tags":
         # The open-source game leaves the Event Tag out of an Event card's Tags.
@@ -360,10 +377,11 @@ def report(comparison: Comparison, *, commit: str) -> str:
         f"at commit `{commit}`). Written by `uv run python -m tools.card_mismatches`; do not edit by hand.",
         "",
         "Compared: Corporate Era, the box a card comes in, type, cost, Tags (in any order),",
-        "Requirements (in any order), Victory Points, and a Corporation's starting MegaCredits (with",
-        "what its own Trigger gives it when revealed, as Vitor's 3), for",
-        "the cards of the base box and of Prelude. The open-source game leaves the Event Tag out of",
-        "an Event card's Tags, so the comparison adds it back. Each difference is",
+        "Requirements (in any order), Victory Points, a Corporation's starting MegaCredits (with",
+        "what its own Trigger gives it when revealed, as Vitor's 3), and what a Prelude Card gains in",
+        "MegaCredits (less its price, as Business Empire's 6), for the cards of the base box and of",
+        "Prelude. The open-source game leaves the Event Tag out of an Event card's Tags, so the",
+        "comparison adds it back. Each difference is",
         "settled by the rules authority order (rulebook, then the FryxGames FAQ, then the open-source",
         "game), and the call is recorded in `docs/rules-notes.md`.",
         "",

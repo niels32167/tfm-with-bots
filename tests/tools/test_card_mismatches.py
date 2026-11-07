@@ -399,7 +399,34 @@ def test_a_prelude_card_definition_has_no_type_or_cost_of_its_own_and_a_number_w
         "tags": ["earth"],
         "requirements": [],
         "victory_points": None,
+        "starting_megacredits": 3,
     }
+
+
+def test_a_prelude_cards_megacredits_are_what_it_gains_what_it_costs_or_none():
+    # The open-source game reads `startingMegacredits`, or else the MegaCredits in `behavior.stock`.
+    business_empire = PRELUDE_CARD.replace(
+        "behavior: {production: {megacredits: 4}, stock: {megacredits: 3}},",
+        "behavior: {production: {megacredits: 6}},\n      startingMegacredits: -6,",
+    )
+    supplier = PRELUDE_CARD.replace("stock: {megacredits: 3}", "stock: {steel: 4}")
+
+    assert parse_open_source_card(business_empire, "BusinessEmpire.ts")["starting_megacredits"] == -6
+    assert parse_open_source_card(supplier, "Supplier.ts")["starting_megacredits"] == 0
+
+
+def test_a_prelude_cards_megacredits_gained_or_paid_in_its_effect_data_are_compared():
+    prelude_card = {"number": 4, "name": "Business Empire", "type": "prelude", "cost": None}
+    prelude_card |= {"corporate_era": False, "expansion": "prelude", "tags": ["earth"], "requirements": []}
+    prelude_card |= {"victory_points": None, "id": "business_empire"}
+    their_card = {**prelude_card, "number": "P04", "name": "BUSINESS_EMPIRE", "starting_megacredits": -6}
+
+    pays = {**prelude_card, "effects": {"production": {"megacredits": 6}, "pay": {"megacredits": 6}}}
+    assert compare([pays], [their_card]).mismatches == []
+
+    gains = {**prelude_card, "effects": {"resources": {"megacredits": 6}}}
+    (mismatch,) = compare([gains], [their_card]).mismatches
+    assert (mismatch.field, mismatch.ours, mismatch.theirs) == ("starting_megacredits", 6, -6)
 
 
 def test_a_prelude_project_card_definition_has_its_type_and_a_number_with_a_p():

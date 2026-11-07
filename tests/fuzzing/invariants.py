@@ -510,6 +510,15 @@ def card_actions_used_once_per_generation(view: View, decision: Decision | None)
             yield f"{player_board['name']} is offered the action of '{card_id}' without a raise this Generation"
 
 
+def paying_for_a_card_in_hand(decision: Decision, player_board: dict[str, Any]) -> bool:
+    """Whether `decision` asks how to pay for a card from the Player's hand: not for a card's action or
+    an expense."""
+    return decision["kind"] == "payment" and all(
+        option["details"].get("card") in player_board["hand"] and not option["details"].get("action")
+        for option in decision["options"]
+    )
+
+
 def cards_cost_what_the_discounts_leave(view: View, decision: Decision | None) -> Iterator[str]:
     """The costs shown for the cards in each hand, and the Options to play a card, are what
     `card_cost` gives. Only an Event with an effect on the next card waits on it, in the Action
@@ -520,12 +529,13 @@ def cards_cost_what_the_discounts_leave(view: View, decision: Decision | None) -
         if next_card in PRELUDE_NEXT_CARD_DISCOUNTS:
             if next_card not in player_board["played_prelude_cards"]:
                 yield f"{name}'s next card waits on '{next_card}', a Prelude Card they haven't played"
-            # One drawn for Valley Trust's first action plays its card in the Action phase.
+            # One drawn for Valley Trust's first action plays its card in the Action phase: picking a card
+            # from the hand, then paying for it.
             playing_its_card = (
                 decision is not None
-                and decision["kind"] == "play_card"
                 and view["players"][decision["player"]] is player_board
                 and player_board["corporation"] == "valley_trust"
+                and (decision["kind"] == "play_card" or paying_for_a_card_in_hand(decision, player_board))
             )
             if view["phase"] != "prelude_cards" and not playing_its_card:
                 yield f"in the {view['phase']} phase, {name}'s next card still waits on the Prelude Card '{next_card}'"
