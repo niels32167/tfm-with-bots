@@ -117,6 +117,8 @@ NAME_CORRECTIONS = {
     "PSYCHROPHILES": "Psychrophiles",
     "RESEARCH COORDINATION": "Research Coordination",
     "SF MEMORIAL": "SF Memorial",
+    # As printed, which the user checked (see docs/rules-notes.md, "The names of Prelude's cards").
+    "Biolab": "Biolabs",
 }
 
 # The Tags printed on cards, as the card file names them.

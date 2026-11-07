@@ -68,7 +68,7 @@ def test_the_catalog_has_preludes_35_prelude_cards_after_all_the_others():
         "Allied Banks",
         "Aquifer Turbines",
         "Biofuels",
-        "Biolab",
+        "Biolabs",
         "Biosphere Support",
         "Business Empire",
         "Dome Farming",
@@ -282,7 +282,9 @@ def test_names_are_in_title_case_where_the_card_list_slipped():
 
 def test_names_are_spelled_as_printed_not_as_other_sources_spell_them():
     assert card("excentric_sponsor")["name"] == "Excentric Sponsor"  # the open-source game has Eccentric
+    # The user checked the printed cards (2026-11-07).
     assert card("allied_banks")["name"] == "Allied Banks"  # the open-source game and Recorded Games have Allied Bank
+    assert card("biolabs")["name"] == "Biolabs"  # the card list and the open-source game have Biolab
 
 
 def test_changing_the_catalog_read_from_the_engine_changes_no_later_read():

@@ -3527,9 +3527,9 @@
       "effects": {"resources": {"plants": 2}, "production": {"plants": 1, "energy": 1}}
     },
     {
-      "id": "biolab",
+      "id": "biolabs",
       "number": 4,
-      "name": "Biolab",
+      "name": "Biolabs",
       "type": "prelude",
       "corporate_era": false,
       "expansion": "prelude",

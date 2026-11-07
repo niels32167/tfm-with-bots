@@ -24,9 +24,10 @@ None.
 
 None.
 
-## Names settled in the rules notes (2)
+## Names settled in the rules notes (3)
 
 - #P01 Allied Banks: `ALLIED_BANK`
+- #P04 Biolabs: `BIOLAB`
 - #P11 Excentric Sponsor: `ECCENTRIC_SPONSOR`
 
 ## Missing from the open-source game (0)

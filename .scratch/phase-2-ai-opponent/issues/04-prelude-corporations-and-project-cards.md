@@ -144,4 +144,7 @@ test: the coverage check reports 267 implemented, 0 left.
 
 **Open points:**
 - A Replay of a Game with Prelude saved before this ticket may not load: Prelude's Corporations now join the deal.
+- **Answered by the user (2026-11-07):** the printed cards say Allied Banks and Biolabs. Biolab is now Biolabs (id
+  `biolabs`): the card import corrects the card list's spelling, the mismatch report lists it as settled, and the
+  rules notes say the user checked both. A Scenario file naming `biolab` no longer loads.
 

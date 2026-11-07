@@ -50,7 +50,7 @@ COMPARED_FIELDS = (
 
 # Our names that differ from the open-source game's on purpose, each with the evidence for it in
 # docs/rules-notes.md, and the open-source game's name for the card.
-NAMES_SETTLED = {"Allied Banks": "ALLIED_BANK", "Excentric Sponsor": "ECCENTRIC_SPONSOR"}
+NAMES_SETTLED = {"Allied Banks": "ALLIED_BANK", "Biolabs": "BIOLAB", "Excentric Sponsor": "ECCENTRIC_SPONSOR"}
 # The Triggers a Corporation sets off when it is revealed: Vitor's, for a card with Victory Points.
 SET_OFF_BY_THE_CORPORATION_ITSELF = ("card_with_victory_points",)
 
