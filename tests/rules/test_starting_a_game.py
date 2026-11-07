@@ -54,6 +54,8 @@ def test_without_corporations_every_player_starts_with_42_megacredits_and_terraf
             "passed_in_draft": [],
             "keeping": None,
             "played_cards": [],
+            "played_prelude_cards": [],
+            "prelude_cards": None,
             "used_actions": [],
             "card_resources": {},
             "next_card": None,

@@ -17,7 +17,7 @@ most Victory Points wins (MegaCredits break a tie). Each Player is a human or a 
 from a seed, and any Game can be undone, saved as a Replay file and loaded again. A
 fuzzer plays Random Bot Games and checks them after every Decision, and a benchmark
 measures the engine's speed. The card catalog holds the printed data of all 208 Project
-Cards and 12 Corporations, and of Prelude's 47 cards, which no Game holds yet (ADR 0011), and the
+Cards and 12 Corporations, and of the Prelude box's 47 cards (ADR 0011), and the
 GUI's card gallery draws every card as the fan-made card list does. Players play Project Cards from their hand, paying with MegaCredits, steel and
 titanium, once the cards' Requirements are met; all 208 Project Cards work, 112 Automated, 59 Active
 and 37 Events. An Active card's action is an Action its Player may use once per Generation, and
@@ -38,6 +38,14 @@ Without the Draft each Player draws 4 cards to buy from. The cards not bought go
 the discard pile, which is shuffled into a new deck when the deck runs out. Drafting and buying
 are hidden from the other Players, and each Player sees the cards they passed. The hand sits in
 a dock at the bottom of the window.
+
+Prelude is a setting of each Game, off by default for now and switchable on the setup screen. With
+it, each Player is also dealt 4 Prelude Cards at setup and keeps 2, chosen after their Corporation and
+hidden until played; then each Player in player order plays both, in the order they choose, before
+Generation 1's first Turn. A Prelude Card that can't be played is discarded for 15 MegaCredits. Played
+Prelude Cards stay in play and their Tags count. Prelude is unfinished: 26 of the 35 Prelude Cards work and
+only those are dealt, and Prelude's 7 Project Cards join the deck but can't be played yet, nor are its 5
+Corporations dealt.
 
 ## How it fits together
 
@@ -114,7 +122,8 @@ engine module reads the catalog with `tm_engine.card_catalog()`.
 
 A card is implemented once it has `"effects"` in the card file (ADR 0009), such as
 `"effects": {"production": {"megacredits": -2, "heat": 3}, "tiles": ["ocean"]}` for Black Polar
-Dust; cards without it are never offered, and no Game holds Prelude's 47 cards, which have none yet.
+Dust; cards without it are never offered, and a Prelude Card without it is never dealt. 21 of
+the Prelude box's 47 cards have none yet.
 Effects can gain or lose Resources, change
 Production, raise Temperature and Oxygen, raise Terraform Rating, draw cards, let the Player
 look at cards to keep some of them, place Tiles (special Tiles too, as `"special"`), let the Player

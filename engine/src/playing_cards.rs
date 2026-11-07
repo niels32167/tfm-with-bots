@@ -313,7 +313,7 @@ impl Game {
     /// make: `production_options` not being empty, but quicker, as it stops at the first one.
     /// It is checked against their Production before the card's other effects; no card has both a
     /// choice and fixed Production.
-    fn can_make_a_production_change(&self, player: usize, card: usize) -> bool {
+    pub(crate) fn can_make_a_production_change(&self, player: usize, card: usize) -> bool {
         if card == ROBOTIC_WORKFORCE {
             return self.copyable_production_boxes(player).next().is_some();
         }
@@ -389,9 +389,15 @@ impl Game {
         self.pay(player, payment);
         let own = &mut self.players[player];
         own.hand.remove(card);
-        own.played.insert(card);
         own.next_card = CARD_CATALOG[card].implemented_effects().next_card.map(|_| card);
         self.log.push(LogEvent::PlayedCard { player, card, payment });
+        self.put_into_play(player, card);
+    }
+
+    /// `card`, which `player` plays, joins their played cards, sets off Triggers, and its effects are
+    /// carried out; once they are done, the Action ends (or with a Prelude Card, the next is played).
+    pub(crate) fn put_into_play(&mut self, player: usize, card: usize) {
+        self.players[player].played.insert(card);
         self.set_off(Happened::CardPlayed { player, card });
         let effects = CARD_CATALOG[card].implemented_effects();
         // Immigrant City lowers its Production only once its City is placed.

@@ -28,7 +28,14 @@ const PICKED_IN_THE_PROJECTS = new Set(["standard_project"]);
 const PICKED_IN_THE_BAR = new Set(["claim_milestone", "fund_award"]);
 const PICKED_IN_THE_HAND = new Set(Object.keys(HAND_OPTIONS));
 const PICKED_ON_PLAYED_CARDS = new Set(["use_action"]);
-const PICKED_IN_THE_PANEL = new Set(["choose_corporation", "draft_card", "buy_card", "keep_card"]);
+const PICKED_IN_THE_PANEL = new Set([
+  "choose_corporation",
+  "keep_prelude_card",
+  "play_prelude_card",
+  "draft_card",
+  "buy_card",
+  "keep_card",
+]);
 
 // How the status text names the Areas a Tile goes on when they are not the usual ones, by the
 // Area Options' "on".
@@ -152,6 +159,13 @@ function statusText(game: GameUpdate, cards: Card[]): string {
   if (decision?.kind === "corporation") {
     return `${who} must choose one of the Corporations above: click the one to play.`;
   }
+  if (decision?.kind === "prelude_cards") {
+    const kept = view.players[decision.player].prelude_cards?.kept.length ?? 0;
+    return `${who} must keep ${kept > 0 ? "one more" : "2"} of the Prelude Cards above: click a card to keep.`;
+  }
+  if (decision?.kind === "play_prelude_card") {
+    return `${who} must play both Prelude Cards above, one at a time: click the one to play first.`;
+  }
   if (decision?.options.some((option) => option.details.type === "first_action")) {
     return `${who} must take their Corporation's first action, or Pass:`;
   }
@@ -244,6 +258,7 @@ function statusText(game: GameUpdate, cards: Card[]): string {
     return `${who} may discard a card from the hand to draw one (Mars University): click it, or Done to keep the hand.`;
   }
   if (view.phase === "draft") return `${who} (Random Bot) is drafting cards…`;
+  if (view.phase === "prelude_cards") return `${who} (Random Bot) is playing their Prelude Cards…`;
   if (playersAreBuying(view)) return `${who} (Random Bot) is choosing and buying cards…`;
   if (view.phase === "final_greenery") return `${who} (Random Bot) is converting plants into Greeneries…`;
   if (decision) {

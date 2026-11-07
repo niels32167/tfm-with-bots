@@ -236,11 +236,11 @@ def view_without_what_a_scenario_forgets(game: tm_engine.Game) -> dict:
     return view
 
 
-@pytest.mark.parametrize("players", [2, 3, 5])
+@pytest.mark.parametrize(("players", "prelude"), [(2, False), (3, False), (5, False), (2, True), (4, True)])
 def test_every_action_of_a_random_game_is_the_same_position_described_as_a_scenario(
-    players,
+    players, prelude
 ):
-    game = tm_engine.Game(seed=100 + players, players=players)
+    game = tm_engine.Game(seed=100 + players, players=players, prelude=prelude)
     actions = 0
     for _ in range(MAX_PICKS):
         if game.is_over:
@@ -257,8 +257,9 @@ def test_every_action_of_a_random_game_is_the_same_position_described_as_a_scena
     assert actions > 50
 
 
-def test_every_position_of_a_random_game_can_be_described_as_a_scenario():
-    game = tm_engine.Game(seed=9, players=4)
+@pytest.mark.parametrize("prelude", [False, True])
+def test_every_position_of_a_random_game_can_be_described_as_a_scenario(prelude):
+    game = tm_engine.Game(seed=9, players=4, prelude=prelude)
     for _ in range(MAX_PICKS):
         tm_engine.Game.from_scenario(game.to_scenario())
         if game.is_over:

@@ -34,12 +34,37 @@ pub const PRELUDE_BOX_CARDS: usize = 47;
 /// How many cards the catalog has.
 pub const CATALOG_CARDS: usize = BASE_BOX_CARDS + PRELUDE_BOX_CARDS;
 
+/// How many Project Cards the Prelude box has. They come first among its cards, so a Game with Prelude
+/// has the Project Cards from 0 to `PROJECT_CARDS` and from `BASE_BOX_CARDS` to `PRELUDE_PROJECT_CARDS_END`.
+pub const PRELUDE_PROJECT_CARDS: usize = 7;
+pub const PRELUDE_PROJECT_CARDS_END: usize = BASE_BOX_CARDS + PRELUDE_PROJECT_CARDS;
+
+/// How many Corporations the Prelude box has, after its Project Cards.
+pub const PRELUDE_CORPORATIONS: usize = 5;
+
+/// The first Prelude Card in the catalog. The 35 of them come last.
+pub const FIRST_PRELUDE_CARD: usize = PRELUDE_PROJECT_CARDS_END + PRELUDE_CORPORATIONS;
+pub const PRELUDE_CARDS: usize = CATALOG_CARDS - FIRST_PRELUDE_CARD;
+
 /// Every card: the base box's Project Cards in number order and its Corporations, then Prelude's
 /// Project Cards in number order, its Corporations, and its Prelude Cards in number order.
 pub static CARD_CATALOG: LazyLock<Vec<Card>> = LazyLock::new(|| {
     let file: CardFile = serde_json::from_str(CARD_FILE)
         .unwrap_or_else(|error| panic!("engine/cards/cards.json is not a valid card file: {error}"));
     assert_eq!(file.cards.len(), CATALOG_CARDS, "the card file does not hold the whole catalog");
+    for (card, printed) in file.cards.iter().enumerate() {
+        let is_project_card =
+            matches!(printed.card_type, CardType::Automated | CardType::Active | CardType::Event);
+        let in_order = if card < PROJECT_CARDS || (BASE_BOX_CARDS..PRELUDE_PROJECT_CARDS_END).contains(&card)
+        {
+            is_project_card
+        } else if card < FIRST_PRELUDE_CARD {
+            printed.card_type == CardType::Corporation
+        } else {
+            printed.card_type == CardType::Prelude
+        };
+        assert!(in_order, "card {card} of the catalog is out of the catalog's order");
+    }
     for (card, id) in CARDS_WITH_CODE {
         assert_eq!(
             file.cards[card].id, id,
@@ -58,9 +83,24 @@ pub static CARD_CATALOG: LazyLock<Vec<Card>> = LazyLock::new(|| {
     file.cards
 });
 
-/// The index of the base box's Project Card whose id is `id`, if there is one.
-pub fn find_project_card(id: &str) -> Option<usize> {
-    CARD_CATALOG[..PROJECT_CARDS].iter().position(|card| card.id == id)
+/// The Project Cards of a Game with Prelude or without.
+pub fn project_cards_with(prelude: bool) -> CardSet {
+    if prelude { CARDS_OF_TYPE.project_cards } else { CARDS_OF_TYPE.base_project_cards }
+}
+
+/// The index of the card whose id is `id`, if there is one.
+pub fn find_card(id: &str) -> Option<usize> {
+    CARD_CATALOG.iter().position(|card| card.id == id)
+}
+
+/// The index of the Project Card whose id is `id` in a Game with Prelude or without, if there is one.
+pub fn find_project_card(id: &str, prelude: bool) -> Option<usize> {
+    find_card(id).filter(|&card| project_cards_with(prelude).contains(card))
+}
+
+/// The index of the Prelude Card whose id is `id`, if there is one.
+pub fn find_prelude_card(id: &str) -> Option<usize> {
+    find_card(id).filter(|&card| CARD_CATALOG[card].card_type == CardType::Prelude)
 }
 
 /// The index of the base box's Corporation whose id is `id`, if there is one.
@@ -463,6 +503,29 @@ pub static CARDS_WITH: LazyLock<CardsWith> = LazyLock::new(|| {
         greenery_discount: having(|effects| effects.greenery_discount != 0),
         triggers: having(|effects| !effects.when.is_empty()),
         card_resources,
+    }
+});
+
+/// The cards of each kind, so that the Game can tell a Player's played cards apart.
+pub struct CardsOfType {
+    /// Every Project Card: those of a Game with Prelude.
+    pub project_cards: CardSet,
+    /// The base box's Project Cards: those of a Game without Prelude.
+    pub base_project_cards: CardSet,
+    pub corporations: CardSet,
+    pub prelude_cards: CardSet,
+}
+
+/// Read from the card catalog the first time it is needed, like the catalog itself.
+pub static CARDS_OF_TYPE: LazyLock<CardsOfType> = LazyLock::new(|| {
+    let of_type = |kinds: &[CardType]| -> CardSet {
+        (0..CARD_CATALOG.len()).filter(|&card| kinds.contains(&CARD_CATALOG[card].card_type)).collect()
+    };
+    CardsOfType {
+        project_cards: of_type(&[CardType::Automated, CardType::Active, CardType::Event]),
+        base_project_cards: (0..PROJECT_CARDS).collect(),
+        corporations: of_type(&[CardType::Corporation]),
+        prelude_cards: of_type(&[CardType::Prelude]),
     }
 });
 

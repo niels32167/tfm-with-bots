@@ -19,6 +19,7 @@ interface Props {
 // A Player's area has these columns, as on Board Game Arena; the Events are folded away beside them.
 const COLUMNS: { key: string; label: string; holds: (card: Card) => boolean }[] = [
   { key: "headquarters", label: "Headquarters", holds: (card) => card.type === "corporation" },
+  { key: "prelude_cards", label: "Prelude Cards", holds: (card) => card.type === "prelude" },
   { key: "automated", label: "Automated", holds: (card) => card.type === "automated" },
   { key: "effects", label: "Effects", holds: (card) => card.type === "active" && !card.effects?.action },
   { key: "actions", label: "Actions", holds: (card) => card.type === "active" && Boolean(card.effects?.action) },
@@ -76,7 +77,8 @@ export function PlayedCards({ game, cards, disabled, onPick }: Props) {
     <section className="player-cards" aria-label="Played cards">
       {players.map((player) => {
         const board = view.players[player];
-        const inPlay = (board.corporation ? [board.corporation, ...board.played_cards] : board.played_cards).map(
+        const corporation = board.corporation ? [board.corporation] : [];
+        const inPlay = [...corporation, ...board.played_prelude_cards, ...board.played_cards].map(
           (id) => catalog.get(id)!,
         );
         const events = inPlay.filter(EVENTS.holds);
@@ -102,7 +104,7 @@ export function PlayedCards({ game, cards, disabled, onPick }: Props) {
               </button>
             </header>
             <div className="played-groups">
-              {COLUMNS.map(({ key, label, holds }) => (
+              {COLUMNS.filter(({ key }) => key !== "prelude_cards" || view.prelude).map(({ key, label, holds }) => (
                 <PlayedColumn key={key} column={key} label={label} group={inPlay.filter(holds)} {...columnProps} />
               ))}
               {open && <PlayedColumn column={EVENTS.key} label={EVENTS.label} group={events} {...columnProps} />}

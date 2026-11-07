@@ -45,9 +45,10 @@ def pick_at_random(random_numbers: random.Random, decision: dict[str, Any]) -> i
 
 
 def settings_for(seed: int) -> dict[str, Any]:
-    """The settings of fuzzed Game `seed`: 2, 3, 4 and 5 Players in turn, and the Draft on for seeds
-    0 to 3, 8 to 11 and so on, and off for the others, so that every Player count meets both."""
-    return {"players": 2 + seed % 4, "draft": seed // 4 % 2 == 0}
+    """The settings of fuzzed Game `seed`: 2, 3, 4 and 5 Players in turn, the Draft on for seeds 0 to 3,
+    8 to 11 and so on, and off for the others, and Prelude off for seeds 0 to 7, on for 8 to 15 and so
+    on, so that every Player count meets every mix of the two."""
+    return {"players": 2 + seed % 4, "draft": seed // 4 % 2 == 0, "prelude": seed // 8 % 2 == 1}
 
 
 @dataclass(frozen=True)
@@ -82,6 +83,7 @@ def fuzz_game(
     players: int,
     *,
     draft: bool = True,
+    prelude: bool = False,
     after_every_decision: Sequence[Check] = AFTER_EVERY_DECISION,
     at_the_end: Sequence[Check] = AT_THE_END_OF_THE_GAME,
     generation_limit: int = GENERATION_LIMIT,
@@ -90,7 +92,7 @@ def fuzz_game(
 ) -> FuzzedGame:
     """Plays one Game with a Random Bot for every Player, checking it after every Decision,
     until it is over or something goes wrong."""
-    game = tm_engine.Game(seed=seed, players=players, draft=draft)
+    game = tm_engine.Game(seed=seed, players=players, draft=draft, prelude=prelude)
     start = game.replay["start"]
     random_numbers = random.Random(seed)
     picks: list[int] = []

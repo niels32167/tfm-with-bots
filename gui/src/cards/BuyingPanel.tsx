@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 
 import { isYou, playerTitle } from "../players";
-import type { Card, Decision, View } from "../types";
+import type { Card, Decision, PlayerBoard, View } from "../types";
 import type { GameUpdate } from "../useGameServer";
 import { notImplementedNote, useCardsById } from "./catalog";
 import { PrintedCard } from "./PrintedCard";
@@ -9,6 +9,9 @@ import { useFitZoom } from "./useFitZoom";
 
 /** What buying a dealt card costs, in MegaCredits. */
 export const CARD_PRICE = 3;
+
+/** How many of the Prelude Cards dealt at setup each Player keeps. */
+const PRELUDE_CARDS_KEPT = 2;
 
 // Pixels between the cards.
 const GAP = 14;
@@ -27,15 +30,23 @@ export function playersAreBuying(view: View): boolean {
   return view.phase === "setup" || view.phase === "research";
 }
 
-/** Whose cards the buying panel shows: the human deciding while Players draft or buy, or keep
- * cards they look at, or else the one human at the screen. Null when there is nothing to show. */
+/** Whose cards the buying panel shows: the human deciding while Players draft or buy, keep cards they
+ * look at, or keep or play Prelude Cards, or else the one human at the screen. Null when there is
+ * nothing to show. */
 export function cardsShownFor(game: GameUpdate): number | null {
   const { decision, viewer, view } = game;
-  const pickingCards = ["corporation", "draft", "buy_cards", "keep_cards"];
+  const pickingCards = ["corporation", "prelude_cards", "draft", "buy_cards", "keep_cards", "play_prelude_card"];
   if (decision && pickingCards.includes(decision.kind)) return decision.player;
   if (viewer === null) return null;
-  const { drafting, buying, keeping } = view.players[viewer];
-  return drafting || buying || keeping ? viewer : null;
+  const { drafting, buying, keeping, prelude_cards } = view.players[viewer];
+  const preludeCardsToPlay = view.phase === "prelude_cards" && (prelude_cards?.kept.length ?? 0) > 0;
+  return drafting || buying || keeping || preludeCardsToPlay ? viewer : null;
+}
+
+/** Whether `board`'s Player, at setup, still keeps Prelude Cards: they were dealt some and kept fewer than 2. */
+function keepingPreludeCards(view: View, board: PlayerBoard): boolean {
+  const cards = board.prelude_cards;
+  return view.phase === "setup" && cards !== null && cards.dealt.length > 0 && cards.kept.length < PRELUDE_CARDS_KEPT;
 }
 
 /** The Option of `type` for each card, by the card's id, while `player` decides. */
@@ -64,16 +75,23 @@ export function BuyingPanel({ game, cards, disabled, onPick }: Props) {
   const { view, decision } = game;
   const board = view.players[shown];
   const choosing = board.choosing_corporation;
+  const preludeCards = board.prelude_cards;
   const panel = board.keeping
     ? keepingPanel(game, shown, catalog)
     : board.drafting
       ? draftPanel(game, shown)
       : choosing && choosing.picked === null
         ? corporationPanel(game, shown)
-        : board.buying
-          ? buyingPanel(game, shown)
-          : null;
+        : keepingPreludeCards(view, board)
+          ? preludeKeepingPanel(game, shown)
+          : board.buying
+            ? buyingPanel(game, shown)
+            : view.phase === "prelude_cards" && preludeCards && preludeCards.kept.length > 0
+              ? preludePlayingPanel(game, shown)
+              : null;
   const kept = board.keeping?.kept ?? board.drafting?.kept;
+  // At setup, the Prelude Cards kept show above the cards to buy, as the Corporation chosen does.
+  const preludeCardsKept = view.phase === "setup" && !keepingPreludeCards(view, board) ? preludeCards?.kept : undefined;
   if (panel === null) return null;
   const waitingFor = view.current_player !== null && view.current_player !== shown ? view.current_player : null;
   const passedThisGeneration = (board.passed_in_draft ?? []).filter((pass) => pass.generation === view.generation);
@@ -93,9 +111,15 @@ export function BuyingPanel({ game, cards, disabled, onPick }: Props) {
           {hidden ? "Show the cards" : "Look at the board"}
         </button>
       </header>
-      {!hidden && (kept || passedThisGeneration.length > 0 || choosing) && (
+      {!hidden && (kept || passedThisGeneration.length > 0 || choosing || preludeCardsKept) && (
         <div className="buying-panel-strip">
           {choosing?.picked && <SmallCards label="Corporation, hidden for now" groups={[named([choosing.picked])]} />}
+          {preludeCardsKept && preludeCardsKept.length > 0 && (
+            <SmallCards label="Prelude Cards kept, hidden for now" groups={[named(preludeCardsKept)]} />
+          )}
+          {choosing?.picked === null && preludeCards && preludeCards.dealt.length > 0 && (
+            <SmallCards label="Prelude Cards to keep from next" groups={[named(preludeCards.dealt)]} />
+          )}
           {choosing?.picked === null && board.buying && (
             <SmallCards label="Project Cards to buy from next" groups={[named(board.buying.dealt)]} />
           )}
@@ -113,7 +137,9 @@ export function BuyingPanel({ game, cards, disabled, onPick }: Props) {
       {!hidden && (
         <PanelCards
           cards={named(panel.cards)}
-          bought={board.buying?.bought ?? []}
+          marked={panel.marked ?? board.buying?.bought ?? []}
+          markedAs={panel.markedAs ?? "Bought"}
+          notes={panel.notes ?? new Map()}
           options={optionsByCard(decision, shown, panel.optionType)}
           verb={panel.verb}
           disabled={disabled}
@@ -136,6 +162,11 @@ interface Panel {
   /** The type of the Options that pick them, and the verb on their buttons. */
   optionType: string;
   verb: string;
+  /** The cards marked as picked already, and what the mark says: the cards bought, unless given. */
+  marked?: string[];
+  markedAs?: string;
+  /** A ribbon on some of the cards, by id. */
+  notes?: Map<string, string>;
 }
 
 /** "your", or "Player 2's". */
@@ -168,6 +199,42 @@ function corporationPanel(game: GameUpdate, player: number): Panel {
     cards: dealt,
     optionType: "choose_corporation",
     verb: "Choose",
+  };
+}
+
+/** At setup, once `player` has chosen their Corporation: the Prelude Cards dealt to them, to keep 2 of. */
+function preludeKeepingPanel(game: GameUpdate, player: number): Panel {
+  const { dealt, kept } = game.view.players[player].prelude_cards!;
+  return {
+    label: "Prelude Cards to keep",
+    heading: `Setup: ${whose(game, player)} ${dealt.length} Prelude Cards`,
+    summary: `Keep ${PRELUDE_CARDS_KEPT} · they stay hidden until played · ${kept.length} kept`,
+    waitingFor: "keep Prelude Cards",
+    cards: dealt,
+    optionType: "keep_prelude_card",
+    verb: "Keep",
+    marked: kept,
+    markedAs: "Kept",
+  };
+}
+
+/** After setup: the Prelude Cards `player` kept and has still to play, the one picked first. One that
+ * can't be played is marked: picking it discards it for 15 MegaCredits. */
+function preludePlayingPanel(game: GameUpdate, player: number): Panel {
+  const { kept } = game.view.players[player].prelude_cards!;
+  const { decision } = game;
+  const unplayable = (decision?.player === player ? decision.options : []).filter(
+    (option) => option.details.type === "play_prelude_card" && option.details.playable === false,
+  );
+  return {
+    label: "Prelude Cards to play",
+    heading: `Before Generation 1: ${whose(game, player)} Prelude Cards`,
+    summary: kept.length > 1 ? "Play both, one at a time · click the one to play first" : "The last one is played next",
+    waitingFor: "play Prelude Cards",
+    cards: kept,
+    optionType: "play_prelude_card",
+    verb: "Play",
+    notes: new Map(unplayable.map((option) => [option.details.card as string, "Can't be played: discard for 15 MegaCredits"])),
   };
 }
 
@@ -243,8 +310,11 @@ function SmallCards({ label, groups }: SmallCardsProps) {
 
 interface PanelCardsProps {
   cards: Card[];
-  /** The ids of the cards bought so far. */
-  bought: string[];
+  /** The ids of the cards picked so far, bought or kept, and the ribbon on them. */
+  marked: string[];
+  markedAs: string;
+  /** A ribbon on some of the cards, by id. */
+  notes: Map<string, string>;
   /** The Option that picks each card, by its id, while the Player shown decides. */
   options: Map<string, number>;
   /** What picking a card does: "Buy" or "Keep". */
@@ -254,7 +324,7 @@ interface PanelCardsProps {
 }
 
 /** The cards to pick from, as large as the space in view allows. */
-function PanelCards({ cards, bought, options, verb, disabled, onPick }: PanelCardsProps) {
+function PanelCards({ cards, marked, markedAs, notes, options, verb, disabled, onPick }: PanelCardsProps) {
   const cardsRef = useRef<HTMLDivElement>(null);
   const zoom = useFitZoom(cardsRef, cards.length, GAP);
   const style = { zoom };
@@ -262,13 +332,15 @@ function PanelCards({ cards, bought, options, verb, disabled, onPick }: PanelCar
     <div ref={cardsRef} className="buying-panel-cards" style={{ gap: GAP }}>
       {cards.map((card) => {
         const optionIndex = options.get(card.id);
-        const isBought = bought.includes(card.id);
+        const isMarked = marked.includes(card.id);
         const note = notImplementedNote(card);
+        const ribbon = notes.get(card.id);
         const face = (
           <>
             <PrintedCard card={card} />
-            {isBought && <span className="card-ribbon bought">Bought</span>}
+            {isMarked && <span className="card-ribbon bought">{markedAs}</span>}
             {note && <span className="card-ribbon not-implemented">Not implemented</span>}
+            {ribbon && <span className="card-ribbon not-implemented">{ribbon}</span>}
           </>
         );
         if (optionIndex !== undefined) {
@@ -278,8 +350,8 @@ function PanelCards({ cards, bought, options, verb, disabled, onPick }: PanelCar
               className="buy-card buyable"
               style={style}
               disabled={disabled}
-              title={note}
-              aria-label={`${verb} ${card.name}`}
+              title={ribbon ?? note}
+              aria-label={`${verb} ${card.name}${ribbon ? `: ${ribbon}` : ""}`}
               onClick={() => onPick(optionIndex)}
               data-zoom-card={card.id}
             >
@@ -290,7 +362,7 @@ function PanelCards({ cards, bought, options, verb, disabled, onPick }: PanelCar
         return (
           <div
             key={card.id}
-            className={`buy-card ${isBought ? "bought" : ""}`}
+            className={`buy-card ${isMarked ? "bought" : ""}`}
             style={style}
             tabIndex={0}
             aria-label={card.name}

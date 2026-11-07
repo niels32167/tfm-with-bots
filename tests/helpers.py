@@ -101,13 +101,20 @@ def load_game(path: str | Path) -> tm_engine.Game:
     return tm_engine.Game.from_replay(json.loads(Path(path).read_text())["replay"])
 
 
-# The cards of the base box, which are the only ones a Game holds so far (ADR 0011).
+# The cards of the base box, the only ones a Game without Prelude holds (ADR 0011).
 _BASE_BOX = [card for card in tm_engine.card_catalog() if card["expansion"] == "base"]
+_PRELUDE_BOX = [card for card in tm_engine.card_catalog() if card["expansion"] == "prelude"]
 
-# Every Project Card a Game can hold, by catalog id, in number order (#001 first).
+# Every Project Card a Game without Prelude holds, by catalog id, in number order (#001 first).
 PROJECT_CARDS = [card["id"] for card in _BASE_BOX if card["type"] != "corporation"]
 
-# Every Corporation a Game can hold, by catalog id, in catalog order.
+# The Prelude box's Project Cards, which a Game with Prelude holds too, in number order (#P36 first).
+PRELUDE_PROJECT_CARDS = [card["id"] for card in _PRELUDE_BOX if card["type"] in ("automated", "active", "event")]
+
+# The 35 Prelude Cards, by catalog id, in number order (#P01 first).
+PRELUDE_CARDS = [card["id"] for card in _PRELUDE_BOX if card["type"] == "prelude"]
+
+# Every Corporation a Game can hold, by catalog id, in catalog order. Prelude's aren't dealt yet.
 CORPORATIONS = [card["id"] for card in _BASE_BOX if card["type"] == "corporation"]
 
 # Every card as printed, by catalog id.
@@ -253,17 +260,33 @@ def keep_the_first_cards_offered(game: tm_engine.Game) -> list[int]:
     raise AssertionError(f"the Draft was not over after {MAX_PICKS} picks")
 
 
+# The Decisions of the setup and a Research phase, but the Draft's.
+SETUP_AND_RESEARCH_PICKS = ("corporation", "prelude_cards", "buy_cards")
+
+
 def skip_buying(game: tm_engine.Game) -> None:
     """In the setup or a Research phase, every Player still to decide is done without buying; at
-    setup, each first chooses a Corporation, as `corporation_to_choose` says."""
+    setup, each first chooses a Corporation, as `corporation_to_choose` says, and with Prelude keeps
+    the first Prelude Cards offered."""
     for _ in range(MAX_PICKS):
-        if game.decision is None or game.decision["kind"] not in ("corporation", "buy_cards"):
+        if game.decision is None or game.decision["kind"] not in SETUP_AND_RESEARCH_PICKS:
             return
         if game.decision["kind"] == "corporation":
             game.pick(corporation_to_choose(game.decision))
+        elif game.decision["kind"] == "prelude_cards":
+            game.pick(0)
         else:
             pick(game, "Done")
     raise AssertionError(f"buying had not ended after {MAX_PICKS} picks")
+
+
+def place_tiles_anywhere(game: tm_engine.Game) -> None:
+    """While the Game waits on an Area for a Tile, the Player deciding places it on the first Area offered."""
+    for _ in range(MAX_PICKS):
+        if game.decision is None or game.decision["kind"] != "area":
+            return
+        game.pick(0)
+    raise AssertionError(f"Tiles were still being placed after {MAX_PICKS} picks")
 
 
 def corporation_to_choose(decision: dict[str, Any]) -> int:
@@ -374,6 +397,13 @@ def choosing_corporation(game: tm_engine.Game, player: int) -> dict[str, Any] | 
     """The Corporations a Player was dealt and the one they chose, as that Player sees them at
     setup: `{"dealt": [...], "picked": ...}` by catalog id. None once Corporations are revealed."""
     return player_board(game, player)["choosing_corporation"]
+
+
+def prelude_cards(game: tm_engine.Game, player: int) -> dict[str, list[str]] | None:
+    """A Player's Prelude Cards as that Player sees them, in a Game with Prelude: `{"dealt": [...],
+    "kept": [...]}` by catalog id, those dealt at setup (none once setup is over) and those kept and still
+    to play. None without Prelude."""
+    return player_board(game, player)["prelude_cards"]
 
 
 def played_cards(game: tm_engine.Game, player: int) -> list[str]:

@@ -92,6 +92,9 @@ impl Game {
         if self.settings.corporations {
             self.deal_corporations();
         }
+        if self.settings.prelude {
+            self.deal_prelude_cards();
+        }
         self.deal(SETUP_CARDS);
     }
 
@@ -115,13 +118,14 @@ impl Game {
         self.offer_buying_from(0);
     }
 
-    /// Whether `player` has something to decide: a Corporation to choose at setup, or one more of the
-    /// cards dealt to them to buy: one is left, and they can pay for it on top of those they have
-    /// bought so far.
+    /// Whether `player` has something to decide: a Corporation to choose or a Prelude Card to keep at
+    /// setup, or one more of the cards dealt to them to buy: one is left, and they can pay for it on
+    /// top of those they have bought so far.
     fn can_buy(&self, player: usize) -> bool {
         let own = &self.players[player];
         let price = CARD_PRICE * (own.buying.bought.len() as i32 + 1);
         own.choosing_corporation.is_due()
+            || own.prelude_cards.keeping_due()
             || !own.buying.unbought().is_empty() && self.megacredits_to_buy_with(player) >= price
     }
 
@@ -137,10 +141,13 @@ impl Game {
         self.buy_more_or_be_done();
     }
 
-    /// Once the current Player can buy no more, they are done.
+    /// Once the current Player can buy no more, they are done. At setup, they keep their Prelude
+    /// Cards before they buy.
     pub(crate) fn buy_more_or_be_done(&mut self) {
         if !self.can_buy(self.current_player) {
             self.done_buying();
+        } else {
+            self.offer_keeping_prelude_card();
         }
     }
 
@@ -160,26 +167,30 @@ impl Game {
     }
 
     /// Hands buying to the first Player who can buy a card, looking from index `start` in player
-    /// order (0 is the first player); at setup, they first choose their Corporation. Once nobody can,
-    /// every Player's buys are carried out.
+    /// order (0 is the first player); at setup, they first choose their Corporation and keep their
+    /// Prelude Cards. Once nobody can, every Player's buys are carried out.
     pub(crate) fn offer_buying_from(&mut self, start: usize) {
         match self.first_in_player_order_who(start, Game::can_buy) {
             Some(player) => {
                 self.current_player = player;
                 if self.players[player].choosing_corporation.is_due() {
                     self.wait_on(Waiting::Corporation);
+                } else {
+                    self.offer_keeping_prelude_card();
                 }
             }
             None => self.finish_buying(),
         }
     }
 
-    /// Every Player, in player order, reveals their Corporation if they are choosing one, pays for
-    /// the cards they bought and takes them into their hand, and the rest of the cards dealt go face
-    /// down to the discard pile. Then the Action phase begins, after setup with Generation 1.
+    /// Every Player, in player order, reveals their Corporation if they are choosing one, puts back
+    /// the Prelude Cards they didn't keep, pays for the cards they bought and takes them into their
+    /// hand, and the rest of the cards dealt go face down to the discard pile. Then the Action phase
+    /// begins, after setup with Generation 1, once Players have played their Prelude Cards.
     fn finish_buying(&mut self) {
         for player in self.player_order() {
             self.reveal_corporation(player);
+            self.put_back_prelude_cards_not_kept(player);
             let own = &mut self.players[player];
             let buying = std::mem::take(&mut own.buying);
             own.resources.megacredits -= CARD_PRICE * buying.bought.len() as i32 - buying.heat;
@@ -193,6 +204,7 @@ impl Game {
             }
         }
         match self.phase {
+            Phase::Setup if self.settings.prelude => self.begin_playing_prelude_cards(),
             Phase::Setup => self.begin(1, self.first_player),
             _ => self.begin_action_phase(),
         }

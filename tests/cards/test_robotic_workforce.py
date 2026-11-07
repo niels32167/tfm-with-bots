@@ -84,3 +84,14 @@ def test_robotic_workforce_is_worth_no_victory_points():
     game = scenario(player(played_cards=["robotic_workforce"]), player(), **terraformed_mars())
 
     assert [score["cards"] for score in final_scores(game)] == [0, 0]
+
+
+def test_robotic_workforce_may_copy_the_production_box_of_a_played_prelude_card_with_a_building_tag():
+    # Mining Operations is a building card too; Power Generation has no building Tag.
+    holding = player(hand=["robotic_workforce"], played_prelude_cards=["mining_operations", "power_generation"])
+    game = scenario(holding, player(), prelude=True)
+
+    pick(game, "Play Robotic Workforce")
+
+    assert production(game, 0)["steel"] == 2
+    assert resources(game, 0)["steel"] == 0

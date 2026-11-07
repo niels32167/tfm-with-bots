@@ -50,6 +50,9 @@ export interface PlayerBoard {
   /** At setup, the Corporations dealt to them and the one they chose: only the viewer's own, or
    * everyone's in the full view; otherwise null. */
   choosing_corporation: ChoosingCorporation | null;
+  /** With Prelude, the Prelude Cards dealt to them at setup (none once setup is over) and those they
+   * kept and have still to play: only the viewer's own, or everyone's in the full view; otherwise null. */
+  prelude_cards: PreludeCards | null;
   /** In the setup or a Research phase, the cards dealt to them to buy from and those of them
    * they have bought so far (nothing is paid until every Player is done): only the viewer's own,
    * or everyone's in the full view; otherwise null. */
@@ -64,8 +67,10 @@ export interface PlayerBoard {
    * Inventors' Guild, the cards they look at to keep or buy some of: only the viewer's own, or
    * everyone's in the full view; otherwise null. */
   keeping: Keeping | null;
-  /** The cards played by catalog id, in card-number order, Events included. */
+  /** The Project Cards played by catalog id, in card-number order, Events included. */
   played_cards: string[];
+  /** The Prelude Cards played by catalog id, in card-number order. */
+  played_prelude_cards: string[];
   /** The played cards whose action they have used this Generation, by catalog id. */
   used_actions: string[];
   /** How many Card Resources are on each of their played cards that can hold some, by catalog id. */
@@ -81,6 +86,12 @@ export interface PlayerBoard {
 export interface ChoosingCorporation {
   dealt: string[];
   picked: string | null;
+}
+
+/** Prelude Cards by catalog id, in card-number order: those dealt at setup, and those kept and still to play. */
+export interface PreludeCards {
+  dealt: string[];
+  kept: string[];
 }
 
 /** Cards by catalog id, in card-number order: those dealt, and those of them bought. `megacredits` is
@@ -195,9 +206,12 @@ export interface View {
   viewer: number | null;
   generation: number;
   /** "setup" is the setup buy before Generation 1, "draft" the Draft that begins a Research phase
-   * with the Draft on, and "research" a Research phase, where Players buy cards; "final_greenery"
-   * is the final Greenery conversion, after the final Production phase. */
-  phase: "setup" | "draft" | "research" | "action" | "final_greenery" | "over";
+   * with the Draft on, and "research" a Research phase, where Players buy cards; with Prelude,
+   * "prelude_cards" is after setup, where Players play their Prelude Cards; "final_greenery" is the final
+   * Greenery conversion, after the final Production phase. */
+  phase: "setup" | "draft" | "research" | "prelude_cards" | "action" | "final_greenery" | "over";
+  /** Whether the Game has Prelude. */
+  prelude: boolean;
   temperature: number;
   /** In percent. */
   oxygen: number;
@@ -314,6 +328,8 @@ export interface Replay {
           implemented_cards_first?: boolean;
           draft: boolean;
           corporations: boolean;
+          /** Only in a Replay of a Game with Prelude. */
+          prelude?: boolean;
         };
       }
     | { scenario: { seed: number } };
@@ -345,6 +361,9 @@ export interface ScenarioPlayer {
   used_actions: string[];
   terraform_rating_raised: boolean;
   next_card: string | null;
+  /** With Prelude, the Prelude Cards they kept and have still to play, and those played. */
+  prelude_cards?: string[];
+  played_prelude_cards?: string[];
 }
 
 /** A described position to start a Game from, as the engine writes it (Game.to_scenario). */
@@ -365,6 +384,8 @@ export interface Scenario {
   deck: string[];
   discard: string[];
   draft: boolean;
+  /** Only in a Scenario with Prelude. */
+  prelude?: boolean;
 }
 
 /** The dev panel's look at one step of the Game: it never changes the Game, and only the GUI that
@@ -430,6 +451,8 @@ export interface NewGameSettings {
   bot_delay: number;
   /** Whether the Research phases have the Draft. */
   draft: boolean;
+  /** Whether the Game has Prelude. */
+  prelude: boolean;
 }
 
 export type ClientMessage =

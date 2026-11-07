@@ -1895,3 +1895,137 @@ report lists the two that differ from the open-source game under "Names settled 
 
 **Tests:** `tests/cards/test_catalog.py::test_names_are_spelled_as_printed_not_as_other_sources_spell_them` and
 `tests/tools/test_card_mismatches.py::test_a_settled_name_is_listed_apart_from_those_still_open`.
+
+### The Prelude setting
+
+**Call:** Prelude is a setting of each Game, like the Draft, and off by default until ticket 05 of phase 2.
+A Replay names it only when it is on, so a Game without Prelude saves, replays and draws its random numbers
+exactly as before, and a Replay saved before Prelude existed plays without it. A Scenario has it too, off
+unless named.
+
+**Why:** ADR 0011 makes Prelude a setting, and the phase 2 spec asks that Games and Replays without it stay
+as they are. Checked by saving 120 Random Bot Games (2–5 Players, Draft and Corporations on and off) from the
+commit before, and replaying them and playing them again from their seeds with this one: all identical, Replay
+files included. Chosen by Claude (2026-11-07), on the user's instruction to choose the recommended decisions.
+
+**Tests:** `tests/rules/test_prelude_setup.py::test_a_replay_names_prelude_only_when_it_is_on`,
+`test_a_replay_saved_before_prelude_existed_plays_without_it`, `test_without_prelude_nobody_is_dealt_prelude_cards` and
+`tests/rules/test_games_without_prelude.py`.
+
+### Prelude Cards at setup
+
+**Call:** With Prelude, each Player is also dealt 4 Prelude Cards at setup and keeps 2. One at a time in player
+order, a Player chooses their Corporation, then keeps 2 Prelude Cards with two picks, then buys cards; without
+Corporations, they keep their Prelude Cards first. Keeping costs nothing. What a Player was dealt and kept shows
+only in their own view, and the game log names no Prelude Card until it is played. Once every Player is done
+buying and every Corporation is revealed and paid for, the Prelude Cards not kept go back in the box, face down.
+
+The Game's seeded random numbers shuffle the deck first, which in a Game with Prelude holds 215 Project Cards, so
+its order differs from a Game without Prelude on the same seed; then the Corporations, then the Prelude Cards, each
+dealt in player order; then the Project Cards are dealt. A Game without Prelude draws exactly as before.
+
+**Why:** The Prelude rulebook: "you also deal 4 Prelude cards to each player", and Players "choose 2 Prelude cards
+to keep at the same time as choosing corporations and project cards"; they "do not cost anything to keep", and the
+other 2 are discarded once the kept ones are played. The engine asks one Player at a time (ADR 0002), as it does
+for Corporations ("Corporations at setup"), and the Corporation comes first since it says what the Player may buy.
+Recorded Games on Board Game Arena also show 4 dealt. The *Comprehensive FAQ* could not be checked. Chosen by
+Claude (2026-11-07), on the user's instruction to choose the recommended decisions.
+
+**Tests:** `tests/rules/test_prelude_setup.py`, among them
+`test_with_prelude_each_player_is_dealt_4_prelude_cards_none_of_them_dealt_twice`,
+`test_after_choosing_a_corporation_a_player_keeps_2_of_their_prelude_cards_then_buys` and
+`test_the_prelude_cards_dealt_and_kept_show_only_in_their_own_view_until_played`, and
+`tests/engine/test_views.py::test_no_player_view_or_log_line_shows_another_players_prelude_cards_until_they_are_played`.
+
+### Only implemented Prelude Cards are dealt, for now
+
+**Call:** Until every Prelude Card has effect data, only those that have it are shuffled and dealt: 26 of the 35
+after ticket 02, enough for 4 each in a 5-Player Game. So each ticket that implements more of them changes what a
+Game with Prelude deals, and a Replay of a Game with Prelude saved before it may no longer load. The setup screen
+says so. Prelude's 7 Project Cards are in the deck of a Game with Prelude, but can't be played until they have
+effect data (ticket 04).
+
+**Why:** A card without effect data can't be played, so dealing one would leave a Player with a Prelude Card they
+must play and can't. The user chose to implement the 26 Prelude Cards that the existing effect data describes now
+(2026-11-07), and to put the 7 Project Cards in the deck now. Prelude stays off by default until ticket 05, when all
+are implemented, so no Replay a Player keeps depends on this.
+
+**Tests:** `tests/rules/test_prelude_setup.py::test_the_deck_has_preludes_project_cards_only_with_prelude` and
+`tests/rules/test_prelude_scenarios.py::test_preludes_project_cards_may_be_in_a_hand_with_prelude_but_are_not_offered_until_implemented`.
+
+### Playing the Prelude Cards
+
+**Call:** After setup, before Generation 1's Action phase, each Player in player order from the first player plays
+both Prelude Cards they kept, one at a time, finishing both before the next Player starts. With two left they choose
+which to play first; the last is played without a Decision. A Prelude Card is played like a Project Card with no cost
+and no Requirements: it joins their played cards, sets off Triggers, and its effects are carried out in the usual
+order, Tiles included. This is all part of Generation 1, and the Action phase begins with the first player once every
+Player is done. A Corporation's first action (Inventrix, Tharsis Republic) comes after, as the Player's first Action.
+
+**Why:** The rulebook: after Corporations are played and cards paid for, "there is an extra round (step 7b) where each
+player plays their pair of picked Prelude cards in player order", and "the whole setup counts as part of generation 1".
+It doesn't say in which order within the pair; the open-source game lets the Player choose, and plays all of one
+Player's before the next Player's. A first action is the Player's first Action, which comes in the Action phase. A
+Decision with one Option changes nothing ("The Research phase, and who is asked to buy"). Chosen by Claude
+(2026-11-07), on the user's instruction to choose the recommended decisions.
+
+**Tests:** `tests/rules/test_prelude_setup.py::test_each_player_in_player_order_plays_both_prelude_cards_in_the_order_they_choose_then_generation_1_begins`,
+`test_a_corporations_first_action_comes_after_the_prelude_cards` and
+`tests/rules/test_prelude_scenarios.py::test_playing_a_prelude_card_carries_out_its_effects_and_the_last_one_follows_without_a_decision`.
+
+### A Prelude Card that can't be played
+
+**Call:** If a Player can't carry out a Prelude Card when they come to play it, such as Loan with MegaCredit
+Production at -4, they discard it and gain 15 MegaCredits instead. It is not optional: a Prelude Card that can be
+played must be. Both Prelude Cards are still offered; the one that can't be played is labelled "Discard … for 15
+MegaCredits (it can't be played)", and the game log names it. Whether it can be played is judged when it is picked,
+so playing the first may make the second playable or not.
+
+No Prelude Card dealt so far has a price to pay. Those printed "Pay X M€" (Business Empire, Galilean Mining,
+Huge Asteroid, Aquifer Turbines) are ticket 03's: whether Helion's heat may pay, and that a Player who can't pay
+discards the card for 15 MegaCredits like any other they can't play, as the open-source game does, are its calls.
+
+**Why:** The rulebook is silent. A designer's ruling, quoted in a [forum thread](https://www.zatrolene-hry.cz/spolecenska-hra/mars-teraformace-predehra-7792/diskuse/nove-pravidlo-nehratelna-predehra-15-penez-34655/)
+because the original couldn't be reached, gives 15 MegaCredits for a Prelude Card that can't be played, and says it is
+not optional. The open-source game does the same (`PreludesExpansion.fizzle`), and so does Board Game Arena, according to
+one of its bug reports. Under ADR 0001 the open-source game decides where the rulebook is silent. Chosen by Claude
+(2026-11-07), on the user's instruction to choose the recommended decisions.
+
+**Tests:** `tests/rules/test_prelude_scenarios.py::test_a_prelude_card_that_cant_be_played_is_discarded_for_15_megacredits`,
+`test_the_last_prelude_card_is_discarded_without_a_decision_if_it_cant_be_played`, and each card's own case:
+`tests/cards/test_loan.py`, `test_biosphere_support.py` and `test_society_support.py`.
+
+### Prelude Cards in play
+
+**Call:** A played Prelude Card stays face up among its Player's cards in play: its Tags count for Requirements,
+Milestones, Awards, Toll Station and Victory Points like a played Automated card's, and playing it sets off Triggers,
+such as Saturn Systems' for Io Research Outpost's jovian Tag or Tharsis Republic's for Early Settlement's City. It is
+not a Project Card: the view lists it apart, as `played_prelude_cards`, and so does a Scenario. With no printed cost it
+never sets off CrediCor. Robotic Workforce may copy the production box of a played Prelude Card with a building Tag,
+such as Mining Operations.
+
+**Why:** The rulebook: Prelude Cards "work like green cards, and stay in play with their tags visible". Robotic Workforce
+says "one of your building cards", and the open-source game lets it copy any card in play but Events, Prelude Cards
+included. The fuzzer found this one: its check allowed only Project Cards and Corporations. The wild Tag (Research
+Network) is ticket 03's: it neither counts nor sets anything off yet. Chosen by Claude (2026-11-07), on the user's
+instruction to choose the recommended decisions.
+
+**Tests:** `tests/rules/test_prelude_scenarios.py::test_the_tags_of_played_prelude_cards_count`,
+`tests/cards/test_io_research_outpost.py::test_its_jovian_tag_sets_off_saturn_systems`,
+`tests/cards/test_early_settlement.py::test_its_city_sets_off_the_corporations_triggers` and
+`tests/cards/test_robotic_workforce.py::test_robotic_workforce_may_copy_the_production_box_of_a_played_prelude_card_with_a_building_tag`.
+
+### Scenarios with Prelude
+
+**Call:** A Scenario with `prelude` on may name Prelude's Project Cards wherever it names Project Cards, a Player's
+`played_prelude_cards`, and their `prelude_cards` still to play: at most 2, each implemented. With any still to play, the
+Scenario starts where Players play them, so it can have no Turn under way and nobody passed. Without `prelude`, naming any
+of the Prelude box's cards is an error. A Game described as a Scenario while Players play their Prelude Cards starts there
+again; at setup, the Prelude Cards dealt and kept are dropped with the rest of what is under way. Prelude's Corporations
+can't be named yet (ticket 04).
+
+**Why:** Scenario tests need a Prelude Card in a known position, and `Game::to_scenario` must describe every position a
+Game reaches. Chosen by Claude (2026-11-07), on the user's instruction to choose the recommended decisions.
+
+**Tests:** `tests/rules/test_prelude_scenarios.py` and
+`tests/rules/test_scenarios.py::test_every_action_of_a_random_game_is_the_same_position_described_as_a_scenario`.

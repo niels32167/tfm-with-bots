@@ -17,7 +17,9 @@ use crate::card_code::{FLOODING, THORGATE, ViralEnhancing};
 use crate::card_flow::{Buying, Keeping};
 use crate::card_resources::{Adding, CardResources};
 use crate::card_set::CardSet;
-use crate::cards::{AddToAnother, CARD_CATALOG, CARDS_WITH, PROJECT_CARDS};
+use crate::cards::{
+    AddToAnother, CARD_CATALOG, CARDS_OF_TYPE, CARDS_WITH, PROJECT_CARDS, project_cards_with,
+};
 use crate::corporations::ChoosingCorporation;
 use crate::deck::Deck;
 use crate::draft::{DraftPass, Drafting};
@@ -25,6 +27,7 @@ use crate::expenses::Expense;
 use crate::log::LogEvent;
 use crate::milestones_and_awards::{AWARD_COSTS, Award, MAX_MILESTONES_CLAIMED, MILESTONE_COST, Milestone};
 use crate::playing_cards::{CardTiles, Payment, ProductionChange};
+use crate::prelude_cards::PreludeCards;
 use crate::random::RandomNumbers;
 use crate::replay::{Replay, Start};
 use crate::resources::{Resource, Resources};
@@ -92,6 +95,11 @@ pub struct Settings {
     /// saved before they existed has no such setting, and reads as off, as it was played.
     #[serde(default)]
     pub corporations: bool,
+    /// Whether the Game has Prelude (ADR 0011): Prelude Cards at setup, and Prelude's Project Cards in
+    /// the deck. Off by default for now. A Replay saved before Prelude existed has no such setting,
+    /// and only a Replay that has it on names it, so a Game without Prelude saves as it did.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub prelude: bool,
 }
 
 #[derive(Clone, Debug)]
@@ -116,6 +124,8 @@ pub struct Player {
     pub drafting: Drafting,
     /// At setup, the Corporations dealt to them and the one they chose.
     pub choosing_corporation: ChoosingCorporation,
+    /// With Prelude, the Prelude Cards dealt to them at setup and those they kept and have still to play.
+    pub prelude_cards: PreludeCards,
     /// Whether they must still take their Corporation's first action.
     pub first_action_due: bool,
     /// Whether their Terraform Rating was raised this Generation.
@@ -130,12 +140,18 @@ impl Player {
 
     /// Their Corporation, once it is revealed.
     pub fn corporation(&self) -> Option<usize> {
-        self.played.iter().find(|&card| card >= PROJECT_CARDS)
+        self.played.intersection(CARDS_OF_TYPE.corporations).iter().next()
     }
 
-    /// The Project Cards they have played, Events included: their played cards but their Corporation.
+    /// The Project Cards they have played, Events included: their played cards but their Corporation
+    /// and their Prelude Cards.
     pub fn played_project_cards(&self) -> CardSet {
-        self.played.iter().filter(|&card| card < PROJECT_CARDS).collect()
+        self.played.intersection(CARDS_OF_TYPE.project_cards)
+    }
+
+    /// The Prelude Cards they have played.
+    pub fn played_prelude_cards(&self) -> CardSet {
+        self.played.intersection(CARDS_OF_TYPE.prelude_cards)
     }
 
     /// A Player before setup, holding `resources`.
@@ -152,6 +168,7 @@ impl Player {
             buying: Buying::default(),
             drafting: Drafting::default(),
             choosing_corporation: ChoosingCorporation::default(),
+            prelude_cards: PreludeCards::default(),
             first_action_due: false,
             terraform_rating_raised: false,
         }
@@ -172,6 +189,9 @@ pub enum Phase {
     Draft,
     /// From Generation 2, before the Action phase: Players buy from the cards they drew or drafted.
     Research,
+    /// With Prelude, after setup and before Generation 1's Action phase: Players play their Prelude
+    /// Cards.
+    PreludeCards,
     Action,
     /// After the final Production phase: Players may convert plants into Greeneries.
     FinalGreenery,
@@ -266,6 +286,10 @@ pub enum DecisionKind {
     AddToCard,
     /// Choose one of the Corporations dealt at setup.
     Corporation,
+    /// Keep one more of the Prelude Cards dealt at setup.
+    PreludeCards,
+    /// Play one of the Prelude Cards kept, before the other.
+    PlayPreludeCard,
     /// Keep one of the cards being drafted, and pass the rest on.
     Draft,
     /// Buy one more of the cards dealt, or be done, in the setup or a Research phase.
@@ -297,6 +321,10 @@ pub enum DecisionOption {
     TakeFirstAction(usize),
     /// Choose this Corporation, one of those dealt at setup.
     ChooseCorporation(usize),
+    /// Keep this Prelude Card, one of those dealt at setup.
+    KeepPreludeCard(usize),
+    /// Play this Prelude Card, one of those kept, or discard it for 15 MegaCredits if it can't be played.
+    PlayPreludeCard(usize),
     /// Keep this card, one of those being drafted, and pass the rest on.
     DraftCard(usize),
     /// Buy this card, one of those dealt in the setup or a Research phase, or one of those the
@@ -403,6 +431,8 @@ pub enum DecisionOption {
 pub enum Waiting {
     /// Which of the Corporations dealt to them they choose.
     Corporation,
+    /// Which of the Prelude Cards dealt to them they keep.
+    PreludeCards,
     /// The Area for this Tile, on the Areas it may go on.
     Area(Placement),
     /// How they pay for this card, which they are playing.
@@ -542,7 +572,8 @@ impl Game {
             on_top = (0..PROJECT_CARDS).collect();
             game.random_numbers.shuffle(&mut on_top);
         }
-        game.deck = Deck::shuffled(CardSet::default(), &on_top, &mut game.random_numbers);
+        let project_cards = project_cards_with(game.settings.prelude);
+        game.deck = Deck::shuffled(project_cards, CardSet::default(), &on_top, &mut game.random_numbers);
         game.begin_setup();
         Ok(game)
     }
@@ -593,6 +624,7 @@ impl Game {
         }
         let (kind, options) = match (self.waiting, self.phase) {
             (Some(Waiting::Corporation), _) => (DecisionKind::Corporation, self.corporation_options()),
+            (Some(Waiting::PreludeCards), _) => (DecisionKind::PreludeCards, self.prelude_keeping_options()),
             (Some(Waiting::Area(placement)), _) => (DecisionKind::Area, self.area_options(placement)),
             (Some(Waiting::ClaimArea), _) => {
                 (DecisionKind::Area, self.board.claimable_areas().map(DecisionOption::ClaimArea).collect())
@@ -628,6 +660,7 @@ impl Game {
             (Some(Waiting::Target(targeting)), _) => (DecisionKind::Target, self.target_options(targeting)),
             (None, Phase::Draft) => (DecisionKind::Draft, self.drafting_options()),
             (None, Phase::Setup | Phase::Research) => (DecisionKind::BuyCards, self.buying_options()),
+            (None, Phase::PreludeCards) => (DecisionKind::PlayPreludeCard, self.prelude_playing_options()),
             (None, Phase::FinalGreenery) => {
                 (DecisionKind::FinalGreenery, vec![DecisionOption::ConvertPlants, DecisionOption::Done])
             }
@@ -825,6 +858,8 @@ impl Game {
             }
             DecisionOption::AddToCard { to, amount, .. } => self.add_to_card(to, amount),
             DecisionOption::ChooseCorporation(card) => self.choose_corporation(card),
+            DecisionOption::KeepPreludeCard(card) => self.keep_prelude_card(card),
+            DecisionOption::PlayPreludeCard(card) => self.play_prelude_card(card),
             DecisionOption::DraftCard(card) => self.draft(card),
             DecisionOption::BuyCard(card) if matches!(self.waiting, Some(Waiting::KeepCards(_))) => {
                 self.keep_card(card)
@@ -925,6 +960,7 @@ impl Game {
         }
         match self.phase {
             Phase::FinalGreenery => self.offer_final_greenery_from(self.index_in_player_order()),
+            Phase::PreludeCards => self.play_next_prelude_card(),
             _ => self.finish_action(),
         }
     }

@@ -242,12 +242,13 @@ function PassedInDraft({ game, passes, name }: PassedInDraftProps) {
   );
 }
 
-/** What the current Player is doing: their Turn (and which Action), the Draft, buying cards, or
- * the final Greenery conversion. */
+/** What the current Player is doing: their Turn (and which Action), the Draft, buying cards, playing
+ * Prelude Cards, or the final Greenery conversion. */
 function turnBadge(game: GameUpdate): string {
   const { view } = game;
   if (view.phase === "final_greenery") return "Final Greeneries";
   if (view.phase === "draft") return "Drafting";
+  if (view.phase === "prelude_cards") return "Prelude Cards";
   if (playersAreBuying(view)) return "Buying cards";
   return `Turn${view.actions_this_turn > 0 ? ` · Action ${view.actions_this_turn + 1}` : ""}`;
 }

@@ -63,9 +63,11 @@ interface Props {
 /** Edits a position as a Scenario, and starts a Game from it in place of the current one. Save Replay
  * then saves it like any Replay, and it can start a scenario test. The engine says if it refuses it. */
 export function StateEditor({ cards, edited, board, readFromStep, underWay, onChange, onRead, onStart }: Props) {
-  // A Scenario can name only the cards a Game can hold, which are so far those of the base box.
-  const baseBox = cards.filter((card) => card.expansion === "base");
-  const projectCards = baseBox.filter((card) => card.type !== "corporation");
+  // A Scenario can name only the cards a Game can hold: those of the base box, and with Prelude its
+  // Project Cards. Prelude Cards and Prelude's Corporations aren't offered here yet.
+  const isProjectCard = (card: Card) => ["automated", "active", "event"].includes(card.type);
+  const inGame = cards.filter((card) => card.expansion === "base" || (edited.prelude && isProjectCard(card)));
+  const projectCards = inGame.filter(isProjectCard);
   const listId = useId();
   return (
     <div className="state-editor">
@@ -85,7 +87,7 @@ export function StateEditor({ cards, edited, board, readFromStep, underWay, onCh
       {edited.players.map((_, player) => (
         <PlayerFields
           key={player}
-          cards={baseBox}
+          cards={inGame}
           edited={edited}
           player={player}
           listId={listId}

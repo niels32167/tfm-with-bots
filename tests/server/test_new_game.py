@@ -140,3 +140,27 @@ def test_random_bot_speed_is_set_with_the_game_and_can_be_changed_during_it():
 
         gui.send({"type": "set_bot_delay", "bot_delay": -1})
         assert "delay" in gui.receive_error()
+
+
+def test_a_new_game_has_prelude_only_when_it_is_switched_on():
+    with connect() as gui:
+        update = gui.start(["human", "human"], seed=3)
+        assert "prelude" not in gui.save_replay()["replay"]["start"]["settings"]
+        assert update["view"]["prelude"] is False
+        update = gui.start(["human", "human"], seed=3, prelude=True)
+        assert gui.save_replay()["replay"]["start"]["settings"]["prelude"] is True
+        assert update["view"]["prelude"] is True
+
+        gui.send({"type": "new_game", "controllers": ["human", "human"], "prelude": 1})
+        assert "prelude must be true or false" in gui.receive_error()
+
+
+def test_a_random_bot_keeps_its_prelude_cards_without_pausing_so_waiting_on_it_reveals_nothing():
+    seed = next(seed for seed in range(100) if tm_engine.Game(seed=seed).full_view()["first_player"] == 0)
+    with connect() as gui:
+        started = time.monotonic()
+        update = gui.start(["random_bot", "human"], seed=seed, bot_delay=5, prelude=True)
+        waited = time.monotonic() - started
+
+    assert (update["decision"]["kind"], update["decision"]["player"]) == ("corporation", 1)
+    assert waited < 2

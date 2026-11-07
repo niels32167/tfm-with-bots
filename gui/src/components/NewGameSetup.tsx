@@ -21,8 +21,8 @@ interface Props {
   onCancel?: () => void;
 }
 
-/** The new-Game screen: Players, their Controllers, the seed, how fast Random Bots pick, and whether
- * the Research phases have the Draft. */
+/** The new-Game screen: Players, their Controllers, the seed, how fast Random Bots pick, whether the
+ * Research phases have the Draft, and whether the Game has Prelude. */
 export function NewGameSetup({
   initialControllers,
   initialBotDelay,
@@ -40,6 +40,7 @@ export function NewGameSetup({
   const [seedText, setSeedText] = useState("");
   const [botDelay, setBotDelay] = useState(initialBotDelay);
   const [draft, setDraft] = useState(true);
+  const [prelude, setPrelude] = useState(false);
 
   const controllers = allControllers.slice(0, playerCount);
   const seed = parseSeed(seedText);
@@ -53,6 +54,7 @@ export function NewGameSetup({
       controllers,
       bot_delay: botDelay,
       draft,
+      prelude,
       ...(seed === null ? {} : { seed }),
     });
   };
@@ -121,6 +123,18 @@ export function NewGameSetup({
           <p className="setup-hint">
             From Generation 2, each Player is dealt 4 cards, keeps one and passes the rest on, until every card is
             kept; then they buy from the cards they kept. Off, each Player draws 4 cards to buy from.
+          </p>
+        </section>
+        <section className="setup-section">
+          <label className="setup-checkbox">
+            <input type="checkbox" checked={prelude} onChange={(event) => setPrelude(event.target.checked)} />
+            Prelude
+          </label>
+          <p className="setup-hint">
+            At setup, each Player is also dealt 4 Prelude Cards and keeps 2, which they play before Generation 1's
+            first Turn; Prelude's Project Cards join the deck. Not finished yet: only 26 of the 35 Prelude Cards are
+            dealt, and Prelude's Corporations and Project Cards don't work yet, so a Replay of such a Game may not load
+            once more of them do.
           </p>
         </section>
         {seed === "invalid" && (

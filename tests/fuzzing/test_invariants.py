@@ -9,6 +9,7 @@ import tm_engine
 from tests.fuzzing.invariants import AFTER_EVERY_DECISION, AT_THE_END_OF_THE_GAME
 from tests.helpers import (
     CORPORATIONS,
+    PRELUDE_CARDS,
     city,
     claimed,
     end_the_action_phase,
@@ -1275,4 +1276,58 @@ def test_an_olympus_conference_decision_without_a_science_or_its_options_breaks_
     assert problems(view, decision) == [
         "Olympus Conference offers to remove a science, but has none",
         "Olympus Conference's Decision also offers [{'type': 'done'}], not every card in the hand and Done",
+    ]
+
+
+def test_positions_with_prelude_reached_by_the_rules_break_no_invariant():
+    game = tm_engine.Game(seed=7, players=3, prelude=True)
+    phases = set()
+    for _ in range(80):
+        assert problems(*position(game)) == []
+        phases.add(game.full_view()["phase"])
+        game.play_randomly(seed=1, picks=1)
+    assert {"setup", "prelude_cards", "action"} <= phases
+
+
+def test_prelude_cards_without_prelude_break_an_invariant():
+    view, decision = position(scenario(player(), player()))
+    view["players"][0]["played_prelude_cards"] = ["donation"]
+
+    assert problems(view, decision) == ["without Prelude, Player 1 has Prelude Cards"]
+
+
+def test_prelude_cards_dealt_twice_or_kept_without_being_dealt_break_an_invariant():
+    view, decision = position(tm_engine.Game(seed=7, prelude=True))
+    first, second = view["players"][0]["prelude_cards"], view["players"][1]["prelude_cards"]
+    second["dealt"][0] = first["dealt"][0]
+    kept = next(card for card in PRELUDE_CARDS if card not in first["dealt"])
+    first["kept"] = [kept]
+
+    found = problems(view, decision)
+    assert f"the Prelude Card {first['dealt'][0]} is in 2 places" in found
+    assert f"at setup, Player 1 was dealt {first['dealt']} and kept {[kept]}" in found
+
+
+def test_prelude_cards_still_held_in_the_action_phase_break_an_invariant():
+    view, decision = position(scenario(player(), player(), prelude=True))
+    view["players"][0]["prelude_cards"] = {"dealt": [], "kept": ["donation"]}
+
+    assert problems(view, decision) == ["in the action phase, Player 1 has ['donation'] still to play"]
+
+
+def test_more_than_two_prelude_cards_played_breaks_an_invariant():
+    three_played = player(played_prelude_cards=["donation", "loan", "mohole"])
+    view, decision = position(scenario(three_played, player(), prelude=True))
+
+    assert problems(view, decision) == [
+        "Player 1 has [] still to play and ['donation', 'loan', 'mohole'] played, more than 2"
+    ]
+
+
+def test_a_prelude_card_decision_offering_one_not_kept_breaks_an_invariant():
+    view, decision = position(scenario(player(prelude_cards=["donation", "loan"]), player(), prelude=True))
+    decision["options"][1]["details"]["card"] = "mohole"
+
+    assert problems(view, decision) == [
+        "Player 1 is offered the Prelude Cards ['donation', 'mohole'], not ['donation', 'loan']"
     ]

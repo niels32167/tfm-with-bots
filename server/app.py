@@ -1,8 +1,10 @@
 """The local server: the GUI talks to it over one WebSocket, and it drives the engine.
 
 Messages from the GUI:
-    {"type": "new_game", "controllers": ["human", "random_bot"], "seed": 7, "bot_delay": 0.8, "draft": true}
-        (2 to 5 Controllers; seed, bot_delay and draft are optional; the Draft is on unless draft is false)
+    {"type": "new_game", "controllers": ["human", "random_bot"], "seed": 7, "bot_delay": 0.8, "draft": true,
+     "prelude": false}
+        (2 to 5 Controllers; seed, bot_delay, draft and prelude are optional; the Draft is on unless draft
+        is false, and Prelude is off unless prelude is true)
     {"type": "pick", "sequence": 12, "index": 0}
     {"type": "undo"}                  back to the Decision a human answered last
     {"type": "save_replay"}           answered with a replay_file message
@@ -100,7 +102,8 @@ class GameHost:
         if not isinstance(seed, int) or not 0 <= seed <= tm_engine.MAX_SEED:
             raise ValueError(f"the seed must be a whole number from 0 to {tm_engine.MAX_SEED}, not {seed!r}")
         draft = true_or_false(message, "draft", default=True)
-        session = GameSession.new(message["controllers"], seed, bot_delay(message), draft=draft)
+        prelude = true_or_false(message, "prelude", default=False)
+        session = GameSession.new(message["controllers"], seed, bot_delay(message), draft=draft, prelude=prelude)
         await self.start(session)
 
     async def start(self, session: GameSession) -> None:

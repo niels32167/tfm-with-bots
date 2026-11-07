@@ -53,6 +53,7 @@ impl Start {
                 draft: scenario.draft,
                 // A Scenario starts past setup: nobody is dealt any, whichever a Player has.
                 corporations: false,
+                prelude: scenario.prelude,
             },
         }
     }

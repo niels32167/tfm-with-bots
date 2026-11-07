@@ -24,6 +24,8 @@ from tests.helpers import (
     LAND_AREAS,
     NOCTIS_CITY,
     OCEAN_AREAS,
+    PRELUDE_CARDS,
+    PRELUDE_PROJECT_CARDS,
     PROJECT_CARDS,
     RESERVED_FOR_CARDS,
     RESOURCES,
@@ -46,6 +48,7 @@ MAX_MILESTONES_CLAIMED = 3
 MILESTONE_VICTORY_POINTS = 5
 PLANTS_PER_GREENERY = 8
 CORPORATIONS_DEALT = 2
+PRELUDE_CARDS_DEALT, PRELUDE_CARDS_KEPT = 4, 2
 STEEL_VALUE, TITANIUM_VALUE = 2, 3
 
 # How the game log names each Resource: an amount of it, and its Production.
@@ -411,7 +414,7 @@ def robotic_workforce_copies_only_your_building_cards(view: View, decision: Deci
         card = CARDS[details["card"]]
         building_card = (
             card["id"] in played
-            and card["type"] in ("automated", "active", "corporation")
+            and card["type"] in ("automated", "active", "corporation", "prelude")
             and "building" in card["tags"]
             and has_printed_production_box(card)
             and card["id"] not in PRODUCTION_BOX_IN_THE_ACTION
@@ -425,9 +428,9 @@ def robotic_workforce_copies_only_your_building_cards(view: View, decision: Deci
 
 
 def cards_in_play(player_board: dict[str, Any]) -> list[str]:
-    """A Player's played Project Cards and their Corporation, once it is revealed."""
+    """A Player's played Project Cards and Prelude Cards, and their Corporation, once it is revealed."""
     corporation = player_board["corporation"]
-    return player_board["played_cards"] + ([corporation] if corporation else [])
+    return player_board["played_cards"] + player_board["played_prelude_cards"] + ([corporation] if corporation else [])
 
 
 def spendable_megacredits(player_board: dict[str, Any]) -> int:
@@ -1016,7 +1019,8 @@ def every_card_in_exactly_one_place(view: View, decision: Decision | None) -> It
     or the cards a Player looks at or has kept while playing Business Contacts or Invention
     Contest, or using the action of Inventors' Guild or Business Network. The sizes shown agree
     with the cards."""
-    places: dict[str, list[str]] = {card_id: [] for card_id in PROJECT_CARDS}
+    project_cards = PROJECT_CARDS + (PRELUDE_PROJECT_CARDS if view["prelude"] else [])
+    places: dict[str, list[str]] = {card_id: [] for card_id in project_cards}
     for pile, name in (("deck", "the deck"), ("discard", "the discard pile")):
         if view[f"{pile}_size"] != len(view[pile]):
             yield f"{pile}_size is {view[f'{pile}_size']}, but {name} holds {counted(len(view[pile]), 'card')}"
@@ -1056,12 +1060,58 @@ def every_card_in_exactly_one_place(view: View, decision: Decision | None) -> It
             if card_id not in buying["dealt"]:
                 yield f"{name} has bought '{card_id}', which was not dealt to them"
     for card_id, found in places.items():
-        if card_id not in CARDS or CARDS[card_id]["type"] == "corporation":
+        if card_id not in project_cards:
             yield f"'{card_id}' is not a Project Card, but is in {' and '.join(found)}"
         elif not found:
             yield f"'{card_id}' is nowhere"
         elif len(found) > 1:
             yield f"'{card_id}' is in {len(found)} places: {' and '.join(found)}"
+
+
+def prelude_cards_stay_hidden_until_played(view: View, decision: Decision | None) -> Iterator[str]:
+    """Without Prelude nobody has Prelude Cards. With it, at setup each Player was dealt 4, none dealt to
+    two Players, and has kept up to 2 of them; once setup is over, those not kept are gone, and each holds
+    at most 2 still to play or played, and none still to play from the Action phase on. A Prelude Card is
+    in one place at most. A Decision to keep one offers those dealt and not kept, and a Decision to play
+    one offers those kept."""
+    seen: list[str] = []
+    for player_board in view["players"]:
+        name, cards, played = player_board["name"], player_board["prelude_cards"], player_board["played_prelude_cards"]
+        seen += played
+        if not view["prelude"]:
+            if cards is not None or played:
+                yield f"without Prelude, {name} has Prelude Cards"
+            continue
+        if cards is None:
+            yield f"with Prelude, the full view shows no Prelude Cards of {name}'s"
+            continue
+        dealt, kept = cards["dealt"], cards["kept"]
+        if not set(dealt + kept + played) <= set(PRELUDE_CARDS):
+            yield f"{name} has {dealt + kept + played} as Prelude Cards, which are not all Prelude Cards"
+        if view["phase"] == "setup":
+            if len(dealt) != PRELUDE_CARDS_DEALT or not set(kept) <= set(dealt) or len(kept) > PRELUDE_CARDS_KEPT:
+                yield f"at setup, {name} was dealt {dealt} and kept {kept}"
+            seen += dealt
+        else:
+            seen += kept
+            if dealt:
+                yield f"in the {view['phase']} phase, {name} still holds the Prelude Cards {dealt} dealt to them"
+            if len(kept) + len(played) > PRELUDE_CARDS_KEPT:
+                yield f"{name} has {kept} still to play and {played} played, more than {PRELUDE_CARDS_KEPT}"
+            if view["phase"] not in ("setup", "prelude_cards") and kept:
+                yield f"in the {view['phase']} phase, {name} has {kept} still to play"
+    for card_id, times in Counter(seen).items():
+        if times > 1:
+            yield f"the Prelude Card {card_id} is in {times} places"
+    if decision is None or decision["kind"] not in ("prelude_cards", "play_prelude_card"):
+        return
+    cards = view["players"][decision["player"]]["prelude_cards"] or {"dealt": [], "kept": []}
+    offered = [option["details"]["card"] for option in decision["options"]]
+    expected = cards["kept"] if decision["kind"] == "play_prelude_card" else [
+        card for card in cards["dealt"] if card not in cards["kept"]
+    ]
+    if offered != expected:
+        yield f"Player {decision['player'] + 1} is offered the Prelude Cards {offered}, not {expected}"
 
 
 def every_decision_has_an_option(view: View, decision: Decision | None) -> Iterator[str]:
@@ -1203,6 +1253,7 @@ AFTER_EVERY_DECISION: tuple[Check, ...] = (
     ways_to_pay_cover_the_cost,
     tags_shown_count_the_corporation,
     every_card_in_exactly_one_place,
+    prelude_cards_stay_hidden_until_played,
     every_decision_has_an_option,
 )
 

@@ -6,6 +6,7 @@ import tm_engine
 
 from tests.helpers import (
     CARD_NAMES,
+    PRELUDE_CARDS,
     PROJECT_CARDS,
     buy,
     buying,
@@ -220,3 +221,33 @@ def test_only_the_player_sees_what_their_cards_cost_and_everyone_sees_what_waits
     assert game.player_view(1)["players"][0]["card_costs"] is None
     assert game.player_view(1)["players"][0]["next_card"] == "special_design"
     assert game.player_view(0)["players"][0]["card_costs"] == {"mine": 4}
+
+
+def prelude_cards_named_in(value: Any) -> set[str]:
+    """Every Prelude Card id anywhere in `value`."""
+    if isinstance(value, dict):
+        return set().union(*map(prelude_cards_named_in, value.values()))
+    if isinstance(value, list):
+        return set().union(*map(prelude_cards_named_in, value))
+    return {value} if value in PRELUDE_CARDS else set()
+
+
+def test_no_player_view_or_log_line_shows_another_players_prelude_cards_until_they_are_played():
+    game = tm_engine.Game(seed=7, players=3, prelude=True)
+    dealt_to = [set(board["prelude_cards"]["dealt"]) for board in game.full_view()["players"]]
+    phases = set()
+
+    while game.full_view()["phase"] in ("setup", "prelude_cards"):
+        phases.add(game.full_view()["phase"])
+        played = {card for board in game.full_view()["players"] for card in board["played_prelude_cards"]}
+        for viewer in range(3):
+            view = game.player_view(viewer)
+            assert prelude_cards_named_in(view) <= dealt_to[viewer] | played
+            assert [board["prelude_cards"] is not None for board in view["players"]] == [
+                index == viewer for index in range(3)
+            ]
+        named_in_the_log = {card for card in PRELUDE_CARDS if any(CARD_NAMES[card] in line for line in game.log)}
+        assert named_in_the_log <= played
+        game.play_randomly(seed=4, picks=1)
+
+    assert phases == {"setup", "prelude_cards"}

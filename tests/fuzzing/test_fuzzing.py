@@ -22,11 +22,12 @@ def test_about_a_thousand_fuzzed_games_break_no_invariant_and_play_nearly_every_
     assert len(run.cards_never_played) <= 5, run.cards_never_played
 
 
-def test_fuzzed_games_cover_2_to_5_players_and_the_draft_on_and_off():
-    settings = [settings_for(seed) for seed in range(8)]
+def test_fuzzed_games_cover_2_to_5_players_and_the_draft_and_prelude_on_and_off():
+    settings = [settings_for(seed) for seed in range(16)]
 
-    assert [each["players"] for each in settings] == [2, 3, 4, 5] * 2
-    assert [each["draft"] for each in settings] == [True] * 4 + [False] * 4
+    assert [each["players"] for each in settings] == [2, 3, 4, 5] * 4
+    assert [each["draft"] for each in settings] == ([True] * 4 + [False] * 4) * 2
+    assert [each["prelude"] for each in settings] == [False] * 8 + [True] * 8
 
 
 def test_fuzzed_games_play_every_corporation():

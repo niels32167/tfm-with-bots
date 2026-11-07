@@ -14,7 +14,10 @@ use crate::board::{
 use crate::card_flow::Buying;
 use crate::card_resources::CardResources;
 use crate::card_set::CardSet;
-use crate::cards::{CARD_CATALOG, find_corporation, find_project_card};
+use crate::cards::{
+    CARD_CATALOG, Expansion, find_card, find_corporation, find_prelude_card, find_project_card,
+    project_cards_with,
+};
 use crate::corporations::ChoosingCorporation;
 use crate::deck::Deck;
 use crate::draft::Drafting;
@@ -25,6 +28,7 @@ use crate::game::{
 };
 use crate::log::player_name;
 use crate::milestones_and_awards::{AWARD_COSTS, Award, MAX_MILESTONES_CLAIMED, Milestone};
+use crate::prelude_cards::{PRELUDE_CARDS_KEPT, PreludeCards, PreludeSet};
 use crate::replay::Start;
 use crate::resources::{MIN_MEGACREDIT_PRODUCTION, Resource, Resources};
 
@@ -63,6 +67,10 @@ pub struct Scenario {
     pub discard: Vec<String>,
     /// Whether the Research phases have the Draft. On by default (ADR 0003).
     pub draft: bool,
+    /// Whether the Game has Prelude: Prelude's Project Cards are in the deck, and Players may hold
+    /// Prelude Cards. Off by default, and only a Scenario that has it on names it.
+    #[serde(skip_serializing_if = "std::ops::Not::not")]
+    pub prelude: bool,
 }
 
 impl Default for Scenario {
@@ -83,6 +91,7 @@ impl Default for Scenario {
             deck: Vec::new(),
             discard: Vec::new(),
             draft: true,
+            prelude: false,
         }
     }
 }
@@ -157,6 +166,13 @@ pub struct ScenarioPlayer {
     pub terraform_rating_raised: bool,
     /// The Event they played whose effect waits on the next card they play this Generation.
     pub next_card: Option<String>,
+    /// With Prelude, the Prelude Cards they kept and have still to play, by catalog id. The Scenario
+    /// then starts where Players play them, before the Action phase.
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub prelude_cards: Vec<String>,
+    /// With Prelude, the Prelude Cards they have played, by catalog id.
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub played_prelude_cards: Vec<String>,
 }
 
 impl Default for ScenarioPlayer {
@@ -174,6 +190,8 @@ impl Default for ScenarioPlayer {
             used_actions: Vec::new(),
             terraform_rating_raised: false,
             next_card: None,
+            prelude_cards: Vec::new(),
+            played_prelude_cards: Vec::new(),
         }
     }
 }
@@ -206,10 +224,10 @@ impl ScenarioPlayer {
     }
 
     /// The cards among `played` whose action this Player has used, or why they can't have.
-    fn used_actions_among(&self, index: usize, played: CardSet) -> Result<CardSet, String> {
+    fn used_actions_among(&self, index: usize, played: CardSet, prelude: bool) -> Result<CardSet, String> {
         let mut used = CardSet::default();
         for id in &self.used_actions {
-            let card = find_project_card(id)
+            let card = find_project_card(id, prelude)
                 .or_else(|| find_corporation(id))
                 .ok_or_else(|| format!("there is no card '{id}'"))?;
             check_played(index, card, id, played)?;
@@ -222,9 +240,9 @@ impl ScenarioPlayer {
     }
 
     /// The Event among `played` that waits on this Player's next card, or why it can't.
-    fn event_waiting(&self, index: usize, played: CardSet) -> Result<Option<usize>, String> {
+    fn event_waiting(&self, index: usize, played: CardSet, prelude: bool) -> Result<Option<usize>, String> {
         let Some(id) = &self.next_card else { return Ok(None) };
-        let card = find_project_card(id).ok_or_else(|| format!("there is no Project Card '{id}'"))?;
+        let card = project_card_named(id, prelude)?;
         check_played(index, card, id, played)?;
         if CARD_CATALOG[card].effects.as_ref().is_none_or(|effects| effects.next_card.is_none()) {
             return Err(format!("'{id}' does nothing to the next card played"));
@@ -234,13 +252,13 @@ impl ScenarioPlayer {
 
     /// Puts this Player's Card Resources on their played cards, or says why the rules never
     /// allow them there.
-    fn put_card_resources(&self, index: usize, on: &mut CardResources) -> Result<(), String> {
+    fn put_card_resources(&self, index: usize, on: &mut CardResources, prelude: bool) -> Result<(), String> {
         let name = player_name(index);
         for (id, &amount) in &self.card_resources {
             if !self.played_cards.contains(id) {
                 return Err(format!("{name} has Card Resources on '{id}', which they have not played"));
             }
-            let card = find_project_card(id).ok_or_else(|| format!("there is no Project Card '{id}'"))?;
+            let card = project_card_named(id, prelude)?;
             if CARD_CATALOG[card].holds().is_none() {
                 return Err(format!("'{id}' holds no Card Resources"));
             }
@@ -301,7 +319,12 @@ impl Scenario {
         for (index, player) in self.players.iter().enumerate() {
             player.check(index)?;
             let mut played: CardSet =
-                cards_named(&player.played_cards, &mut named_cards)?.into_iter().collect();
+                cards_named(&player.played_cards, self.prelude, &mut named_cards)?.into_iter().collect();
+            let played_prelude_cards =
+                prelude_cards_named(index, &player.played_prelude_cards, self.prelude, &mut named_cards)?;
+            played = played.union(played_prelude_cards.into_iter().collect());
+            let kept = prelude_cards_named(index, &player.prelude_cards, self.prelude, &mut named_cards)?;
+            check_prelude_cards_to_play(index, &kept)?;
             let corporation = match &player.corporation {
                 Some(id) => Some(corporation_named(id, &mut named_cards)?),
                 None => None,
@@ -314,32 +337,37 @@ impl Scenario {
             {
                 return Err(format!("{} has no first action to take", player_name(index)));
             }
-            let used_actions = player.used_actions_among(index, played)?;
-            let next_card = player.event_waiting(index, played)?;
+            let used_actions = player.used_actions_among(index, played, self.prelude)?;
+            let next_card = player.event_waiting(index, played, self.prelude)?;
             players.push(Player {
                 resources: player.resources,
                 production: player.production,
                 terraform_rating: player.terraform_rating,
                 passed: false,
-                hand: cards_named(&player.hand, &mut named_cards)?.into_iter().collect(),
+                hand: cards_named(&player.hand, self.prelude, &mut named_cards)?.into_iter().collect(),
                 played,
                 used_actions,
                 next_card,
                 buying: Buying::default(),
                 drafting: Drafting::default(),
                 choosing_corporation: ChoosingCorporation::default(),
+                prelude_cards: PreludeCards {
+                    dealt: PreludeSet::default(),
+                    kept: kept.into_iter().collect(),
+                },
                 first_action_due: player.first_action_due,
                 terraform_rating_raised: player.terraform_rating_raised,
             });
         }
         let mut card_resources = CardResources::default();
         for (index, player) in self.players.iter().enumerate() {
-            player.put_card_resources(index, &mut card_resources)?;
+            player.put_card_resources(index, &mut card_resources, self.prelude)?;
         }
-        let top_of_deck = cards_named(&self.deck, &mut named_cards)?;
-        let discard = cards_named(&self.discard, &mut named_cards)?.into_iter().collect();
+        let top_of_deck = cards_named(&self.deck, self.prelude, &mut named_cards)?;
+        let discard = cards_named(&self.discard, self.prelude, &mut named_cards)?.into_iter().collect();
         let mut game = Game::prepare(Start::Scenario(Box::new(self.clone())), players);
-        game.deck = Deck::shuffled(named_cards, &top_of_deck, &mut game.random_numbers);
+        let project_cards = project_cards_with(self.prelude);
+        game.deck = Deck::shuffled(project_cards, named_cards, &top_of_deck, &mut game.random_numbers);
         game.discard = discard;
         game.card_resources = card_resources;
         game.temperature = self.temperature;
@@ -393,9 +421,32 @@ impl Scenario {
             }
             *funded_by = Some(funding.funded_by);
         }
-        game.begin(self.generation, self.first_player);
-        self.resume_the_turn(&mut game)?;
+        if game.players.iter().any(|player| !player.prelude_cards.kept.is_empty()) {
+            self.check_before_the_action_phase()?;
+            game.generation = self.generation;
+            game.first_player = self.first_player;
+            game.begin_playing_prelude_cards();
+        } else {
+            game.begin(self.generation, self.first_player);
+            self.resume_the_turn(&mut game)?;
+        }
         Ok(game)
+    }
+
+    /// Whether this Scenario, in which Players have Prelude Cards still to play, starts before the
+    /// Action phase, as it must.
+    fn check_before_the_action_phase(&self) -> Result<(), String> {
+        let under_way = self.current_player.is_some()
+            || self.actions_this_turn > 0
+            || self.players.iter().any(|player| player.passed);
+        if under_way {
+            return Err(
+                "a Scenario in which Players have Prelude Cards still to play starts before the Action \
+                        phase, so nobody has a Turn under way or has passed"
+                    .to_string(),
+            );
+        }
+        Ok(())
     }
 
     /// Who has passed and whose Turn it is, for a position in the middle of a Generation.
@@ -468,6 +519,7 @@ impl Game {
             deck: ids(self.deck.iter()),
             discard: ids(self.discard.iter()),
             draft: self.settings.draft,
+            prelude: self.settings.prelude,
         }
     }
 
@@ -492,6 +544,13 @@ impl Game {
             used_actions: ids(player.used_actions.iter()),
             terraform_rating_raised: player.terraform_rating_raised,
             next_card: player.next_card.map(id_of),
+            // Only once setup is over: a Prelude Card kept at setup is dropped with the rest of it.
+            prelude_cards: if self.phase == Phase::PreludeCards {
+                player.prelude_cards.kept.iter().map(id_of).collect()
+            } else {
+                Vec::new()
+            },
+            played_prelude_cards: ids(player.played_prelude_cards().iter()),
         }
     }
 }
@@ -505,15 +564,57 @@ fn ids(cards: impl Iterator<Item = usize>) -> Vec<String> {
     cards.map(id_of).collect()
 }
 
-/// The Project Cards named by `ids`, in order. Each must be named in no other place:
-/// `named_so_far` collects every card the Scenario has named.
-fn cards_named(ids: &[String], named_so_far: &mut CardSet) -> Result<Vec<usize>, String> {
+/// The Project Cards of a Game with Prelude or without named by `ids`, in order. Each must be named
+/// in no other place: `named_so_far` collects every card the Scenario has named.
+fn cards_named(ids: &[String], prelude: bool, named_so_far: &mut CardSet) -> Result<Vec<usize>, String> {
+    ids.iter().map(|id| named_once(project_card_named(id, prelude)?, id, named_so_far)).collect()
+}
+
+/// The Project Card named `id` in a Game with Prelude or without, or why there is none.
+fn project_card_named(id: &str, prelude: bool) -> Result<usize, String> {
+    find_project_card(id, prelude).ok_or_else(|| match find_card(id) {
+        Some(card) if CARD_CATALOG[card].expansion == Expansion::Prelude && !prelude => {
+            format!("'{id}' is a card of the Prelude box, and the Scenario has no Prelude")
+        }
+        _ => format!("there is no Project Card '{id}'"),
+    })
+}
+
+/// The Prelude Cards named by `ids` for Player `index`, in order, each named in no other place. Only
+/// a Scenario with Prelude names any.
+fn prelude_cards_named(
+    index: usize,
+    ids: &[String],
+    prelude: bool,
+    named_so_far: &mut CardSet,
+) -> Result<Vec<usize>, String> {
+    if !prelude && !ids.is_empty() {
+        return Err(format!("{} has Prelude Cards, and the Scenario has no Prelude", player_name(index)));
+    }
     ids.iter()
         .map(|id| {
-            let card = find_project_card(id).ok_or_else(|| format!("there is no Project Card '{id}'"))?;
+            let card = find_prelude_card(id).ok_or_else(|| format!("there is no Prelude Card '{id}'"))?;
             named_once(card, id, named_so_far)
         })
         .collect()
+}
+
+/// Whether Player `index` may have `kept` still to play: at most as many as they keep, each of
+/// them implemented, since only an implemented card can be played.
+fn check_prelude_cards_to_play(index: usize, kept: &[usize]) -> Result<(), String> {
+    if kept.len() > PRELUDE_CARDS_KEPT {
+        return Err(format!(
+            "{} keeps at most {PRELUDE_CARDS_KEPT} Prelude Cards, not {}",
+            player_name(index),
+            kept.len()
+        ));
+    }
+    match kept.iter().find(|&&card| CARD_CATALOG[card].effects.is_none()) {
+        Some(&card) => {
+            Err(format!("'{}' is not implemented yet, so it can't be played", CARD_CATALOG[card].id))
+        }
+        None => Ok(()),
+    }
 }
 
 /// The Corporation named by `id`, which no other Player may have.

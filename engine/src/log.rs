@@ -12,6 +12,9 @@ use crate::game::{
 };
 use crate::milestones_and_awards::{Award, MILESTONE_COST, Milestone};
 use crate::playing_cards::Payment;
+use crate::prelude_cards::{
+    MEGACREDITS_FOR_AN_UNPLAYABLE_PRELUDE_CARD, PRELUDE_CARDS_DEALT, PRELUDE_CARDS_KEPT,
+};
 use crate::resources::{Resource, Resources};
 use crate::scoring::{AwardPlace, Win};
 
@@ -19,6 +22,18 @@ use crate::scoring::{AwardPlace, Win};
 pub enum LogEvent {
     Setup,
     CorporationsDealt,
+    PreludeCardsDealt,
+    /// After setup, Players play their Prelude Cards.
+    PreludeCardsPlayed,
+    PlayedPreludeCard {
+        player: usize,
+        card: usize,
+    },
+    /// The Player can't play this Prelude Card of theirs, so they discard it and gain 15 MegaCredits.
+    DiscardedUnplayablePreludeCard {
+        player: usize,
+        card: usize,
+    },
     /// The Player takes the first action of their Corporation.
     TookFirstAction {
         player: usize,
@@ -286,6 +301,21 @@ impl LogEvent {
             LogEvent::CorporationsDealt => format!(
                 "Each Player is dealt {CORPORATIONS_DEALT} Corporations and chooses one, which stays hidden until \
                  every Player is done buying."
+            ),
+            LogEvent::PreludeCardsDealt => format!(
+                "Each Player is dealt {PRELUDE_CARDS_DEALT} Prelude Cards and keeps {PRELUDE_CARDS_KEPT}, which stay \
+                 hidden until they are played."
+            ),
+            LogEvent::PreludeCardsPlayed => {
+                "Each Player, in player order, plays the Prelude Cards they kept.".to_string()
+            }
+            LogEvent::PlayedPreludeCard { player, card } => {
+                format!("{} plays {}.", player_name(player), CARD_CATALOG[card].name)
+            }
+            LogEvent::DiscardedUnplayablePreludeCard { player, card } => format!(
+                "{} can't play {}, so they discard it and gain {MEGACREDITS_FOR_AN_UNPLAYABLE_PRELUDE_CARD} MegaCredits.",
+                player_name(player),
+                CARD_CATALOG[card].name
             ),
             LogEvent::TookFirstAction { player, card } => {
                 format!("{} takes the first action of {}.", player_name(player), CARD_CATALOG[card].name)

@@ -1,0 +1,202 @@
+//! Prelude Cards at setup (ADR 0011), in a Game with the `prelude` setting on: each Player is dealt 4
+//! and keeps 2, choosing them with their Corporation and the cards they buy. Like those choices they stay
+//! hidden until every Player is done. Once every Corporation is revealed and every card paid for, each
+//! Player in player order plays both of theirs, in the order they choose, before Generation 1's Action
+//! phase. A Prelude Card that can't be played is discarded instead, for 15 MegaCredits.
+
+use crate::cards::{CARD_CATALOG, CATALOG_CARDS, FIRST_PRELUDE_CARD, PRELUDE_CARDS};
+use crate::game::{DecisionOption, Game, Phase, Waiting};
+use crate::log::LogEvent;
+
+/// How many Prelude Cards each Player is dealt at setup.
+pub const PRELUDE_CARDS_DEALT: usize = 4;
+/// How many of them each Player keeps.
+pub const PRELUDE_CARDS_KEPT: usize = 2;
+/// What a Player gains for a Prelude Card they can't play, which they discard instead.
+pub const MEGACREDITS_FOR_AN_UNPLAYABLE_PRELUDE_CARD: i32 = 15;
+
+const _: () = assert!(PRELUDE_CARDS <= 64, "a PreludeSet has room for every Prelude Card");
+
+/// A set of Prelude Cards, one bit for each. Smaller than a `CardSet`, which every Player would
+/// otherwise carry twice more, so copying a Game stays cheap (ADR 0004). Its cards come out in
+/// card-number order (ADR 0010).
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub struct PreludeSet {
+    bits: u64,
+}
+
+impl PreludeSet {
+    pub fn insert(&mut self, card: usize) {
+        self.bits |= bit(card);
+    }
+
+    pub fn remove(&mut self, card: usize) {
+        self.bits &= !bit(card);
+    }
+
+    /// The cards in this set but not in `other`.
+    pub fn without(self, other: PreludeSet) -> PreludeSet {
+        PreludeSet { bits: self.bits & !other.bits }
+    }
+
+    pub fn len(self) -> usize {
+        self.bits.count_ones() as usize
+    }
+
+    pub fn is_empty(self) -> bool {
+        self.bits == 0
+    }
+
+    /// The cards in card-number order.
+    pub fn iter(self) -> impl Iterator<Item = usize> {
+        let mut bits = self.bits;
+        std::iter::from_fn(move || {
+            (bits != 0).then(|| {
+                let card = FIRST_PRELUDE_CARD + bits.trailing_zeros() as usize;
+                bits &= bits - 1;
+                card
+            })
+        })
+    }
+}
+
+impl FromIterator<usize> for PreludeSet {
+    fn from_iter<I: IntoIterator<Item = usize>>(cards: I) -> PreludeSet {
+        let mut set = PreludeSet::default();
+        for card in cards {
+            set.insert(card);
+        }
+        set
+    }
+}
+
+fn bit(card: usize) -> u64 {
+    assert!((FIRST_PRELUDE_CARD..CATALOG_CARDS).contains(&card), "card {card} is no Prelude Card");
+    1 << (card - FIRST_PRELUDE_CARD)
+}
+
+/// A Player's Prelude Cards: at setup those dealt to them and those of them they have kept so far,
+/// then those they kept and have still to play.
+#[derive(Clone, Copy, Debug, Default)]
+pub struct PreludeCards {
+    pub dealt: PreludeSet,
+    pub kept: PreludeSet,
+}
+
+impl PreludeCards {
+    /// Whether the Player still has one to keep: they were dealt some, as a Player of a Game with
+    /// Prelude is, and kept fewer than 2.
+    pub fn keeping_due(self) -> bool {
+        !self.dealt.is_empty() && self.kept.len() < PRELUDE_CARDS_KEPT
+    }
+}
+
+impl Game {
+    /// Each Player, in player order from the first player, is dealt their Prelude Cards from the
+    /// shuffled Prelude Cards. Only those with effect data are in the shuffle until all 35 have it
+    /// (see docs/rules-notes.md). Those left over, and later those not kept, go back in the box.
+    pub(crate) fn deal_prelude_cards(&mut self) {
+        let mut cards: Vec<usize> = (FIRST_PRELUDE_CARD..CATALOG_CARDS)
+            .filter(|&card| CARD_CATALOG[card].effects.is_some())
+            .collect();
+        self.random_numbers.shuffle(&mut cards);
+        let mut dealing = cards.chunks(PRELUDE_CARDS_DEALT);
+        for player in self.player_order() {
+            let dealt = dealing.next().expect("there are enough Prelude Cards for 5 Players");
+            assert_eq!(dealt.len(), PRELUDE_CARDS_DEALT, "there are enough Prelude Cards for 5 Players");
+            self.players[player].prelude_cards.dealt = dealt.iter().copied().collect();
+        }
+        self.log.push(LogEvent::PreludeCardsDealt);
+    }
+
+    /// The current Player may keep any Prelude Card dealt to them that they haven't kept.
+    pub(crate) fn prelude_keeping_options(&self) -> Vec<DecisionOption> {
+        let cards = self.players[self.current_player].prelude_cards;
+        cards.dealt.without(cards.kept).iter().map(DecisionOption::KeepPreludeCard).collect()
+    }
+
+    /// The current Player keeps `card`, and keeps another, or goes on to buy cards.
+    pub(crate) fn keep_prelude_card(&mut self, card: usize) {
+        self.waiting = None;
+        self.players[self.current_player].prelude_cards.kept.insert(card);
+        self.buy_more_or_be_done();
+    }
+
+    /// The Prelude Cards `player` was dealt and didn't keep go back in the box.
+    pub(crate) fn put_back_prelude_cards_not_kept(&mut self, player: usize) {
+        self.players[player].prelude_cards.dealt = PreludeSet::default();
+    }
+
+    /// After setup, each Player in player order plays their Prelude Cards; then Generation 1's Action
+    /// phase begins.
+    pub(crate) fn begin_playing_prelude_cards(&mut self) {
+        self.phase = Phase::PreludeCards;
+        self.log.push(LogEvent::PreludeCardsPlayed);
+        self.offer_prelude_cards_from(0);
+    }
+
+    /// Hands playing Prelude Cards to the first Player with any left, looking from index `start` in
+    /// player order (0 is the first player). Once nobody has, the Action phase begins.
+    pub(crate) fn offer_prelude_cards_from(&mut self, start: usize) {
+        match self.first_in_player_order_who(start, |game, player| {
+            !game.players[player].prelude_cards.kept.is_empty()
+        }) {
+            Some(player) => {
+                self.current_player = player;
+                self.play_next_prelude_card();
+            }
+            None => self.begin(self.generation, self.first_player),
+        }
+    }
+
+    /// Once a Prelude Card is done, the current Player plays their next: with two left they choose
+    /// which, and the last they play without a Decision. With none left, the next Player plays theirs.
+    pub(crate) fn play_next_prelude_card(&mut self) {
+        let kept = self.players[self.current_player].prelude_cards.kept;
+        match kept.len() {
+            0 => self.offer_prelude_cards_from(self.index_in_player_order() + 1),
+            1 => self.play_prelude_card(kept.iter().next().expect("one is left")),
+            _ => {}
+        }
+    }
+
+    /// The current Player may play either Prelude Card they have left first.
+    pub(crate) fn prelude_playing_options(&self) -> Vec<DecisionOption> {
+        let kept = self.players[self.current_player].prelude_cards.kept;
+        kept.iter().map(DecisionOption::PlayPreludeCard).collect()
+    }
+
+    /// Whether `player` can play the Prelude Card `card`: carry out its effects, as for a Project
+    /// Card. A Prelude Card has no cost and no Requirements.
+    pub fn can_play_prelude_card(&self, player: usize, card: usize) -> bool {
+        self.can_carry_out(player, CARD_CATALOG[card].implemented_effects())
+            && self.can_make_a_production_change(player, card)
+    }
+
+    /// The current Player plays `card`, one of their Prelude Cards: it joins their played cards and
+    /// its effects are carried out, as a Project Card's are. If they can't play it, they discard it and
+    /// gain 15 MegaCredits instead.
+    pub(crate) fn play_prelude_card(&mut self, card: usize) {
+        let player = self.current_player;
+        self.players[player].prelude_cards.kept.remove(card);
+        if !self.can_play_prelude_card(player, card) {
+            self.players[player].resources.megacredits += MEGACREDITS_FOR_AN_UNPLAYABLE_PRELUDE_CARD;
+            self.log.push(LogEvent::DiscardedUnplayablePreludeCard { player, card });
+            return self.play_next_prelude_card();
+        }
+        self.log.push(LogEvent::PlayedPreludeCard { player, card });
+        self.put_into_play(player, card);
+    }
+
+    /// If the current Player still has a Prelude Card to keep, the Game waits on which.
+    pub(crate) fn offer_keeping_prelude_card(&mut self) {
+        if self.players[self.current_player].prelude_cards.keeping_due() {
+            self.wait_on(Waiting::PreludeCards);
+        }
+    }
+}
+
+/// The ids of Prelude Cards, for the view.
+pub(crate) fn prelude_card_ids(cards: PreludeSet) -> Vec<&'static str> {
+    cards.iter().map(|card| CARD_CATALOG[card].id.as_str()).collect()
+}

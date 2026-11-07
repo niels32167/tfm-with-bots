@@ -53,9 +53,11 @@ class GameSession:
         bot_delay: float,
         *,
         draft: bool = True,
+        prelude: bool = False,
     ) -> "GameSession":
-        """A new Game with one Player for each Controller, with the Draft unless `draft` is false."""
-        game = tm_engine.Game(seed=seed, players=len(controllers), draft=draft)
+        """A new Game with one Player for each Controller, with the Draft unless `draft` is false, and
+        with Prelude if `prelude` is true."""
+        game = tm_engine.Game(seed=seed, players=len(controllers), draft=draft, prelude=prelude)
         return cls(game, controllers, bot_delay)
 
     @classmethod
@@ -93,12 +95,12 @@ class GameSession:
         return self.deciding_controller() == "random_bot"
 
     def waiting_on_random_bot_to_draft_or_buy(self) -> bool:
-        """Whether a Random Bot is choosing a Corporation, drafting cards, or buying them at setup or in
-        a Research phase, paying with heat included."""
+        """Whether a Random Bot is choosing a Corporation or Prelude Cards, drafting cards, or buying them at
+        setup or in a Research phase, paying with heat included."""
         if not self.waiting_on_random_bot():
             return False
         phase = self.game.full_view()["phase"]
-        return self.game.decision["kind"] in ("corporation", "draft", "buy_cards") or (
+        return self.game.decision["kind"] in ("corporation", "prelude_cards", "draft", "buy_cards") or (
             self.game.decision["kind"] == "payment" and phase == "research"
         )
 

@@ -17,6 +17,7 @@ mod game;
 mod log;
 mod milestones_and_awards;
 mod playing_cards;
+mod prelude_cards;
 mod random;
 mod random_bot;
 mod replay;
@@ -41,11 +42,13 @@ struct PyGame {
 #[pymethods]
 impl PyGame {
     /// A new Game from its settings, with the Draft unless `draft` is false. Without
-    /// `corporations`, as a Replay saved before they existed plays, nobody has one.
+    /// `corporations`, as a Replay saved before they existed plays, nobody has one. With `prelude`,
+    /// each Player is dealt Prelude Cards at setup, and the deck has Prelude's Project Cards.
     #[new]
-    #[pyo3(signature = (*, seed, players = 2, draft = true, corporations = true))]
-    fn new(seed: u64, players: usize, draft: bool, corporations: bool) -> PyResult<Self> {
-        let settings = game::Settings { players, seed, implemented_cards_first: false, draft, corporations };
+    #[pyo3(signature = (*, seed, players = 2, draft = true, corporations = true, prelude = false))]
+    fn new(seed: u64, players: usize, draft: bool, corporations: bool, prelude: bool) -> PyResult<Self> {
+        let settings =
+            game::Settings { players, seed, implemented_cards_first: false, draft, corporations, prelude };
         let game = game::Game::new(settings).map_err(PyValueError::new_err)?;
         Ok(PyGame { game })
     }

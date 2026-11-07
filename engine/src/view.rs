@@ -21,6 +21,7 @@ use crate::game::{
 use crate::log::{listed, player_name};
 use crate::milestones_and_awards::{Award, MILESTONE_COST, Milestone};
 use crate::playing_cards::{Payment, ProductionChange};
+use crate::prelude_cards::{MEGACREDITS_FOR_AN_UNPLAYABLE_PRELUDE_CARD, prelude_card_ids};
 use crate::resources::{Resource, Resources};
 use crate::scoring::Score;
 use crate::targets::{Taking, steals};
@@ -55,6 +56,16 @@ pub enum OptionDetails {
     /// Choose one of the Corporations dealt at setup, named by its catalog id.
     ChooseCorporation {
         card: &'static str,
+    },
+    /// Keep one of the Prelude Cards dealt at setup, named by its catalog id.
+    KeepPreludeCard {
+        card: &'static str,
+    },
+    /// Play one of the Prelude Cards kept, named by its catalog id, or if it can't be played
+    /// (`playable` false), discard it for 15 MegaCredits.
+    PlayPreludeCard {
+        card: &'static str,
+        playable: bool,
     },
     /// Take the first action of the Player's own Corporation, named by its catalog id.
     FirstAction {
@@ -219,6 +230,8 @@ pub struct View {
     pub viewer: Option<usize>,
     pub generation: u32,
     pub phase: &'static str,
+    /// Whether the Game has Prelude.
+    pub prelude: bool,
     pub temperature: i32,
     /// In percent.
     pub oxygen: i32,
@@ -309,6 +322,9 @@ pub struct PlayerBoard {
     /// At setup, the Corporations dealt to them and the one they chose: only in their own Player View
     /// and the full view, otherwise None.
     pub choosing_corporation: Option<ChoosingCorporationView>,
+    /// With Prelude, the Prelude Cards dealt to them at setup and those they kept, then those they
+    /// have still to play: only in their own Player View and the full view, otherwise None.
+    pub prelude_cards: Option<PreludeCardsView>,
     /// In the setup or a Research phase, what they are buying from: only in their own Player View
     /// and the full view, otherwise None.
     pub buying: Option<BuyingView>,
@@ -323,6 +339,8 @@ pub struct PlayerBoard {
     pub keeping: Option<KeepingView>,
     /// The Project Cards they have played, by catalog id in card-number order.
     pub played_cards: Vec<&'static str>,
+    /// The Prelude Cards they have played, by catalog id in card-number order.
+    pub played_prelude_cards: Vec<&'static str>,
     /// The played cards whose action they have used this Generation, by catalog id in card-number
     /// order.
     pub used_actions: Vec<&'static str>,
@@ -341,6 +359,14 @@ pub struct PlayerBoard {
 pub struct ChoosingCorporationView {
     pub dealt: Vec<&'static str>,
     pub picked: Option<&'static str>,
+}
+
+/// The Prelude Cards dealt to a Player at setup, by catalog id in card-number order (none once setup is
+/// over), and those they kept and have still to play.
+#[derive(Serialize)]
+pub struct PreludeCardsView {
+    pub dealt: Vec<&'static str>,
+    pub kept: Vec<&'static str>,
 }
 
 /// The cards dealt to a Player to buy from, and those of them they have bought so far, by
@@ -432,10 +458,12 @@ fn view(game: &Game, viewer: Option<usize>) -> View {
             Phase::Setup => "setup",
             Phase::Draft => "draft",
             Phase::Research => "research",
+            Phase::PreludeCards => "prelude_cards",
             Phase::Action => "action",
             Phase::FinalGreenery => "final_greenery",
             Phase::Over => "over",
         },
+        prelude: game.settings.prelude,
         temperature: game.temperature,
         oxygen: game.oxygen,
         oceans: game.board.oceans(),
@@ -474,6 +502,10 @@ fn view(game: &Game, viewer: Option<usize>) -> View {
                         dealt: ids(player.choosing_corporation.dealt),
                         picked: player.choosing_corporation.picked.map(|card| CARD_CATALOG[card].id.as_str()),
                     }),
+                prelude_cards: (sees_hand(index) && game.settings.prelude).then(|| PreludeCardsView {
+                    dealt: prelude_card_ids(player.prelude_cards.dealt),
+                    kept: prelude_card_ids(player.prelude_cards.kept),
+                }),
                 buying: (sees_hand(index) && game.phase.is_buying()).then(|| BuyingView {
                     dealt: ids(player.buying.dealt),
                     bought: ids(player.buying.bought),
@@ -500,6 +532,7 @@ fn view(game: &Game, viewer: Option<usize>) -> View {
                     _ => None,
                 },
                 played_cards: ids(player.played_project_cards()),
+                played_prelude_cards: ids(player.played_prelude_cards()),
                 used_actions: ids(player.used_actions),
                 card_resources: player
                     .cards_holding_card_resources()
@@ -591,6 +624,8 @@ fn decision_view(game: &Game, decision: &Decision) -> DecisionView {
             DecisionKind::Effects => "effects",
             DecisionKind::AddToCard => "add_to_card",
             DecisionKind::Corporation => "corporation",
+            DecisionKind::PreludeCards => "prelude_cards",
+            DecisionKind::PlayPreludeCard => "play_prelude_card",
             DecisionKind::Draft => "draft",
             DecisionKind::BuyCards => "buy_cards",
             DecisionKind::SellPatents => "sell_patents",
@@ -623,6 +658,15 @@ fn label(game: &Game, player: usize, option: &DecisionOption) -> String {
         }
         DecisionOption::UseAction(card) => format!("Use the action of {}", CARD_CATALOG[*card].name),
         DecisionOption::ChooseCorporation(card) => format!("Choose {}", CARD_CATALOG[*card].name),
+        DecisionOption::KeepPreludeCard(card) => format!("Keep {}", CARD_CATALOG[*card].name),
+        DecisionOption::PlayPreludeCard(card) if game.can_play_prelude_card(player, *card) => {
+            format!("Play {}", CARD_CATALOG[*card].name)
+        }
+        DecisionOption::PlayPreludeCard(card) => format!(
+            "Discard {} for {} (it can't be played)",
+            CARD_CATALOG[*card].name,
+            Resource::MegaCredits.counted(MEGACREDITS_FOR_AN_UNPLAYABLE_PRELUDE_CARD)
+        ),
         DecisionOption::TakeFirstAction(card) => first_action_label(*card),
         DecisionOption::DraftCard(card) | DecisionOption::KeepCard(card) => {
             format!("Keep {}", CARD_CATALOG[*card].name)
@@ -824,6 +868,13 @@ fn details(game: &Game, player: usize, option: &DecisionOption) -> OptionDetails
         DecisionOption::ChooseCorporation(card) => {
             OptionDetails::ChooseCorporation { card: &CARD_CATALOG[*card].id }
         }
+        DecisionOption::KeepPreludeCard(card) => {
+            OptionDetails::KeepPreludeCard { card: &CARD_CATALOG[*card].id }
+        }
+        DecisionOption::PlayPreludeCard(card) => OptionDetails::PlayPreludeCard {
+            card: &CARD_CATALOG[*card].id,
+            playable: game.can_play_prelude_card(player, *card),
+        },
         DecisionOption::TakeFirstAction(card) => OptionDetails::FirstAction { card: &CARD_CATALOG[*card].id },
         DecisionOption::DraftCard(card) => OptionDetails::DraftCard { card: &CARD_CATALOG[*card].id },
         DecisionOption::KeepCard(card) => OptionDetails::KeepCard { card: &CARD_CATALOG[*card].id },
