@@ -6,7 +6,7 @@ The play-test is mine to do. Unlike phase 1's, it records its seeds, so that its
 
 **Blocked by:** 03 — The Prelude Cards; 04 — Prelude's Corporations and Project Cards
 
-**Status:** ready-for-human (the play-test; every other check is done)
+**Status:** ready-for-human (every check is done; `docs/agents/triage-labels.md` has no "done" label)
 
 - [x] The full 100,000-Game fuzz run is clean with Prelude on and off, 2–5 Players, Draft on and off.
 - [x] The fuzzer's report shows every Prelude card played.
@@ -14,7 +14,7 @@ The play-test is mine to do. Unlike phase 1's, it records its seeds, so that its
 - [x] The coverage check and mismatch report pass, and the rules notes list every call.
 - [x] Mean Generations in Random Bot Games with and without Prelude are recorded, as a check that Prelude shortens Games as expected.
 - [x] Prelude is on by default on the setup screen. Scripts, tests and Replays that don't name it keep their old behaviour.
-- [ ] I play two full Prelude Games in the GUI without finding a rule bug, and their Replay files are kept and named under Comments.
+- [x] I play two full Prelude Games in the GUI without finding a rule bug, and their Replay files are kept and named under Comments.
 
 ## Comments
 
@@ -134,3 +134,21 @@ setting out, as before.
   bug found in play is worth checking against `docs/rules-notes.md`; Dev panel and Save Replay give its Replay.
 - **Still open from earlier tickets:** the paw's emoji font (phase 1, ticket 23); the state editor can't put Prelude
   Cards in a Scenario (ticket 02).
+
+### 2026-11-07 — play-test (Claude, on the user's report)
+
+**The user played one full Prelude Game in the GUI, found no rule bug, and judged one Game enough** instead of the
+two this box names. The box is ticked on that decision, which is the user's to make, as the play-test is theirs.
+
+**The Game,** kept as `.scratch/phase-2-ai-opponent/play-test/terraforming-mars-seed-263853680-pick-345.json` (saved
+with Save Replay at 19:23, on 5859556):
+- 2 Players, the user against a Random Bot, with the Draft and Prelude; seed 263853680, 345 picks.
+- The user played United Nations Mars Initiative with Huge Asteroid and Metals Company; the Random Bot played Cheung
+  Shing Mars with Biolabs and Metal-Rich Asteroid.
+- Over in Generation 12: the user won, 80 Victory Points to 38.
+
+**What Claude checked:** the file loads with `tm_engine.Game.from_replay` and replays to the end of the Game, with
+the final scoring above. Whether every rule felt right rests on the user's report.
+
+**Bugs found: none,** so there are no new tickets, Replays or regression tests. Nothing in the engine, the server or
+the GUI changed for this, so the numbers above stand.
