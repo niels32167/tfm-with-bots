@@ -86,7 +86,7 @@ export function BuyingPanel({ game, cards, disabled, onPick }: Props) {
           ? preludeKeepingPanel(game, shown)
           : board.buying
             ? buyingPanel(game, shown)
-            : view.phase === "prelude_cards" && preludeCards && preludeCards.kept.length > 0
+            : playingPreludeCards(game, shown)
               ? preludePlayingPanel(game, shown)
               : null;
   const kept = board.keeping?.kept ?? board.drafting?.kept;
@@ -218,18 +218,39 @@ function preludeKeepingPanel(game: GameUpdate, player: number): Panel {
   };
 }
 
+/** Whether `player` has Prelude Cards to play now: after setup, or those drawn for a first action. */
+function playingPreludeCards(game: GameUpdate, player: number): boolean {
+  const toPlay = game.view.players[player].prelude_cards?.kept.length ?? 0;
+  return (game.view.phase === "prelude_cards" || drawnForAFirstAction(game, player)) && toPlay > 0;
+}
+
+/** Whether `player` is choosing which of the Prelude Cards they drew to play, as their Corporation's first
+ * action (Valley Trust), in the Action phase. */
+function drawnForAFirstAction(game: GameUpdate, player: number): boolean {
+  const { decision, view } = game;
+  return view.phase === "action" && decision?.kind === "play_prelude_card" && decision.player === player;
+}
+
 /** After setup: the Prelude Cards `player` kept and has still to play, the one picked first. One that
- * can't be played is marked: picking it discards it for 15 MegaCredits. */
+ * can't be played is marked: picking it discards it for 15 MegaCredits. As Valley Trust's first action:
+ * the Prelude Cards they drew, one of them to play. */
 function preludePlayingPanel(game: GameUpdate, player: number): Panel {
   const { kept } = game.view.players[player].prelude_cards!;
   const { decision } = game;
   const unplayable = (decision?.player === player ? decision.options : []).filter(
     (option) => option.details.type === "play_prelude_card" && option.details.playable === false,
   );
+  const drawn = drawnForAFirstAction(game, player);
   return {
     label: "Prelude Cards to play",
-    heading: `Before Generation 1: ${whose(game, player)} Prelude Cards`,
-    summary: kept.length > 1 ? "Play both, one at a time · click the one to play first" : "The last one is played next",
+    heading: drawn
+      ? `First action: ${whose(game, player)} ${kept.length} Prelude Card${kept.length === 1 ? "" : "s"} drawn`
+      : `Before Generation 1: ${whose(game, player)} Prelude Cards`,
+    summary: drawn
+      ? "Play one · the others are discarded, unseen by the other Players"
+      : kept.length > 1
+        ? "Play both, one at a time · click the one to play first"
+        : "The last one is played next",
     waitingFor: "play Prelude Cards",
     cards: kept,
     optionType: "play_prelude_card",

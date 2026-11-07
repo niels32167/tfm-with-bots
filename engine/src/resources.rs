@@ -76,6 +76,13 @@ impl Resources {
         self == Resources::default()
     }
 
+    /// `amount` of `resource` and nothing else.
+    pub fn only(resource: Resource, amount: i32) -> Resources {
+        let mut resources = Resources::default();
+        resources[resource] = amount;
+        resources
+    }
+
     /// Each amount `times` over.
     pub fn times(self, times: i32) -> Resources {
         let mut multiplied = self;

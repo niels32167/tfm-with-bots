@@ -15,8 +15,8 @@ use crate::card_flow::Buying;
 use crate::card_resources::CardResources;
 use crate::card_set::CardSet;
 use crate::cards::{
-    CARD_CATALOG, CardType, Expansion, find_card, find_corporation, find_prelude_card, find_project_card,
-    project_cards_with,
+    CARD_CATALOG, CARDS_OF_TYPE, CardType, Expansion, find_card, find_corporation, find_prelude_card,
+    find_project_card, project_cards_with,
 };
 use crate::corporations::ChoosingCorporation;
 use crate::deck::Deck;
@@ -71,6 +71,11 @@ pub struct Scenario {
     /// Prelude Cards. Off by default, and only a Scenario that has it on names it.
     #[serde(skip_serializing_if = "std::ops::Not::not")]
     pub prelude: bool,
+    /// Only with Prelude: the Prelude Cards in the Prelude deck, which Valley Trust's first action
+    /// draws from at random, by catalog id. Left out, every Prelude Card the Scenario names nowhere
+    /// else.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub prelude_deck: Option<Vec<String>>,
 }
 
 impl Default for Scenario {
@@ -92,6 +97,7 @@ impl Default for Scenario {
             discard: Vec::new(),
             draft: true,
             prelude: false,
+            prelude_deck: None,
         }
     }
 }
@@ -228,7 +234,7 @@ impl ScenarioPlayer {
         let mut used = CardSet::default();
         for id in &self.used_actions {
             let card = find_project_card(id, prelude)
-                .or_else(|| find_corporation(id))
+                .or_else(|| find_corporation(id, prelude))
                 .ok_or_else(|| format!("there is no card '{id}'"))?;
             check_played(index, card, id, played)?;
             if CARD_CATALOG[card].action().is_none() {
@@ -326,7 +332,7 @@ impl Scenario {
             let kept = prelude_cards_named(index, &player.prelude_cards, self.prelude, &mut named_cards)?;
             check_prelude_cards_to_play(index, &kept)?;
             let corporation = match &player.corporation {
-                Some(id) => Some(corporation_named(id, &mut named_cards)?),
+                Some(id) => Some(corporation_named(id, self.prelude, &mut named_cards)?),
                 None => None,
             };
             if let Some(card) = corporation {
@@ -363,12 +369,14 @@ impl Scenario {
         for (index, player) in self.players.iter().enumerate() {
             player.put_card_resources(index, &mut card_resources, self.prelude)?;
         }
+        let prelude_deck = self.prelude_deck_named(&mut named_cards)?;
         let top_of_deck = cards_named(&self.deck, self.prelude, &mut named_cards)?;
         let discard = cards_named(&self.discard, self.prelude, &mut named_cards)?.into_iter().collect();
         let mut game = Game::prepare(Start::Scenario(Box::new(self.clone())), players);
         let project_cards = project_cards_with(self.prelude);
         game.deck = Deck::shuffled(project_cards, named_cards, &top_of_deck, &mut game.random_numbers);
         game.discard = discard;
+        game.prelude_deck = prelude_deck;
         game.card_resources = card_resources;
         game.temperature = self.temperature;
         game.oxygen = self.oxygen;
@@ -431,6 +439,26 @@ impl Scenario {
             self.resume_the_turn(&mut game)?;
         }
         Ok(game)
+    }
+
+    /// The Prelude deck: the Prelude Cards named for it, or with none named every one named nowhere
+    /// else, so far as `named_so_far` says. Empty without Prelude.
+    fn prelude_deck_named(&self, named_so_far: &mut CardSet) -> Result<PreludeSet, String> {
+        match &self.prelude_deck {
+            Some(ids) if !self.prelude && !ids.is_empty() => {
+                Err("the Scenario has a Prelude deck, and no Prelude".to_string())
+            }
+            Some(ids) => ids
+                .iter()
+                .map(|id| {
+                    let card =
+                        find_prelude_card(id).ok_or_else(|| format!("there is no Prelude Card '{id}'"))?;
+                    named_once(card, id, named_so_far)
+                })
+                .collect(),
+            None if self.prelude => Ok(CARDS_OF_TYPE.prelude_cards.without(*named_so_far).iter().collect()),
+            None => Ok(PreludeSet::default()),
+        }
     }
 
     /// Whether this Scenario, in which Players have Prelude Cards still to play, starts before the
@@ -520,6 +548,15 @@ impl Game {
             discard: ids(self.discard.iter()),
             draft: self.settings.draft,
             prelude: self.settings.prelude,
+            // Prelude Cards drawn for a first action under way go back into it.
+            prelude_deck: self.settings.prelude.then(|| {
+                let mut deck = self.prelude_deck;
+                if in_action_phase {
+                    let drawn = self.players.iter().map(|player| player.prelude_cards.kept);
+                    deck = drawn.fold(deck, PreludeSet::union);
+                }
+                ids(deck.iter())
+            }),
         }
     }
 
@@ -538,7 +575,9 @@ impl Game {
                 .map(|(card, amount)| (id_of(card), amount))
                 .collect(),
             corporation: player.corporation().map(id_of),
-            first_action_due: player.first_action_due,
+            // Prelude Cards drawn for a first action under way (Valley Trust) mean it is due again.
+            first_action_due: player.first_action_due
+                || in_action_phase && !player.prelude_cards.kept.is_empty(),
             // Everyone who passed is back in when the next Action phase begins.
             passed: in_action_phase && player.passed,
             used_actions: ids(player.used_actions.iter()),
@@ -615,9 +654,14 @@ fn check_prelude_cards_to_play(index: usize, kept: &[usize]) -> Result<(), Strin
     Ok(())
 }
 
-/// The Corporation named by `id`, which no other Player may have.
-fn corporation_named(id: &str, named_so_far: &mut CardSet) -> Result<usize, String> {
-    let card = find_corporation(id).ok_or_else(|| format!("there is no Corporation '{id}'"))?;
+/// The Corporation named by `id` in a Game with Prelude or without, which no other Player may have.
+fn corporation_named(id: &str, prelude: bool, named_so_far: &mut CardSet) -> Result<usize, String> {
+    let card = find_corporation(id, prelude).ok_or_else(|| match find_card(id) {
+        Some(card) if CARD_CATALOG[card].expansion == Expansion::Prelude && !prelude => {
+            format!("'{id}' is a card of the Prelude box, and the Scenario has no Prelude")
+        }
+        _ => format!("there is no Corporation '{id}'"),
+    })?;
     named_once(card, id, named_so_far)
 }
 

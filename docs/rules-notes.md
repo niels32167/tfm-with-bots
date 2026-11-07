@@ -771,13 +771,15 @@ the GUI shows it on the hand's cards, with the printed cost struck through.
   hold the card being paid for, and never lowers a cost below 0.
 - The open-source game counts Space Station's discount per space Tag and Mass Converter's per card.
   No card in the v1 set has two space Tags or two Earth Tags, so both give the same costs here.
+  Prelude's Cheung Shing Mars and Valley Trust are printed per Tag, and Research has two science Tags
+  (see "Discounts per Tag" under Prelude).
 
 The sources agree. Chosen by the user (2026-10-31): discounts are effect data, `"discount":
 {"megacredits": 2, "tag": "space"}`, and the GUI shows the discounted cost on the cards. The rest
 by Claude, on the user's instruction to make the remaining ticket 16 calls without asking.
 
 **Tests:** `tests/rules/test_cost_changes.py`, among them `test_discounts_add_up` and
-`test_no_card_has_two_tags_a_discount_counts_so_a_discount_per_card_and_per_tag_are_the_same`;
+`test_no_card_has_two_tags_a_discount_per_card_counts_so_it_is_the_same_as_one_per_tag`;
 the card files of the eight cards, among them
 `tests/cards/test_space_station.py::test_space_station_makes_an_event_with_a_space_tag_cheaper_too`
 and `tests/cards/test_earth_office.py::test_earth_office_takes_a_cost_down_to_0_and_no_further`;
@@ -1701,7 +1703,7 @@ calls.
 **Tests:** `tests/rules/test_deck.py::test_a_new_game_deals_from_the_whole_shuffled_deck`,
 `test_a_new_replay_does_not_name_the_old_setting_for_dealing_implemented_cards_first`,
 `test_a_replay_saved_with_the_implemented_cards_dealt_first_still_deals_the_same_cards` and
-`tests/rules/test_playing_cards.py::test_every_project_card_of_the_base_box_is_implemented`.
+`tests/rules/test_playing_cards.py::test_every_card_is_implemented`.
 
 ## Draft
 
@@ -1937,20 +1939,22 @@ Claude (2026-11-07), on the user's instruction to choose the recommended decisio
 `test_the_prelude_cards_dealt_and_kept_show_only_in_their_own_view_until_played`, and
 `tests/engine/test_views.py::test_no_player_view_or_log_line_shows_another_players_prelude_cards_until_they_are_played`.
 
-### Prelude's Project Cards in the deck before they work
+### Prelude's Project Cards and Corporations in the Game
 
-**Call:** Prelude's 7 Project Cards are in the deck of a Game with Prelude, but can't be played until they have
-effect data (ticket 04). All 35 Prelude Cards are dealt since ticket 03; ticket 02 dealt only the 26 it implemented,
-so a Replay of a Game with Prelude saved before ticket 03 no longer loads. Ticket 04 changes the deal again, as
-Prelude's Corporations join it, and the setup screen says so.
+**Call:** A Game with Prelude has Prelude's 7 Project Cards in its deck, and deals its Corporations from all 17: the base
+box's 12 and Prelude's 5. A Game without Prelude has neither, so it deals and draws exactly as before. Every card of
+the Prelude box works since ticket 04, so each ticket that gave more of them effect data changed what a Game with
+Prelude deals or offers: a Replay of a Game with Prelude saved before ticket 04 may no longer load, and the setup
+screen says so until ticket 05.
 
-**Why:** A card without effect data can't be played, so dealing a Prelude Card without it would leave a Player with a
-card they must play and can't. The user chose to implement the 26 Prelude Cards that the existing effect data described
-first (2026-11-07), and to put the 7 Project Cards in the deck at once. Prelude stays off by default until ticket 05,
-so no Replay a Player keeps depends on this.
+**Why:** The Prelude rulebook adds its cards to the game it is played with. Recorded Games on Board Game Arena deal from
+all 17 Corporations when Prelude is on. Dealing Prelude's Corporations without Prelude would change every Game's random
+draws, and Valley Trust needs the Prelude deck. The user chose "only with Prelude" (2026-11-07).
 
-**Tests:** `tests/rules/test_prelude_setup.py::test_the_deck_has_preludes_project_cards_only_with_prelude` and
-`tests/rules/test_prelude_scenarios.py::test_preludes_project_cards_may_be_in_a_hand_with_prelude_but_are_not_offered_until_implemented`.
+**Tests:** `tests/rules/test_prelude_setup.py::test_the_deck_has_preludes_project_cards_only_with_prelude`,
+`test_preludes_corporations_are_dealt_only_with_prelude`,
+`tests/rules/test_prelude_scenarios.py::test_preludes_project_cards_may_be_in_a_hand_with_prelude_and_are_played_like_any_other`
+and `tests/rules/test_games_without_prelude.py`.
 
 ### Playing the Prelude Cards
 
@@ -2094,11 +2098,125 @@ instruction to choose the recommended decisions.
 starts where Players play them, so it can have no Turn under way and nobody passed. Without `prelude`, naming any of
 the Prelude box's cards is an error. A Game described as a Scenario while Players play their Prelude Cards starts
 there again; at setup, the Prelude Cards dealt and kept are dropped with the rest of what is under way, and so is what
-a Prelude Card being played still has to do (its price, or the card it plays). Prelude's Corporations can't be named
-yet (ticket 04).
+a Prelude Card being played still has to do (its price, or the card it plays). Prelude's Corporations may be a Player's
+`corporation`, only with `prelude`. `prelude_deck` names the Prelude Cards in the Prelude deck; left out, it holds
+every Prelude Card the Scenario names nowhere else. A Game described as a Scenario names its Prelude deck, with any
+Prelude Cards drawn for Valley Trust's first action under way put back into it.
 
 **Why:** Scenario tests need a Prelude Card in a known position, and `Game::to_scenario` must describe every position a
 Game reaches. Chosen by Claude (2026-11-07), on the user's instruction to choose the recommended decisions.
 
-**Tests:** `tests/rules/test_prelude_scenarios.py` and
+**Tests:** `tests/rules/test_prelude_scenarios.py`,
+`tests/cards/test_cheung_shing_mars.py::test_a_scenario_names_it_only_with_prelude`,
+`tests/cards/test_valley_trust.py::test_a_scenarios_prelude_deck_holds_every_prelude_card_it_names_nowhere_else` and
 `tests/rules/test_scenarios.py::test_every_action_of_a_random_game_is_the_same_position_described_as_a_scenario`.
+
+### Discounts per Tag (Cheung Shing Mars, Valley Trust)
+
+**Call:** Cheung Shing Mars takes 2 MegaCredits off a card for each building Tag on it, and Valley Trust 2 for each
+science Tag, so Research, with two science Tags, costs 4 less with Valley Trust. A wild Tag is no building or science
+Tag for these discounts. Effect data writes them `{"megacredits": 2, "tag": "science", "per_tag": true}`; the base
+box's discounts stay per card.
+
+**Why:** Both cards say "when you play a building (science) tag, you pay 2 MC less for it", per Tag. The FryxGames FAQ
+couldn't be checked: its PDF and BoardGameGeek refuse to be fetched. The open-source game multiplies a Tag discount by
+the Tags on the card (`Card.getCardDiscount`) and counts only printed Tags (`Tags.cardTagCount`). The user chose "per
+Tag" (2026-11-07).
+
+**Tests:** `tests/cards/test_cheung_shing_mars.py::test_a_card_with_a_building_tag_costs_2_megacredits_less_and_others_do_not`,
+`tests/cards/test_valley_trust.py::test_a_card_costs_2_megacredits_less_for_each_science_tag_on_it` and
+`tests/fuzzing/test_invariants.py::test_a_discount_per_building_tag_that_is_not_taken_off_breaks_an_invariant`.
+
+### Point Luna's card for each Earth Tag
+
+**Call:** Point Luna draws a card for each Earth Tag on a card its Player plays, an Event's included, and for its own
+Earth Tag when it is revealed ("including this"). A wild Tag sets nothing off, as for any Trigger. The game log says
+"Player 1 draws 1 card."
+
+**Why:** The card text. The FryxGames FAQ couldn't be checked: its PDF and BoardGameGeek refuse to be fetched. The
+open-source game draws once for each Earth Tag on the card played (`PointLuna.onCardPlayed`), and a Corporation's Tags
+are played when it is revealed, as for Saturn Systems ("Corporations at setup"). The wild Tag's Trigger rule is under
+"The wild Tag". Chosen by Claude (2026-11-07), on the user's instruction to choose the recommended decisions.
+
+**Tests:** `tests/cards/test_point_luna.py`.
+
+### Robinson Industries' lowest Production
+
+**Call:** Robinson Industries' action costs 4 MegaCredits, which Helion's heat may pay, and raises by 1 step one of its
+Player's lowest Productions, of their choice when several are tied, without a Decision when only one is lowest.
+MegaCredit Production counts as it is, so one below 0 is the lowest.
+
+**Why:** The card text. The FryxGames FAQ couldn't be checked: its PDF and BoardGameGeek refuse to be fetched. The
+open-source game compares all six Productions as they are, MegaCredit Production included, and offers every one tied
+for the lowest (`RobinsonIndustries.action`). Its payment comes first, as for any action with a cost. Chosen by Claude
+(2026-11-07), on the user's instruction to choose the recommended decisions.
+
+**Tests:** `tests/cards/test_robinson_industries.py`.
+
+### Vitor
+
+**Call:** Vitor gains 3 MegaCredits each time its Player plays a card printed with a Victory Point icon that isn't
+negative: a fixed number of 0 or more, or points per something, such as Tardigrades' 1 per 4 microbes; Events included.
+"Including this" counts Vitor itself, though it has no icon: it starts with the printed 45 and gains 3 once revealed,
+48 in all. Its first action funds an Award of its Player's choice for free; it counts as funded, so the next one
+costs the price after it. With 3 Awards funded already, it goes without, as any first action that can't be carried
+out ("A Corporation's first action").
+
+**Why:** The card text. The FryxGames FAQ couldn't be checked: its PDF and BoardGameGeek refuse to be fetched. The
+open-source game starts Vitor with 48 ("45 + 3 when this corp is played"), gives 3 for a card whose Victory Points
+are above 0 (no card prints 0), and funds a free Award through its usual funding. The rulebook allows at most 3 Awards
+funded. The mismatch report counts the 3 Vitor gains for itself in its starting MegaCredits. The user chose "counts
+itself" (2026-11-07); the rest by Claude, on the user's instruction to choose the recommended decisions.
+
+**Tests:** `tests/cards/test_vitor.py` and
+`tests/tools/test_card_mismatches.py::test_a_corporations_starting_megacredits_count_what_its_trigger_gives_for_itself`.
+
+### Valley Trust's first action and the Prelude deck
+
+**Call:** In a Game with Prelude, the Prelude Cards nobody was dealt are the Prelude deck. Valley Trust's first action
+draws 3 of them at random, which only its Player sees, and they play one, picked in the same way as a Prelude Card at
+setup: one they can't play is offered as "Discard … for 15 MegaCredits (it can't be played)". The other 2 are
+discarded unseen, and the game log names only the one played. The Prelude Card is played as at setup, its price, Tiles
+and card from the hand included, and the Action ends once it is done. With fewer than 3 in the Prelude deck, the
+Player draws what is left; with none, they go without the first action. The Prelude Cards not kept at setup are not
+in the Prelude deck.
+
+**Why:** The card text: "draw 3 Prelude cards, and play one of them. Discard the other two." The FryxGames FAQ couldn't
+be checked: its PDF and BoardGameGeek refuse to be fetched. The open-source game draws from its Prelude deck, which
+holds the Prelude Cards not dealt, offers all 3 with unplayable ones fizzling for 15 MegaCredits, and discards the
+others (`PreludesExpansion.selectPreludeToPlay`). At most 20 Prelude Cards are dealt, so 15 are always left in a new
+Game, and at most one Player has Valley Trust. Drawing at random from those left gives the same chances as drawing
+from a shuffled deck, and a Game keeps them as one small set (ADR 0004). Chosen by Claude (2026-11-07), on the user's
+instruction to choose the recommended decisions.
+
+**Tests:** `tests/cards/test_valley_trust.py` and
+`tests/fuzzing/test_invariants.py::test_valley_trusts_first_action_reached_by_the_rules_breaks_no_invariant`.
+
+### Psychrophiles' microbes as MegaCredits
+
+**Call:** The microbes on Psychrophiles pay 2 MegaCredits each towards a card with a plant Tag, an Event's included, and
+nothing else. Like steel and titanium, they may pay a little more than the cost, with no change, but a way to pay
+with a microbe the others make unneeded is left out. A way to pay with microbes is labelled "Pay 5 MegaCredits and 2
+microbes", and the Player View lists `microbes` in its details only when some pay.
+
+**Why:** The card text: "When paying for a plant card, microbes here may be used as 2 MC each." The FryxGames FAQ
+couldn't be checked: its PDF and BoardGameGeek refuse to be fetched. The open-source game lets microbes pay for a card
+with a plant Tag (`SelectPayment`'s microbes). Leaving the view's details as they were keeps a Game without Prelude
+showing its Options as before. Chosen by Claude (2026-11-07), on the user's instruction to choose the recommended
+decisions.
+
+**Tests:** `tests/cards/test_psychrophiles.py` and
+`tests/fuzzing/test_invariants.py::test_paying_with_microbes_not_on_psychrophiles_or_for_a_card_without_a_plant_tag_breaks_an_invariant`.
+
+### Lava Tube Settlement's City
+
+**Call:** Lava Tube Settlement's City goes on any free volcano (Tharsis Tholus, Ascraeus Mons, Pavonis Mons or Arsia
+Mons), next to other Cities or not, and the card can be played only with one free.
+
+**Why:** The card text: "Place a City Tile on a VOLCANIC AREA regardless of adjacent cities." The FryxGames FAQ couldn't
+be checked: its PDF and BoardGameGeek refuse to be fetched. The open-source game offers the free volcanic Areas on
+Tharsis (`LavaTubeSettlement.getSpacesForCity`). The volcanoes are the same as for Lava Flows. Chosen by Claude
+(2026-11-07), on the user's instruction to choose the recommended decisions.
+
+**Tests:** `tests/cards/test_lava_tube_settlement.py` and
+`tests/fuzzing/test_invariants.py::test_lava_tube_settlements_city_on_a_volcano_next_to_another_city_breaks_no_invariant`.

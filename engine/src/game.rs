@@ -27,7 +27,7 @@ use crate::expenses::Expense;
 use crate::log::LogEvent;
 use crate::milestones_and_awards::{AWARD_COSTS, Award, MAX_MILESTONES_CLAIMED, MILESTONE_COST, Milestone};
 use crate::playing_cards::{CardTiles, Payment, ProductionChange};
-use crate::prelude_cards::PreludeCards;
+use crate::prelude_cards::{PreludeCards, PreludeSet};
 use crate::random::RandomNumbers;
 use crate::replay::{Replay, Start};
 use crate::resources::{Resource, Resources};
@@ -311,6 +311,8 @@ pub enum DecisionKind {
     Target,
     /// Convert plants into a Greenery once more, or be done, in the final Greenery conversion.
     FinalGreenery,
+    /// Fund an Award for free, as the Corporation's first action (Vitor).
+    FreeAward,
 }
 
 /// One of the answers a Decision offers. (Named `DecisionOption` because Rust already has `Option`.)
@@ -470,6 +472,11 @@ pub enum Waiting {
     /// Which card they play from their hand for the Prelude Card they are playing, which their
     /// `next_card` names (Ecology Experts).
     CardFromHand,
+    /// Which Award they fund for free, as their Corporation's first action (Vitor).
+    FreeAward,
+    /// Which of the Prelude Cards they drew they play, as their Corporation's first action, the rest
+    /// being discarded (Valley Trust). Their Prelude Cards kept hold those drawn.
+    DrawnPreludeCards,
 }
 
 #[derive(Clone, Debug)]
@@ -550,6 +557,9 @@ pub struct Game {
     /// The Area of a Tile whose placement bonus waits until the Tile being placed is down:
     /// a Greenery's waits for the Ocean its 0 °C step gave (see docs/rules-notes.md).
     pub waiting_bonus: Option<usize>,
+    /// The Prelude Cards nobody was dealt, which Valley Trust's first action draws from. Empty in a
+    /// Game without Prelude.
+    pub prelude_deck: PreludeSet,
     /// The Card Resources on the cards played.
     pub card_resources: CardResources,
     /// The Card Resources still to add to other cards, due once the card the current Player is
@@ -616,6 +626,7 @@ impl Game {
             viral_enhancing: None,
             targeting: None,
             waiting_bonus: None,
+            prelude_deck: PreludeSet::default(),
             card_resources: CardResources::default(),
             adding: None,
             claimed_milestones: [None; Milestone::ALL.len()],
@@ -670,6 +681,10 @@ impl Game {
             }
             (Some(Waiting::Target(targeting)), _) => (DecisionKind::Target, self.target_options(targeting)),
             (Some(Waiting::CardFromHand), _) => (DecisionKind::PlayCard, self.cards_to_play_options()),
+            (Some(Waiting::FreeAward), _) => (DecisionKind::FreeAward, self.free_award_options()),
+            (Some(Waiting::DrawnPreludeCards), _) => {
+                (DecisionKind::PlayPreludeCard, self.prelude_playing_options())
+            }
             (None, Phase::Draft) => (DecisionKind::Draft, self.drafting_options()),
             (None, Phase::Setup | Phase::Research) => (DecisionKind::BuyCards, self.buying_options()),
             (None, Phase::PreludeCards) => (DecisionKind::PlayPreludeCard, self.prelude_playing_options()),
@@ -912,7 +927,12 @@ impl Game {
             }
             DecisionOption::UseStandardProject(project) => self.spend_on(Expense::StandardProject(project)),
             DecisionOption::ClaimMilestone(milestone) => self.spend_on(Expense::Milestone(milestone)),
-            DecisionOption::FundAward { award, cost } => self.spend_on(Expense::Award { award, cost }),
+            DecisionOption::FundAward { award, cost } => {
+                if let Some(Waiting::FreeAward) = self.waiting {
+                    self.waiting = None;
+                }
+                self.spend_on(Expense::Award { award, cost })
+            }
             DecisionOption::PayExpense(payment) => self.pay_expense(payment),
             DecisionOption::ConvertPlants => {
                 let plants = self.plants_per_greenery(player);
@@ -987,6 +1007,8 @@ impl Game {
         match self.phase {
             Phase::FinalGreenery => self.offer_final_greenery_from(self.index_in_player_order()),
             Phase::PreludeCards => self.finish_prelude_card(),
+            // A Prelude Card played as a first action (Valley Trust).
+            _ if self.playing_prelude_card.is_some() => self.finish_prelude_card(),
             _ => self.finish_action(),
         }
     }
@@ -1008,7 +1030,7 @@ impl Game {
         matches!(self.waiting, Some(Waiting::Area(_) | Waiting::ClaimArea))
     }
 
-    fn finish_action(&mut self) {
+    pub(crate) fn finish_action(&mut self) {
         self.actions_this_turn += 1;
         if self.actions_this_turn == ACTIONS_PER_TURN {
             self.end_turn();

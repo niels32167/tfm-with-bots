@@ -44,8 +44,9 @@ it, each Player is also dealt 4 Prelude Cards at setup and keeps 2, chosen after
 hidden until played; then each Player in player order plays both, in the order they choose, before
 Generation 1's first Turn. A Prelude Card that can't be played is discarded for 15 MegaCredits. Played
 Prelude Cards stay in play and their Tags count; Research Network's wild Tag counts as any Tag for an
-action, but never for a Trigger, an Award or Victory Points. All 35 Prelude Cards work. Prelude is
-unfinished: its 7 Project Cards join the deck but can't be played yet, nor are its 5 Corporations dealt.
+action, but never for a Trigger, an Award or Victory Points. Prelude's 7 Project Cards join the deck and
+its 5 Corporations the deal, and every card of the Prelude box works: Valley Trust's first action draws 3
+Prelude Cards from those nobody was dealt, and Psychrophiles' microbes may pay for plant cards.
 
 ## How it fits together
 
@@ -122,16 +123,17 @@ engine module reads the catalog with `tm_engine.card_catalog()`.
 
 A card is implemented once it has `"effects"` in the card file (ADR 0009), such as
 `"effects": {"production": {"megacredits": -2, "heat": 3}, "tiles": ["ocean"]}` for Black Polar
-Dust; cards without it are never offered. 12 of the Prelude box's 47 cards, its Corporations and
-Project Cards, have none yet.
+Dust; cards without it are never offered. Every card of the catalog has it.
 Effects can gain or lose Resources, change
 Production, raise Temperature and Oxygen, raise Terraform Rating, draw cards, let the Player
 look at cards to keep some of them, place Tiles (special Tiles too, as `"special"`), let the Player
 choose between effects (`"choice"`) and claim an Area (Land Claim's `"claim_area"`), add Card
 Resources to the card itself or to another of the Player's (`"card_resources"`, `"add_to_another"`;
 the card names what it holds in `"holds"`); an Active card can also have an action, which may let
-the Player choose between effects too, as well as discounts, steel and titanium values, Requirement steps and Triggers (`"when"`), and an Event an
-effect on the next card played.
+the Player choose between effects too, as well as discounts (per card, or per Tag with `"per_tag"`), steel and
+titanium values, Requirement steps and Triggers (`"when"`), and an Event an effect on the next card played. A
+Corporation's `"first_action"` may draw cards, place a Tile, fund an Award (`"fund_award"`) or draw Prelude Cards to
+play one (`"prelude_cards"`).
 Declare any new field in `engine/src/cards.rs` first, since the card file allows no unknown
 field. Each card's scenario tests live in `tests/cards/test_<id>.py`, and at least one must name the card.
 The coverage check lists any implemented card that has none, and then both it and the test suite

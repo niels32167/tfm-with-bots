@@ -51,6 +51,8 @@ COMPARED_FIELDS = (
 # Our names that differ from the open-source game's on purpose, each with the evidence for it in
 # docs/rules-notes.md, and the open-source game's name for the card.
 NAMES_SETTLED = {"Allied Banks": "ALLIED_BANK", "Excentric Sponsor": "ECCENTRIC_SPONSOR"}
+# The Triggers a Corporation sets off when it is revealed: Vitor's, for a card with Victory Points.
+SET_OFF_BY_THE_CORPORATION_ITSELF = ("card_with_victory_points",)
 
 
 @dataclass(frozen=True)
@@ -326,9 +328,17 @@ def _label(card: dict[str, Any]) -> str:
 
 def _comparable(name: str, card: dict[str, Any]) -> Any:
     """A field of `card` in a form where order doesn't matter, where it doesn't on the card. Our
-    Corporations have their starting MegaCredits in their effect data."""
+    Corporations have their starting MegaCredits in their effect data, plus what a Trigger set off by the
+    Corporation itself gives them when it is revealed (Vitor's 3, "including this"), which the open-source
+    game adds to what it starts with."""
     if name == "starting_megacredits" and name not in card:
-        return card.get("effects", {}).get("resources", {}).get("megacredits")
+        effects = card.get("effects", {})
+        for_itself = sum(
+            trigger.get("resources", {}).get("megacredits", 0)
+            for trigger in effects.get("when", [])
+            if trigger["on"] in SET_OFF_BY_THE_CORPORATION_ITSELF
+        )
+        return effects.get("resources", {}).get("megacredits", 0) + for_itself
     value = card[name]
     if name == "tags":
         # The open-source game leaves the Event Tag out of an Event card's Tags.
@@ -350,7 +360,8 @@ def report(comparison: Comparison, *, commit: str) -> str:
         f"at commit `{commit}`). Written by `uv run python -m tools.card_mismatches`; do not edit by hand.",
         "",
         "Compared: Corporate Era, the box a card comes in, type, cost, Tags (in any order),",
-        "Requirements (in any order), Victory Points, and a Corporation's starting MegaCredits, for",
+        "Requirements (in any order), Victory Points, and a Corporation's starting MegaCredits (with",
+        "what its own Trigger gives it when revealed, as Vitor's 3), for",
         "the cards of the base box and of Prelude. The open-source game leaves the Event Tag out of",
         "an Event card's Tags, so the comparison adds it back. Each difference is",
         "settled by the rules authority order (rulebook, then the FryxGames FAQ, then the open-source",

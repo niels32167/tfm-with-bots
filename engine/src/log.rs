@@ -23,6 +23,11 @@ pub enum LogEvent {
     Setup,
     CorporationsDealt,
     PreludeCardsDealt,
+    /// `player` draws `count` Prelude Cards from the Prelude deck, hidden from the others (Valley Trust).
+    DrewPreludeCards {
+        player: usize,
+        count: usize,
+    },
     /// After setup, Players play their Prelude Cards.
     PreludeCardsPlayed,
     PlayedPreludeCard {
@@ -315,6 +320,10 @@ impl LogEvent {
                 "Each Player is dealt {CORPORATIONS_DEALT} Corporations and chooses one, which stays hidden until \
                  every Player is done buying."
             ),
+            LogEvent::DrewPreludeCards { player, count } => {
+                let cards = counted(count as i32, "Prelude Card", "Prelude Cards");
+                format!("{} draws {cards}.", player_name(player))
+            }
             LogEvent::PreludeCardsDealt => format!(
                 "Each Player is dealt {PRELUDE_CARDS_DEALT} Prelude Cards and keeps {PRELUDE_CARDS_KEPT}, which stay \
                  hidden until they are played."

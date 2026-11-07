@@ -50,6 +50,7 @@ CARDS_HOLDING_CARD_RESOURCES = {
     "herbivores": "animal",
     "pets": "animal",
     "livestock": "animal",
+    "psychrophiles": "microbe",
 }
 # Every Area on Mars that is reserved for nothing, in board order.
 LAND_AREAS = [name for name in AREAS_ON_MARS if name not in OCEAN_AREAS and name != NOCTIS_CITY]
@@ -114,8 +115,11 @@ PRELUDE_PROJECT_CARDS = [card["id"] for card in _PRELUDE_BOX if card["type"] in 
 # The 35 Prelude Cards, by catalog id, in number order (#P01 first).
 PRELUDE_CARDS = [card["id"] for card in _PRELUDE_BOX if card["type"] == "prelude"]
 
-# Every Corporation a Game can hold, by catalog id, in catalog order. Prelude's aren't dealt yet.
+# Every Corporation a Game without Prelude holds, by catalog id, in catalog order.
 CORPORATIONS = [card["id"] for card in _BASE_BOX if card["type"] == "corporation"]
+
+# The Prelude box's Corporations, which a Game with Prelude holds too, in catalog order.
+PRELUDE_CORPORATIONS = [card["id"] for card in _PRELUDE_BOX if card["type"] == "corporation"]
 
 # Every card as printed, by catalog id.
 CARDS = {card["id"]: card for card in tm_engine.card_catalog()}
@@ -298,12 +302,16 @@ def corporation_to_choose(decision: dict[str, Any]) -> int:
     return (without or decision["options"])[0]["index"]
 
 
-def start_as(corporation: str, *, players: int = 2, buy_everything: bool = False) -> tuple[tm_engine.Game, int]:
+def start_as(
+    corporation: str, *, players: int = 2, buy_everything: bool = False, prelude: bool = False
+) -> tuple[tm_engine.Game, int]:
     """A new Game from normal setup, in which the first player was dealt `corporation` and chose
     it, and every Player bought no cards, or with `buy_everything` the first player bought all they
-    could. Returns the Game, at the start of Generation 1, and the first player."""
+    could. Returns the Game, at the start of Generation 1, and the first player. With `prelude`,
+    every Player keeps the first Prelude Cards offered, and the Game is where the first player is to
+    play their first Prelude Card, with only their Corporation's starting Resources and Production."""
     for seed in range(MAX_PICKS):
-        game = tm_engine.Game(seed=seed, players=players)
+        game = tm_engine.Game(seed=seed, players=players, prelude=prelude)
         first = game.decision["player"]
         if corporation not in player_board(game, first)["choosing_corporation"]["dealt"]:
             continue

@@ -384,6 +384,18 @@ def test_urbanized_areas_city_next_to_two_cities_breaks_no_invariant():
     assert problems(*position(game)) == []
 
 
+def test_lava_tube_settlements_city_on_a_volcano_next_to_another_city_breaks_no_invariant():
+    holding = player(megacredits=15, hand=["lava_tube_settlement"], production={"energy": 1})
+    game = scenario(holding, player(), prelude=True, tiles=[city("D2", owner=1)])
+    pick(game, "Play Lava Tube Settlement")
+    pick(game, area="D1")
+    assert problems(*position(game)) == []
+
+    view, decision = position(game)
+    put(view, "C1", "city", 0)  # A second City on a volcano next to D1 and D2: only one may break the rule.
+    assert problems(view, decision) == ["the Cities on D1 and D2 are next to each other"]
+
+
 def test_a_city_next_to_two_cities_without_urbanized_area_breaks_an_invariant():
     view, decision = position(scenario(tiles=TWO_CITIES))
     put(view, "C4", "city", 0)
@@ -837,6 +849,15 @@ def test_converting_the_wrong_number_of_plants_breaks_an_invariant():
     assert problems(view, decision) == ["Convert 7 plants into a Greenery takes 8 plants, not 7"]
 
 
+def test_a_discount_per_building_tag_that_is_not_taken_off_breaks_an_invariant():
+    game = scenario(player(corporation="cheung_shing_mars", hand=["mine", "sponsors"]), player(), prelude=True)
+    view, decision = position(game)
+    assert problems(view, decision) == []
+
+    view["players"][0]["card_costs"]["mine"] = 4
+    assert problems(view, decision) == ["Player 1's Mine costs 4, not 2"]
+
+
 def test_a_way_to_pay_with_heat_without_helion_or_that_does_not_cover_the_cost_breaks_an_invariant():
     game = scenario(player(corporation="helion", megacredits=2, heat=5, hand=["sponsors"]), player())
     pick(game, "Play Sponsors")
@@ -861,6 +882,30 @@ def test_paying_with_the_heat_a_card_loses_breaks_an_invariant():
     view["players"][0]["resources"]["heat"] = 5
 
     assert problems(view, decision) == ["Pay 1 heat is offered to Player 1, who may not spend that heat"]
+
+
+def test_paying_with_microbes_not_on_psychrophiles_or_for_a_card_without_a_plant_tag_breaks_an_invariant():
+    game = scenario(
+        player(megacredits=9, hand=["adapted_lichen"], played_cards=["psychrophiles"],
+               card_resources={"psychrophiles": 2}),
+        player(),
+        prelude=True,
+    )
+    pick(game, "Play Adapted Lichen")
+    view, decision = position(game)
+    assert problems(view, decision) == []
+
+    view["players"][0]["card_resources"]["psychrophiles"] = 1
+    assert problems(view, decision) == [
+        "Pay 5 MegaCredits and 2 microbes is offered to Player 1, who has 1 microbes on Psychrophiles"
+    ]
+
+    view, decision = position(game)
+    decision["options"][2]["details"]["card"] = "mine"
+    decision["options"][2]["details"]["megacredits"] = 0
+    assert problems(view, decision) == [
+        "Pay 5 MegaCredits and 2 microbes pays microbes for Mine, which has no plant Tag",
+    ]
 
 
 def test_tags_that_do_not_count_the_corporation_break_an_invariant():
@@ -1372,6 +1417,28 @@ def test_more_than_two_prelude_cards_played_breaks_an_invariant():
 
     assert problems(view, decision) == [
         "Player 1 has [] still to play and ['donation', 'loan', 'mohole'] played, more than 2"
+    ]
+
+
+def test_valley_trusts_first_action_reached_by_the_rules_breaks_no_invariant():
+    valley_trust = player(corporation="valley_trust", first_action_due=True, played_prelude_cards=["donation", "loan"],
+                          hand=["trees"], megacredits=13)
+    game = scenario(valley_trust, player(), prelude=True, prelude_deck=["ecology_experts", "mohole", "supplier"])
+    pick(game, "First action")
+    assert problems(*position(game)) == []
+
+    pick(game, "Play Ecology Experts")
+    assert problems(*position(game)) == []
+    pick(game, "Play Trees")
+    assert problems(*position(game)) == []
+
+
+def test_four_prelude_cards_played_with_valley_trust_breaks_an_invariant():
+    four_played = player(corporation="valley_trust", played_prelude_cards=["donation", "loan", "mohole", "supplier"])
+    view, decision = position(scenario(four_played, player(), prelude=True))
+
+    assert problems(view, decision) == [
+        "Player 1 has [] still to play and ['donation', 'loan', 'mohole', 'supplier'] played, more than 3"
     ]
 
 

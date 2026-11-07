@@ -75,6 +75,9 @@ A card Players buy and play: Automated (green), Active (blue) or Event (red).
 A card from Prelude, kept at setup and played at the start of the Game. Not a Project Card.
 _Avoid_: prelude (on its own, for the card)
 
+**Prelude deck**:
+The Prelude Cards nobody was dealt at setup, face down. Valley Trust's first action draws from it.
+
 **Tag**:
 A symbol on a card, such as building, space or science, that card costs, requirements and effects refer to.
 

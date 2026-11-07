@@ -103,9 +103,14 @@ pub fn find_prelude_card(id: &str) -> Option<usize> {
     find_card(id).filter(|&card| CARD_CATALOG[card].card_type == CardType::Prelude)
 }
 
-/// The index of the base box's Corporation whose id is `id`, if there is one.
-pub fn find_corporation(id: &str) -> Option<usize> {
-    (PROJECT_CARDS..BASE_BOX_CARDS).find(|&card| CARD_CATALOG[card].id == id)
+/// The Corporations of a Game with Prelude or without.
+pub fn corporations_with(prelude: bool) -> CardSet {
+    if prelude { CARDS_OF_TYPE.corporations } else { CARDS_OF_TYPE.base_corporations }
+}
+
+/// The index of the Corporation whose id is `id` in a Game with Prelude or without, if there is one.
+pub fn find_corporation(id: &str, prelude: bool) -> Option<usize> {
+    find_card(id).filter(|&card| corporations_with(prelude).contains(card))
 }
 
 #[derive(Deserialize)]
@@ -315,9 +320,18 @@ pub struct Effects {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub reveal: Option<Reveal>,
     /// Only for a Corporation: what its Player must do as their first action in the Game (Inventrix's
-    /// 3 cards, Tharsis Republic's City), carried out as `Effects` are, cards drawn, then the Tile.
+    /// 3 cards, Tharsis Republic's City), carried out as `Effects` are, cards drawn, then the Tile, or
+    /// the Award funded (Vitor).
     #[serde(skip_serializing_if = "Option::is_none")]
     pub first_action: Option<Box<Effects>>,
+    /// Only for a Corporation's first action: how many Prelude Cards its Player draws from the Prelude
+    /// deck, to play one of them and discard the rest (Valley Trust).
+    #[serde(skip_serializing_if = "is_zero")]
+    pub prelude_cards: i32,
+    /// Only for a Corporation's first action: whether its Player funds an Award of their choice for free
+    /// (Vitor). It can be carried out only while fewer than 3 Awards are funded.
+    #[serde(skip_serializing_if = "is_false")]
+    pub fund_award: bool,
     /// Only for a card in play: how many plants fewer its Player pays to place a Greenery (EcoLine).
     #[serde(skip_serializing_if = "is_zero")]
     pub greenery_discount: i32,
@@ -333,7 +347,8 @@ pub struct Effects {
 }
 
 /// What a card's Player gains each time something happens, as `on` says, for as long as the card
-/// is in play: Resources, Production, or Card Resources on the card itself. A card whose gain is a
+/// is in play: Resources, Production, Card Resources on the card itself, or cards drawn (Point
+/// Luna). A card whose gain is a
 /// Decision (Mars University) has its own Rust code.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -345,6 +360,8 @@ pub struct Trigger {
     pub production: Resources,
     #[serde(default, skip_serializing_if = "is_zero")]
     pub card_resources: i32,
+    #[serde(default, skip_serializing_if = "is_zero")]
+    pub draw: i32,
 }
 
 impl Effects {
@@ -443,6 +460,9 @@ pub enum TriggerCondition {
     /// The card's Player gets a placement bonus with any of these Resources: once for each Tile
     /// placed, however much it gives.
     PlacementBonus(Vec<Resource>),
+    /// The card's Player plays a card printed with a Victory Point icon that isn't negative, or reveals
+    /// their Corporation ("including this": Vitor).
+    CardWithVictoryPoints,
 }
 
 /// What an Event changes about the next card its Player plays this Generation, or a Prelude Card
@@ -459,7 +479,7 @@ pub struct NextCard {
     pub ignores_global_requirements: bool,
 }
 
-fn is_zero(value: &i32) -> bool {
+pub(crate) fn is_zero(value: &i32) -> bool {
     *value == 0
 }
 
@@ -475,14 +495,17 @@ pub struct CubeValues {
     pub titanium: i32,
 }
 
-/// MegaCredits off the cost of each card played, or only of each card with `tag`. A card's own
-/// discount never applies to itself, as it is paid for before it is in play.
+/// MegaCredits off the cost of each card played, or only of each card with `tag`, or with `per_tag`
+/// off it for each such Tag on it (Valley Trust's 4 off Research, which has 2 science Tags). A card's
+/// own discount never applies to itself, as it is paid for before it is in play.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct Discount {
     pub megacredits: i32,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub tag: Option<Tag>,
+    #[serde(default, skip_serializing_if = "is_false")]
+    pub per_tag: bool,
 }
 
 /// The cards with each kind of ongoing effect, so that the Game looks only at a Player's played
@@ -525,7 +548,10 @@ pub struct CardsOfType {
     pub project_cards: CardSet,
     /// The base box's Project Cards: those of a Game without Prelude.
     pub base_project_cards: CardSet,
+    /// Every Corporation: those of a Game with Prelude.
     pub corporations: CardSet,
+    /// The base box's Corporations: those of a Game without Prelude.
+    pub base_corporations: CardSet,
     pub prelude_cards: CardSet,
 }
 
@@ -538,6 +564,7 @@ pub static CARDS_OF_TYPE: LazyLock<CardsOfType> = LazyLock::new(|| {
         project_cards: of_type(&[CardType::Automated, CardType::Active, CardType::Event]),
         base_project_cards: (0..PROJECT_CARDS).collect(),
         corporations: of_type(&[CardType::Corporation]),
+        base_corporations: (PROJECT_CARDS..BASE_BOX_CARDS).collect(),
         prelude_cards: of_type(&[CardType::Prelude]),
     }
 });
@@ -759,6 +786,17 @@ pub enum VictoryPoints {
     Per { points: i32, per: i32, of: Counted },
     /// `points` once there are at least `at_least` of something.
     AtLeast { points: i32, at_least: i32, of: Counted },
+}
+
+impl VictoryPoints {
+    /// The number printed in its icon: 1 for "1 VP per 2 animals", -2 for Nuclear Zone.
+    pub fn icon(self) -> i32 {
+        match self {
+            VictoryPoints::Fixed(points)
+            | VictoryPoints::Per { points, .. }
+            | VictoryPoints::AtLeast { points, .. } => points,
+        }
+    }
 }
 
 /// What Victory Points, or Resources, Production or Terraform Rating per Tag or Tile, count.

@@ -174,6 +174,13 @@ function corporationAbility(card: Card | undefined): string {
   return ability.replace(/^\(|\)$/g, "");
 }
 
+/** What a Corporation's card says its first action is, if it has one: "As your first action, fund an award
+ * for free." It is printed with what the Corporation starts with, which is left out. */
+function firstAction(card: Card | undefined): string | null {
+  const found = (card?.text ?? "").match(/As your first action.*?(?=\s*Start with|\)?$)/m);
+  return found ? found[0] : null;
+}
+
 interface CorporationLineProps {
   game: GameUpdate;
   player: number;
@@ -200,6 +207,9 @@ function CorporationLine({ game, player, catalog }: CorporationLineProps) {
             {!board.corporation && " (hidden for now)"}
           </span>
           <span className="player-corporation-ability">{corporationAbility(corporation)}</span>
+          {board.first_action_due && firstAction(corporation) && (
+            <span className="player-corporation-ability">{firstAction(corporation)}</span>
+          )}
         </>
       ) : (
         <span className="player-corporation-name">Corporation hidden until every Player is done buying</span>

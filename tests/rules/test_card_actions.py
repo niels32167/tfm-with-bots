@@ -88,7 +88,8 @@ def test_every_cards_action_is_used_once_per_generation_and_is_available_again_i
     holding = player(
         played_cards=["decomposers", "herbivores"], card_resources={"decomposers": 9, "herbivores": 9}
     )
-    game = scenario(using, holding, deck=["mine", "trees", "comet", "asteroid"], draft=False)
+    # With Prelude, so that Prelude's Psychrophiles may be played too.
+    game = scenario(using, holding, deck=["mine", "trees", "comet", "asteroid"], draft=False, prelude=True)
     assert offered(game, type="use_action", card=card)
 
     use_the_action_of(game, card)

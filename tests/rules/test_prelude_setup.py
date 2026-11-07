@@ -12,6 +12,8 @@ import tm_engine
 from tests.helpers import (
     CARD_NAMES,
     CARDS,
+    CORPORATIONS,
+    PRELUDE_CORPORATIONS,
     PROJECT_CARDS,
     everything_about,
     labels,
@@ -157,6 +159,19 @@ def test_the_deck_has_preludes_project_cards_only_with_prelude(prelude):
     assert len(in_the_game) == len(PROJECT_CARDS) + (len(PRELUDE_PROJECT_CARDS) if prelude else 0)
     assert (set(PRELUDE_PROJECT_CARDS) <= in_the_game) == prelude
     assert set(PROJECT_CARDS) <= in_the_game
+
+
+@pytest.mark.parametrize("prelude", [True, False])
+def test_preludes_corporations_are_dealt_only_with_prelude(prelude):
+    dealt = set()
+    for seed in range(40):
+        view = tm_engine.Game(seed=seed, players=5, prelude=prelude).full_view()
+        dealt |= {card for board in view["players"] for card in board["choosing_corporation"]["dealt"]}
+
+    assert PRELUDE_CORPORATIONS == ["cheung_shing_mars", "point_luna", "robinson_industries", "valley_trust", "vitor"]
+    assert (set(PRELUDE_CORPORATIONS) <= dealt) == prelude
+    assert set(CORPORATIONS) <= dealt
+    assert dealt <= set(CORPORATIONS) | set(PRELUDE_CORPORATIONS)
 
 
 def test_a_replay_names_prelude_only_when_it_is_on():

@@ -37,6 +37,10 @@ impl PreludeSet {
         self.bits &= !bit(card);
     }
 
+    pub fn union(self, other: PreludeSet) -> PreludeSet {
+        PreludeSet { bits: self.bits | other.bits }
+    }
+
     /// The cards in this set but not in `other`.
     pub fn without(self, other: PreludeSet) -> PreludeSet {
         PreludeSet { bits: self.bits & !other.bits }
@@ -96,7 +100,7 @@ impl PreludeCards {
 
 impl Game {
     /// Each Player, in player order from the first player, is dealt their Prelude Cards from the
-    /// shuffled Prelude Cards. Those left over, and later those not kept, go back in the box.
+    /// shuffled Prelude Cards. Those left over are the Prelude deck; those not kept go back in the box.
     pub(crate) fn deal_prelude_cards(&mut self) {
         let mut cards: Vec<usize> = (FIRST_PRELUDE_CARD..CATALOG_CARDS).collect();
         self.random_numbers.shuffle(&mut cards);
@@ -106,6 +110,7 @@ impl Game {
             assert_eq!(dealt.len(), PRELUDE_CARDS_DEALT, "there are enough Prelude Cards for 5 Players");
             self.players[player].prelude_cards.dealt = dealt.iter().copied().collect();
         }
+        self.prelude_deck = dealing.flatten().copied().collect();
         self.log.push(LogEvent::PreludeCardsDealt);
     }
 
@@ -151,7 +156,11 @@ impl Game {
 
     /// Once a Prelude Card is done, the current Player plays their next: with two left they choose
     /// which, and the last they play without a Decision. With none left, the next Player plays theirs.
+    /// Played as a first action (Valley Trust), the Action ends instead.
     pub(crate) fn play_next_prelude_card(&mut self) {
+        if self.phase != Phase::PreludeCards {
+            return self.finish_action();
+        }
         let kept = self.players[self.current_player].prelude_cards.kept;
         match kept.len() {
             0 => self.offer_prelude_cards_from(self.index_in_player_order() + 1),
@@ -215,9 +224,14 @@ impl Game {
 
     /// The current Player plays `card`, one of their Prelude Cards: it joins their played cards and
     /// its effects are carried out, as a Project Card's are. If they can't play it, they discard it and
-    /// gain 15 MegaCredits instead.
+    /// gain 15 MegaCredits instead. One of those drawn for a first action (Valley Trust) is played the
+    /// same way, and the others are discarded, unseen by the other Players.
     pub(crate) fn play_prelude_card(&mut self, card: usize) {
         let player = self.current_player;
+        if let Some(Waiting::DrawnPreludeCards) = self.waiting {
+            self.waiting = None;
+            self.players[player].prelude_cards.kept = PreludeSet::default();
+        }
         self.players[player].prelude_cards.kept.remove(card);
         if !self.can_play_prelude_card(player, card) {
             self.players[player].resources.megacredits += MEGACREDITS_FOR_AN_UNPLAYABLE_PRELUDE_CARD;
@@ -275,6 +289,19 @@ impl Game {
             }
         }
         self.discard = self.discard.union(not_taken);
+    }
+
+    /// `player` draws up to `count` Prelude Cards at random from the Prelude deck, as from a shuffled
+    /// deck, and holds them to play one (Valley Trust's first action).
+    pub(crate) fn draw_prelude_cards(&mut self, player: usize, count: usize) {
+        let mut cards: Vec<usize> = self.prelude_deck.iter().collect();
+        self.random_numbers.shuffle(&mut cards);
+        cards.truncate(count);
+        for &card in &cards {
+            self.prelude_deck.remove(card);
+        }
+        self.players[player].prelude_cards.kept = cards.iter().copied().collect();
+        self.log.push(LogEvent::DrewPreludeCards { player, count: cards.len() });
     }
 
     /// If the current Player still has a Prelude Card to keep, the Game waits on which.

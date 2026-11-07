@@ -132,8 +132,8 @@ export function NewGameSetup({
           </label>
           <p className="setup-hint">
             At setup, each Player is also dealt 4 Prelude Cards and keeps 2, which they play before Generation 1's
-            first Turn; Prelude's Project Cards join the deck. Not finished yet: Prelude's Corporations and Project
-            Cards don't work yet, so a Replay of such a Game may not load once they do.
+            first Turn; Prelude's Project Cards join the deck and its Corporations the deal. A Replay of a Game with
+            Prelude saved before all of Prelude worked may not load.
           </p>
         </section>
         {seed === "invalid" && (

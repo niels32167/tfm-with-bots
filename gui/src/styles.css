@@ -1604,6 +1604,12 @@ input[aria-invalid="true"] {
   margin-top: -250px;
 }
 
+/* A Prelude Card is shorter than a Project Card, about 247px, and its title sits lower, below its
+ * banner: each shows its top 72px, title included. */
+.played-group-prelude_cards .small-card.stacked + .small-card.stacked {
+  margin-top: -175px;
+}
+
 /* A Player's Corporation and its ability, on their board. */
 .player-corporation {
   display: flex;

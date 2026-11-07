@@ -5,7 +5,6 @@ import tm_engine
 
 from tests.helpers import (
     LAND_AREAS,
-    PROJECT_CARDS,
     city,
     final_scores,
     greenery,
@@ -30,8 +29,8 @@ def test_each_playable_card_in_hand_is_an_option_naming_the_card_and_its_cost_in
     ]
 
 
-def test_every_project_card_of_the_base_box_is_implemented():
-    missing = [card["id"] for card in tm_engine.card_catalog() if card["id"] in PROJECT_CARDS and "effects" not in card]
+def test_every_card_is_implemented():
+    missing = [card["id"] for card in tm_engine.card_catalog() if "effects" not in card]
 
     assert missing == []
 

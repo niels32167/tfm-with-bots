@@ -7,11 +7,15 @@ use std::cmp::Reverse;
 use serde::Serialize;
 
 use crate::board::{Placement, SpecialTile, TileKind};
-use crate::card_code::{FLOODING, HELION, IMMIGRANT_CITY, INSULATION, ROBOTIC_WORKFORCE, insulation_change};
+use crate::card_code::{
+    FLOODING, HELION, IMMIGRANT_CITY, INSULATION, PSYCHROPHILES, ROBINSON_INDUSTRIES, ROBOTIC_WORKFORCE,
+    insulation_change,
+};
 use crate::card_resources::Adding;
 use crate::cards::{
-    CARD_CATALOG, CARDS_WITH, CardType, Counted, CubeValues, Effects, Limit, NextCard, Owner,
+    CARD_CATALOG, CARDS_WITH, CardResource, CardType, Counted, CubeValues, Effects, Limit, NextCard, Owner,
     ProductionAtLeast, ProductionPer, Requirement, ResourcesPer, Tag, TerraformRatingPer, VictoryPoints,
+    is_zero,
 };
 use crate::game::{DecisionOption, Game, TEMPERATURE_STEP, Waiting};
 use crate::log::{LogEvent, listed};
@@ -22,6 +26,8 @@ use crate::triggers::Happened;
 pub const STEEL_VALUE: i32 = 2;
 /// What a titanium cube pays towards a card with a space Tag, unless a card raises it.
 pub const TITANIUM_VALUE: i32 = 3;
+/// What a microbe on Psychrophiles pays towards a card with a plant Tag.
+pub const MICROBE_VALUE: i32 = 2;
 
 /// How a card is paid for.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize)]
@@ -31,11 +37,15 @@ pub struct Payment {
     pub titanium: i32,
     /// Heat used as MegaCredits (Helion).
     pub heat: i32,
+    /// Microbes taken off Psychrophiles, each paying `MICROBE_VALUE` towards a card with a plant Tag.
+    /// Left out of the view while 0, so a Game without Prelude shows its Options as before.
+    #[serde(skip_serializing_if = "is_zero")]
+    pub microbes: i32,
 }
 
 impl Payment {
     /// Nothing paid, for an action that costs no MegaCredits.
-    pub const NOTHING: Payment = Payment { megacredits: 0, steel: 0, titanium: 0, heat: 0 };
+    pub const NOTHING: Payment = Payment { megacredits: 0, steel: 0, titanium: 0, heat: 0, microbes: 0 };
 
     /// As labels and the game log write it: "4 MegaCredits", "2 MegaCredits and 1 steel".
     pub fn text(self) -> String {
@@ -45,11 +55,14 @@ impl Payment {
             (Resource::Titanium, self.titanium),
             (Resource::Heat, self.heat),
         ];
-        let paid: Vec<String> = parts
+        let mut paid: Vec<String> = parts
             .into_iter()
             .filter(|&(_, amount)| amount > 0)
             .map(|(resource, amount)| resource.counted(amount))
             .collect();
+        if self.microbes > 0 {
+            paid.push(CardResource::Microbe.counted(self.microbes));
+        }
         if paid.is_empty() { Resource::MegaCredits.counted(0) } else { listed(paid.into_iter()) }
     }
 }
@@ -63,6 +76,9 @@ pub enum ProductionChange {
     CopyBox(usize),
     /// This many steps of heat Production traded for MegaCredit Production (Insulation).
     HeatForMegaCredits(i32),
+    /// 1 step more of this Resource's Production, one of the Player's lowest (Robinson Industries'
+    /// action).
+    RaiseLowest(Resource),
 }
 
 /// The card whose Tiles the current Player is placing, and how many of them are placed.
@@ -158,7 +174,8 @@ impl Game {
                 printed.has_tag(Tag::Building),
                 printed.has_tag(Tag::Space),
                 effects.resources.heat,
-            ) >= self.card_cost(player, card)
+            ) + MICROBE_VALUE * self.usable_microbes(player, card)
+                >= self.card_cost(player, card)
             && if card == IMMIGRANT_CITY {
                 self.can_carry_out_immigrant_city(player)
             } else {
@@ -177,6 +194,16 @@ impl Game {
     pub(crate) fn usable_cubes(&self, player: usize, steel: bool, titanium: bool) -> (i32, i32) {
         let resources = self.players[player].resources;
         (if steel { resources.steel } else { 0 }, if titanium { resources.titanium } else { 0 })
+    }
+
+    /// The microbes on Psychrophiles that `player` may put towards `card`: all of them for a card with
+    /// a plant Tag, and none for another card or without Psychrophiles.
+    pub(crate) fn usable_microbes(&self, player: usize, card: usize) -> i32 {
+        // Psychrophiles first: `can_play` asks this for every card in hand at every Action Decision.
+        if !self.players[player].played.contains(PSYCHROPHILES) || !CARD_CATALOG[card].has_tag(Tag::Plant) {
+            return 0;
+        }
+        self.card_resources.on(PSYCHROPHILES)
     }
 
     /// What `player` could spend on a cost that neither steel nor titanium may pay: `spendable`, but
@@ -324,6 +351,8 @@ impl Game {
             self.copyable_production_boxes(player).map(ProductionChange::CopyBox).collect()
         } else if card == INSULATION {
             self.insulation_steps(player).map(ProductionChange::HeatForMegaCredits).collect()
+        } else if card == ROBINSON_INDUSTRIES {
+            self.lowest_productions(player).map(ProductionChange::RaiseLowest).collect()
         } else {
             let alternatives = &CARD_CATALOG[card].implemented_effects().production_choice;
             (0..alternatives.len())
@@ -350,7 +379,8 @@ impl Game {
     }
 
     /// Every way `player` may pay for `card`, the most MegaCredits first: each split between
-    /// steel, titanium, heat as MegaCredits (Helion) and MegaCredits for the rest. Steel and titanium
+    /// steel, titanium, heat as MegaCredits (Helion), microbes (Psychrophiles) and MegaCredits for the
+    /// rest. Steel and titanium
     /// may pay more than the cost, with no change, but a split with a cube the others make unneeded
     /// is never worth taking, so it is left out (see docs/rules-notes.md).
     pub(crate) fn payments(&self, player: usize, card: usize) -> Vec<Payment> {
@@ -358,7 +388,8 @@ impl Game {
         let (steel, titanium) =
             self.usable_cubes(player, printed.has_tag(Tag::Building), printed.has_tag(Tag::Space));
         let heat = self.usable_heat(player, printed.implemented_effects().resources.heat);
-        self.ways_to_pay(player, self.card_cost(player, card), steel, titanium, heat)
+        let microbes = self.usable_microbes(player, card);
+        self.ways_to_pay(player, self.card_cost(player, card), steel, titanium, heat, microbes)
     }
 
     /// What `player` pays for `card` now: its printed cost less the discounts of their played
@@ -368,15 +399,22 @@ impl Game {
         let discounts =
             self.players[player].played.intersection(CARDS_WITH.discount).iter().filter_map(|discounting| {
                 let discount = CARD_CATALOG[discounting].implemented_effects().discount?;
-                discount.tag.is_none_or(|tag| printed.has_tag(tag)).then_some(discount.megacredits)
+                match discount.tag {
+                    None => Some(discount.megacredits),
+                    Some(tag) if discount.per_tag => Some(
+                        discount.megacredits
+                            * printed.tags.iter().filter(|&&each| each == tag).count() as i32,
+                    ),
+                    Some(tag) => printed.has_tag(tag).then_some(discount.megacredits),
+                }
             });
         let discount = discounts.sum::<i32>() + self.next_card_effect(player).discount;
         (printed.project_cost() - discount).max(0)
     }
 
-    /// Every way `player` may pay `cost` with up to `most_steel` steel, `most_titanium` titanium and
-    /// `most_heat` heat, the most MegaCredits first, leaving out a split with a cube or a heat the
-    /// others make unneeded (see `payments`).
+    /// Every way `player` may pay `cost` with up to `most_steel` steel, `most_titanium` titanium,
+    /// `most_heat` heat and `most_microbes` microbes, the most MegaCredits first, leaving out a split with
+    /// a cube, a microbe or a heat the others make unneeded (see `payments`).
     pub(crate) fn ways_to_pay(
         &self,
         player: usize,
@@ -384,22 +422,27 @@ impl Game {
         most_steel: i32,
         most_titanium: i32,
         most_heat: i32,
+        most_microbes: i32,
     ) -> Vec<Payment> {
         let megacredits = self.players[player].resources.megacredits;
         let values = self.cube_values(player);
         let mut payments = Vec::new();
-        for titanium in 0..=most_titanium.min(cubes_to_pay(cost, values.titanium)) {
-            for steel in 0..=most_steel.min(cubes_to_pay(cost, values.steel)) {
-                let covered = values.steel * steel + values.titanium * titanium;
-                let unneeded = (steel > 0 && covered - values.steel >= cost)
-                    || (titanium > 0 && covered - values.titanium >= cost);
-                if unneeded {
-                    continue;
-                }
-                let left = (cost - covered).max(0);
-                // Each heat pays 1 MegaCredit, so there is one split for each amount of heat.
-                for heat in (left - megacredits).max(0)..=most_heat.min(left) {
-                    payments.push(Payment { megacredits: left - heat, steel, titanium, heat });
+        for microbes in 0..=most_microbes.min(cubes_to_pay(cost, MICROBE_VALUE)) {
+            for titanium in 0..=most_titanium.min(cubes_to_pay(cost, values.titanium)) {
+                for steel in 0..=most_steel.min(cubes_to_pay(cost, values.steel)) {
+                    let covered =
+                        values.steel * steel + values.titanium * titanium + MICROBE_VALUE * microbes;
+                    let unneeded = (steel > 0 && covered - values.steel >= cost)
+                        || (titanium > 0 && covered - values.titanium >= cost)
+                        || (microbes > 0 && covered - MICROBE_VALUE >= cost);
+                    if unneeded {
+                        continue;
+                    }
+                    let left = (cost - covered).max(0);
+                    // Each heat pays 1 MegaCredit, so there is one split for each amount of heat.
+                    for heat in (left - megacredits).max(0)..=most_heat.min(left) {
+                        payments.push(Payment { megacredits: left - heat, steel, titanium, heat, microbes });
+                    }
                 }
             }
         }
@@ -441,7 +484,7 @@ impl Game {
 
     /// `player` makes the Production change `card`, which they are playing, lets them choose, if
     /// it has any; then its Tiles follow. With only one change to make, they have nothing to
-    /// choose.
+    /// choose. For Robinson Industries' action, it is the Production raised, and the action ends.
     pub(crate) fn choose_production_change(&mut self, player: usize, card: usize) {
         match self.production_options(player, card)[..] {
             [] => self.place_card_tiles(card),
@@ -452,7 +495,8 @@ impl Game {
         }
     }
 
-    /// `player` makes `change` for `card`, which they are playing, and the card's Tiles follow.
+    /// `player` makes `change` for `card`, which they are playing, and the card's Tiles follow; or
+    /// for Robinson Industries' action, whose Production change ends it.
     pub(crate) fn change_production_as_chosen(
         &mut self,
         player: usize,
@@ -467,6 +511,10 @@ impl Game {
             ProductionChange::CopyBox(copied) => self.copy_production_box(player, copied),
             ProductionChange::HeatForMegaCredits(steps) => {
                 self.change_productions(player, insulation_change(steps))
+            }
+            ProductionChange::RaiseLowest(resource) => {
+                self.change_production(player, resource, 1);
+                return self.finish_card_action(card);
             }
         }
         self.place_card_tiles(card);
@@ -515,6 +563,9 @@ impl Game {
         own.steel -= payment.steel;
         own.titanium -= payment.titanium;
         own.heat -= payment.heat;
+        if payment.microbes > 0 {
+            self.card_resources.set(PSYCHROPHILES, self.card_resources.on(PSYCHROPHILES) - payment.microbes);
+        }
     }
 
     /// The current Player has `card`'s Tile to make `placement` with, printed with the card's

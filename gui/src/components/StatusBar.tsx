@@ -163,6 +163,9 @@ function statusText(game: GameUpdate, cards: Card[]): string {
     const kept = view.players[decision.player].prelude_cards?.kept.length ?? 0;
     return `${who} must keep ${kept > 0 ? "one more" : "2"} of the Prelude Cards above: click a card to keep.`;
   }
+  if (decision?.kind === "play_prelude_card" && view.phase === "action") {
+    return `${who} must play one of the Prelude Cards drawn above, discarding the others: click the one to play.`;
+  }
   if (decision?.kind === "play_prelude_card") {
     return `${who} must play both Prelude Cards above, one at a time: click the one to play first.`;
   }
@@ -230,6 +233,9 @@ function statusText(game: GameUpdate, cards: Card[]): string {
     }
     const card = cards.find((each) => each.id === details?.card);
     return `${who} must choose how ${card?.name} changes their Production:`;
+  }
+  if (decision?.kind === "free_award") {
+    return `${who} must fund an Award for free, as their Corporation's first action: click a highlighted Award.`;
   }
   if (decision?.kind === "final_greenery") {
     return `${who} may convert plants into a Greenery before final scoring, or be done:`;

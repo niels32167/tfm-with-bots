@@ -248,6 +248,9 @@ pub struct View {
     pub deck: Option<Vec<&'static str>>,
     /// How many cards are in the discard pile.
     pub discard_size: usize,
+    /// How many Prelude Cards are in the Prelude deck, which Valley Trust's first action draws from:
+    /// 0 without Prelude.
+    pub prelude_deck_size: usize,
     /// The discard pile by catalog id, in card-number order: it lies face down, so only in the
     /// full view, otherwise None.
     pub discard: Option<Vec<&'static str>>,
@@ -476,6 +479,7 @@ fn view(game: &Game, viewer: Option<usize>) -> View {
         deck_size: game.deck.len(),
         deck: viewer.is_none().then(|| game.deck.iter().map(|card| CARD_CATALOG[card].id.as_str()).collect()),
         discard_size: game.discard.len(),
+        prelude_deck_size: game.prelude_deck.len(),
         discard: viewer.is_none().then(|| ids(game.discard)),
         first_player: game.first_player,
         current_player: if game.is_over() { None } else { Some(game.current_player) },
@@ -640,6 +644,7 @@ fn decision_view(game: &Game, decision: &Decision) -> DecisionView {
             DecisionKind::ViralEnhancers => "viral_enhancers",
             DecisionKind::Target => "target",
             DecisionKind::FinalGreenery => "final_greenery",
+            DecisionKind::FreeAward => "free_award",
         },
         sequence: decision.sequence,
         options: decision
@@ -743,6 +748,9 @@ fn label(game: &Game, player: usize, option: &DecisionOption) -> String {
         DecisionOption::ChangeProduction { change: ProductionChange::HeatForMegaCredits(steps), .. } => {
             production_change(insulation_change(*steps))
         }
+        DecisionOption::ChangeProduction { change: ProductionChange::RaiseLowest(resource), .. } => {
+            production_change(Resources::only(*resource, 1))
+        }
         DecisionOption::UseStandardProject(StandardProject::SellPatents) => {
             format!("Sell Patents ({} per card)", Resource::MegaCredits.counted(PATENT_VALUE))
         }
@@ -781,6 +789,10 @@ fn first_action_label(card: usize) -> String {
     let first_action = printed.first_action().expect("only a first action due is offered");
     let does = match first_action.tiles.first() {
         Some(placement) => format!("place a {}", placement.tile.name()),
+        None if first_action.fund_award => "fund an Award for free".to_string(),
+        None if first_action.prelude_cards > 0 => {
+            format!("draw {} Prelude Cards and play one", first_action.prelude_cards)
+        }
         None => format!("draw {} cards", first_action.draw),
     };
     format!("First action of {}: {does}", printed.name)
@@ -954,6 +966,12 @@ fn details(game: &Game, player: usize, option: &DecisionOption) -> OptionDetails
             OptionDetails::ChooseProduction {
                 card: &CARD_CATALOG[*card].id,
                 production: insulation_change(*steps),
+            }
+        }
+        DecisionOption::ChangeProduction { card, change: ProductionChange::RaiseLowest(resource) } => {
+            OptionDetails::ChooseProduction {
+                card: &CARD_CATALOG[*card].id,
+                production: Resources::only(*resource, 1),
             }
         }
         DecisionOption::ChooseEffects { card, alternative } => {

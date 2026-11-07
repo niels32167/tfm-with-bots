@@ -62,7 +62,7 @@ impl Game {
     /// Every way the current Player may pay for `expense`, the most MegaCredits first.
     fn expense_payments(&self, expense: Expense) -> Vec<Payment> {
         let player = self.current_player;
-        self.ways_to_pay(player, self.expense_cost(expense), 0, 0, self.usable_heat(player, 0))
+        self.ways_to_pay(player, self.expense_cost(expense), 0, 0, self.usable_heat(player, 0), 0)
     }
 
     /// Every way the current Player may pay for `expense`, as Options.

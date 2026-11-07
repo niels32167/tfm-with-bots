@@ -82,11 +82,11 @@ def test_the_tags_of_played_prelude_cards_count():
     assert player_board(game, 0)["played_cards"] == []
 
 
-def test_preludes_project_cards_may_be_in_a_hand_with_prelude_but_are_not_offered_until_implemented():
+def test_preludes_project_cards_may_be_in_a_hand_with_prelude_and_are_played_like_any_other():
     game = scenario(player(hand=["house_printing"], megacredits=50), player(), prelude=True)
 
     assert hand(game, 0) == ["house_printing"]
-    assert not [label for label in labels(game) if "House Printing" in label]
+    assert "Play House Printing (10 MegaCredits)" in labels(game)
 
 
 @pytest.mark.parametrize(

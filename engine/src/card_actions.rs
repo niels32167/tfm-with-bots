@@ -5,7 +5,8 @@
 //! (Imported Hydrogen), so that is here too.
 
 use crate::card_code::{
-    POWER_INFRASTRUCTURE, SEARCH_FOR_LIFE, UNITED_NATIONS_MARS_INITIATIVE, energy_for_megacredits,
+    POWER_INFRASTRUCTURE, ROBINSON_INDUSTRIES, SEARCH_FOR_LIFE, UNITED_NATIONS_MARS_INITIATIVE,
+    energy_for_megacredits,
 };
 use crate::cards::{ActionCost, CARD_CATALOG};
 use crate::game::{DecisionOption, Game, Waiting};
@@ -137,6 +138,7 @@ impl Game {
             steel,
             titanium,
             self.usable_heat(player, action.resources.heat),
+            0,
         )
     }
 
@@ -169,6 +171,10 @@ impl Game {
         }
         if card == SEARCH_FOR_LIFE {
             self.search_for_life(player);
+        }
+        if card == ROBINSON_INDUSTRIES {
+            // One of the six Productions is always the lowest, so there is a change to make.
+            return self.choose_production_change(player, card);
         }
         if self.look_at_cards(player, card, action.look_at, true) {
             return;

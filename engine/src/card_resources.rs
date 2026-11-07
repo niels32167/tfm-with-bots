@@ -7,8 +7,9 @@ use crate::cards::{AddToAnother, CARD_CATALOG, CARDS_WITH};
 use crate::game::{DecisionOption, Game, Waiting};
 use crate::log::LogEvent;
 
-/// How many cards of the v1 set can hold Card Resources, and so the room a Game keeps for them.
-pub const CARDS_HOLDING_CARD_RESOURCES: usize = 18;
+/// How many cards can hold Card Resources, Prelude's Psychrophiles included, and so the room a Game
+/// keeps for them.
+pub const CARDS_HOLDING_CARD_RESOURCES: usize = 19;
 
 /// The Card Resources still to add to other cards for `card`, which the current Player is playing
 /// or using the action of.

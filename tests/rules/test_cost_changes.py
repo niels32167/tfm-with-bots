@@ -44,8 +44,11 @@ def test_a_discount_makes_neither_a_standard_project_nor_a_cards_action_cheaper(
     assert not offered(game, "Use the action of Water Import from Europa")
 
 
-def test_no_card_has_two_tags_a_discount_counts_so_a_discount_per_card_and_per_tag_are_the_same():
-    discounted = {card["effects"]["discount"].get("tag") for card in CATALOG if "discount" in card.get("effects", {})}
+def test_no_card_has_two_tags_a_discount_per_card_counts_so_it_is_the_same_as_one_per_tag():
+    """Only Cheung Shing Mars' and Valley Trust's discounts are printed per Tag ("when you play a science tag, you
+    pay 2 MC less for it"), and Research has 2 science Tags (tests/cards/test_valley_trust.py)."""
+    discounts = [card["effects"]["discount"] for card in CATALOG if "discount" in card.get("effects", {})]
+    discounted = {discount.get("tag") for discount in discounts if not discount.get("per_tag")}
     for card in CATALOG:
         for tag in discounted - {None}:
             assert card["tags"].count(tag) <= 1, card["name"]

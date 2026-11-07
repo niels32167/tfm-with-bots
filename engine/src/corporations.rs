@@ -4,9 +4,10 @@
 //! their played cards, so that its Tags and ongoing effects count as a Project Card's do.
 
 use crate::card_set::CardSet;
-use crate::cards::{BASE_BOX_CARDS, CARD_CATALOG, PROJECT_CARDS};
-use crate::game::{DecisionOption, Game};
+use crate::cards::{CARD_CATALOG, corporations_with};
+use crate::game::{DecisionOption, Game, Waiting};
 use crate::log::LogEvent;
+use crate::milestones_and_awards::Award;
 use crate::triggers::Happened;
 
 /// How many Corporations each Player is dealt at setup.
@@ -29,9 +30,10 @@ impl ChoosingCorporation {
 
 impl Game {
     /// Each Player, in player order from the first player, is dealt their Corporations from the
-    /// shuffled Corporations. Those left over, and later those not chosen, go back in the box.
+    /// shuffled Corporations: the base box's 12, and with Prelude its 5 too. Those left over, and later
+    /// those not chosen, go back in the box.
     pub(crate) fn deal_corporations(&mut self) {
-        let mut corporations: Vec<usize> = (PROJECT_CARDS..BASE_BOX_CARDS).collect();
+        let mut corporations: Vec<usize> = corporations_with(self.settings.prelude).iter().collect();
         self.random_numbers.shuffle(&mut corporations);
         let mut dealing = corporations.chunks(CORPORATIONS_DEALT);
         for player in self.player_order() {
@@ -77,9 +79,11 @@ impl Game {
             return None;
         }
         own.corporation().filter(|&card| {
-            CARD_CATALOG[card]
-                .first_action()
-                .is_some_and(|first| self.can_carry_out(self.current_player, first))
+            CARD_CATALOG[card].first_action().is_some_and(|first| {
+                self.can_carry_out(self.current_player, first)
+                    && (!first.fund_award || self.award_cost().is_some())
+                    && (first.prelude_cards == 0 || !self.prelude_deck.is_empty())
+            })
         })
     }
 
@@ -90,10 +94,23 @@ impl Game {
         self.players[player].first_action_due = false;
         self.log.push(LogEvent::TookFirstAction { player, card });
         self.carry_out(player, card, first_action);
+        if first_action.fund_award {
+            return self.wait_on(Waiting::FreeAward);
+        }
+        if first_action.prelude_cards > 0 {
+            self.draw_prelude_cards(player, first_action.prelude_cards as usize);
+            return self.wait_on(Waiting::DrawnPreludeCards);
+        }
         if let Some(&placement) = first_action.tiles.first() {
             self.place_card_tile(card, placement);
         }
         self.finish_unless_placing();
+    }
+
+    /// The current Player may fund any Award nobody has funded, for free (Vitor's first action).
+    pub(crate) fn free_award_options(&self) -> Vec<DecisionOption> {
+        let unfunded = Award::ALL.into_iter().filter(|award| self.funded_awards[award.index()].is_none());
+        unfunded.map(|award| DecisionOption::FundAward { award, cost: 0 }).collect()
     }
 
     /// What `player` may spend on the cards dealt to them, so far as they know: at setup the starting

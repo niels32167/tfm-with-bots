@@ -9,9 +9,11 @@ interface Props {
   onPay: (index: number) => void;
 }
 
-/** What may be put towards a cost besides MegaCredits. */
-type Part = "steel" | "titanium" | "heat";
-const PARTS: readonly Part[] = ["steel", "titanium", "heat"];
+/** What may be put towards a cost besides MegaCredits: microbes from Psychrophiles too. */
+type Part = "steel" | "titanium" | "heat" | "microbes";
+const PARTS: readonly Part[] = ["steel", "titanium", "heat", "microbes"];
+/** Each part's icon, among the card list's Resource images. */
+const ICON_FILES: Record<Part, string> = { steel: "steel", titanium: "titanium", heat: "heat", microbes: "microbe" };
 const ICONS = "/card-list/images";
 
 /** The id of the card a payment Decision is about, or null for any other Decision and for a payment
@@ -27,9 +29,10 @@ interface Split {
   steel: number;
   titanium: number;
   heat: number;
+  microbes: number;
 }
 
-/** Steppers for the steel, titanium and heat to put towards a cost, with the MegaCredits that leaves
+/** Steppers for the steel, titanium, heat and microbes to put towards a cost, with the MegaCredits that leaves
  * to pay, instead of one button per way to pay. The steppers reach only the offered ways,
  * starting from the first (the most MegaCredits). Remount it for each Decision. */
 export function PaymentPicker({ decision, disabled, onPay }: Props) {
@@ -39,6 +42,8 @@ export function PaymentPicker({ decision, disabled, onPay }: Props) {
     steel: option.details.steel as number,
     titanium: option.details.titanium as number,
     heat: option.details.heat as number,
+    // Left out of the details unless microbes pay part of it.
+    microbes: (option.details.microbes as number | undefined) ?? 0,
   }));
   const [chosen, setChosen] = useState(0);
   const split = splits[chosen];
@@ -78,7 +83,7 @@ export function PaymentPicker({ decision, disabled, onPay }: Props) {
               −
             </button>
             <span className="payment-amount" title={`${split[part]} ${part}`}>
-              <img src={`${ICONS}/resources/${part}.png`} alt={part} />
+              <img src={`${ICONS}/resources/${ICON_FILES[part]}.png`} alt={part} />
               {split[part]}
             </span>
             <button

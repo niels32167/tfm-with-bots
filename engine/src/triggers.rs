@@ -5,7 +5,7 @@
 
 use crate::board::{TileKind, printed};
 use crate::card_code::{MARS_UNIVERSITY, OLYMPUS_CONFERENCE, VIRAL_ENHANCERS, ViralEnhancing};
-use crate::cards::{CARD_CATALOG, CARDS_WITH, Owner, Tag, TriggerCondition};
+use crate::cards::{CARD_CATALOG, CARDS_WITH, CardType, Owner, Tag, TriggerCondition};
 use crate::game::{Game, StandardProject};
 use crate::log::LogEvent;
 
@@ -47,6 +47,12 @@ impl Happened {
             }
             (Happened::CardPlayed { player, card }, TriggerCondition::CostAtLeast(cost)) => {
                 i32::from(player == owner && CARD_CATALOG[card].cost.is_some_and(|printed| printed >= *cost))
+            }
+            (Happened::CardPlayed { player, card }, TriggerCondition::CardWithVictoryPoints) => {
+                let printed = &CARD_CATALOG[card];
+                let counts = printed.card_type == CardType::Corporation
+                    || printed.victory_points.is_some_and(|points| points.icon() >= 0);
+                i32::from(player == owner && counts)
             }
             (Happened::StandardProject { player, .. }, TriggerCondition::StandardProject) => {
                 i32::from(player == owner)
@@ -99,6 +105,11 @@ impl Game {
                             self.change_resources(owner, trigger.resources.times(times));
                             self.change_productions(owner, trigger.production.times(times));
                             self.change_card_resources(owner, card, trigger.card_resources * times);
+                            if trigger.draw > 0 {
+                                let count = trigger.draw * times;
+                                self.log.push(LogEvent::DrewCards { player: owner, count });
+                                self.draw(owner, count);
+                            }
                         }
                     }
                 }

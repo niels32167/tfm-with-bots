@@ -21,6 +21,7 @@ from tests.helpers import (
     ADJACENT_AREAS,
     CARDS_HOLDING_CARD_RESOURCES,
     CORPORATIONS,
+    PRELUDE_CORPORATIONS,
     LAND_AREAS,
     NOCTIS_CITY,
     OCEAN_AREAS,
@@ -49,6 +50,8 @@ MILESTONE_VICTORY_POINTS = 5
 PLANTS_PER_GREENERY = 8
 CORPORATIONS_DEALT = 2
 PRELUDE_CARDS_DEALT, PRELUDE_CARDS_KEPT = 4, 2
+# How many Prelude Cards Valley Trust's first action draws, to play one of them.
+VALLEY_TRUST_DRAWS = 3
 STEEL_VALUE, TITANIUM_VALUE = 2, 3
 
 # How the game log names each Resource: an amount of it, and its Production.
@@ -66,6 +69,8 @@ GREENERY_ON_AN_OCEAN_AREA_CARDS = ("mangrove", "protected_valley")
 OCEAN_ON_LAND_CARDS = ("artificial_lake",)
 # The cards printed with "Place a city tile ADJACENT TO AT LEAST 2 OTHER CITY TILES".
 CITY_NEXT_TO_CITIES_CARDS = ("urbanized_area",)
+# The card printed with a City on a volcano "regardless of adjacent cities".
+CITY_ON_A_VOLCANO_CARDS = ("lava_tube_settlement",)
 # The card printed with "Place this tile ON AN AREA RESERVED FOR OCEAN".
 SPECIAL_TILE_ON_AN_OCEAN_AREA_CARDS = ("mohole_area",)
 # The four volcanoes: Tharsis Tholus, Ascraeus Mons, Pavonis Mons and Arsia Mons.
@@ -107,15 +112,22 @@ DISCOUNTS = {
     "shuttles": (2, "space"),
     "teractor": (3, "earth"),
     "thorgate": (3, "power"),
+    "cheung_shing_mars": (2, "building"),
+    "valley_trust": (2, "science"),
 }
+# The cards among those whose discount is printed per Tag ("when you play a science tag, you pay 2 MC less
+# for it"), so a card with 2 such Tags gets it twice.
+PER_TAG_DISCOUNTS = ("cheung_shing_mars", "valley_trust")
 # The Standard Projects' printed costs, by Option details' "project".
 STANDARD_PROJECT_COSTS = {"power_plant": 11, "asteroid": 14, "aquifer": 18, "greenery": 23, "city": 25}
 # The Corporations printed with a first action, and how the Decision details describe them.
-CORPORATIONS_WITH_A_FIRST_ACTION = ("inventrix", "tharsis_republic")
+CORPORATIONS_WITH_A_FIRST_ACTION = ("inventrix", "tharsis_republic", "valley_trust", "vitor")
 # The Corporation printed with "Your may use heat as MC".
 HEAT_AS_MEGACREDITS = "helion"
 # What raises what a steel or a titanium pays, printed on these cards: (steel, titanium).
 CUBE_VALUES = {"advanced_alloys": (1, 1), "phobolog": (0, 1)}
+# The card printed with "microbes here may be used as 2 MC each" when paying for a plant card.
+MICROBES_AS_MEGACREDITS, MICROBE_VALUE = "psychrophiles", 2
 # The Resources a card loses when it is played, printed on the only one that loses heat.
 HEAT_LOST = {"local_heat_trapping": 5}
 # The Events printed with an effect on the next card played this Generation, and what they take
@@ -227,9 +239,10 @@ def exception_to_land(area_id: str, tile: dict[str, Any]) -> bool:
 
 def cities_apart(view: View, tiles: dict[str, dict[str, Any]]) -> Iterator[str]:
     """No two Cities touch, unless one is Noctis City's, or one is the City a Player placed next to at least 2
-    other Cities with a card that puts one there (Urbanized Area): a Player may have one such
-    City for each of those cards they played. Every pair of touching Cities left over is
-    reported, for the choice of such Cities that leaves the fewest."""
+    other Cities with a card that puts one there (Urbanized Area), or on a volcano regardless of other
+    Cities (Lava Tube Settlement): a Player may have one such City for each of those cards they played.
+    Every pair of touching Cities left over is reported, for the choice of such Cities that leaves the
+    fewest."""
     cities = {area_id for area_id, tile in tiles.items() if tile["type"] == "city"}
     # Noctis City's City disregards the normal placement restrictions. A City placed next to it
     # later breaks them, but this can't tell which came first; Area Decisions are checked instead.
@@ -251,7 +264,15 @@ def cities_apart(view: View, tiles: dict[str, dict[str, Any]]) -> Iterator[str]:
             if tiles[area_id]["owner"] == player
             and sum(1 for next_area in ADJACENT_AREAS.get(area_id, []) if next_area in cities) >= 2
         ]
-        picks_per_player.append(list(itertools.combinations(next_to_two, min(allowed, len(next_to_two)))))
+        on_volcanoes = [
+            area_id for area_id in sorted(cities) if tiles[area_id]["owner"] == player and area_id in VOLCANOES
+        ]
+        on_volcanoes_allowed = cards_played(view, player, CITY_ON_A_VOLCANO_CARDS)
+        picks_per_player.append([
+            next_to_two_pick + volcano_pick
+            for next_to_two_pick in itertools.combinations(next_to_two, min(allowed, len(next_to_two)))
+            for volcano_pick in itertools.combinations(on_volcanoes, min(on_volcanoes_allowed, len(on_volcanoes)))
+        ])
 
     def left_over_with(picks: tuple[tuple[str, ...], ...]) -> list[tuple[str, str]]:
         allowed_cities = {area_id for pick in picks for area_id in pick}
@@ -493,13 +514,20 @@ def cards_cost_what_the_discounts_leave(view: View, decision: Decision | None) -
     """The costs shown for the cards in each hand, and the Options to play a card, are what
     `card_cost` gives. Only an Event with an effect on the next card waits on it, in the Action
     phase, among the Player's played cards, or a Prelude Card that plays a card from the hand, while
-    its Player plays them."""
+    its Player plays them or plays its card as Valley Trust's first action."""
     for player, player_board in enumerate(view["players"]):
         name, played, next_card = player_board["name"], player_board["played_cards"], player_board["next_card"]
         if next_card in PRELUDE_NEXT_CARD_DISCOUNTS:
             if next_card not in player_board["played_prelude_cards"]:
                 yield f"{name}'s next card waits on '{next_card}', a Prelude Card they haven't played"
-            if view["phase"] != "prelude_cards":
+            # One drawn for Valley Trust's first action plays its card in the Action phase.
+            playing_its_card = (
+                decision is not None
+                and decision["kind"] == "play_card"
+                and view["players"][decision["player"]] is player_board
+                and player_board["corporation"] == "valley_trust"
+            )
+            if view["phase"] != "prelude_cards" and not playing_its_card:
                 yield f"in the {view['phase']} phase, {name}'s next card still waits on the Prelude Card '{next_card}'"
         elif next_card is not None:
             if next_card not in NEXT_CARD_DISCOUNTS or next_card not in played:
@@ -529,7 +557,7 @@ def card_cost(view: View, player: int, card_id: str) -> int:
     player_board = view["players"][player]
     card, played = CARDS[card_id], cards_in_play(player_board)
     discount = sum(
-        amount
+        amount * (card["tags"].count(tag) if discounting in PER_TAG_DISCOUNTS else 1)
         for discounting, (amount, tag) in DISCOUNTS.items()
         if discounting in played and (tag is None or tag in card["tags"])
     )
@@ -922,7 +950,8 @@ def corporations_stay_hidden_until_they_are_revealed(view: View, decision: Decis
     """At setup a Player has none revealed and may be choosing from 2 Corporations dealt, picking one
     of those, and nobody was dealt one that another was; after setup, none is being chosen and no
     two Players have the same one. A Corporation Decision offers exactly those dealt to the Player
-    deciding, while they have chosen none."""
+    deciding, while they have chosen none. Only a Game with Prelude has Prelude's Corporations."""
+    in_the_game = CORPORATIONS + (PRELUDE_CORPORATIONS if view["prelude"] else [])
     dealt_so_far: list[str] = []
     for player_board in view["players"]:
         name, corporation, choosing = (
@@ -934,13 +963,13 @@ def corporations_stay_hidden_until_they_are_revealed(view: View, decision: Decis
             yield f"in the {view['phase']} phase, {name} is choosing a Corporation"
         if view["phase"] == "setup" and corporation is not None:
             yield f"at setup, {name}'s Corporation {corporation} is revealed"
-        if corporation is not None and corporation not in CORPORATIONS:
+        if corporation is not None and corporation not in in_the_game:
             yield f"{name}'s Corporation is '{corporation}', which is none"
         if corporation is not None:
             dealt_so_far.append(corporation)
         if choosing is None:
             continue
-        if len(choosing["dealt"]) != CORPORATIONS_DEALT or not set(choosing["dealt"]) <= set(CORPORATIONS):
+        if len(choosing["dealt"]) != CORPORATIONS_DEALT or not set(choosing["dealt"]) <= set(in_the_game):
             yield f"{name} was dealt {choosing['dealt']}, not {CORPORATIONS_DEALT} Corporations"
         if choosing["picked"] is not None and choosing["picked"] not in choosing["dealt"]:
             yield f"{name} chose {choosing['picked']}, which was not dealt to them"
@@ -967,8 +996,12 @@ def first_action_comes_first(view: View, decision: Decision | None) -> Iterator[
     player_board = view["players"][decision["player"]]
     corporation, due = player_board["corporation"], player_board["first_action_due"]
     types = sorted(option["details"]["type"] for option in decision["options"])
-    can_place = corporation != "tharsis_republic" or legal_areas(view, "city", decision["player"])
-    if due and can_place and types != ["first_action", "pass"]:
+    can_carry_out = {
+        "tharsis_republic": lambda: bool(legal_areas(view, "city", decision["player"])),
+        "vitor": lambda: view["award_cost"] is not None,
+        "valley_trust": lambda: view["prelude_deck_size"] > 0,
+    }.get(corporation, lambda: True)()
+    if due and can_carry_out and types != ["first_action", "pass"]:
         yield f"{player_board['name']} must take the first action of {corporation} first, but is offered {types}"
     for option in decision["options"]:
         if option["details"]["type"] == "first_action" and (not due or option["details"]["card"] != corporation):
@@ -1015,7 +1048,14 @@ def ways_to_pay_cover_the_cost(view: View, decision: Decision | None) -> Iterato
     for option in decision["options"]:
         details = option["details"]
         paid = {part: details[part] for part in ("megacredits", "steel", "titanium", "heat")}
-        worth = paid["megacredits"] + steel_value * paid["steel"] + titanium_value * paid["titanium"] + paid["heat"]
+        microbes = details.get("microbes", 0)
+        worth = (
+            paid["megacredits"]
+            + steel_value * paid["steel"]
+            + titanium_value * paid["titanium"]
+            + paid["heat"]
+            + MICROBE_VALUE * microbes
+        )
         if "paying_for" in details:
             cost = details["cost"]
         elif details.get("action"):
@@ -1030,6 +1070,14 @@ def ways_to_pay_cover_the_cost(view: View, decision: Decision | None) -> Iterato
         for part, amount in paid.items():
             if not 0 <= amount <= resources[part]:
                 yield f"{option['label']} is offered to {player_board['name']}, who has {resources[part]} {part}"
+        if microbes > 0:
+            on_card = player_board["card_resources"].get(MICROBES_AS_MEGACREDITS, 0)
+            if microbes > on_card:
+                name = player_board["name"]
+                yield f"{option['label']} is offered to {name}, who has {on_card} microbes on Psychrophiles"
+            if "plant" not in CARDS.get(details.get("card"), {}).get("tags", []):
+                paid_for = CARDS[details["card"]]["name"] if "card" in details else details.get("paying_for")
+                yield f"{option['label']} pays microbes for {paid_for}, which has no plant Tag"
 
 
 def tags_shown_count_the_corporation(view: View, decision: Decision | None) -> Iterator[str]:
@@ -1102,7 +1150,8 @@ def every_card_in_exactly_one_place(view: View, decision: Decision | None) -> It
 def prelude_cards_stay_hidden_until_played(view: View, decision: Decision | None) -> Iterator[str]:
     """Without Prelude nobody has Prelude Cards. With it, at setup each Player was dealt 4, none dealt to
     two Players, and has kept up to 2 of them; once setup is over, those not kept are gone, and each holds
-    at most 2 still to play or played, and none still to play from the Action phase on. A Prelude Card is
+    at most 2 still to play or played, 3 with Valley Trust, and none still to play from the Action phase on
+    but the 3 Valley Trust's first action draws, while its Player chooses which to play. A Prelude Card is
     in one place at most. A Decision to keep one offers those dealt and not kept, and a Decision to play
     one offers those kept."""
     seen: list[str] = []
@@ -1119,6 +1168,14 @@ def prelude_cards_stay_hidden_until_played(view: View, decision: Decision | None
         dealt, kept = cards["dealt"], cards["kept"]
         if not set(dealt + kept + played) <= set(PRELUDE_CARDS):
             yield f"{name} has {dealt + kept + played} as Prelude Cards, which are not all Prelude Cards"
+        # Valley Trust's first action draws 3 to play one of them, in the Action phase.
+        drawing = (
+            decision is not None
+            and decision["kind"] == "play_prelude_card"
+            and view["phase"] == "action"
+            and view["players"][decision["player"]] is player_board
+        )
+        most = PRELUDE_CARDS_KEPT + (player_board["corporation"] == "valley_trust")
         if view["phase"] == "setup":
             if len(dealt) != PRELUDE_CARDS_DEALT or not set(kept) <= set(dealt) or len(kept) > PRELUDE_CARDS_KEPT:
                 yield f"at setup, {name} was dealt {dealt} and kept {kept}"
@@ -1127,9 +1184,12 @@ def prelude_cards_stay_hidden_until_played(view: View, decision: Decision | None
             seen += kept
             if dealt:
                 yield f"in the {view['phase']} phase, {name} still holds the Prelude Cards {dealt} dealt to them"
-            if len(kept) + len(played) > PRELUDE_CARDS_KEPT:
-                yield f"{name} has {kept} still to play and {played} played, more than {PRELUDE_CARDS_KEPT}"
-            if view["phase"] not in ("setup", "prelude_cards") and kept:
+            if drawing:
+                if player_board["corporation"] != "valley_trust" or len(kept) > VALLEY_TRUST_DRAWS:
+                    yield f"{name} has drawn {kept} to play one in the Action phase"
+            elif len(kept) + len(played) > most:
+                yield f"{name} has {kept} still to play and {played} played, more than {most}"
+            if view["phase"] not in ("setup", "prelude_cards") and kept and not drawing:
                 yield f"in the {view['phase']} phase, {name} has {kept} still to play"
     for card_id, times in Counter(seen).items():
         if times > 1:

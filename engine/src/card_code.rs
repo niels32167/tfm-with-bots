@@ -3,7 +3,7 @@
 //! checks against the card's id when it is read.
 
 use crate::board::{SpecialTile, mining_resource};
-use crate::cards::{CARD_CATALOG, CardType, Effects, Tag};
+use crate::cards::{BASE_BOX_CARDS, CARD_CATALOG, CardType, Effects, PRELUDE_PROJECT_CARDS_END, Tag};
 use crate::game::{DecisionOption, Game, Waiting};
 use crate::log::LogEvent;
 use crate::resources::{Resource, Resources};
@@ -88,8 +88,16 @@ pub const THARSIS_REPUBLIC: usize = 215;
 /// `Game::standard_project_cost`.
 pub const THORGATE: usize = 216;
 
+/// #P39 Psychrophiles: "When paying for a plant card, microbes here may be used as 2 MC each." Its
+/// effect data is its microbes and its action; what they may pay is `Game::usable_microbes`.
+pub const PSYCHROPHILES: usize = BASE_BOX_CARDS + 3;
+
+/// Robinson Industries: "Action: Spend 4 MC to increase (one of) your LOWEST PRODUCTION 1 step." Its
+/// effect data is the action's cost; which Production is the lowest is code.
+pub const ROBINSON_INDUSTRIES: usize = PRELUDE_PROJECT_CARDS_END + 2;
+
 /// Every card with code here, and its id.
-pub const CARDS_WITH_CODE: [(usize, &str); 17] = [
+pub const CARDS_WITH_CODE: [(usize, &str); 19] = [
     (ROBOTIC_WORKFORCE, "robotic_workforce"),
     (INSULATION, "insulation"),
     (POWER_INFRASTRUCTURE, "power_infrastructure"),
@@ -107,6 +115,8 @@ pub const CARDS_WITH_CODE: [(usize, &str); 17] = [
     (HELION, "helion"),
     (THARSIS_REPUBLIC, "tharsis_republic"),
     (THORGATE, "thorgate"),
+    (PSYCHROPHILES, "psychrophiles"),
+    (ROBINSON_INDUSTRIES, "robinson_industries"),
 ];
 
 /// The card played whose Tags Viral Enhancers still asks about, which holds Card Resources, and how
@@ -355,6 +365,15 @@ impl Game {
     pub(crate) fn finish_immigrant_city(&mut self) {
         let production = CARD_CATALOG[IMMIGRANT_CITY].implemented_effects().production;
         self.change_productions(self.current_player, production);
+    }
+
+    /// The Resources whose Production of `player`'s is the lowest, for Robinson Industries' action: one, or
+    /// those tied for it, in the usual order. MegaCredit Production counts as it is, below 0 included,
+    /// as in the open-source game (see docs/rules-notes.md).
+    pub(crate) fn lowest_productions(&self, player: usize) -> impl Iterator<Item = Resource> {
+        let production = self.players[player].production;
+        let lowest = Resource::ALL.into_iter().map(|resource| production[resource]).min().unwrap_or_default();
+        Resource::ALL.into_iter().filter(move |&resource| production[resource] == lowest)
     }
 
     /// How many steps of heat Production `player` may trade with Insulation: from 1 up to all of

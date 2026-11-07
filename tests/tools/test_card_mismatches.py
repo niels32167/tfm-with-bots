@@ -325,6 +325,17 @@ def test_a_corporations_starting_megacredits_in_its_effect_data_are_compared():
     assert (mismatch.field, mismatch.ours, mismatch.theirs) == ("starting_megacredits", 30, 23)
 
 
+def test_a_corporations_starting_megacredits_count_what_its_trigger_gives_for_itself():
+    # Vitor gains 3 MegaCredits for a card with Victory Points, "including this" (see docs/rules-notes.md).
+    corporation = {"number": None, "name": "Vitor", "type": "corporation", "cost": None}
+    common = {"corporate_era": False, "tags": ["earth"], "requirements": [], "victory_points": None}
+    their_card = {**corporation, **common, "name": "VITOR", "starting_megacredits": 48}
+    when = [{"on": "card_with_victory_points", "resources": {"megacredits": 3}}]
+    ours = {**corporation, **common, "id": "vitor", "effects": {"resources": {"megacredits": 45}, "when": when}}
+
+    assert compare([ours], [their_card]).mismatches == []
+
+
 def test_a_corporation_not_implemented_yet_has_no_starting_megacredits_to_compare():
     corporation = {"number": None, "name": "Point Luna", "type": "corporation", "cost": None}
     corporation |= {"corporate_era": False, "expansion": "prelude", "tags": [], "requirements": []}
