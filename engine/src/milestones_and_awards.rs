@@ -82,7 +82,7 @@ impl Milestone {
             Milestone::Terraformer => game.players[player].terraform_rating,
             Milestone::Mayor => game.board.owned(player, TileKind::City) as i32,
             Milestone::Gardener => game.board.owned(player, TileKind::Greenery) as i32,
-            Milestone::Builder => game.tags(player, Tag::Building),
+            Milestone::Builder => game.tags_for_an_action(player, Tag::Building),
             Milestone::Planner => game.players[player].hand.len() as i32,
         }
     }

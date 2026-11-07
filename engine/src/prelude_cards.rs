@@ -4,8 +4,11 @@
 //! Player in player order plays both of theirs, in the order they choose, before Generation 1's Action
 //! phase. A Prelude Card that can't be played is discarded instead, for 15 MegaCredits.
 
-use crate::cards::{CARD_CATALOG, CATALOG_CARDS, FIRST_PRELUDE_CARD, PRELUDE_CARDS};
-use crate::game::{DecisionOption, Game, Phase, Waiting};
+use crate::board::TileKind;
+use crate::card_set::CardSet;
+use crate::cards::{CARD_CATALOG, CATALOG_CARDS, FIRST_PRELUDE_CARD, PRELUDE_CARDS, Reveal};
+use crate::expenses::Expense;
+use crate::game::{DecisionOption, Game, MAX_OCEANS, Phase, Waiting};
 use crate::log::LogEvent;
 
 /// How many Prelude Cards each Player is dealt at setup.
@@ -93,12 +96,9 @@ impl PreludeCards {
 
 impl Game {
     /// Each Player, in player order from the first player, is dealt their Prelude Cards from the
-    /// shuffled Prelude Cards. Only those with effect data are in the shuffle until all 35 have it
-    /// (see docs/rules-notes.md). Those left over, and later those not kept, go back in the box.
+    /// shuffled Prelude Cards. Those left over, and later those not kept, go back in the box.
     pub(crate) fn deal_prelude_cards(&mut self) {
-        let mut cards: Vec<usize> = (FIRST_PRELUDE_CARD..CATALOG_CARDS)
-            .filter(|&card| CARD_CATALOG[card].effects.is_some())
-            .collect();
+        let mut cards: Vec<usize> = (FIRST_PRELUDE_CARD..CATALOG_CARDS).collect();
         self.random_numbers.shuffle(&mut cards);
         let mut dealing = cards.chunks(PRELUDE_CARDS_DEALT);
         for player in self.player_order() {
@@ -167,10 +167,50 @@ impl Game {
     }
 
     /// Whether `player` can play the Prelude Card `card`: carry out its effects, as for a Project
-    /// Card. A Prelude Card has no cost and no Requirements.
+    /// Card, and pay its price once they are done, counting what its Ocean gains for the Oceans next
+    /// to it. A Prelude Card has no cost and no Requirements.
     pub fn can_play_prelude_card(&self, player: usize, card: usize) -> bool {
-        self.can_carry_out(player, CARD_CATALOG[card].implemented_effects())
+        let effects = CARD_CATALOG[card].implemented_effects();
+        self.can_carry_out(player, effects)
             && self.can_make_a_production_change(player, card)
+            && self.spendable_megacredits(player) + self.most_megacredits_from_ocean(player, card)
+                >= prelude_card_price(card)
+            && (effects.next_card.is_none() || self.could_play_a_card_for(player, card))
+    }
+
+    /// Whether `player` could play a card from their hand for `card`, a Prelude Card that plays one,
+    /// once it is in play: with its Tags and Production, and with what it changes about that card.
+    /// Tried on a copy of the Game, as only the engine itself sees it (ADR 0013 is about Controllers).
+    fn could_play_a_card_for(&self, player: usize, card: usize) -> bool {
+        let mut trying = self.clone();
+        trying.players[player].played.insert(card);
+        trying.players[player].next_card = Some(card);
+        trying.change_productions(player, CARD_CATALOG[card].implemented_effects().production);
+        trying.players[player].hand.iter().any(|in_hand| trying.can_play(player, in_hand))
+    }
+
+    /// The most MegaCredits `player` may gain for the Oceans next to the Ocean of `card`, a Prelude
+    /// Card (Aquifer Turbines): 0 for a card without one, or once all 9 are placed.
+    fn most_megacredits_from_ocean(&self, player: usize, card: usize) -> i32 {
+        let tiles = &CARD_CATALOG[card].implemented_effects().tiles;
+        let Some(&placement) = tiles.iter().find(|placement| placement.tile == TileKind::Ocean) else {
+            return 0;
+        };
+        if self.board.oceans() >= MAX_OCEANS {
+            return 0;
+        }
+        let areas = self.board.areas_for(placement, player).into_iter();
+        areas.map(|area| self.megacredits_from_oceans_next_to(area)).max().unwrap_or(0)
+    }
+
+    /// Whether the current Player may place the Ocean they are placing on `area`: unless it is the
+    /// Ocean of the Prelude Card they are playing, which they may place only where they can still pay
+    /// the card's price with what that gains them (Aquifer Turbines).
+    pub(crate) fn ocean_pays_for_prelude_card(&self, area: usize) -> bool {
+        let Some(card) = self.playing_prelude_card else { return true };
+        self.placing_for.is_none_or(|tiles| tiles.card != card)
+            || self.spendable_megacredits(self.current_player) + self.megacredits_from_oceans_next_to(area)
+                >= prelude_card_price(card)
     }
 
     /// The current Player plays `card`, one of their Prelude Cards: it joins their played cards and
@@ -185,7 +225,56 @@ impl Game {
             return self.play_next_prelude_card();
         }
         self.log.push(LogEvent::PlayedPreludeCard { player, card });
+        // Playing it uses up what an Event did to the next card played (see docs/rules-notes.md).
+        self.players[player].next_card = None;
+        self.playing_prelude_card = Some(card);
         self.put_into_play(player, card);
+    }
+
+    /// Once the Prelude Card being played has carried out its other effects, its Player reveals cards
+    /// until they find those it asks for, pays its price, or plays a card from their hand, as it says;
+    /// then they play their next. No Prelude Card does more than one of these.
+    pub(crate) fn finish_prelude_card(&mut self) {
+        let Some(card) = self.playing_prelude_card.take() else {
+            return self.play_next_prelude_card();
+        };
+        let effects = CARD_CATALOG[card].implemented_effects();
+        if let Some(reveal) = effects.reveal {
+            self.reveal_until_found(self.current_player, reveal);
+        }
+        if effects.pay.is_some() {
+            return self.spend_on(Expense::PreludeCard(card));
+        }
+        if effects.next_card.is_some() {
+            self.players[self.current_player].next_card = Some(card);
+            return self.wait_on(Waiting::CardFromHand);
+        }
+        self.play_next_prelude_card();
+    }
+
+    /// `player` reveals cards from the top of the deck until they find `reveal.count` with its Tag,
+    /// and takes those into their hand. The rest go on the discard pile once they are done, so when
+    /// the deck runs out, the discard pile shuffled into a new deck holds none of them. Once both are
+    /// empty, they take those found so far.
+    fn reveal_until_found(&mut self, player: usize, reveal: Reveal) {
+        let mut found = 0;
+        let mut not_taken = CardSet::default();
+        while found < reveal.count {
+            let Some(card) = self.draw_cards(player, 1).iter().next() else { break };
+            let taken = CARD_CATALOG[card].has_tag(reveal.tag);
+            self.log.push(LogEvent::RevealedLookingForTag {
+                player,
+                card,
+                taken_for: taken.then_some(reveal.tag),
+            });
+            if taken {
+                self.players[player].hand.insert(card);
+                found += 1;
+            } else {
+                not_taken.insert(card);
+            }
+        }
+        self.discard = self.discard.union(not_taken);
     }
 
     /// If the current Player still has a Prelude Card to keep, the Game waits on which.
@@ -194,6 +283,12 @@ impl Game {
             self.wait_on(Waiting::PreludeCards);
         }
     }
+}
+
+/// The MegaCredits `card`, a Prelude Card, costs once its other effects are done ("Pay 6 M€"), which
+/// Helion's heat may pay: 0 for most.
+pub(crate) fn prelude_card_price(card: usize) -> i32 {
+    CARD_CATALOG[card].implemented_effects().pay.map_or(0, |price| price.megacredits)
 }
 
 /// The ids of Prelude Cards, for the view.

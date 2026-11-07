@@ -15,7 +15,7 @@ use crate::card_flow::Buying;
 use crate::card_resources::CardResources;
 use crate::card_set::CardSet;
 use crate::cards::{
-    CARD_CATALOG, Expansion, find_card, find_corporation, find_prelude_card, find_project_card,
+    CARD_CATALOG, CardType, Expansion, find_card, find_corporation, find_prelude_card, find_project_card,
     project_cards_with,
 };
 use crate::corporations::ChoosingCorporation;
@@ -543,7 +543,11 @@ impl Game {
             passed: in_action_phase && player.passed,
             used_actions: ids(player.used_actions.iter()),
             terraform_rating_raised: player.terraform_rating_raised,
-            next_card: player.next_card.map(id_of),
+            // A Prelude Card's effect on the card it plays is under way, and dropped.
+            next_card: player
+                .next_card
+                .filter(|&card| CARD_CATALOG[card].card_type == CardType::Event)
+                .map(id_of),
             // Only once setup is over: a Prelude Card kept at setup is dropped with the rest of it.
             prelude_cards: if self.phase == Phase::PreludeCards {
                 player.prelude_cards.kept.iter().map(id_of).collect()
@@ -599,8 +603,7 @@ fn prelude_cards_named(
         .collect()
 }
 
-/// Whether Player `index` may have `kept` still to play: at most as many as they keep, each of
-/// them implemented, since only an implemented card can be played.
+/// Whether Player `index` may have `kept` still to play: at most as many as they keep.
 fn check_prelude_cards_to_play(index: usize, kept: &[usize]) -> Result<(), String> {
     if kept.len() > PRELUDE_CARDS_KEPT {
         return Err(format!(
@@ -609,12 +612,7 @@ fn check_prelude_cards_to_play(index: usize, kept: &[usize]) -> Result<(), Strin
             kept.len()
         ));
     }
-    match kept.iter().find(|&&card| CARD_CATALOG[card].effects.is_none()) {
-        Some(&card) => {
-            Err(format!("'{}' is not implemented yet, so it can't be played", CARD_CATALOG[card].id))
-        }
-        None => Ok(()),
-    }
+    Ok(())
 }
 
 /// The Corporation named by `id`, which no other Player may have.

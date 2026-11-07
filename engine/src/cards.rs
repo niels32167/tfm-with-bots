@@ -223,8 +223,9 @@ impl Card {
 #[derive(Debug, Default, Serialize, Deserialize)]
 #[serde(default, deny_unknown_fields)]
 pub struct Effects {
-    /// Only for an action: the MegaCredits it costs, which steel or titanium may pay as for a card
-    /// with a building or space Tag (Aquifer Pumping, Water Import from Europa).
+    /// For an action, the MegaCredits it costs, which steel or titanium may pay as for a card with a
+    /// building or space Tag (Aquifer Pumping, Water Import from Europa). For a Prelude Card, its
+    /// price ("Pay 6 M€"), paid once its other effects are done (Business Empire).
     #[serde(skip_serializing_if = "Option::is_none")]
     pub pay: Option<ActionCost>,
     /// Resources gained, or lost below zero. An action's cost in Resources is written here.
@@ -308,6 +309,11 @@ pub struct Effects {
     /// Global Parameter is to meet from then on (Adaptation Technology).
     #[serde(skip_serializing_if = "is_zero")]
     pub requirement_steps: i32,
+    /// Only for a Prelude Card: the cards revealed from the top of the deck once its other effects are
+    /// done, until so many with a Tag are found, which its Player takes into their hand; the rest are
+    /// discarded (Acquired Space Agency).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub reveal: Option<Reveal>,
     /// Only for a Corporation: what its Player must do as their first action in the Game (Inventrix's
     /// 3 cards, Tharsis Republic's City), carried out as `Effects` are, cards drawn, then the Tile.
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -315,8 +321,9 @@ pub struct Effects {
     /// Only for a card in play: how many plants fewer its Player pays to place a Greenery (EcoLine).
     #[serde(skip_serializing_if = "is_zero")]
     pub greenery_discount: i32,
-    /// Only for an Event: what it changes about the next card its Player plays this Generation
-    /// (Indentured Workers, Special Design).
+    /// For an Event, what it changes about the next card its Player plays this Generation
+    /// (Indentured Workers, Special Design). For a Prelude Card, its Player plays a card from their
+    /// hand once its other effects are done, changed this way (Ecology Experts, Excentric Sponsor).
     #[serde(skip_serializing_if = "Option::is_none")]
     pub next_card: Option<NextCard>,
     /// Only for a card in play: what its Player gains from then on, each time something happens
@@ -438,8 +445,9 @@ pub enum TriggerCondition {
     PlacementBonus(Vec<Resource>),
 }
 
-/// What an Event changes about the next card its Player plays this Generation: MegaCredits off
-/// its cost, and how many steps easier its Requirements on a Global Parameter are to meet.
+/// What an Event changes about the next card its Player plays this Generation, or a Prelude Card
+/// about the card from hand it plays: MegaCredits off its cost, how many steps easier its
+/// Requirements on a Global Parameter are to meet, or whether those are ignored.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(default, deny_unknown_fields)]
 pub struct NextCard {
@@ -447,6 +455,8 @@ pub struct NextCard {
     pub discount: i32,
     #[serde(skip_serializing_if = "is_zero")]
     pub requirement_steps: i32,
+    #[serde(skip_serializing_if = "is_false")]
+    pub ignores_global_requirements: bool,
 }
 
 fn is_zero(value: &i32) -> bool {
@@ -484,6 +494,8 @@ pub struct CardsWith {
     pub greenery_discount: CardSet,
     pub triggers: CardSet,
     pub card_resources: CardSet,
+    /// The cards with a wild Tag (Research Network).
+    pub wild_tag: CardSet,
 }
 
 /// Read from the card catalog the first time it is needed, like the catalog itself.
@@ -503,6 +515,7 @@ pub static CARDS_WITH: LazyLock<CardsWith> = LazyLock::new(|| {
         greenery_discount: having(|effects| effects.greenery_discount != 0),
         triggers: having(|effects| !effects.when.is_empty()),
         card_resources,
+        wild_tag: (0..CARD_CATALOG.len()).filter(|&card| CARD_CATALOG[card].has_tag(Tag::Wild)).collect(),
     }
 });
 
@@ -589,6 +602,14 @@ pub struct LookAt {
     pub buy: i32,
 }
 
+/// Cards revealed until `count` cards with `tag` are found (Acquired Space Agency's 2 with a space Tag).
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct Reveal {
+    pub tag: Tag,
+    pub count: i32,
+}
+
 /// `steps` of Terraform Rating for every `per` of something, such as 1 step for each jovian Tag
 /// (Terraforming Ganymede).
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -635,10 +656,10 @@ pub enum Tag {
 }
 
 impl Tag {
-    /// The Tags that count when played, in the order the card list's filters give them. The
-    /// Event Tag never counts (see `Game::tags`). Nor, so far, does the wild Tag, which only
-    /// Prelude's cards have.
-    pub const COUNTED: [Tag; 10] = [
+    /// The Tags that count when played, in the order the card list's filters give them, and the
+    /// wild Tag, which counts only for an action (see `Game::tags_for_an_action`). The Event Tag
+    /// never counts (see `Game::tags`).
+    pub const COUNTED: [Tag; 11] = [
         Tag::Building,
         Tag::Space,
         Tag::Power,
@@ -649,7 +670,26 @@ impl Tag {
         Tag::Microbe,
         Tag::Animal,
         Tag::City,
+        Tag::Wild,
     ];
+
+    /// As the game log writes it: "space", "jovian".
+    pub fn name(self) -> &'static str {
+        match self {
+            Tag::Building => "building",
+            Tag::Space => "space",
+            Tag::Power => "power",
+            Tag::Science => "science",
+            Tag::Jovian => "jovian",
+            Tag::Earth => "earth",
+            Tag::Plant => "plant",
+            Tag::Microbe => "microbe",
+            Tag::Animal => "animal",
+            Tag::City => "city",
+            Tag::Event => "event",
+            Tag::Wild => "wild",
+        }
+    }
 }
 
 /// A kind of marker kept on a card rather than with a Player.

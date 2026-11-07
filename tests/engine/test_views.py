@@ -223,6 +223,16 @@ def test_only_the_player_sees_what_their_cards_cost_and_everyone_sees_what_waits
     assert game.player_view(0)["players"][0]["card_costs"] == {"mine": 4}
 
 
+def cards_named_in_text(text: str) -> set[str]:
+    """The cards a game log line names, the longest names first, so "Mohole Area" names no Mohole."""
+    named = set()
+    for card, name in sorted(CARD_NAMES.items(), key=lambda item: -len(item[1])):
+        if name in text:
+            named.add(card)
+            text = text.replace(name, "")
+    return named
+
+
 def prelude_cards_named_in(value: Any) -> set[str]:
     """Every Prelude Card id anywhere in `value`."""
     if isinstance(value, dict):
@@ -246,7 +256,7 @@ def test_no_player_view_or_log_line_shows_another_players_prelude_cards_until_th
             assert [board["prelude_cards"] is not None for board in view["players"]] == [
                 index == viewer for index in range(3)
             ]
-        named_in_the_log = {card for card in PRELUDE_CARDS if any(CARD_NAMES[card] in line for line in game.log)}
+        named_in_the_log = {card for line in game.log for card in cards_named_in_text(line)} & set(PRELUDE_CARDS)
         assert named_in_the_log <= played
         game.play_randomly(seed=4, picks=1)
 

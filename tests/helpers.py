@@ -130,8 +130,10 @@ def has_printed_production_box(card: dict[str, Any]) -> bool:
     return "production-box" in json.dumps(card["face"])
 
 # The Tags counted on a player board, in the card list's order: every Tag but the Event Tag,
-# since no Tag on a played Event counts.
-TAGS_THAT_COUNT = ("building", "space", "power", "science", "jovian", "earth", "plant", "microbe", "animal", "city")
+# since no Tag on a played Event counts. The wild Tag is shown last, apart from the rest.
+TAGS_THAT_COUNT = (
+    "building", "space", "power", "science", "jovian", "earth", "plant", "microbe", "animal", "city", "wild",
+)
 
 # The six Resources, as the Scenario, the Player View and Production name them.
 RESOURCES = ("megacredits", "steel", "titanium", "plants", "energy", "heat")
@@ -368,6 +370,16 @@ def production(game: tm_engine.Game, player: int) -> dict[str, int]:
 def hand(game: tm_engine.Game, player: int) -> list[str]:
     """The cards in a Player's hand, by catalog id, as that Player sees them."""
     return player_board(game, player)["hand"]
+
+
+def everything_but(*cards: str) -> list[str]:
+    """Every Project Card of a Game with Prelude but `cards`, for a hand that leaves the deck nearly empty."""
+    return [card for card in PROJECT_CARDS + PRELUDE_PROJECT_CARDS if card not in cards]
+
+
+def card_costs(game: tm_engine.Game, player: int) -> dict[str, int]:
+    """What each card in a Player's hand costs them now, by catalog id."""
+    return player_board(game, player)["card_costs"]
 
 
 def buying(game: tm_engine.Game, player: int) -> dict[str, list[str]] | None:

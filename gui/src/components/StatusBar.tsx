@@ -2,7 +2,7 @@ import { CARD_PRICE, playersAreBuying } from "../cards/BuyingPanel";
 import { HAND_OPTIONS } from "../cards/HandDock";
 import { TILE_NAMES } from "../format";
 import { PLAYER_COLOURS, playerTitle } from "../players";
-import type { Card, TileType } from "../types";
+import type { Card, NextCardEffect, TileType } from "../types";
 import type { GameUpdate } from "../useGameServer";
 import { LogLine } from "./GameLog";
 import { cardBeingPaidFor, PaymentPicker } from "./PaymentPicker";
@@ -165,6 +165,16 @@ function statusText(game: GameUpdate, cards: Card[]): string {
   }
   if (decision?.kind === "play_prelude_card") {
     return `${who} must play both Prelude Cards above, one at a time: click the one to play first.`;
+  }
+  if (decision?.kind === "play_card") {
+    const prelude = cards.find((each) => each.id === view.players[decision.player].next_card);
+    const nextCard = prelude?.effects?.next_card as NextCardEffect | undefined;
+    const how = nextCard?.ignores_global_requirements
+      ? ", ignoring its global requirements"
+      : nextCard?.discount
+        ? ` for ${nextCard.discount} MegaCredits less`
+        : "";
+    return `${who} must play a card from the hand for ${prelude?.name}${how}: click a highlighted card.`;
   }
   if (decision?.options.some((option) => option.details.type === "first_action")) {
     return `${who} must take their Corporation's first action, or Pass:`;

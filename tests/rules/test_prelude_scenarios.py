@@ -107,7 +107,6 @@ def test_without_prelude_a_scenario_cannot_name_the_prelude_boxs_cards(fields):
     [
         ({"prelude_cards": ["mine"]}, "no Prelude Card 'mine'"),
         ({"played_prelude_cards": ["house_printing"]}, "no Prelude Card 'house_printing'"),
-        ({"prelude_cards": ["research_network"]}, "not implemented"),
         ({"prelude_cards": ["donation", "loan", "mohole"]}, "at most 2"),
         ({"prelude_cards": ["donation"], "played_prelude_cards": ["donation"]}, "only one place"),
     ],
@@ -136,3 +135,14 @@ def test_a_game_playing_its_prelude_cards_described_as_a_scenario_starts_there_a
     again = tm_engine.Game.from_scenario(described)
     assert again.full_view()["players"] == game.full_view()["players"]
     assert again.decision["options"] == game.decision["options"]
+
+
+def test_playing_a_prelude_card_uses_up_an_events_effect_on_the_next_card():
+    game = scenario(player(prelude_cards=["excentric_sponsor", "donation"], hand=["special_design", "lichen"]),
+                    player(), prelude=True)
+    pick(game, "Play Excentric Sponsor")
+    pick(game, "Play Special Design")
+
+    assert player_board(game, 0)["next_card"] is None
+    assert game.full_view()["phase"] == "action"
+    assert player_board(game, 0)["played_prelude_cards"] == ["donation", "excentric_sponsor"]

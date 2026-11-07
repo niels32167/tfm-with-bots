@@ -4,7 +4,7 @@
 
 use crate::board::{BonusItem, Placement, area_label};
 use crate::card_flow::{CARD_PRICE, PATENT_VALUE, RESEARCH_CARDS, SETUP_CARDS};
-use crate::cards::{AddToAnother, CARD_CATALOG};
+use crate::cards::{AddToAnother, CARD_CATALOG, Tag};
 use crate::corporations::CORPORATIONS_DEALT;
 use crate::game::{
     HEAT_PER_TEMPERATURE_STEP, MAX_OCEANS, OCEAN_ADJACENCY_BONUS, OCEAN_BONUS_TEMPERATURE, StandardProject,
@@ -28,6 +28,19 @@ pub enum LogEvent {
     PlayedPreludeCard {
         player: usize,
         card: usize,
+    },
+    /// The Player reveals this card from the top of the deck, and takes it into their hand for having
+    /// `taken_for`, the Tag they are revealing cards until they find, or else discards it.
+    RevealedLookingForTag {
+        player: usize,
+        card: usize,
+        taken_for: Option<Tag>,
+    },
+    /// The Player pays the price of this Prelude Card of theirs ("Pay 6 M€").
+    PaidForPreludeCard {
+        player: usize,
+        card: usize,
+        payment: Payment,
     },
     /// The Player can't play this Prelude Card of theirs, so they discard it and gain 15 MegaCredits.
     DiscardedUnplayablePreludeCard {
@@ -311,6 +324,19 @@ impl LogEvent {
             }
             LogEvent::PlayedPreludeCard { player, card } => {
                 format!("{} plays {}.", player_name(player), CARD_CATALOG[card].name)
+            }
+            LogEvent::RevealedLookingForTag { player, card, taken_for: Some(tag) } => format!(
+                "{} reveals {}, which has a{} {} Tag, and takes it into their hand.",
+                player_name(player),
+                CARD_CATALOG[card].name,
+                if tag.name().starts_with(['a', 'e', 'i', 'o', 'u']) { "n" } else { "" },
+                tag.name()
+            ),
+            LogEvent::RevealedLookingForTag { player, card, taken_for: None } => {
+                format!("{} reveals {} and discards it.", player_name(player), CARD_CATALOG[card].name)
+            }
+            LogEvent::PaidForPreludeCard { player, card, payment } => {
+                format!("{} pays {} for {}.", player_name(player), payment.text(), CARD_CATALOG[card].name)
             }
             LogEvent::DiscardedUnplayablePreludeCard { player, card } => format!(
                 "{} can't play {}, so they discard it and gain {MEGACREDITS_FOR_AN_UNPLAYABLE_PRELUDE_CARD} MegaCredits.",

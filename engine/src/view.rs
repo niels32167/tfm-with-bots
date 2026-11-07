@@ -232,6 +232,9 @@ pub struct View {
     pub phase: &'static str,
     /// Whether the Game has Prelude.
     pub prelude: bool,
+    /// The Prelude Card the current Player is playing, while its effects are carried out, such as
+    /// placing Aquifer Turbines' Ocean, by catalog id; None once they are done, as its price is paid.
+    pub playing_prelude_card: Option<&'static str>,
     pub temperature: i32,
     /// In percent.
     pub oxygen: i32,
@@ -347,7 +350,8 @@ pub struct PlayerBoard {
     /// How many Card Resources are on each of their played cards that can hold some, by catalog id.
     pub card_resources: BTreeMap<&'static str, i32>,
     /// The Event they played whose effect waits on the next card they play this Generation
-    /// (Indentured Workers, Special Design), by catalog id, or None.
+    /// (Indentured Workers, Special Design), or the Prelude Card whose effect is on the card from the
+    /// hand they are playing for it (Ecology Experts), by catalog id, or None.
     pub next_card: Option<&'static str>,
     /// How many of each Tag they have in play, for every Tag but the Event Tag, which never counts.
     pub tags: BTreeMap<Tag, i32>,
@@ -464,6 +468,7 @@ fn view(game: &Game, viewer: Option<usize>) -> View {
             Phase::Over => "over",
         },
         prelude: game.settings.prelude,
+        playing_prelude_card: game.playing_prelude_card.map(|card| CARD_CATALOG[card].id.as_str()),
         temperature: game.temperature,
         oxygen: game.oxygen,
         oceans: game.board.oceans(),
@@ -626,6 +631,7 @@ fn decision_view(game: &Game, decision: &Decision) -> DecisionView {
             DecisionKind::Corporation => "corporation",
             DecisionKind::PreludeCards => "prelude_cards",
             DecisionKind::PlayPreludeCard => "play_prelude_card",
+            DecisionKind::PlayCard => "play_card",
             DecisionKind::Draft => "draft",
             DecisionKind::BuyCards => "buy_cards",
             DecisionKind::SellPatents => "sell_patents",

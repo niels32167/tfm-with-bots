@@ -3496,7 +3496,8 @@
       "requirements": [],
       "victory_points": null,
       "text": "(Place an Ocean. Increase your energy production 2 steps. Pay 3 MC .)",
-      "face": {"content": {"tag": "div", "class": "content", "children": [" ", {"tag": "div", "class": "tile ocean-tile"}, " ", {"tag": "div", "class": "production-box production-box-size2", "children": [" ", {"tag": "div", "class": "production energy"}, " ", {"tag": "div", "class": "production energy"}, " "]}, " ", {"tag": "br"}, " - ", {"tag": "div", "class": "resource money", "children": ["3"]}, " ", {"tag": "div", "class": "description", "children": [" (Place an Ocean. Increase your energy production 2 steps. Pay 3 MC .) "]}, " "]}}
+      "face": {"content": {"tag": "div", "class": "content", "children": [" ", {"tag": "div", "class": "tile ocean-tile"}, " ", {"tag": "div", "class": "production-box production-box-size2", "children": [" ", {"tag": "div", "class": "production energy"}, " ", {"tag": "div", "class": "production energy"}, " "]}, " ", {"tag": "br"}, " - ", {"tag": "div", "class": "resource money", "children": ["3"]}, " ", {"tag": "div", "class": "description", "children": [" (Place an Ocean. Increase your energy production 2 steps. Pay 3 MC .) "]}, " "]}},
+      "effects": {"production": {"energy": 2}, "tiles": ["ocean"], "pay": {"megacredits": 3}}
     },
     {
       "id": "biofuels",
@@ -3555,7 +3556,8 @@
       "requirements": [],
       "victory_points": null,
       "text": "(Increase your MC production 6 steps. Pay 6 MC.)",
-      "face": {"content": {"tag": "div", "class": "content", "children": [" ", {"tag": "div", "class": "production-box", "children": [" ", {"tag": "div", "class": "production money", "children": ["6"]}, " "]}, " ", {"tag": "br"}, " - ", {"tag": "div", "class": "resource money", "children": ["6"]}, " ", {"tag": "div", "class": "description", "children": [" (Increase your MC production 6 steps. Pay 6 MC.) "]}, " "]}}
+      "face": {"content": {"tag": "div", "class": "content", "children": [" ", {"tag": "div", "class": "production-box", "children": [" ", {"tag": "div", "class": "production money", "children": ["6"]}, " "]}, " ", {"tag": "br"}, " - ", {"tag": "div", "class": "resource money", "children": ["6"]}, " ", {"tag": "div", "class": "description", "children": [" (Increase your MC production 6 steps. Pay 6 MC.) "]}, " "]}},
+      "effects": {"production": {"megacredits": 6}, "pay": {"megacredits": 6}}
     },
     {
       "id": "dome_farming",
@@ -3614,7 +3616,8 @@
       "requirements": [],
       "victory_points": null,
       "text": "(Increase your plant production 1 step. Play a card from hand, ignoring global requirements.)",
-      "face": {"content": {"tag": "div", "class": "content", "children": [" ", {"tag": "div", "class": "production-box", "children": [" ", {"tag": "div", "class": "production plant"}, " "]}, " ", {"tag": "br"}, " ", {"tag": "div", "class": "requirements", "style": {"margin-left": "31px", "width": "70%"}, "children": [" ", {"tag": "div", "style": {"color": "red", "font-size": "56px", "display": "inline-block"}, "children": [" X "]}, " ", {"tag": "div", "style": {"position": "absolute", "margin-top": "-40px", "margin-left": "6px"}, "children": [" Project Requirements "]}, " "]}, " ", {"tag": "div", "class": "description", "children": [" (Increase your plant production 1 step. Play a card from hand, ignoring global requirements.) "]}, " "]}}
+      "face": {"content": {"tag": "div", "class": "content", "children": [" ", {"tag": "div", "class": "production-box", "children": [" ", {"tag": "div", "class": "production plant"}, " "]}, " ", {"tag": "br"}, " ", {"tag": "div", "class": "requirements", "style": {"margin-left": "31px", "width": "70%"}, "children": [" ", {"tag": "div", "style": {"color": "red", "font-size": "56px", "display": "inline-block"}, "children": [" X "]}, " ", {"tag": "div", "style": {"position": "absolute", "margin-top": "-40px", "margin-left": "6px"}, "children": [" Project Requirements "]}, " "]}, " ", {"tag": "div", "class": "description", "children": [" (Increase your plant production 1 step. Play a card from hand, ignoring global requirements.) "]}, " "]}},
+      "effects": {"production": {"plants": 1}, "next_card": {"ignores_global_requirements": true}}
     },
     {
       "id": "excentric_sponsor",
@@ -3628,7 +3631,8 @@
       "requirements": [],
       "victory_points": null,
       "text": "(Play 1 card from hand with a 25 MC reduction.)",
-      "face": {"content": {"tag": "div", "class": "content", "children": [" ", {"tag": "div", "class": "resource card"}, " : ", {"tag": "div", "class": "resource money", "children": ["-25"]}, " ", {"tag": "div", "class": "description", "children": [" (Play 1 card from hand with a 25 MC reduction.) "]}, " "]}}
+      "face": {"content": {"tag": "div", "class": "content", "children": [" ", {"tag": "div", "class": "resource card"}, " : ", {"tag": "div", "class": "resource money", "children": ["-25"]}, " ", {"tag": "div", "class": "description", "children": [" (Play 1 card from hand with a 25 MC reduction.) "]}, " "]}},
+      "effects": {"next_card": {"discount": 25}}
     },
     {
       "id": "experimental_forest",
@@ -3642,7 +3646,8 @@
       "requirements": [],
       "victory_points": null,
       "text": "( Place 1 Greenery tile. Reveal cards until you reveal two cards with plant tags on them. Take them into your hand and discard the rest.)",
-      "face": {"content": {"tag": "div", "class": "content", "children": [" ", {"tag": "div", "class": "tile greenery-tile"}, " ", {"tag": "div", "class": "resource card", "children": [" ", {"tag": "div", "class": "card-icon tag-plant"}, " "]}, " ", {"tag": "div", "class": "resource card", "children": [" ", {"tag": "div", "class": "card-icon tag-plant"}, " "]}, " ", {"tag": "div", "class": "description", "children": [" ( Place 1 Greenery tile. Reveal cards until you reveal two cards with plant tags on them. Take them into your hand and discard the rest.) "]}, " "]}}
+      "face": {"content": {"tag": "div", "class": "content", "children": [" ", {"tag": "div", "class": "tile greenery-tile"}, " ", {"tag": "div", "class": "resource card", "children": [" ", {"tag": "div", "class": "card-icon tag-plant"}, " "]}, " ", {"tag": "div", "class": "resource card", "children": [" ", {"tag": "div", "class": "card-icon tag-plant"}, " "]}, " ", {"tag": "div", "class": "description", "children": [" ( Place 1 Greenery tile. Reveal cards until you reveal two cards with plant tags on them. Take them into your hand and discard the rest.) "]}, " "]}},
+      "effects": {"tiles": ["greenery"], "reveal": {"tag": "plant", "count": 2}}
     },
     {
       "id": "galilean_mining",
@@ -3656,7 +3661,8 @@
       "requirements": [],
       "victory_points": null,
       "text": "(Increase your titanium production 2 steps. Pay 5 MC.)",
-      "face": {"content": {"tag": "div", "class": "content", "children": [" ", {"tag": "div", "class": "production-box production-box-size2", "children": [" ", {"tag": "div", "class": "production titanium"}, " ", {"tag": "div", "class": "production titanium"}, " "]}, " ", {"tag": "br"}, " - ", {"tag": "div", "class": "resource money", "children": ["5"]}, " ", {"tag": "div", "class": "description", "children": [" (Increase your titanium production 2 steps. Pay 5 MC.) "]}, " "]}}
+      "face": {"content": {"tag": "div", "class": "content", "children": [" ", {"tag": "div", "class": "production-box production-box-size2", "children": [" ", {"tag": "div", "class": "production titanium"}, " ", {"tag": "div", "class": "production titanium"}, " "]}, " ", {"tag": "br"}, " - ", {"tag": "div", "class": "resource money", "children": ["5"]}, " ", {"tag": "div", "class": "description", "children": [" (Increase your titanium production 2 steps. Pay 5 MC.) "]}, " "]}},
+      "effects": {"production": {"titanium": 2}, "pay": {"megacredits": 5}}
     },
     {
       "id": "great_aquifer",
@@ -3685,7 +3691,8 @@
       "requirements": [],
       "victory_points": null,
       "text": "(Increase Temperature 3 steps. Pay 5 MC.)",
-      "face": {"content": {"tag": "div", "class": "content", "children": [" ", {"tag": "div", "class": "tile temperature-tile"}, " ", {"tag": "div", "class": "tile temperature-tile"}, " ", {"tag": "div", "class": "tile temperature-tile"}, " ", {"tag": "br"}, " - ", {"tag": "div", "class": "resource money", "children": ["5"]}, " ", {"tag": "div", "class": "description", "children": [" (Increase Temperature 3 steps. Pay 5 MC.) "]}, " "]}}
+      "face": {"content": {"tag": "div", "class": "content", "children": [" ", {"tag": "div", "class": "tile temperature-tile"}, " ", {"tag": "div", "class": "tile temperature-tile"}, " ", {"tag": "div", "class": "tile temperature-tile"}, " ", {"tag": "br"}, " - ", {"tag": "div", "class": "resource money", "children": ["5"]}, " ", {"tag": "div", "class": "description", "children": [" (Increase Temperature 3 steps. Pay 5 MC.) "]}, " "]}},
+      "effects": {"temperature": 3, "pay": {"megacredits": 5}}
     },
     {
       "id": "io_research_outpost",
@@ -3879,7 +3886,8 @@
       "requirements": [],
       "victory_points": null,
       "text": "(Increase your money production 1 step. Draw 3 cards.)",
-      "face": {"content": {"tag": "div", "class": "content", "children": [" ", {"tag": "div", "class": "production-box", "children": [" ", {"tag": "div", "class": "production money", "children": ["1"]}, " "]}, " ", {"tag": "br"}, " ", {"tag": "div", "class": "resource card"}, " ", {"tag": "div", "class": "resource card"}, " ", {"tag": "div", "class": "resource card"}, " ", {"tag": "div", "class": "description", "children": [" (Increase your money production 1 step. Draw 3 cards.) "]}, " "]}}
+      "face": {"content": {"tag": "div", "class": "content", "children": [" ", {"tag": "div", "class": "production-box", "children": [" ", {"tag": "div", "class": "production money", "children": ["1"]}, " "]}, " ", {"tag": "br"}, " ", {"tag": "div", "class": "resource card"}, " ", {"tag": "div", "class": "resource card"}, " ", {"tag": "div", "class": "resource card"}, " ", {"tag": "div", "class": "description", "children": [" (Increase your money production 1 step. Draw 3 cards.) "]}, " "]}},
+      "effects": {"production": {"megacredits": 1}, "draw": 3}
     },
     {
       "id": "self_sufficient_settlement",
@@ -3983,7 +3991,8 @@
       "requirements": [],
       "victory_points": null,
       "text": "(Gain 6 titanium. Reveal cards until you reveal two cards with Space Tags. Take them into your hand, discard the rest.)",
-      "face": {"content": {"tag": "div", "class": "content", "children": [" ", {"tag": "div", "class": "resource titanium"}, " ", {"tag": "div", "class": "resource titanium"}, " ", {"tag": "div", "class": "resource titanium"}, " ", {"tag": "div", "class": "resource titanium"}, " ", {"tag": "div", "class": "resource titanium"}, " ", {"tag": "div", "class": "resource titanium"}, " ", {"tag": "div", "class": "resource card", "children": [" ", {"tag": "div", "class": "card-icon tag-space"}, " "]}, " ", {"tag": "div", "class": "resource card", "children": [" ", {"tag": "div", "class": "card-icon tag-space"}, " "]}, " ", {"tag": "div", "class": "description", "children": [" (Gain 6 titanium. Reveal cards until you reveal two cards with Space Tags. Take them into your hand, discard the rest.) "]}, " "]}}
+      "face": {"content": {"tag": "div", "class": "content", "children": [" ", {"tag": "div", "class": "resource titanium"}, " ", {"tag": "div", "class": "resource titanium"}, " ", {"tag": "div", "class": "resource titanium"}, " ", {"tag": "div", "class": "resource titanium"}, " ", {"tag": "div", "class": "resource titanium"}, " ", {"tag": "div", "class": "resource titanium"}, " ", {"tag": "div", "class": "resource card", "children": [" ", {"tag": "div", "class": "card-icon tag-space"}, " "]}, " ", {"tag": "div", "class": "resource card", "children": [" ", {"tag": "div", "class": "card-icon tag-space"}, " "]}, " ", {"tag": "div", "class": "description", "children": [" (Gain 6 titanium. Reveal cards until you reveal two cards with Space Tags. Take them into your hand, discard the rest.) "]}, " "]}},
+      "effects": {"resources": {"titanium": 6}, "reveal": {"tag": "space", "count": 2}}
     }
   ]
 }

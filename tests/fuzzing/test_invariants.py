@@ -526,6 +526,57 @@ def test_an_effect_on_the_next_card_that_is_no_such_event_or_outlasts_the_action
     ]
 
 
+def test_aquifer_turbines_offering_only_the_areas_that_cover_its_price_breaks_no_invariant():
+    game = scenario(player(prelude_cards=["aquifer_turbines"], megacredits=1), player(), prelude=True,
+                    tiles=[ocean("E5")])
+
+    assert problems(*position(game)) == []
+
+
+def test_aquifer_turbines_offering_an_area_that_doesnt_cover_its_price_breaks_an_invariant():
+    game = scenario(player(prelude_cards=["aquifer_turbines"], megacredits=1), player(), prelude=True,
+                    tiles=[ocean("E5")])
+    view, decision = position(game)
+    decision["options"].append(area_option("A2", "ocean"))
+
+    assert problems(view, decision) == ["the Area Decision for an Ocean offers A2, where it may not go"]
+
+
+def test_an_event_played_for_a_prelude_card_may_wait_on_the_next_card_while_players_play_them():
+    game = scenario(player(prelude_cards=["excentric_sponsor", "donation"], hand=["special_design", "mine"]),
+                    player(), prelude=True)
+    pick(game, "Play Excentric Sponsor")
+    pick(game, "Play Special Design")
+
+    assert problems(*position(game)) == []
+
+
+def test_a_prelude_cards_effect_on_the_card_it_plays_reached_by_the_rules_breaks_no_invariant():
+    sponsored = scenario(player(prelude_cards=["excentric_sponsor"], hand=["io_mining_industries", "mine"]), player(),
+                         prelude=True)
+    experts = scenario(player(prelude_cards=["ecology_experts"], hand=["trees"]), player(), prelude=True)
+
+    assert problems(*position(sponsored)) == []
+    assert problems(*position(experts)) == []
+
+
+def test_a_prelude_cards_effect_on_the_card_it_plays_outlasting_its_playing_breaks_an_invariant():
+    game = scenario(player(played_prelude_cards=["excentric_sponsor"], hand=["mine"]),
+                    player(hand=["trees"]), prelude=True)
+    view, decision = position(game)
+    view["players"][0]["next_card"] = "excentric_sponsor"
+    view["players"][1]["next_card"] = "ecology_experts"
+
+    assert problems(view, decision) == [
+        "in the action phase, Player 1's next card still waits on the Prelude Card 'excentric_sponsor'",
+        # The costs shown follow what the next card waits on.
+        "Player 1's Mine costs 4, not 0",
+        "Player 2's next card waits on 'ecology_experts', a Prelude Card they haven't played",
+        "in the action phase, Player 2's next card still waits on the Prelude Card 'ecology_experts'",
+        "Play Mine (4 MegaCredits) is offered at 4, not at 0",
+    ]
+
+
 def test_mars_universitys_decision_leaving_out_a_card_in_hand_breaks_an_invariant():
     game = scenario(player(megacredits=8, hand=["mars_university", "mine", "trees"]), player())
     pick(game, "Play Mars University")

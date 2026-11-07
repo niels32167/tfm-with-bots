@@ -121,6 +121,14 @@ HEAT_LOST = {"local_heat_trapping": 5}
 # The Events printed with an effect on the next card played this Generation, and what they take
 # off its cost.
 NEXT_CARD_DISCOUNTS = {"indentured_workers": 8, "special_design": 0}
+# What each Prelude Card printed "Pay X M€" costs once its other effects are done.
+PRELUDE_CARD_PRICES = {
+    card["id"]: card["effects"]["pay"]["megacredits"]
+    for card in CARDS.values()
+    if card["type"] == "prelude" and "pay" in card.get("effects", {})
+}
+# What each Prelude Card that plays a card from the hand takes off its cost.
+PRELUDE_NEXT_CARD_DISCOUNTS = {"excentric_sponsor": 25, "ecology_experts": 0}
 
 
 def no_negative_resources(view: View, decision: Decision | None) -> Iterator[str]:
@@ -316,7 +324,8 @@ def cards_played(view: View, player: int, cards: tuple[str, ...]) -> int:
 
 def only_legal_areas_offered(view: View, decision: Decision | None) -> Iterator[str]:
     """A choose-an-Area Decision offers exactly the Areas where its Tile may go, or that Land
-    Claim may claim."""
+    Claim may claim. An Ocean placed for a Prelude Card with a price (Aquifer Turbines) goes only where
+    the Oceans next to it gain its Player enough to pay that price."""
     if decision is None or decision["kind"] != "area" or not decision["options"]:
         return
     details = decision["options"][0]["details"]
@@ -327,12 +336,24 @@ def only_legal_areas_offered(view: View, decision: Decision | None) -> Iterator[
     else:
         tile, on = details["tile"], details.get("on", "usual")
         legal = legal_areas(view, tile, decision["player"], on)
+        price = PRELUDE_CARD_PRICES.get(view["playing_prelude_card"], 0)
+        if tile == "ocean" and price:
+            spendable = spendable_megacredits(view["players"][decision["player"]])
+            legal = {
+                area_id for area_id in legal if spendable + megacredits_from_oceans_next_to(view, area_id) >= price
+            }
         name = tile_name(tile, details.get("card"))
         article_and_name = f"{'an' if tile == 'ocean' else 'a'} {name}{OTHER_AREAS.get(on, '')}"
     for area_id in sorted(offered - legal):
         yield f"the Area Decision for {article_and_name} offers {area_id}, where it may not go"
     for area_id in sorted(legal - offered):
         yield f"the Area Decision for {article_and_name} leaves out {area_id}, where it may go"
+
+
+def megacredits_from_oceans_next_to(view: View, area_id: str) -> int:
+    """What an Ocean placed on `area_id` gains its Player for the Oceans next to it: 2 MegaCredits each."""
+    tiles = tiles_on_the_board(view)
+    return 2 * sum(1 for next_area in ADJACENT_AREAS[area_id] if tiles.get(next_area, {}).get("type") == "ocean")
 
 
 def legal_areas(view: View, tile: str, player: int, on: str = "usual") -> set[str]:
@@ -471,13 +492,21 @@ def card_actions_used_once_per_generation(view: View, decision: Decision | None)
 def cards_cost_what_the_discounts_leave(view: View, decision: Decision | None) -> Iterator[str]:
     """The costs shown for the cards in each hand, and the Options to play a card, are what
     `card_cost` gives. Only an Event with an effect on the next card waits on it, in the Action
-    phase, among the Player's played cards."""
+    phase, among the Player's played cards, or a Prelude Card that plays a card from the hand, while
+    its Player plays them."""
     for player, player_board in enumerate(view["players"]):
         name, played, next_card = player_board["name"], player_board["played_cards"], player_board["next_card"]
-        if next_card is not None and (next_card not in NEXT_CARD_DISCOUNTS or next_card not in played):
-            yield f"{name}'s next card waits on '{next_card}', not an Event with such an effect they played"
-        if next_card is not None and view["phase"] != "action":
-            yield f"in the {view['phase']} phase, {name}'s next card still waits on '{next_card}'"
+        if next_card in PRELUDE_NEXT_CARD_DISCOUNTS:
+            if next_card not in player_board["played_prelude_cards"]:
+                yield f"{name}'s next card waits on '{next_card}', a Prelude Card they haven't played"
+            if view["phase"] != "prelude_cards":
+                yield f"in the {view['phase']} phase, {name}'s next card still waits on the Prelude Card '{next_card}'"
+        elif next_card is not None:
+            if next_card not in NEXT_CARD_DISCOUNTS or next_card not in played:
+                yield f"{name}'s next card waits on '{next_card}', not an Event with such an effect they played"
+            # An Event played for a Prelude Card (Excentric Sponsor) may wait on the next card at once.
+            if view["phase"] not in ("action", "prelude_cards"):
+                yield f"in the {view['phase']} phase, {name}'s next card still waits on '{next_card}'"
         for card_id, shown in player_board["card_costs"].items():
             cost = card_cost(view, player, card_id)
             if shown != cost:
@@ -495,7 +524,8 @@ def cards_cost_what_the_discounts_leave(view: View, decision: Decision | None) -
 
 def card_cost(view: View, player: int, card_id: str) -> int:
     """What `player` pays for `card_id`: its printed cost less the discounts of their played
-    cards and of the Event they played for their next card, never below 0."""
+    cards and of the Event they played for their next card, or the Prelude Card playing it, never
+    below 0."""
     player_board = view["players"][player]
     card, played = CARDS[card_id], cards_in_play(player_board)
     discount = sum(
@@ -503,7 +533,8 @@ def card_cost(view: View, player: int, card_id: str) -> int:
         for discounting, (amount, tag) in DISCOUNTS.items()
         if discounting in played and (tag is None or tag in card["tags"])
     )
-    discount += NEXT_CARD_DISCOUNTS.get(player_board["next_card"], 0)
+    next_card = player_board["next_card"]
+    discount += NEXT_CARD_DISCOUNTS.get(next_card, 0) + PRELUDE_NEXT_CARD_DISCOUNTS.get(next_card, 0)
     return max(0, card["cost"] - discount)
 
 

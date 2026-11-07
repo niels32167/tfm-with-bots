@@ -4,10 +4,12 @@
 
 use crate::board::{Areas, Placement, TileKind};
 use crate::card_flow::{CARD_PRICE, Keeping};
+use crate::cards::CARD_CATALOG;
 use crate::game::{DecisionOption, Game, StandardProject, Waiting};
 use crate::log::LogEvent;
 use crate::milestones_and_awards::{Award, MILESTONE_COST, Milestone};
 use crate::playing_cards::Payment;
+use crate::prelude_cards::prelude_card_price;
 use crate::resources::Resource;
 use crate::triggers::Happened;
 
@@ -26,6 +28,8 @@ pub enum Expense {
     BoughtCards,
     /// The cards they buy of those they are looking at.
     KeptCards(Keeping),
+    /// The price of this Prelude Card, which they are playing ("Pay 6 M€").
+    PreludeCard(usize),
 }
 
 impl Game {
@@ -38,6 +42,7 @@ impl Game {
             Expense::Award { cost, .. } => cost,
             Expense::BoughtCards => CARD_PRICE * self.players[player].buying.bought.len() as i32,
             Expense::KeptCards(keeping) => keeping.price * keeping.kept.len() as i32,
+            Expense::PreludeCard(card) => prelude_card_price(card),
         }
     }
 
@@ -50,6 +55,7 @@ impl Game {
             Expense::Award { award, .. } => format!("the {} Award", award.name()),
             Expense::BoughtCards => cards(self.players[self.current_player].buying.bought.len() as i32),
             Expense::KeptCards(keeping) => cards(keeping.kept.len() as i32),
+            Expense::PreludeCard(card) => CARD_CATALOG[card].name.clone(),
         }
     }
 
@@ -115,6 +121,10 @@ impl Game {
             }
             Expense::BoughtCards => unreachable!("the cards bought are paid for once every Player is done"),
             Expense::KeptCards(keeping) => self.keep_cards_paid_for(keeping, payment.heat),
+            Expense::PreludeCard(card) => {
+                self.log.push(LogEvent::PaidForPreludeCard { player, card, payment });
+                self.play_next_prelude_card();
+            }
         }
     }
 

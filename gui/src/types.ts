@@ -76,7 +76,8 @@ export interface PlayerBoard {
   /** How many Card Resources are on each of their played cards that can hold some, by catalog id. */
   card_resources: Record<string, number>;
   /** The Event they played whose effect waits on the next card they play this Generation
-   * (Indentured Workers, Special Design), by catalog id, or null. */
+   * (Indentured Workers, Special Design), or the Prelude Card whose effect is on the card from the hand they
+   * are playing for it (Ecology Experts), by catalog id, or null. */
   next_card: string | null;
   /** How many of each Tag are in play. No Tag on a played Event counts, the Event Tag included. */
   tags: Record<CountedTag, number>;
@@ -212,6 +213,9 @@ export interface View {
   phase: "setup" | "draft" | "research" | "prelude_cards" | "action" | "final_greenery" | "over";
   /** Whether the Game has Prelude. */
   prelude: boolean;
+  /** The Prelude Card the current Player is playing, while its effects are carried out, such as placing
+   * Aquifer Turbines' Ocean, by catalog id; null once they are done, as its price is paid. */
+  playing_prelude_card: string | null;
   temperature: number;
   /** In percent. */
   oxygen: number;
@@ -262,8 +266,17 @@ export const TAGS = [
   "wild",
 ] as const;
 export type Tag = (typeof TAGS)[number];
-/** The Tags that count once played: every Tag but the Event Tag and, so far, the wild Tag. */
-export type CountedTag = Exclude<Tag, "event" | "wild">;
+/** The Tags that count once played: every Tag but the Event Tag. The wild Tag counts as any Tag, but only
+ * for an action. */
+export type CountedTag = Exclude<Tag, "event">;
+
+/** What an Event changes about the next card its Player plays, or a Prelude Card about the card from the hand
+ * it plays (a card's `effects.next_card`). */
+export interface NextCardEffect {
+  discount?: number;
+  requirement_steps?: number;
+  ignores_global_requirements?: boolean;
+}
 
 /** An element of a card's face as the card list draws it, with its class names, inline style
  * (CSS property names) and children; text is a string. */

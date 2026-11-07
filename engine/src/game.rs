@@ -116,7 +116,8 @@ pub struct Player {
     /// The played cards whose action they have used this Generation.
     pub used_actions: CardSet,
     /// The Event they have played whose effect waits on the next card they play this Generation
-    /// (Indentured Workers, Special Design), if any.
+    /// (Indentured Workers, Special Design), or the Prelude Card whose effect is on the card from the
+    /// hand they are playing for it (Ecology Experts), if any.
     pub next_card: Option<usize>,
     /// In the setup or a Research phase, what they are buying from.
     pub buying: Buying,
@@ -290,6 +291,8 @@ pub enum DecisionKind {
     PreludeCards,
     /// Play one of the Prelude Cards kept, before the other.
     PlayPreludeCard,
+    /// Play a card from the hand for the Prelude Card being played (Ecology Experts).
+    PlayCard,
     /// Keep one of the cards being drafted, and pass the rest on.
     Draft,
     /// Buy one more of the cards dealt, or be done, in the setup or a Research phase.
@@ -464,6 +467,9 @@ pub enum Waiting {
     Target(Targeting),
     /// Which Area they claim with Land Claim, which they are playing.
     ClaimArea,
+    /// Which card they play from their hand for the Prelude Card they are playing, which their
+    /// `next_card` names (Ecology Experts).
+    CardFromHand,
 }
 
 #[derive(Clone, Debug)]
@@ -525,6 +531,10 @@ pub struct Game {
     pub placing_for: Option<CardTiles>,
     /// The card the current Player is playing, while the effects it lets them choose are still due.
     pub choosing_for: Option<usize>,
+    /// The Prelude Card the current Player is playing, while its effects are carried out (its Tiles
+    /// placed, say). Once they are done, what follows them begins: the cards it reveals, its price, or
+    /// the card from the hand it plays (see `Game::finish_prelude_card`).
+    pub playing_prelude_card: Option<usize>,
     /// How many more times the current Player may discard a card from their hand to draw one
     /// (Mars University), once the card they are playing is done.
     pub discards_to_draw: u32,
@@ -600,6 +610,7 @@ impl Game {
             waiting: None,
             placing_for: None,
             choosing_for: None,
+            playing_prelude_card: None,
             discards_to_draw: 0,
             olympus_conference_due: 0,
             viral_enhancing: None,
@@ -658,6 +669,7 @@ impl Game {
                 (DecisionKind::ViralEnhancers, self.viral_enhancers_options())
             }
             (Some(Waiting::Target(targeting)), _) => (DecisionKind::Target, self.target_options(targeting)),
+            (Some(Waiting::CardFromHand), _) => (DecisionKind::PlayCard, self.cards_to_play_options()),
             (None, Phase::Draft) => (DecisionKind::Draft, self.drafting_options()),
             (None, Phase::Setup | Phase::Research) => (DecisionKind::BuyCards, self.buying_options()),
             (None, Phase::PreludeCards) => (DecisionKind::PlayPreludeCard, self.prelude_playing_options()),
@@ -703,19 +715,25 @@ impl Game {
         self.is_over().then(|| final_scores(self))
     }
 
+    /// The current Player may play any card in their hand they can.
+    fn cards_to_play_options(&self) -> Vec<DecisionOption> {
+        self.cards_to_play().collect()
+    }
+
+    /// Playing each card in the current Player's hand that they can, as Options.
+    fn cards_to_play(&self) -> impl Iterator<Item = DecisionOption> + '_ {
+        let hand = self.players[self.current_player].hand.iter();
+        hand.filter(|&card| self.can_play(self.current_player, card)).map(DecisionOption::PlayCard)
+    }
+
     fn action_options(&self) -> Vec<DecisionOption> {
         if let Some(card) = self.first_action_to_take() {
             return vec![DecisionOption::TakeFirstAction(card), DecisionOption::Pass];
         }
         let player = &self.players[self.current_player];
         let spendable = self.spendable_megacredits(self.current_player);
-        let mut options: Vec<DecisionOption> = player
-            .hand
-            .iter()
-            .filter(|&card| self.can_play(self.current_player, card))
-            .map(DecisionOption::PlayCard)
-            .chain(self.usable_actions().map(DecisionOption::UseAction))
-            .collect();
+        let mut options: Vec<DecisionOption> =
+            self.cards_to_play().chain(self.usable_actions().map(DecisionOption::UseAction)).collect();
         for project in StandardProject::ALL {
             let can_use = match project {
                 StandardProject::SellPatents => !player.hand.is_empty(),
@@ -829,17 +847,25 @@ impl Game {
 
     /// Every Area where the current Player may make `placement`.
     fn area_options(&self, placement: Placement) -> Vec<DecisionOption> {
-        let areas = self.board.areas_for(placement, self.current_player);
+        let mut areas = self.board.areas_for(placement, self.current_player);
+        if placement.tile == TileKind::Ocean {
+            areas.retain(|&area| self.ocean_pays_for_prelude_card(area));
+        }
         areas.into_iter().map(|area| DecisionOption::PlaceTile { placement, area }).collect()
     }
 
     fn resolve(&mut self, option: DecisionOption) {
         let player = self.current_player;
         match option {
-            DecisionOption::PlayCard(card) => match self.payments(player, card)[..] {
-                [only_way] => self.play_card(player, card, only_way),
-                _ => self.wait_on(Waiting::Payment(card)),
-            },
+            DecisionOption::PlayCard(card) => {
+                if let Some(Waiting::CardFromHand) = self.waiting {
+                    self.waiting = None;
+                }
+                match self.payments(player, card)[..] {
+                    [only_way] => self.play_card(player, card, only_way),
+                    _ => self.wait_on(Waiting::Payment(card)),
+                }
+            }
             DecisionOption::Pay { card, payment } => {
                 self.waiting = None;
                 self.play_card(player, card, payment);
@@ -960,7 +986,7 @@ impl Game {
         }
         match self.phase {
             Phase::FinalGreenery => self.offer_final_greenery_from(self.index_in_player_order()),
-            Phase::PreludeCards => self.play_next_prelude_card(),
+            Phase::PreludeCards => self.finish_prelude_card(),
             _ => self.finish_action(),
         }
     }
@@ -1210,9 +1236,14 @@ impl Game {
         }
         let oceans = self.board.adjacent(area, TileKind::Ocean);
         if oceans > 0 {
-            self.players[player].resources.megacredits += OCEAN_ADJACENCY_BONUS * oceans as i32;
+            self.players[player].resources.megacredits += self.megacredits_from_oceans_next_to(area);
             self.log.push(LogEvent::AdjacentOceans { player, oceans });
         }
+    }
+
+    /// What a Tile placed on `area` gains its Player for the Oceans next to it.
+    pub(crate) fn megacredits_from_oceans_next_to(&self, area: usize) -> i32 {
+        OCEAN_ADJACENCY_BONUS * self.board.adjacent(area, TileKind::Ocean) as i32
     }
 
     /// Raises `player`'s Terraform Rating `by` so many steps, which United Nations Mars Initiative's

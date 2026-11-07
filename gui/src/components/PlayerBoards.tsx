@@ -24,9 +24,9 @@ const PRODUCTION_NAMES: Record<Resource, string> = {
   heat: "heat Production",
 };
 
-// The Tags a player board counts: every Tag but the Event Tag, which never counts once played, and,
-// so far, the wild Tag.
-const COUNTED_TAGS = TAGS.filter((tag): tag is CountedTag => tag !== "event" && tag !== "wild");
+// The Tags a player board counts: every Tag but the Event Tag, which never counts once played. The wild
+// Tag is last.
+const COUNTED_TAGS = TAGS.filter((tag): tag is CountedTag => tag !== "event");
 
 interface Props {
   game: GameUpdate;
@@ -136,13 +136,24 @@ export function TagCounts({ board }: { board: PlayerBoard }) {
   return (
     <div className="tag-counts">
       {COUNTED_TAGS.filter((tag) => board.tags[tag] > 0).map((tag) => (
-        <span key={tag} className="tag-count" title={`${board.tags[tag]} ${tag} Tags in play`}>
+        <span key={tag} className="tag-count" title={tagCountTitle(tag, board.tags[tag])}>
           <img src={`/card-list/images/tags/${tag}.png`} alt={`${tag} Tags`} />
           {board.tags[tag]}
         </span>
       ))}
     </div>
   );
+}
+
+/** What pointing at a Tag counter says: "3 building Tags in play", or for the wild Tag what it counts as. */
+function tagCountTitle(tag: CountedTag, count: number): string {
+  if (tag === "wild") {
+    return (
+      `${count} wild Tag${count === 1 ? "" : "s"} in play: one more of any Tag for an action (a Requirement, ` +
+      "a Milestone or a card's effect), never for a Trigger, an Award or Victory Points"
+    );
+  }
+  return `${count} ${tag} Tags in play`;
 }
 
 /** A revealed Corporation's name, which enlarges the card when pointed at. */

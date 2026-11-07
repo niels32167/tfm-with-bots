@@ -145,10 +145,12 @@ def test_card_actions_come_after_the_cards_to_play_in_card_number_order():
 
 
 def test_only_active_cards_have_an_action_and_only_actions_have_a_payment_or_resource_alternatives():
+    """A Prelude Card's price ("Pay 6 M€") is a `pay` too, but no other card's."""
     for card in tm_engine.card_catalog():
         effects = card.get("effects", {})
         assert "action" not in effects or card["type"] in ("active", "corporation"), card["name"]
-        assert "pay" not in effects and not effects.get("resources_choice"), card["name"]
+        assert "pay" not in effects or card["type"] == "prelude", card["name"]
+        assert not effects.get("resources_choice"), card["name"]
         assert "action" not in effects.get("action", {}), card["name"]
 
 

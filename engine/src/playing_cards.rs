@@ -86,19 +86,34 @@ impl Game {
             .sum()
     }
 
+    /// How many `tag` Tags `player` has for an action they take: those in play, and each wild Tag in
+    /// play as one more (Research Network). A wild Tag counts for a Requirement, a Milestone and the
+    /// effects of a card played, but never for a Trigger, an Award or Victory Points (see
+    /// docs/rules-notes.md).
+    pub fn tags_for_an_action(&self, player: usize, tag: Tag) -> i32 {
+        let wild = self.players[player].played.intersection(CARDS_WITH.wild_tag).len() as i32;
+        self.tags(player, tag) + if tag == Tag::Wild { 0 } else { wild }
+    }
+
     /// Whether `requirement` holds for `player`. A Requirement on a Global Parameter is as many
-    /// steps easier to meet as their cards make it (see `requirement_steps`).
+    /// steps easier to meet as their cards make it (see `requirement_steps`), or ignored for the card
+    /// Ecology Experts plays.
     pub fn meets(&self, player: usize, requirement: &Requirement) -> bool {
         // Easier in the Player's favour, which is always their better choice of +2 or -2 steps.
-        let within = |value: i32, limit: Limit, step: i32| match limit {
-            Limit::Min(min) => value >= min - self.requirement_steps(player) * step,
-            Limit::Max(max) => value <= max + self.requirement_steps(player) * step,
+        let within = |value: i32, limit: Limit, step: i32| {
+            let next_card = self.next_card_effect(player);
+            let steps = self.requirement_steps(player, next_card);
+            next_card.ignores_global_requirements
+                || match limit {
+                    Limit::Min(min) => value >= min - steps * step,
+                    Limit::Max(max) => value <= max + steps * step,
+                }
         };
         match *requirement {
             Requirement::Oxygen(limit) => within(self.oxygen, limit, 1),
             Requirement::Temperature(limit) => within(self.temperature, limit, TEMPERATURE_STEP),
             Requirement::Oceans(limit) => within(self.board.oceans() as i32, limit, 1),
-            Requirement::Tag { tag, min } => self.tags(player, tag) >= min,
+            Requirement::Tag { tag, min } => self.tags_for_an_action(player, tag) >= min,
             Requirement::Production { resource, min } => self.players[player].production[resource] >= min,
             Requirement::Tiles { tile, owner, min } => self.tiles_counted(player, tile, owner) >= min,
         }
@@ -106,16 +121,16 @@ impl Game {
 
     /// How many steps easier `player`'s Requirements on a Global Parameter are to meet: those
     /// their played cards give (Adaptation Technology), and those an Event gives the next card
-    /// they play (Special Design).
-    fn requirement_steps(&self, player: usize) -> i32 {
+    /// they play (Special Design), which `next_card` says.
+    fn requirement_steps(&self, player: usize, next_card: NextCard) -> i32 {
         let own = &self.players[player];
         let ongoing = own.played.intersection(CARDS_WITH.requirement_steps).iter();
         let steps: i32 = ongoing.map(|card| CARD_CATALOG[card].implemented_effects().requirement_steps).sum();
-        steps + self.next_card_effect(player).requirement_steps
+        steps + next_card.requirement_steps
     }
 
     /// What the Event `player` played last changes about the next card they play this Generation,
-    /// if anything.
+    /// or the Prelude Card they are playing about the card it plays, if anything.
     pub(crate) fn next_card_effect(&self, player: usize) -> NextCard {
         let event = self.players[player].next_card;
         event.and_then(|card| CARD_CATALOG[card].implemented_effects().next_card).unwrap_or_default()
@@ -236,12 +251,22 @@ impl Game {
         }
     }
 
-    /// `amount` for every `per` of `of` that `player` has: 2 for 5 Tags at 1 for every 2.
+    /// `amount` for every `per` of `of` that `player` has, for the effects of a card or action: 2
+    /// for 5 Tags at 1 for every 2.
     fn for_every(&self, player: usize, amount: i32, per: i32, of: Counted) -> i32 {
-        amount * (self.count_of(player, of) / per)
+        amount * (self.count_for_an_action(player, of) / per)
     }
 
-    /// How many of `what` there are for `player`'s card Victory Points or Production. Only
+    /// How many of `what` there are for the effects of `player`'s card or action: as `count_of`
+    /// counts them, but with their wild Tags (see `tags_for_an_action`).
+    fn count_for_an_action(&self, player: usize, what: Counted) -> i32 {
+        match what {
+            Counted::Tag(tag) => self.tags_for_an_action(player, tag),
+            _ => self.count_of(player, what),
+        }
+    }
+
+    /// How many of `what` there are for `player`'s card Victory Points, with no wild Tag counted. Only
     /// `count_for_card` knows which card's Tile to count next to and whose Card Resources to count.
     fn count_of(&self, player: usize, what: Counted) -> i32 {
         match what {
@@ -519,7 +544,7 @@ impl Game {
         self.change_productions(player, effects.production);
         self.change_production_per(player, effects.production_per);
         if let Some(ProductionAtLeast { resource, steps, at_least, of }) = effects.production_at_least
-            && self.count_of(player, of) >= at_least
+            && self.count_for_an_action(player, of) >= at_least
         {
             self.change_production(player, resource, steps);
         }

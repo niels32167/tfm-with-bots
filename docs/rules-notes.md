@@ -1937,18 +1937,17 @@ Claude (2026-11-07), on the user's instruction to choose the recommended decisio
 `test_the_prelude_cards_dealt_and_kept_show_only_in_their_own_view_until_played`, and
 `tests/engine/test_views.py::test_no_player_view_or_log_line_shows_another_players_prelude_cards_until_they_are_played`.
 
-### Only implemented Prelude Cards are dealt, for now
+### Prelude's Project Cards in the deck before they work
 
-**Call:** Until every Prelude Card has effect data, only those that have it are shuffled and dealt: 26 of the 35
-after ticket 02, enough for 4 each in a 5-Player Game. So each ticket that implements more of them changes what a
-Game with Prelude deals, and a Replay of a Game with Prelude saved before it may no longer load. The setup screen
-says so. Prelude's 7 Project Cards are in the deck of a Game with Prelude, but can't be played until they have
-effect data (ticket 04).
+**Call:** Prelude's 7 Project Cards are in the deck of a Game with Prelude, but can't be played until they have
+effect data (ticket 04). All 35 Prelude Cards are dealt since ticket 03; ticket 02 dealt only the 26 it implemented,
+so a Replay of a Game with Prelude saved before ticket 03 no longer loads. Ticket 04 changes the deal again, as
+Prelude's Corporations join it, and the setup screen says so.
 
-**Why:** A card without effect data can't be played, so dealing one would leave a Player with a Prelude Card they
-must play and can't. The user chose to implement the 26 Prelude Cards that the existing effect data describes now
-(2026-11-07), and to put the 7 Project Cards in the deck now. Prelude stays off by default until ticket 05, when all
-are implemented, so no Replay a Player keeps depends on this.
+**Why:** A card without effect data can't be played, so dealing a Prelude Card without it would leave a Player with a
+card they must play and can't. The user chose to implement the 26 Prelude Cards that the existing effect data described
+first (2026-11-07), and to put the 7 Project Cards in the deck at once. Prelude stays off by default until ticket 05,
+so no Replay a Player keeps depends on this.
 
 **Tests:** `tests/rules/test_prelude_setup.py::test_the_deck_has_preludes_project_cards_only_with_prelude` and
 `tests/rules/test_prelude_scenarios.py::test_preludes_project_cards_may_be_in_a_hand_with_prelude_but_are_not_offered_until_implemented`.
@@ -1981,9 +1980,8 @@ played must be. Both Prelude Cards are still offered; the one that can't be play
 MegaCredits (it can't be played)", and the game log names it. Whether it can be played is judged when it is picked,
 so playing the first may make the second playable or not.
 
-No Prelude Card dealt so far has a price to pay. Those printed "Pay X M€" (Business Empire, Galilean Mining,
-Huge Asteroid, Aquifer Turbines) are ticket 03's: whether Helion's heat may pay, and that a Player who can't pay
-discards the card for 15 MegaCredits like any other they can't play, as the open-source game does, are its calls.
+A Prelude Card printed "Pay X M€" that its Player can't pay, and one that plays a card from the hand when they have
+none they could play, are discarded the same way (see the next sections).
 
 **Why:** The rulebook is silent. A designer's ruling, quoted in a [forum thread](https://www.zatrolene-hry.cz/spolecenska-hra/mars-teraformace-predehra-7792/diskuse/nove-pravidlo-nehratelna-predehra-15-penez-34655/)
 because the original couldn't be reached, gives 15 MegaCredits for a Prelude Card that can't be played, and says it is
@@ -1994,6 +1992,80 @@ one of its bug reports. Under ADR 0001 the open-source game decides where the ru
 **Tests:** `tests/rules/test_prelude_scenarios.py::test_a_prelude_card_that_cant_be_played_is_discarded_for_15_megacredits`,
 `test_the_last_prelude_card_is_discarded_without_a_decision_if_it_cant_be_played`, and each card's own case:
 `tests/cards/test_loan.py`, `test_biosphere_support.py` and `test_society_support.py`.
+
+### A Prelude Card's price ("Pay X M€")
+
+**Call:** Business Empire (6), Galilean Mining (5), Huge Asteroid (5) and Aquifer Turbines (3) are paid for once their
+other effects are done, Tiles included, and Helion's heat may pay, as for a Standard Project: with more than one way
+to pay, the Player chooses how. The game log says "Player 1 pays 6 MegaCredits for Business Empire." A Player can play
+the card only if they can then pay. For Aquifer Turbines, the 2 MegaCredits its Ocean gains for each Ocean next to it
+count, so a Player short of 3 is offered only the Ocean Areas that make up the rest; with all 9 Oceans placed, they
+need all 3. A Player who can't pay discards the card for 15 MegaCredits, as for any Prelude Card they can't play. Huge
+Asteroid with the Temperature at its maximum is still played, and paid for.
+
+**Why:** The rulebook is silent. The FryxGames FAQ couldn't be checked: its PDF and BoardGameGeek refuse to be
+fetched. The open-source game asks for the payment after the card's other effects (`SelectPaymentDeferred`), lets
+Helion's heat pay, counts what Aquifer Turbines' Ocean gains, and offers only the Areas that cover the rest
+(`AquiferTurbines.availableSpaces`). Paying last is never worse for the Player, so it is the order they would choose
+("The Player orders simultaneous effects"). Asked of the user, who chose to follow the open-source game (2026-11-07).
+
+**Tests:** `tests/cards/test_business_empire.py`, `test_galilean_mining.py`, `test_huge_asteroid.py`,
+`test_aquifer_turbines.py`, and the fuzz check `only_legal_areas_offered`.
+
+### Revealing cards until two with a Tag are found
+
+**Call:** Acquired Space Agency (space Tags) and Experimental Forest (plant Tags) reveal cards from the top of the
+deck, one at a time, until 2 with the Tag are found, once the card's other effects are done: Experimental Forest's
+Greenery is placed first, as printed. An Event's Tags count. The 2 found go into the Player's hand, and the rest onto
+the discard pile once the revealing is done, so when the deck runs out, the discard pile is shuffled into a new deck
+without them. With both empty, the Player takes those found so far. Revealed cards are public, so the game log names
+each one, and says whether it is taken or discarded.
+
+**Why:** The card text. The FryxGames FAQ couldn't be checked: its PDF and BoardGameGeek refuse to be fetched. The
+open-source game draws by condition from the deck in the same way (`drawByConditionOrThrow`), with the Tag's cards
+kept and the rest discarded. Doing the card's other effects first follows the printed order; nothing in the Greenery's
+placement depends on the cards revealed. Chosen by Claude (2026-11-07), on the user's instruction to choose the
+recommended decisions.
+
+**Tests:** `tests/cards/test_acquired_space_agency.py` and `tests/cards/test_experimental_forest.py`.
+
+### A Prelude Card that plays a card from the hand
+
+**Call:** Ecology Experts (ignoring the card's global Requirements, minimums and maximums alike) and Excentric Sponsor
+(25 MegaCredits off its cost, with nothing left over for a cheaper card) make their Player play a card from their hand
+once their other effects are done. It is not optional, and the card is played as in an Action: paid for, steel and
+titanium included, and its effects and Triggers carried out. The Player can play the Prelude Card only if they have a
+card they could play this way, counting its own Tags and Production (Ecology Experts' plant and microbe Tags count for
+Advanced Ecosystems); otherwise they discard it for 15 MegaCredits. Its effect is for that card only. Playing a
+Prelude Card uses up what an Event did to the next card played (Special Design, Indentured Workers); an Event played
+for one of these cards waits on the next card in Generation 1, which the setup is part of.
+
+**Why:** The card text says "Play a card from hand", not "may". The FryxGames FAQ couldn't be checked: its PDF and
+BoardGameGeek refuse to be fetched. The open-source game offers only the cards that can be played, with no way to
+decline (`PlayProjectCard`), counts Ecology Experts' own Production when judging whether it can be played, and
+discards it for 15 MegaCredits when none can. It treats a Prelude Card played like any card played for Special
+Design's and Indentured Workers' effects (`lastCardPlayed`), so playing one uses them up. Chosen by Claude
+(2026-11-07), on the user's instruction to choose the recommended decisions.
+
+**Tests:** `tests/cards/test_ecology_experts.py`, `tests/cards/test_excentric_sponsor.py`,
+`tests/rules/test_prelude_scenarios.py::test_playing_a_prelude_card_uses_up_an_events_effect_on_the_next_card`, and the fuzz
+check `cards_cost_what_the_discounts_leave`.
+
+### The wild Tag
+
+**Call:** Research Network's wild Tag counts as one more of whichever Tag is counted for an action its Player takes: a
+card's Tag Requirement, the Builder Milestone, and an effect of a card they play that counts Tags (Power Grid,
+Terraforming Ganymede). It never counts for a Trigger (it sets off nothing when played, such as Saturn Systems), for
+an Award, or for Victory Points. The player board shows it apart, as a wild Tag.
+
+**Why:** The rulebook: "when you perform an action, the wild tag is a tag of your choice. This means it does not
+trigger effects when being put into play, nor does it count during scoring at the end of the game, but you may use it
+in an action, for example to help claim a milestone." The FryxGames FAQ couldn't be checked: its PDF and BoardGameGeek
+refuse to be fetched. The open-source game adds wild Tags to its default count, which actions use, and to Milestones,
+but not to Awards or Victory Points (`Tags.count`). Asked of the user, who chose to follow the open-source game
+(2026-11-07).
+
+**Tests:** `tests/rules/test_wild_tag.py` and `tests/cards/test_research_network.py`.
 
 ### Prelude Cards in play
 
@@ -2006,8 +2078,8 @@ such as Mining Operations.
 
 **Why:** The rulebook: Prelude Cards "work like green cards, and stay in play with their tags visible". Robotic Workforce
 says "one of your building cards", and the open-source game lets it copy any card in play but Events, Prelude Cards
-included. The fuzzer found this one: its check allowed only Project Cards and Corporations. The wild Tag (Research
-Network) is ticket 03's: it neither counts nor sets anything off yet. Chosen by Claude (2026-11-07), on the user's
+included. The fuzzer found this one: its check allowed only Project Cards and Corporations. The wild Tag has its own
+section. Chosen by Claude (2026-11-07), on the user's
 instruction to choose the recommended decisions.
 
 **Tests:** `tests/rules/test_prelude_scenarios.py::test_the_tags_of_played_prelude_cards_count`,
@@ -2018,11 +2090,12 @@ instruction to choose the recommended decisions.
 ### Scenarios with Prelude
 
 **Call:** A Scenario with `prelude` on may name Prelude's Project Cards wherever it names Project Cards, a Player's
-`played_prelude_cards`, and their `prelude_cards` still to play: at most 2, each implemented. With any still to play, the
-Scenario starts where Players play them, so it can have no Turn under way and nobody passed. Without `prelude`, naming any
-of the Prelude box's cards is an error. A Game described as a Scenario while Players play their Prelude Cards starts there
-again; at setup, the Prelude Cards dealt and kept are dropped with the rest of what is under way. Prelude's Corporations
-can't be named yet (ticket 04).
+`played_prelude_cards`, and their `prelude_cards` still to play: at most 2. With any still to play, the Scenario
+starts where Players play them, so it can have no Turn under way and nobody passed. Without `prelude`, naming any of
+the Prelude box's cards is an error. A Game described as a Scenario while Players play their Prelude Cards starts
+there again; at setup, the Prelude Cards dealt and kept are dropped with the rest of what is under way, and so is what
+a Prelude Card being played still has to do (its price, or the card it plays). Prelude's Corporations can't be named
+yet (ticket 04).
 
 **Why:** Scenario tests need a Prelude Card in a known position, and `Game::to_scenario` must describe every position a
 Game reaches. Chosen by Claude (2026-11-07), on the user's instruction to choose the recommended decisions.
