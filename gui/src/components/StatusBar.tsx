@@ -1,8 +1,8 @@
 import { CARD_PRICE, playersAreBuying } from "../cards/BuyingPanel";
 import { HAND_OPTIONS } from "../cards/HandDock";
 import { TILE_NAMES } from "../format";
-import { PLAYER_COLOURS, playerTitle } from "../players";
-import type { Card, NextCardEffect, TileType } from "../types";
+import { controllerLabel, PLAYER_COLOURS, playerTitle } from "../players";
+import type { Card, ControllerOnOffer, NextCardEffect, TileType } from "../types";
 import type { GameUpdate } from "../useGameServer";
 import { LogLine } from "./GameLog";
 import { cardBeingPaidFor, PaymentPicker } from "./PaymentPicker";
@@ -11,7 +11,9 @@ interface Props {
   game: GameUpdate;
   /** The card catalog. */
   cards: Card[];
-  /** The latest line of the game log, shown while a Random Bot acts. */
+  /** The Controllers the server offers, for their labels. */
+  offered: ControllerOnOffer[];
+  /** The latest line of the game log, shown while a registered Controller acts. */
   latest: string | undefined;
   error: string | null;
   /** True while a pick is on its way to the server. */
@@ -55,9 +57,9 @@ const OTHER_AREAS: Record<string, string> = {
 };
 
 /** The current Decision, with its Options as buttons and Undo at the end, like Board Game Arena's title
- * bar: a centred sentence naming the Player in their colour, and while a Random Bot acts, what it last
+ * bar: a centred sentence naming the Player in their colour, and while a registered Controller acts, what it last
  * did underneath. A payment Decision gets the payment picker instead. */
-export function StatusBar({ game, cards, latest, error, disabled, onPick, onUndo }: Props) {
+export function StatusBar({ game, cards, offered, latest, error, disabled, onPick, onUndo }: Props) {
   const { decision, view } = game;
   const options = decision?.options ?? [];
   const pickedElsewhere = (type: string) =>
@@ -75,7 +77,7 @@ export function StatusBar({ game, cards, latest, error, disabled, onPick, onUndo
   return (
     <div className="status-bar" role="status">
       <span className="status-text">
-        <StatusSentence game={game} text={statusText(game, cards)} />
+        <StatusSentence game={game} text={statusText(game, cards, offered)} />
       </span>
       {decision?.kind === "payment" && (
         <PaymentPicker
@@ -139,10 +141,11 @@ function elsewhereHint(places: string[]): string {
   return `or click a highlighted ${places.join(", ")}`;
 }
 
-function statusText(game: GameUpdate, cards: Card[]): string {
+function statusText(game: GameUpdate, cards: Card[], offered: ControllerOnOffer[]): string {
   const { view, decision } = game;
   if (view.phase === "over" || view.current_player === null) return "The Game is over.";
   const who = playerTitle(game, view.current_player);
+  const bot = controllerLabel(offered, game.controllers[view.current_player]);
   const paidFor = cards.find((card) => card.id === cardBeingPaidFor(decision));
   if (paidFor && decision?.options[0].details.action) {
     const pay = (paidFor.effects?.action as { pay?: { megacredits: number } } | undefined)?.pay;
@@ -273,10 +276,10 @@ function statusText(game: GameUpdate, cards: Card[]): string {
   if (decision?.kind === "discard_to_draw") {
     return `${who} may discard a card from the hand to draw one (Mars University): click it, or Done to keep the hand.`;
   }
-  if (view.phase === "draft") return `${who} (Random Bot) is drafting cards…`;
-  if (view.phase === "prelude_cards") return `${who} (Random Bot) is playing their Prelude Cards…`;
-  if (playersAreBuying(view)) return `${who} (Random Bot) is choosing and buying cards…`;
-  if (view.phase === "final_greenery") return `${who} (Random Bot) is converting plants into Greeneries…`;
+  if (view.phase === "draft") return `${who} (${bot}) is drafting cards…`;
+  if (view.phase === "prelude_cards") return `${who} (${bot}) is playing their Prelude Cards…`;
+  if (playersAreBuying(view)) return `${who} (${bot}) is choosing and buying cards…`;
+  if (view.phase === "final_greenery") return `${who} (${bot}) is converting plants into Greeneries…`;
   if (decision) {
     if (view.actions_this_turn === 0) return `${who} must take an Action or Pass:`;
     const canEndTurn = decision.options.some((option) => option.details.type === "end_turn");
@@ -284,5 +287,5 @@ function statusText(game: GameUpdate, cards: Card[]): string {
       ? `${who} may take a second Action, end the Turn, or Pass:`
       : `${who} may take a second Action or Pass:`;
   }
-  return `${who} (Random Bot) is taking their Turn…`;
+  return `${who} (${bot}) is taking their Turn…`;
 }

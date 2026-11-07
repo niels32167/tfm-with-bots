@@ -1,6 +1,7 @@
 import { useRef, useState } from "react";
 
 import { CardsButton } from "../cards/CardsButton";
+import { HUMAN } from "../types";
 import type { GameUpdate } from "../useGameServer";
 import { BotSpeedSelect } from "./BotSpeedSelect";
 import { LoadReplayButton } from "./LoadReplayButton";
@@ -29,7 +30,7 @@ export function TopBar({
   devPanelOpen,
   onToggleDevPanel,
 }: Props) {
-  const hasRandomBots = game.controllers.includes("random_bot");
+  const hasBots = game.controllers.some((controller) => controller !== HUMAN);
   return (
     <header className="top-bar">
       <h1>Terraforming Mars</h1>
@@ -40,7 +41,7 @@ export function TopBar({
         </span>
       )}
       <div className="top-bar-tools">
-        {hasRandomBots && <BotSpeedSelect delay={game.bot_delay} onChange={onBotDelay} />}
+        {hasBots && <BotSpeedSelect delay={game.bot_delay} onChange={onBotDelay} />}
         <CardsButton onClick={onShowCards} />
         <button className="link-button" onClick={onSaveReplay}>
           Save Replay

@@ -1,8 +1,17 @@
 // The messages exchanged with the local server (server/app.py). The view, the
 // Decision and the Replay are the engine module's own data, passed through unchanged.
 
-export const CONTROLLERS = ["human", "random_bot"] as const;
-export type Controller = (typeof CONTROLLERS)[number];
+/** A Controller's name: "human", or a registered Controller's name such as "random_bot". */
+export type ControllerName = string;
+
+/** The name of a human Controller, who answers through this GUI. */
+export const HUMAN: ControllerName = "human";
+
+/** A Controller the setup screen offers, as the server lists them: a human, then the registered ones. */
+export interface ControllerOnOffer {
+  name: ControllerName;
+  label: string;
+}
 
 export interface OptionDetails {
   type: string;
@@ -427,17 +436,17 @@ export interface DevView {
 
 /** What a saved Replay file holds. */
 export interface ReplayFile {
-  controllers: Controller[];
+  controllers: ControllerName[];
   replay: Replay;
 }
 
 export interface Update {
   type: "update";
-  controllers: Controller[];
-  /** The Player whose Player View this is, or null for the full view (Hotseat, or only Random Bots). */
+  controllers: ControllerName[];
+  /** The Player whose Player View this is, or null for the full view (Hotseat, or no human). */
   viewer: number | null;
   seed: number;
-  /** Seconds each Random Bot waits before picking. */
+  /** Seconds each registered Controller's pick takes at least, where there is something to follow. */
   bot_delay: number;
   /** Whether there is an earlier human Decision to go back to. */
   can_undo: boolean;
@@ -451,6 +460,7 @@ export interface Update {
 
 export type ServerMessage =
   | { type: "card_catalog"; cards: Card[] }
+  | { type: "controllers"; controllers: ControllerOnOffer[] }
   | Update
   | { type: "game_over"; scores: Score[] }
   | { type: "replay_file"; file: ReplayFile }
@@ -459,7 +469,7 @@ export type ServerMessage =
 
 /** What the setup screen asks for. Without a seed, the server picks one at random. */
 export interface NewGameSettings {
-  controllers: Controller[];
+  controllers: ControllerName[];
   seed?: number;
   bot_delay: number;
   /** Whether the Research phases have the Draft. */

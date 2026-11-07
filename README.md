@@ -13,7 +13,8 @@ Oxygen. They claim the Tharsis Milestones and fund its Awards from the bar under
 The Game ends after the Generation in which Temperature, Oxygen and Oceans are all
 maxed. After a final Greenery conversion, the final score screen shows each Player's
 Terraform Rating, Milestones, Awards, Greeneries, Cities and card Victory Points, and the
-most Victory Points wins (MegaCredits break a tie). Each Player is a human or a Random Bot, every Game comes
+most Victory Points wins (MegaCredits break a tie). Each Player is a human or a registered Controller, such
+as the Random Bot, every Game comes
 from a seed, and any Game can be undone, saved as a Replay file and loaded again. A
 fuzzer plays Random Bot Games and checks them after every Decision, and a benchmark
 measures the engine's speed. The card catalog holds the printed data of all 208 Project
@@ -108,6 +109,27 @@ uv run python -m tools.benchmark
 uv run python -m tools.benchmark --prelude
 ```
 
+## Matches
+
+A Match (ADR 0013) plays two Controllers against each other on all cores: N Games on N/2 seeds, each seed
+both ways, 2-player with the Draft and Prelude unless `--no-draft` or `--no-prelude` is given. It reports
+each Controller's win rate with a 95% interval, its mean Victory Points, card Victory Points and Terraform
+Rating, the mean Generations, and how often Player 1 and the first player won:
+
+```bash
+uv run python -m ai.match random_bot random_bot --games 1000
+uv run python -m ai.match my_bot random_bot --games 400 --threshold 0.5
+```
+
+A Controller is named as registered in `ai/controllers.py`, or as `module:attribute` to try one out. With
+`--threshold`, the exit status is 1 unless the low end of the first Controller's interval is above it, so a
+step up the ladder is checked by a command; it is 3 if a Game went wrong. Stalled Games (past
+`--pick-limit` picks) and Games that went wrong are saved in `match-failures/` as Replay files.
+
+A Controller is handed only a read-only handle: its Player's Player View, the Decision and a random
+source, never the Game (`ai/controller.py`). A Controller that uses only that random source plays the
+same way from the same seeds.
+
 ## Cards
 
 The printed card data (ADR 0005) comes from the fan-made card list at
@@ -173,9 +195,10 @@ npm --prefix gui run dev
 ```
 
 Then open http://localhost:5173. The setup screen asks for the number of Players, each
-Player's Controller (human or Random Bot), a seed (empty for a random one) and how fast
-Random Bots pick. With two or more humans (Hotseat), or only Random Bots, the screen shows
-the full view; with one human, only that Player's Player View.
+Player's Controller (human, or a registered Controller such as the Random Bot), a seed (empty for a
+random one) and the bot speed: how long each of their picks takes at least. With two or more humans
+(Hotseat), or none, the screen shows the full view; with one human, only that Player's Player View. A
+registered Controller thinks in a worker thread, so the server stays responsive while it does.
 
 The screen is laid out like Board Game Arena's: the status bar and the board on the left, with the
 Players' areas beneath them, and the Global Parameters, player boards and game log on the right. The
@@ -184,8 +207,8 @@ the thermometer and how many Oceans are left to its right, and the Standard Proj
 Milestones and Awards around it; those a Decision offers are lit, and clicked there.
 
 During a Game, the top bar shows the seed (click to copy) and has **Cards**, **Save Replay**,
-**Load Replay…** and the Random Bot speed. **Undo** is in the status bar, in red: it goes back
-to the last Decision a human answered, skipping Random Bot picks. While a Random Bot acts, the
+**Load Replay…** and the bot speed. **Undo** is in the status bar, in red: it goes back
+to the last Decision a human answered, skipping the registered Controllers' picks. While one acts, the
 status bar says what it last did; it doesn't pause for a Decision with one Option. **Cards** (also on the setup screen) opens the
 card gallery: every card, filtered by type, Tag, or name or number; hover over a card to
 enlarge it, or click it to see it large. The server keeps the Game in memory, so
@@ -268,7 +291,9 @@ pick(game, "Play Mine")
 | `tools/card_coverage.py` | The coverage report: catalog cards without a scenario test |
 | `tests/cards/` | Tests of the card catalog, and each card's scenario tests (`test_<id>.py`) |
 | `tests/helpers.py` | `scenario()`, `player()`, `ocean()`, `city()`, `claimed()`, `funded()`, `terraformed_mars()`, `pick()`, `offered()`, `area()`, `milestone()`, `award()`, `resources()`, `hand()`, `played_cards()`, `final_scores()`, `load_game()`: helpers that make tests read like play |
-| `server/` | The local server and the Random Bot |
+| `server/` | The local server, which asks registered Controllers for their picks |
+| `ai/` | Controllers and the tools that compare them: the handle a Controller is given (`controller.py`), the registered Controllers (`controllers.py`), the Random Bot (`random_bot.py`) and the Match tool (`match.py`) |
+| `tests/ai/` | Tests of fair play, the registered Controllers and the Match tool |
 | `gui/src/` | The browser GUI; the board is one SVG drawn by `gui/src/components/MarsBoard.tsx` with the parts beside it (`OxygenTrack`, `TemperatureTrack`, `OceanTrack`, `StandardProjects`, `MilestonesAwards`), sharing `boardLayout.tsx`, and the printed tracks are in `gui/src/tracks.ts` |
 | `gui/src/components/DevPanel.tsx`, `StateEditor.tsx`, `gui/src/scenario.ts` | The dev panel, its state editor, and the edits it makes to a Scenario |
 | `gui/src/cards/` | Cards drawn as the card list draws them (`PrintedCard.tsx`, `cardList.css`), the card gallery, the hand (`HandDock.tsx`), the played cards under the board (`PlayedCards.tsx`), and the zoom on any card (`CardZoom.tsx`) |

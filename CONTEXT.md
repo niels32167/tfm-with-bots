@@ -114,6 +114,14 @@ _Avoid_: agent (for the general case), seat
 **Random Bot**:
 A Controller that picks one of the offered Options at random.
 
+**Registered Controller**:
+A Controller other than a human, listed by name in `ai/controllers.py`, which the setup screen, the Match tool and Replay files name. On screen, any of them is a bot, and the bot speed is the least time each of their picks takes.
+_Avoid_: AI (for the Random Bot), engine
+
+**Handle**:
+What a Controller is given to answer a Decision: its Player's Player View, the Decision and a random source, as plain data, never the Game.
+_Avoid_: observation, state
+
 **Player View**:
 Everything one Player is allowed to know: their own hand, all public information, and the cards they passed in the Draft. Never another Player's hand or the deck order. AI Controllers see only the Player View.
 _Avoid_: observation, visible state

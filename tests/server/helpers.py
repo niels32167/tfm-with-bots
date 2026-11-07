@@ -14,19 +14,21 @@ MAX_MESSAGES = 10_000
 
 
 class Gui:
-    """One browser tab on the server: sends what the GUI sends, and keeps the card catalog
-    and rebuilds the game log from the messages it receives, as the GUI does."""
+    """One browser tab on the server: sends what the GUI sends, and keeps the card catalog and the
+    Controllers on offer, and rebuilds the game log from the messages it receives, as the GUI does."""
 
     def __init__(self, websocket: Any) -> None:
         self.websocket = websocket
         self.card_catalog: list[dict[str, Any]] | None = None
+        self.controllers: list[dict[str, str]] | None = None
         self.log: list[str] = []
 
     def send(self, message: dict[str, Any]) -> None:
         self.websocket.send_json(message)
 
     def receive(self) -> dict[str, Any]:
-        """The next message from the server after the card catalog; an error message fails the test."""
+        """The next message from the server after the card catalog and the Controllers on offer; an error
+        message fails the test."""
         message = self._next_message()
         assert message["type"] != "error", message["message"]
         if message["type"] == "update":
@@ -34,15 +36,19 @@ class Gui:
         return message
 
     def receive_error(self) -> str:
-        """The next message after the card catalog, which must be an error; returns its text."""
+        """The next message after the card catalog and the Controllers, which must be an error; returns its
+        text."""
         message = self._next_message()
         assert message["type"] == "error", message
         return message["message"]
 
     def _next_message(self) -> dict[str, Any]:
         message = self.websocket.receive_json()
-        if message["type"] == "card_catalog":
-            self.card_catalog = message["cards"]
+        while message["type"] in ("card_catalog", "controllers"):
+            if message["type"] == "card_catalog":
+                self.card_catalog = message["cards"]
+            else:
+                self.controllers = message["controllers"]
             message = self.websocket.receive_json()
         return message
 
@@ -83,18 +89,18 @@ class Gui:
         return self.wait_for_human()
 
     def skip_drafting_and_buying(self, update: dict[str, Any]) -> dict[str, Any]:
-        """While a human must choose a Corporation, draft or buy cards (at setup or in a Research
-        phase), they choose one as `corporation_to_choose` says, keep the first card offered in the
-        Draft and are done without buying any; returns the first update in which a human must decide
-        something else."""
+        """While a human must choose a Corporation or Prelude Cards, draft or buy cards (at setup or in a
+        Research phase), they choose one as `corporation_to_choose` says, keep the first Prelude Card or
+        card offered and are done without buying any; returns the first update in which a human must
+        decide something else."""
         for _ in range(MAX_MESSAGES):
             decision = update["decision"]
-            if decision is None or decision["kind"] not in ("corporation", "draft", "buy_cards"):
+            if decision is None or decision["kind"] not in ("corporation", "prelude_cards", "draft", "buy_cards"):
                 return update
             if decision["kind"] == "corporation":
                 update = self.choose_a_corporation(update)
             else:
-                self.pick(update, decision["options"][0]["label"] if decision["kind"] == "draft" else "Done")
+                self.pick(update, "Done" if decision["kind"] == "buy_cards" else decision["options"][0]["label"])
                 update = self.wait_for_human()
         raise AssertionError(f"still drafting or buying after {MAX_MESSAGES} picks")
 

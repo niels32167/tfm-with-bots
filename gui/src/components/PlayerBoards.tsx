@@ -2,7 +2,16 @@ import { playersAreBuying } from "../cards/BuyingPanel";
 import { useCardsById } from "../cards/catalog";
 import { signed } from "../format";
 import { controllerLabel, isYou, PLAYER_COLOURS, playerTitle } from "../players";
-import { type Card, type CountedTag, type DraftPass, type PlayerBoard, RESOURCES, type Resource, TAGS } from "../types";
+import {
+  type Card,
+  type ControllerOnOffer,
+  type CountedTag,
+  type DraftPass,
+  type PlayerBoard,
+  RESOURCES,
+  type Resource,
+  TAGS,
+} from "../types";
 import type { GameUpdate } from "../useGameServer";
 
 export const RESOURCE_NAMES: Record<Resource, string> = {
@@ -32,12 +41,14 @@ interface Props {
   game: GameUpdate;
   /** The card catalog. */
   cards: Card[];
+  /** The Controllers the server offers, for their labels. */
+  offered: ControllerOnOffer[];
 }
 
 /** One board per Player, as on Board Game Arena: Terraform Rating, Hand size, the first-player marker
  * and Turn state, their Corporation and its ability, each Resource over its Production, the Tags in
  * play, and the cards they passed in the Draft where the view shows them. */
-export function PlayerBoards({ game, cards }: Props) {
+export function PlayerBoards({ game, cards, offered }: Props) {
   const { view } = game;
   const catalog = useCardsById(cards);
   return (
@@ -51,7 +62,7 @@ export function PlayerBoards({ game, cards }: Props) {
                 {board.name}
               </span>
               <span className="player-controller">
-                {isYou(game, index) ? "You" : controllerLabel(game, index)}
+                {isYou(game, index) ? "You" : controllerLabel(offered, game.controllers[index])}
               </span>
               {isCurrent && <span className="badge turn">{turnBadge(game)}</span>}
               {board.passed && view.phase === "action" && <span className="badge passed">Passed</span>}

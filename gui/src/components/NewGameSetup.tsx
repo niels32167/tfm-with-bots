@@ -1,8 +1,8 @@
 import { useState } from "react";
 
 import { CardsButton } from "../cards/CardsButton";
-import { CONTROLLER_LABELS, PLAYER_COLOURS } from "../players";
-import { CONTROLLERS, type Controller, type NewGameSettings } from "../types";
+import { PLAYER_COLOURS } from "../players";
+import { type ControllerName, type ControllerOnOffer, HUMAN, type NewGameSettings } from "../types";
 import { BotSpeedSelect } from "./BotSpeedSelect";
 import { LoadReplayButton } from "./LoadReplayButton";
 
@@ -10,8 +10,10 @@ const PLAYER_COUNTS = [2, 3, 4, 5];
 const MAX_PLAYERS = Math.max(...PLAYER_COUNTS);
 
 interface Props {
-  /** Controllers and Random Bot delay to start from, say those of the Game being replaced. */
-  initialControllers: Controller[];
+  /** The Controllers to choose from for each Player, as the server offers them. */
+  offered: ControllerOnOffer[];
+  /** Controllers and bot delay to start from, say those of the Game being replaced. */
+  initialControllers: ControllerName[];
   initialBotDelay: number;
   error: string | null;
   onStart: (settings: NewGameSettings) => void;
@@ -21,9 +23,10 @@ interface Props {
   onCancel?: () => void;
 }
 
-/** The new-Game screen: Players, their Controllers, the seed, how fast Random Bots pick, whether the
+/** The new-Game screen: Players, their Controllers, the seed, how fast bots pick, whether the
  * Research phases have the Draft, and whether the Game has Prelude. */
 export function NewGameSetup({
+  offered,
   initialControllers,
   initialBotDelay,
   error,
@@ -34,7 +37,7 @@ export function NewGameSetup({
 }: Props) {
   const [playerCount, setPlayerCount] = useState(initialControllers.length);
   // Five Controllers are kept, so going down to fewer Players and back up loses no choices.
-  const [allControllers, setAllControllers] = useState<Controller[]>(() =>
+  const [allControllers, setAllControllers] = useState<ControllerName[]>(() =>
     Array.from({ length: MAX_PLAYERS }, (_, player) => initialControllers[player] ?? "random_bot"),
   );
   const [seedText, setSeedText] = useState("");
@@ -46,7 +49,7 @@ export function NewGameSetup({
   const controllers = allControllers.slice(0, playerCount);
   const seed = parseSeed(seedText);
 
-  const setController = (player: number, controller: Controller) =>
+  const setController = (player: number, controller: ControllerName) =>
     setAllControllers((previous) => previous.map((old, index) => (index === player ? controller : old)));
 
   const start = () => {
@@ -85,14 +88,14 @@ export function NewGameSetup({
                 <span className="player-dot" style={{ background: PLAYER_COLOURS[player] }} />
                 <span className="setup-player-name">Player {player + 1}</span>
                 <div className="segmented" role="group" aria-label={`Player ${player + 1}'s Controller`}>
-                  {CONTROLLERS.map((candidate) => (
+                  {offered.map((candidate) => (
                     <button
-                      key={candidate}
-                      className={candidate === controller ? "selected" : ""}
-                      aria-pressed={candidate === controller}
-                      onClick={() => setController(player, candidate)}
+                      key={candidate.name}
+                      className={candidate.name === controller ? "selected" : ""}
+                      aria-pressed={candidate.name === controller}
+                      onClick={() => setController(player, candidate.name)}
                     >
-                      {CONTROLLER_LABELS[candidate]}
+                      {candidate.label}
                     </button>
                   ))}
                 </div>
@@ -169,9 +172,9 @@ function parseSeed(text: string): number | null | "invalid" {
 }
 
 /** What the Controllers chosen mean for what the screen shows. */
-function viewHint(controllers: Controller[]): string {
-  const humans = controllers.filter((controller) => controller === "human").length;
-  if (humans === 0) return "Only Random Bots: you watch, and see everything.";
+function viewHint(controllers: ControllerName[]): string {
+  const humans = controllers.filter((controller) => controller === HUMAN).length;
+  if (humans === 0) return "No human: you watch, and see everything.";
   if (humans === 1) return "You see only what your Player may know.";
   return "Hotseat: every human plays at this screen, and everything is shown.";
 }

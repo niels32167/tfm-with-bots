@@ -4,7 +4,8 @@ import { downloadReplayFile, readReplayFile } from "./replayFiles";
 import type {
   Card,
   ClientMessage,
-  Controller,
+  ControllerName,
+  ControllerOnOffer,
   DevView,
   NewGameSettings,
   Scenario,
@@ -15,11 +16,14 @@ import type {
 /** The server's latest update: Controllers, seed, Player View and Decision (the log is kept apart). */
 export type GameUpdate = Omit<Update, "type" | "log_start" | "log">;
 
-/** The connection to the local server, the card catalog, and the latest Game state it sent. */
+/** The connection to the local server, the card catalog, the Controllers on offer, and the latest Game state it
+ * sent. */
 export function useGameServer() {
   const [connected, setConnected] = useState(false);
   // Every card's printed data, which the server sends first on each connection.
   const [cards, setCards] = useState<Card[]>([]);
+  // A human and the registered Controllers, which the server sends next.
+  const [controllers, setControllers] = useState<ControllerOnOffer[]>([]);
   const [game, setGame] = useState<GameUpdate | null>(null);
   const [log, setLog] = useState<string[]>([]);
   // What the dev panel last asked to see.
@@ -63,6 +67,9 @@ export function useGameServer() {
       switch (message.type) {
         case "card_catalog":
           setCards(message.cards);
+          break;
+        case "controllers":
+          setControllers(message.controllers);
           break;
         case "update": {
           const { type: _type, log_start, log: lines, ...state } = message;
@@ -133,7 +140,7 @@ export function useGameServer() {
 
   /** A Replay file of the position alone is what starts a Game from a Scenario. */
   const startFromScenario = useCallback(
-    (scenario: Scenario, controllers: Controller[], botDelay: number) =>
+    (scenario: Scenario, controllers: ControllerName[], botDelay: number) =>
       send({
         type: "load_replay",
         file: { controllers, replay: { start: { scenario }, picks: [] } },
@@ -158,6 +165,7 @@ export function useGameServer() {
   return {
     connected,
     cards,
+    controllers,
     game,
     log,
     devView,

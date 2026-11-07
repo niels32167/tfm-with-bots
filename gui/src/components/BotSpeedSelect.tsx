@@ -1,6 +1,6 @@
 export const DEFAULT_BOT_DELAY = 0.8;
 
-/** How long each Random Bot waits before picking, in seconds. */
+/** How long each registered Controller's pick takes at least, in seconds, thinking included. */
 const BOT_SPEEDS = [
   { label: "Instant", delay: 0 },
   { label: "Fast", delay: 0.3 },
@@ -13,12 +13,12 @@ interface Props {
   onChange: (delay: number) => void;
 }
 
-/** A choice of Random Bot speeds. */
+/** A choice of bot speeds, for every registered Controller in the Game. */
 export function BotSpeedSelect({ delay, onChange }: Props) {
   const known = BOT_SPEEDS.some((speed) => speed.delay === delay);
   return (
     <label className="bot-speed">
-      Random Bot speed{" "}
+      Bot speed{" "}
       <select value={delay} onChange={(event) => onChange(Number(event.target.value))}>
         {BOT_SPEEDS.map((speed) => (
           <option key={speed.delay} value={speed.delay}>

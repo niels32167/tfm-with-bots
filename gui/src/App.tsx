@@ -15,11 +15,11 @@ import { NewGameSetup } from "./components/NewGameSetup";
 import { PlayerBoards } from "./components/PlayerBoards";
 import { StatusBar, UndoButton } from "./components/StatusBar";
 import { TopBar } from "./components/TopBar";
-import type { Controller, NewGameSettings, Scenario } from "./types";
+import { type ControllerName, HUMAN, type NewGameSettings, type Scenario } from "./types";
 import { type GameUpdate, useGameServer } from "./useGameServer";
 
 // The setup screen's first suggestion: you against one Random Bot.
-const HUMAN_AGAINST_RANDOM_BOT: Controller[] = ["human", "random_bot"];
+const HUMAN_AGAINST_RANDOM_BOT: ControllerName[] = [HUMAN, "random_bot"];
 
 export function App() {
   const server = useGameServer();
@@ -99,6 +99,7 @@ export function App() {
     return (
       <>
         <NewGameSetup
+          offered={server.controllers}
           initialControllers={game?.controllers ?? HUMAN_AGAINST_RANDOM_BOT}
           initialBotDelay={game?.bot_delay ?? DEFAULT_BOT_DELAY}
           error={error}
@@ -150,6 +151,7 @@ export function App() {
             <StatusBar
               game={shown}
               cards={server.cards}
+              offered={server.controllers}
               latest={log.at(-1)}
               error={error}
               disabled={picking}
@@ -167,7 +169,7 @@ export function App() {
         </div>
         <aside className="side-panel">
           <GlobalReadings view={shown.view} />
-          <PlayerBoards game={shown} cards={server.cards} />
+          <PlayerBoards game={shown} cards={server.cards} offered={server.controllers} />
           <GameLog log={lookingBack ? devView.log : log} players={shown.view.players.map((board) => board.name)} />
         </aside>
       </div>

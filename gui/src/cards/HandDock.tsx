@@ -36,7 +36,7 @@ export function handOptions(decision: Decision | null): Map<string, DecisionOpti
 /** The hand, docked at the bottom of the window so it is always in reach. Only the tops of the
  * cards show (cost, Tags, title); pointing at one enlarges it (`CardZoom`), and pointing at the dock's
  * header raises the dock over the board with every card whole, until the mouse leaves it. Cards that can be played
- * or sold now are outlined and clicked to do so. In the full view (Hotseat, or only Random Bots)
+ * or sold now are outlined and clicked to do so. In the full view (Hotseat, or no human)
  * a tab per Player picks whose hand to show, following the Player deciding. It folds away to a
  * single line. */
 export function HandDock({ game, cards, disabled, onPick, folded, onFold }: Props) {

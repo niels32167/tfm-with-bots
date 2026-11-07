@@ -3,8 +3,9 @@
 Messages from the GUI:
     {"type": "new_game", "controllers": ["human", "random_bot"], "seed": 7, "bot_delay": 0.8, "draft": true,
      "prelude": false}
-        (2 to 5 Controllers; seed, bot_delay, draft and prelude are optional; the Draft is on unless draft
-        is false, and Prelude is off unless prelude is true; the setup screen sends it on by default)
+        (2 to 5 Controllers, each "human" or a registered Controller's name; seed, bot_delay, draft and
+        prelude are optional; the Draft is on unless draft is false, and Prelude is off unless prelude is
+        true; the setup screen sends it on by default)
     {"type": "pick", "sequence": 12, "index": 0}
     {"type": "undo"}                  back to the Decision a human answered last
     {"type": "save_replay"}           answered with a replay_file message
@@ -19,6 +20,9 @@ The state editor starts from an edited position with load_replay, as a Replay fi
 Messages to the GUI:
     {"type": "card_catalog", "cards": [...]}
         (the printed data of every card, sent first to each new connection)
+    {"type": "controllers", "controllers": [{"name": "human", "label": "Human"},
+                                            {"name": "random_bot", "label": "Random Bot"}, ...]}
+        (the Controllers the setup screen offers, sent next: a human and the registered ones)
     {"type": "update", "controllers": [...], "viewer": 0 or null, "seed": 7, "bot_delay": 0.8,
      "can_undo": true, "view": ..., "decision": ... or null, "log_start": n, "log": [...]}
         (viewer null means the view is the full view)
@@ -33,9 +37,13 @@ Messages to the GUI:
          Scenario, and why real play could not reach it, if it couldn't; sent only to the GUI that
          asked, as it holds what Players hide from each other, and it changes nothing in the Game)
     {"type": "error", "message": "..."}
+        (also when a registered Controller raises an error or picks an Option not offered; the Game
+         then waits, and Undo, a new Game or Load Replay… go on from there)
 
 The server holds one Game at a time, shared by every open connection, so reloading
-the page picks the Game up where it was.
+the page picks the Game up where it was. A registered Controller thinks in a worker thread, handed
+only plain data (ADR 0013), so that the server goes on answering while it does; its pick is dropped
+if the Game has moved on by then, after an undo, say.
 """
 
 import asyncio
@@ -46,24 +54,25 @@ from typing import Any
 import tm_engine
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 
-from server.session import GameSession
+from server.session import GameSession, controllers_on_offer, label_of
 
 DEFAULT_BOT_DELAY = 0.8
 
 
 class GameHost:
-    """Hosts the current Game for every open connection, and plays the Random Bots' picks."""
+    """Hosts the current Game for every open connection, and plays the registered Controllers' picks."""
 
     def __init__(self) -> None:
         self.session: GameSession | None = None
         self.connections: set[WebSocket] = set()
-        self.random_bot_task: asyncio.Task | None = None
+        self.controller_task: asyncio.Task | None = None
         # The card catalog never changes, so it is read from the engine once.
         self.card_catalog_message = {"type": "card_catalog", "cards": tm_engine.card_catalog()}
 
     async def join(self, websocket: WebSocket) -> None:
         self.connections.add(websocket)
         await websocket.send_json(self.card_catalog_message)
+        await websocket.send_json({"type": "controllers", "controllers": controllers_on_offer()})
         if self.session is not None:
             for message in self.session.catch_up():
                 await websocket.send_json(message)
@@ -108,7 +117,7 @@ class GameHost:
 
     async def start(self, session: GameSession) -> None:
         """Replaces the current Game, if any, with `session`."""
-        self.stop_random_bots()
+        self.stop_controllers()
         self.session = session
         await self.share_news()
 
@@ -118,8 +127,8 @@ class GameHost:
 
     async def undo(self) -> None:
         self.current_session().undo()
-        # The Random Bots may be mid-Turn in the Game as it was; they must not pick in the Game as it is now.
-        self.stop_random_bots()
+        # The Controllers may be mid-Turn in the Game as it was; they must not pick in the Game as it is now.
+        self.stop_controllers()
         await self.share_news()
 
     def current_session(self) -> GameSession:
@@ -127,30 +136,48 @@ class GameHost:
             raise ValueError("there is no Game yet; start a new Game first")
         return self.session
 
-    def stop_random_bots(self) -> None:
-        if self.random_bot_task is not None:
+    def stop_controllers(self) -> None:
+        if self.controller_task is not None:
             # A cancelled task only reports done once it next runs, so forget it now
-            # rather than wait for it.
-            self.random_bot_task.cancel()
-            self.random_bot_task = None
+            # rather than wait for it. A Controller still thinking in its thread finishes, unheard.
+            self.controller_task.cancel()
+            self.controller_task = None
 
     async def share_news(self) -> None:
-        """Sends what changed, then lets the Random Bots pick if the Decision is theirs."""
+        """Sends what changed, then lets the registered Controllers pick if the Decision is theirs."""
         session = self.session
         for message in session.news():
             await self.broadcast(message)
-        bots_idle = self.random_bot_task is None or self.random_bot_task.done()
-        if session.waiting_on_random_bot() and bots_idle:
-            self.random_bot_task = asyncio.create_task(self.play_random_bots(session))
+        controllers_idle = self.controller_task is None or self.controller_task.done()
+        if session.waiting_on_controller() and controllers_idle:
+            self.controller_task = asyncio.create_task(self.play_controllers(session))
 
-    async def play_random_bots(self, session: GameSession) -> None:
-        """Answers Random Bot Decisions one at a time, at a pace a person can follow. A Random Bot
-        drafts and buys cards without pausing, so that how long it takes says nothing about what
-        it keeps or how many it buys, and doesn't pause for a Decision with one Option."""
-        while session.waiting_on_random_bot():
-            if session.random_bot_pauses_before_picking():
-                await asyncio.sleep(session.bot_delay)
-            session.pick_for_random_bot()
+    async def play_controllers(self, session: GameSession) -> None:
+        """Answers registered Controllers' Decisions one at a time, at a pace a person can follow: each
+        pick takes at least the bot delay, thinking included. A Controller drafts and buys cards without
+        that pause, so that how long it takes says less about what it keeps or how many it buys, and
+        doesn't pause for a Decision with one Option."""
+        loop = asyncio.get_running_loop()
+        while session.waiting_on_controller():
+            started = loop.time()
+            pauses = session.controller_pauses_before_picking()
+            sequence = session.game.decision["sequence"]
+            name, controller, handle = session.controller_turn()
+            try:
+                index = await asyncio.to_thread(controller.pick, handle)
+            except Exception as error:  # noqa: BLE001 - shown to the GUI, which can undo or start afresh.
+                await self.broadcast({"type": "error", "message": f"{label_of(name)} raised {error!r}"})
+                return
+            if pauses:
+                await asyncio.sleep(max(0.0, session.bot_delay - (loop.time() - started)))
+            decision = session.game.decision
+            if self.session is not session or decision is None or decision["sequence"] != sequence:
+                return  # The Game moved on while it thought.
+            try:
+                session.pick_for_controller(sequence, index)
+            except ValueError as error:
+                await self.broadcast({"type": "error", "message": f"{label_of(name)}: {error}"})
+                return
             for message in session.news():
                 await self.broadcast(message)
 
@@ -177,10 +204,11 @@ def whole_number_or_none(message: dict[str, Any], field: str) -> int | None:
 
 
 def bot_delay(message: dict[str, Any]) -> float:
-    """The Random Bot delay a message asks for, in seconds."""
+    """The bot delay a message asks for, in seconds: how long each registered Controller's pick takes
+    at least, where a person watching needs a moment."""
     delay = float(message.get("bot_delay", DEFAULT_BOT_DELAY))
     if not delay >= 0:
-        raise ValueError(f"the Random Bot delay must be 0 seconds or more, not {delay}")
+        raise ValueError(f"the bot delay must be 0 seconds or more, not {delay}")
     return delay
 
 
