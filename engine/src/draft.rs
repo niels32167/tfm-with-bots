@@ -17,6 +17,9 @@ use crate::log::LogEvent;
 pub struct Drafting {
     pub picking_from: CardSet,
     pub kept: CardSet,
+    /// Whether they have kept a card of those they pick from now. Players pick in player order, but a
+    /// Sampled Position takes back the picks of those before its Player and asks them again after the last.
+    pub picked: bool,
 }
 
 /// Cards a Player passed on in the Draft: in `generation`, `player` passed `cards` to `to`. A
@@ -74,9 +77,10 @@ impl Game {
         }
     }
 
-    /// Whether `player` has a card to pick: one of two or more.
+    /// Whether `player` has a card to pick: one of two or more, and hasn't picked one yet.
     fn can_draft(&self, player: usize) -> bool {
-        self.players[player].drafting.picking_from.len() >= 2
+        let drafting = self.players[player].drafting;
+        drafting.picking_from.len() >= 2 && !drafting.picked
     }
 
     /// The current Player may keep any of the cards they are picking from.
@@ -90,13 +94,14 @@ impl Game {
         let drafting = &mut self.players[self.current_player].drafting;
         drafting.picking_from.remove(card);
         drafting.kept.insert(card);
+        drafting.picked = true;
         self.offer_drafting_from(self.index_in_player_order() + 1);
     }
 
-    /// Hands the pick to the first Player who has one, looking from index `start` in player order
-    /// (0 is the first player). Once everyone has picked, the cards left are passed on.
+    /// Hands the pick to the next Player who has one, looking from index `start` in player order (0 is
+    /// the first player). Once everyone has picked, the cards left are passed on.
     fn offer_drafting_from(&mut self, start: usize) {
-        match self.first_in_player_order_who(start, Game::can_draft) {
+        match self.next_in_player_order_who(start, Game::can_draft) {
             Some(player) => self.current_player = player,
             None => self.pass_drafted_cards(),
         }
@@ -109,6 +114,7 @@ impl Game {
         for (player, cards) in passed.into_iter().enumerate() {
             let to = self.passing_to(player);
             self.players[to].drafting.picking_from = cards;
+            self.players[to].drafting.picked = false;
             if !cards.is_empty() {
                 self.draft_passes.push(DraftPass { generation: self.generation, player, to, cards });
             }

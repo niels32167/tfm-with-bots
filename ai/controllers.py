@@ -9,6 +9,7 @@ from collections.abc import Callable
 from dataclasses import dataclass
 
 from ai.controller import Controller
+from ai.flat_playout import FlatPlayout
 from ai.random_bot import RandomBot
 
 
@@ -21,7 +22,10 @@ class Registered:
 
 
 # By the name Replay files and the Match tool use, in the order the setup screen lists them.
-REGISTERED: dict[str, Registered] = {"random_bot": Registered("Random Bot", RandomBot)}
+REGISTERED: dict[str, Registered] = {
+    "random_bot": Registered("Random Bot", RandomBot),
+    "flat_playout": Registered("Flat Playout Bot", FlatPlayout),
+}
 
 
 def make_controller(name: str) -> Controller:

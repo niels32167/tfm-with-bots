@@ -1,5 +1,7 @@
 """A Controller is handed a read-only handle, never the Game (ADR 0013): nothing reachable from the
-handle is the Game, a copy of it, or a card the deciding Player can't see.
+handle is the Game, a copy of it, or a card the deciding Player can't see. Its Sampled Positions are
+made when asked for, by an engine object that holds the position inside the engine, where Python can't
+reach it; they are fair because two Games their Player can't tell apart give the same ones.
 
 Hidden cards are those the engine knows of that the Player View and Decision don't name: other
 Players' hands, Corporations and Prelude Cards being chosen, cards under way in the Draft or being
@@ -91,8 +93,10 @@ def test_nothing_reachable_from_the_handle_gives_the_game_or_a_hidden_card():
             player = decision["player"]
             handle = handle_for(game, random_numbers)
 
+            where = f"seed {seed}, pick {decision['sequence']}"
             assert handle.player == player
-            assert leaks(handle, hidden.hidden_from(player)) == [], f"seed {seed}, pick {decision['sequence']}"
+            assert leaks(handle, hidden.hidden_from(player)) == [], where
+            assert_same_handle(handle, handle_for(game.sampler(player).sample(seed=seed), random_numbers), where)
             game.pick(bots[player].pick(handle), decision["sequence"])
         assert game.is_over
         boards = game.full_view()["players"]
@@ -103,7 +107,16 @@ def test_nothing_reachable_from_the_handle_gives_the_game_or_a_hidden_card():
     assert games_with_valley_trust_drawing > 0, "no Game had Valley Trust draw Prelude Cards; choose other seeds"
 
 
-def test_the_handle_holds_the_deciding_players_view_and_the_decision():
+def assert_same_handle(handle: Handle, other: Handle, where: str) -> None:
+    """Handles from two Games their Player can't tell apart must be the same, so that any Controller
+    picks the same from them given the same random state: the same view, Decision and samples."""
+    assert (handle.player, handle.player_view, handle.decision) == (other.player, other.player_view, other.decision)
+    one, another = handle.sample(seed=17), other.sample(seed=17)
+    assert [one.full_view(), one.decision, one.seed] == [another.full_view(), another.decision, another.seed], where
+
+
+def test_the_handle_holds_the_deciding_players_view_and_the_decision_without_its_sequence_number():
+    # The sequence number counts every pick so far, including the cards another Player bought in secret.
     game = tm_engine.Game(seed=5, players=2, draft=True, prelude=True)
     decision = game.decision
 
@@ -111,7 +124,23 @@ def test_the_handle_holds_the_deciding_players_view_and_the_decision():
 
     assert handle.player == decision["player"]
     assert handle.player_view == game.player_view(decision["player"])
-    assert handle.decision == decision
+    assert handle.decision == {key: value for key, value in decision.items() if key != "sequence"}
+
+
+def test_the_handle_gives_sampled_positions_for_its_player():
+    game = tm_engine.Game(seed=5, players=2, draft=True, prelude=True)
+    game.play_randomly(seed=5, picks=150)
+    player = game.decision["player"]
+
+    sample = handle_for(game, random.Random(1)).sample(seed=3)
+
+    assert isinstance(sample, tm_engine.Game)
+    assert sample.player_view(player) == game.player_view(player)
+    assert sample.full_view() == game.sampler(player).sample(seed=3).full_view()
+
+
+def test_a_sampler_offers_nothing_but_samples():
+    assert [name for name in dir(tm_engine.Sampler) if not name.startswith("_")] == ["sample"]
 
 
 def test_the_leak_check_finds_a_game_and_a_hidden_card():
@@ -122,10 +151,10 @@ def test_the_leak_check_finds_a_game_and_a_hidden_card():
     player = game.decision["player"]
     opponents_card = min(hidden.hidden_from(player) & card_ids_in(game.player_view(1 - player)))
 
-    assert leaks(Handle(player, {"note": opponents_card}, {}, random.Random(1)), hidden.hidden_from(player)) == [
-        opponents_card
-    ]
-    assert leaks(Handle(0, {}, {"undo": game.copy}, random.Random(1)), set()) == ["a Game"]
+    sampler = game.sampler(player)
+    handle = Handle(player, {"note": opponents_card}, {}, random.Random(1), sampler)
+    assert leaks(handle, hidden.hidden_from(player)) == [opponents_card]
+    assert leaks(Handle(0, {}, {"undo": game.copy}, random.Random(1), sampler), set()) == ["a Game"]
 
 
 def test_no_controller_imports_the_engine():

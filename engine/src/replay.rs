@@ -16,12 +16,14 @@ pub struct Replay {
     pub picks: Vec<usize>,
 }
 
-/// Where a Game starts: normal setup from its settings, or a Scenario.
+/// Where a Game starts: normal setup from its settings, a Scenario, or a Sampled Position, whose
+/// hidden cards were dealt at random from a Player View: no Replay can bring that one back.
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum Start {
     Settings(Settings),
     Scenario(#[serde(deserialize_with = "scenario_saved_before_the_draft_without_it")] Box<Scenario>),
+    Sampled,
 }
 
 /// Reads a Replay's Scenario. One saved before the Draft existed has no `draft`, and was played
@@ -34,15 +36,21 @@ fn scenario_saved_before_the_draft_without_it<'de, D: Deserializer<'de>>(
     serde_json::from_value(scenario.into()).map(Box::new).map_err(D::Error::custom)
 }
 
+const SAMPLED: &str =
+    "a Sampled Position can't be replayed: its hidden cards were dealt at random from a Player View";
+
 impl Start {
     /// The Game as it stands before any Option is picked.
     pub fn begin(self) -> Result<Game, String> {
         match self {
             Start::Settings(settings) => Game::new(settings),
             Start::Scenario(scenario) => (*scenario).start(),
+            Start::Sampled => Err(SAMPLED.to_string()),
         }
     }
 
+    /// The settings of a Game that starts here. Never asked of a Sampled Position, which is made from
+    /// a Game, not started.
     pub fn settings(&self) -> Settings {
         match self {
             Start::Settings(settings) => settings.clone(),
@@ -55,6 +63,7 @@ impl Start {
                 corporations: false,
                 prelude: scenario.prelude,
             },
+            Start::Sampled => panic!("{SAMPLED}"),
         }
     }
 }

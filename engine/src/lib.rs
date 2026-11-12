@@ -22,6 +22,7 @@ mod random;
 mod random_bot;
 mod replay;
 mod resources;
+mod sampling;
 mod scenario;
 mod scoring;
 mod targets;
@@ -143,6 +144,26 @@ impl PyGame {
 
     /// Everything `player` (an index from 0) is allowed to know.
     fn player_view<'py>(&self, py: Python<'py>, player: usize) -> PyResult<Bound<'py, PyAny>> {
+        self.check_player(player)?;
+        to_python(py, &view::player_view(&self.game, player))
+    }
+
+    /// What makes Sampled Positions for `player` at this position: Games dealt from what their Player
+    /// View holds, never from the cards they can't see.
+    fn sampler(&self, player: usize) -> PyResult<PySampler> {
+        self.check_player(player)?;
+        Ok(PySampler { sampler: sampling::Sampler::new(&self.game, player) })
+    }
+
+    /// Everything about the Game, including what Players hide from each other.
+    /// For Hotseat and the dev panel; never for an AI Controller.
+    fn full_view<'py>(&self, py: Python<'py>) -> PyResult<Bound<'py, PyAny>> {
+        to_python(py, &view::full_view(&self.game))
+    }
+}
+
+impl PyGame {
+    fn check_player(&self, player: usize) -> PyResult<()> {
         let count = self.game.players.len();
         if player >= count {
             return Err(PyValueError::new_err(format!(
@@ -150,13 +171,23 @@ impl PyGame {
                 count - 1
             )));
         }
-        to_python(py, &view::player_view(&self.game, player))
+        Ok(())
     }
+}
 
-    /// Everything about the Game, including what Players hide from each other.
-    /// For Hotseat and the dev panel; never for an AI Controller.
-    fn full_view<'py>(&self, py: Python<'py>) -> PyResult<Bound<'py, PyAny>> {
-        to_python(py, &view::full_view(&self.game))
+/// Makes Sampled Positions for one Player at one position. It holds the position inside the engine,
+/// where Python can't reach it, and offers nothing but samples.
+#[pyclass(name = "Sampler", module = "tm_engine", frozen)]
+struct PySampler {
+    sampler: sampling::Sampler,
+}
+
+#[pymethods]
+impl PySampler {
+    /// A Sampled Position: a new Game. The same seed always gives the same Game.
+    #[pyo3(signature = (*, seed))]
+    fn sample(&self, seed: u64) -> PyGame {
+        PyGame { game: self.sampler.sample(seed) }
     }
 }
 
@@ -174,6 +205,7 @@ fn to_python<'py>(py: Python<'py>, value: &impl Serialize) -> PyResult<Bound<'py
 #[pymodule]
 fn tm_engine(module: &Bound<'_, PyModule>) -> PyResult<()> {
     module.add_class::<PyGame>()?;
+    module.add_class::<PySampler>()?;
     module.add_function(wrap_pyfunction!(card_catalog, module)?)?;
     module.add("MAX_SEED", game::MAX_SEED)?;
     Ok(())

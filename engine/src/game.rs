@@ -645,60 +645,79 @@ impl Game {
         if self.phase == Phase::Over {
             return None;
         }
-        let (kind, options) = match (self.waiting, self.phase) {
-            (Some(Waiting::Corporation), _) => (DecisionKind::Corporation, self.corporation_options()),
-            (Some(Waiting::PreludeCards), _) => (DecisionKind::PreludeCards, self.prelude_keeping_options()),
-            (Some(Waiting::Area(placement)), _) => (DecisionKind::Area, self.area_options(placement)),
+        let options = match (self.waiting, self.phase) {
+            (Some(Waiting::Corporation), _) => self.corporation_options(),
+            (Some(Waiting::PreludeCards), _) => self.prelude_keeping_options(),
+            (Some(Waiting::Area(placement)), _) => self.area_options(placement),
             (Some(Waiting::ClaimArea), _) => {
-                (DecisionKind::Area, self.board.claimable_areas().map(DecisionOption::ClaimArea).collect())
+                self.board.claimable_areas().map(DecisionOption::ClaimArea).collect()
             }
-            (Some(Waiting::Payment(card)), _) => (DecisionKind::Payment, self.payment_options(card)),
-            (Some(Waiting::Production(card)), _) => {
-                (DecisionKind::Production, self.production_options(self.current_player, card))
-            }
+            (Some(Waiting::Payment(card)), _) => self.payment_options(card),
+            (Some(Waiting::Production(card)), _) => self.production_options(self.current_player, card),
             (Some(Waiting::KeepCards(keeping)), _) => {
-                (DecisionKind::KeepCards, keeping.options(self.spendable_megacredits(self.current_player)))
+                keeping.options(self.spendable_megacredits(self.current_player))
             }
-            (Some(Waiting::Expense(expense)), _) => (DecisionKind::Payment, self.expense_options(expense)),
-            (Some(Waiting::ActionPayment(card)), _) => {
-                (DecisionKind::Payment, self.action_payment_options(card))
-            }
-            (Some(Waiting::Resources(card)), _) => {
-                (DecisionKind::Resources, self.resource_change_options(self.current_player, card))
-            }
-            (Some(Waiting::Effects(card)), _) => (DecisionKind::Effects, self.alternative_options(card)),
-            (Some(Waiting::AddToCard { card, add }), _) => {
-                (DecisionKind::AddToCard, self.add_to_card_options(card, add))
-            }
-            (Some(Waiting::SellPatents(sold)), _) => (DecisionKind::SellPatents, self.selling_options(sold)),
-            (Some(Waiting::DiscardToDraw), _) => {
-                (DecisionKind::DiscardToDraw, self.discard_to_draw_options())
-            }
-            (Some(Waiting::OlympusConference), _) => {
-                (DecisionKind::OlympusConference, self.olympus_conference_options())
-            }
-            (Some(Waiting::ViralEnhancers), _) => {
-                (DecisionKind::ViralEnhancers, self.viral_enhancers_options())
-            }
-            (Some(Waiting::Target(targeting)), _) => (DecisionKind::Target, self.target_options(targeting)),
-            (Some(Waiting::CardFromHand), _) => (DecisionKind::PlayCard, self.cards_to_play_options()),
-            (Some(Waiting::FreeAward), _) => (DecisionKind::FreeAward, self.free_award_options()),
-            (Some(Waiting::DrawnPreludeCards), _) => {
-                (DecisionKind::PlayPreludeCard, self.prelude_playing_options())
-            }
-            (None, Phase::Draft) => (DecisionKind::Draft, self.drafting_options()),
-            (None, Phase::Setup | Phase::Research) => (DecisionKind::BuyCards, self.buying_options()),
-            (None, Phase::PreludeCards) => (DecisionKind::PlayPreludeCard, self.prelude_playing_options()),
+            (Some(Waiting::Expense(expense)), _) => self.expense_options(expense),
+            (Some(Waiting::ActionPayment(card)), _) => self.action_payment_options(card),
+            (Some(Waiting::Resources(card)), _) => self.resource_change_options(self.current_player, card),
+            (Some(Waiting::Effects(card)), _) => self.alternative_options(card),
+            (Some(Waiting::AddToCard { card, add }), _) => self.add_to_card_options(card, add),
+            (Some(Waiting::SellPatents(sold)), _) => self.selling_options(sold),
+            (Some(Waiting::DiscardToDraw), _) => self.discard_to_draw_options(),
+            (Some(Waiting::OlympusConference), _) => self.olympus_conference_options(),
+            (Some(Waiting::ViralEnhancers), _) => self.viral_enhancers_options(),
+            (Some(Waiting::Target(targeting)), _) => self.target_options(targeting),
+            (Some(Waiting::CardFromHand), _) => self.cards_to_play_options(),
+            (Some(Waiting::FreeAward), _) => self.free_award_options(),
+            (Some(Waiting::DrawnPreludeCards), _) => self.prelude_playing_options(),
+            (None, Phase::Draft) => self.drafting_options(),
+            (None, Phase::Setup | Phase::Research) => self.buying_options(),
+            (None, Phase::PreludeCards) => self.prelude_playing_options(),
             (None, Phase::FinalGreenery) => {
-                (DecisionKind::FinalGreenery, vec![DecisionOption::ConvertPlants, DecisionOption::Done])
+                vec![DecisionOption::ConvertPlants, DecisionOption::Done]
             }
-            (None, _) => (DecisionKind::Action, self.action_options()),
+            (None, _) => self.action_options(),
         };
         Some(Decision {
             player: self.current_player,
-            kind,
+            kind: self.decision_kind()?,
             sequence: self.replay.picks.len() as u64,
             options,
+        })
+    }
+
+    /// What kind of Decision the Game is waiting on, or `None` once it is over. Everyone at the table
+    /// sees it, though not always its Options: another Player buying cards, say, or selling patents.
+    pub fn decision_kind(&self) -> Option<DecisionKind> {
+        if self.phase == Phase::Over {
+            return None;
+        }
+        Some(match (self.waiting, self.phase) {
+            (Some(Waiting::Corporation), _) => DecisionKind::Corporation,
+            (Some(Waiting::PreludeCards), _) => DecisionKind::PreludeCards,
+            (Some(Waiting::Area(_) | Waiting::ClaimArea), _) => DecisionKind::Area,
+            (Some(Waiting::Payment(_) | Waiting::Expense(_) | Waiting::ActionPayment(_)), _) => {
+                DecisionKind::Payment
+            }
+            (Some(Waiting::Production(_)), _) => DecisionKind::Production,
+            (Some(Waiting::KeepCards(_)), _) => DecisionKind::KeepCards,
+            (Some(Waiting::Resources(_)), _) => DecisionKind::Resources,
+            (Some(Waiting::Effects(_)), _) => DecisionKind::Effects,
+            (Some(Waiting::AddToCard { .. }), _) => DecisionKind::AddToCard,
+            (Some(Waiting::SellPatents(_)), _) => DecisionKind::SellPatents,
+            (Some(Waiting::DiscardToDraw), _) => DecisionKind::DiscardToDraw,
+            (Some(Waiting::OlympusConference), _) => DecisionKind::OlympusConference,
+            (Some(Waiting::ViralEnhancers), _) => DecisionKind::ViralEnhancers,
+            (Some(Waiting::Target(_)), _) => DecisionKind::Target,
+            (Some(Waiting::CardFromHand), _) => DecisionKind::PlayCard,
+            (Some(Waiting::FreeAward), _) => DecisionKind::FreeAward,
+            (Some(Waiting::DrawnPreludeCards), _) | (None, Phase::PreludeCards) => {
+                DecisionKind::PlayPreludeCard
+            }
+            (None, Phase::Draft) => DecisionKind::Draft,
+            (None, Phase::Setup | Phase::Research) => DecisionKind::BuyCards,
+            (None, Phase::FinalGreenery) => DecisionKind::FinalGreenery,
+            (None, _) => DecisionKind::Action,
         })
     }
 
@@ -1155,6 +1174,17 @@ impl Game {
         can: fn(&Game, usize) -> bool,
     ) -> Option<usize> {
         self.player_order().skip(start).find(|&player| can(self, player))
+    }
+
+    /// The first Player for whom `can` holds, looking from index `start` in player order, and then from
+    /// the first player again. In a real Game nobody before `start` still has a pick to make; in a
+    /// Sampled Position, the Players whose secret picks it took back do.
+    pub(crate) fn next_in_player_order_who(
+        &self,
+        start: usize,
+        can: fn(&Game, usize) -> bool,
+    ) -> Option<usize> {
+        self.first_in_player_order_who(start, can).or_else(|| self.first_in_player_order_who(0, can))
     }
 
     /// The current Player's index in player order, counting the first player as 0.

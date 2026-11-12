@@ -235,6 +235,9 @@ pub struct View {
     /// The Prelude Card the current Player is playing, while its effects are carried out, such as
     /// placing Aquifer Turbines' Ocean, by catalog id; None once they are done, as its price is paid.
     pub playing_prelude_card: Option<&'static str>,
+    /// The Project Card the current Player is paying for, by catalog id, which they play once it is
+    /// paid; None otherwise. Played cards are shown face up, so every Player sees it.
+    pub playing_card: Option<&'static str>,
     pub temperature: i32,
     /// In percent.
     pub oxygen: i32,
@@ -258,6 +261,11 @@ pub struct View {
     pub first_player: usize,
     /// Whose Turn it is, or None once the Game is over.
     pub current_player: Option<usize>,
+    /// What kind of Decision the current Player is answering, such as "sell_patents", or None once the
+    /// Game is over. Everyone at the table sees it, though not always its Options. While Players buy cards
+    /// (at setup choosing their Corporation and keeping Prelude Cards too), it is "buy_cards" throughout,
+    /// as how far each has got is secret.
+    pub deciding: Option<&'static str>,
     /// How many Actions the current Player has taken in this Turn.
     pub actions_this_turn: u32,
     pub players: Vec<PlayerBoard>,
@@ -472,6 +480,10 @@ fn view(game: &Game, viewer: Option<usize>) -> View {
         },
         prelude: game.settings.prelude,
         playing_prelude_card: game.playing_prelude_card.map(|card| CARD_CATALOG[card].id.as_str()),
+        playing_card: match game.waiting {
+            Some(Waiting::Payment(card)) => Some(CARD_CATALOG[card].id.as_str()),
+            _ => None,
+        },
         temperature: game.temperature,
         oxygen: game.oxygen,
         oceans: game.board.oceans(),
@@ -483,6 +495,11 @@ fn view(game: &Game, viewer: Option<usize>) -> View {
         discard: viewer.is_none().then(|| ids(game.discard)),
         first_player: game.first_player,
         current_player: if game.is_over() { None } else { Some(game.current_player) },
+        deciding: if game.phase.is_buying() {
+            Some(kind_name(DecisionKind::BuyCards))
+        } else {
+            game.decision_kind().map(kind_name)
+        },
         actions_this_turn: game.actions_this_turn,
         players: game
             .players
@@ -616,6 +633,33 @@ fn board_view(board: &Board) -> Vec<AreaView> {
         .collect()
 }
 
+/// How the engine module names a kind of Decision: "buy_cards".
+fn kind_name(kind: DecisionKind) -> &'static str {
+    match kind {
+        DecisionKind::Action => "action",
+        DecisionKind::Area => "area",
+        DecisionKind::Payment => "payment",
+        DecisionKind::Production => "production",
+        DecisionKind::KeepCards => "keep_cards",
+        DecisionKind::Resources => "resources",
+        DecisionKind::Effects => "effects",
+        DecisionKind::AddToCard => "add_to_card",
+        DecisionKind::Corporation => "corporation",
+        DecisionKind::PreludeCards => "prelude_cards",
+        DecisionKind::PlayPreludeCard => "play_prelude_card",
+        DecisionKind::PlayCard => "play_card",
+        DecisionKind::Draft => "draft",
+        DecisionKind::BuyCards => "buy_cards",
+        DecisionKind::SellPatents => "sell_patents",
+        DecisionKind::DiscardToDraw => "discard_to_draw",
+        DecisionKind::OlympusConference => "olympus_conference",
+        DecisionKind::ViralEnhancers => "viral_enhancers",
+        DecisionKind::Target => "target",
+        DecisionKind::FinalGreenery => "final_greenery",
+        DecisionKind::FreeAward => "free_award",
+    }
+}
+
 pub fn decision(game: &Game) -> Option<DecisionView> {
     game.decision().map(|decision| decision_view(game, &decision))
 }
@@ -623,29 +667,7 @@ pub fn decision(game: &Game) -> Option<DecisionView> {
 fn decision_view(game: &Game, decision: &Decision) -> DecisionView {
     DecisionView {
         player: decision.player,
-        kind: match decision.kind {
-            DecisionKind::Action => "action",
-            DecisionKind::Area => "area",
-            DecisionKind::Payment => "payment",
-            DecisionKind::Production => "production",
-            DecisionKind::KeepCards => "keep_cards",
-            DecisionKind::Resources => "resources",
-            DecisionKind::Effects => "effects",
-            DecisionKind::AddToCard => "add_to_card",
-            DecisionKind::Corporation => "corporation",
-            DecisionKind::PreludeCards => "prelude_cards",
-            DecisionKind::PlayPreludeCard => "play_prelude_card",
-            DecisionKind::PlayCard => "play_card",
-            DecisionKind::Draft => "draft",
-            DecisionKind::BuyCards => "buy_cards",
-            DecisionKind::SellPatents => "sell_patents",
-            DecisionKind::DiscardToDraw => "discard_to_draw",
-            DecisionKind::OlympusConference => "olympus_conference",
-            DecisionKind::ViralEnhancers => "viral_enhancers",
-            DecisionKind::Target => "target",
-            DecisionKind::FinalGreenery => "final_greenery",
-            DecisionKind::FreeAward => "free_award",
-        },
+        kind: kind_name(decision.kind),
         sequence: decision.sequence,
         options: decision
             .options

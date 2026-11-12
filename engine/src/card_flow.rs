@@ -32,6 +32,9 @@ pub struct Buying {
     pub bought: CardSet,
     /// How much of the price they pay with heat, once every Player is done buying (Helion).
     pub heat: i32,
+    /// Whether they are done buying. Players are asked in player order, but a Sampled Position takes
+    /// back the hidden choices of those before its Player and asks them again after the last.
+    pub done: bool,
 }
 
 impl Buying {
@@ -161,16 +164,22 @@ impl Game {
         self.next_player_buys();
     }
 
-    /// The next Player who can buy a card decides.
+    /// The current Player is done, and the next Player who can buy a card decides.
     pub(crate) fn next_player_buys(&mut self) {
+        self.players[self.current_player].buying.done = true;
         self.offer_buying_from(self.index_in_player_order() + 1);
     }
 
-    /// Hands buying to the first Player who can buy a card, looking from index `start` in player
-    /// order (0 is the first player); at setup, they first choose their Corporation and keep their
-    /// Prelude Cards. Once nobody can, every Player's buys are carried out.
+    /// Whether `player` is still to be asked about buying: they aren't done, and have something to decide.
+    fn still_buying(&self, player: usize) -> bool {
+        !self.players[player].buying.done && self.can_buy(player)
+    }
+
+    /// Hands buying to the next Player still buying, looking from index `start` in player order (0 is
+    /// the first player); at setup, they first choose their Corporation and keep their Prelude Cards.
+    /// Once nobody is, every Player's buys are carried out.
     pub(crate) fn offer_buying_from(&mut self, start: usize) {
-        match self.first_in_player_order_who(start, Game::can_buy) {
+        match self.next_in_player_order_who(start, Game::still_buying) {
             Some(player) => {
                 self.current_player = player;
                 if self.players[player].choosing_corporation.is_due() {

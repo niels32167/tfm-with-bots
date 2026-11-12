@@ -2225,3 +2225,103 @@ Tharsis (`LavaTubeSettlement.getSpacesForCity`). The volcanoes are the same as f
 
 **Tests:** `tests/cards/test_lava_tube_settlement.py` and
 `tests/fuzzing/test_invariants.py::test_lava_tube_settlements_city_on_a_volcano_next_to_another_city_breaks_no_invariant`.
+
+## Sampled Positions
+
+### What a Sampled Position deals afresh, and what it keeps
+
+**Call:** A Sampled Position for a Player is the position with every card that Player can't see dealt again at
+random: the other Players' hands, the cards they draft, buy from, or look at to keep, the Corporations and Prelude
+Cards dealt to them, the Prelude Cards they kept and have still to play, the deck in its order, the discard pile and
+the Prelude deck. Each place gets as many cards as it holds in the real Game, from the cards the Player can't see of
+that kind (Project Card, Corporation, Prelude Card). Everything else stays: the board, Resources, played cards and
+the Player's own cards. The card another Player is paying for stays in their hand until it is played, and every
+Player View now names it (`playing_card`), as a played card is shown face up. Every Player View also says what kind
+of Decision the current Player is answering (`deciding`, such as "sell_patents"), as everyone at the table sees
+that, and a sample keeps it. While Players buy cards, it is "buy_cards" throughout, Corporations and Prelude Cards at
+setup included, as how far each has got is secret. Nothing of the real Game's past comes
+along: a sample has its own seed and random numbers, an empty game log, a Replay that starts "sampled" (it can't be
+replayed), and only its Player's own Draft passes. Its Decisions count from 0.
+
+**Why:** CONTEXT.md: a Sampled Position is made from a Player View, consistent with what the Player knows; ADR 0013:
+no Controller sees hidden cards, in lookahead too. If a sample kept the real seed, Replay, log or the order of
+another Player's picks, rebuilding or reading it would give the real cards back. A Controller's handle no longer
+holds the Decision's sequence number either: it counts every pick so far, so it told a Player how many cards another
+had bought before them. Chosen with the user (2026-11-12).
+
+The fuzz run checks every sample it plays out the same way.
+
+**Tests:** `tests/engine/test_sampled_positions.py::test_two_games_that_differ_only_in_hidden_cards_give_the_same_sampled_position_for_the_same_seed`,
+`tests/engine/test_sampled_positions.py::test_a_pick_another_player_makes_in_secret_changes_no_sample_for_a_player_who_cant_tell`,
+`tests/engine/test_sampled_positions.py::test_at_every_decision_sampling_a_sample_gives_what_sampling_the_real_game_does`,
+`tests/engine/test_sampled_positions.py::test_at_every_decision_a_sample_keeps_the_deciding_players_view_and_decision_and_every_card`,
+`tests/engine/test_sampled_positions.py::test_a_sample_has_its_own_seed_an_empty_log_and_a_replay_that_starts_at_the_sample`,
+`tests/engine/test_sampled_positions.py::test_a_card_another_player_is_paying_for_is_public_and_stays_in_their_hand_in_a_sample`
+and `tests/ai/test_fair_play.py::test_the_handle_holds_the_deciding_players_view_and_the_decision_without_its_sequence_number`.
+
+### Another Player's choices made earlier in the same Draft round or buying step
+
+**Call:** In a sample, the other Players' hidden choices made earlier in the current Draft round or buying step are
+taken back: one of the cards they kept in this round, or the Corporation they chose, the Prelude Cards they kept and
+the cards they bought (and the heat they said they would pay with). So are the cards the current Player, another one,
+has kept so far of those they are looking at, until they pay for those they buy, when everyone sees how many. They are asked again after the Player's own Decision, so
+whoever plays the sample makes those choices. A Decision of another Player in progress keeps going, with their cards
+dealt afresh: its Options change, but it can be answered. If the cards dealt leave it with no Option, they are dealt
+again: Excentric Sponsor plays a card from the hand and can be played only with one it can play, so everyone knows
+that Player holds such a card, though not which. Real Games are unchanged: the engine marks who is done
+buying and who has picked in this round, and asks any Player not done after the last one, which in a real Game is
+never anyone.
+
+**Why:** Those choices are simultaneous at the table; the engine only asks one Player at a time (ADR 0002). How many
+cards another Player bought is hidden until all are done, so a sample can't keep the real number. Taking the choices
+back, rather than making them at random while sampling, leaves them to whatever plays the sample, such as a later
+Controller's model of the opponent. Chosen by the user (2026-11-12).
+
+**Tests:** `tests/engine/test_sampled_positions.py::test_the_cards_another_player_bought_before_are_taken_back_and_they_buy_again_after_the_player`,
+`tests/engine/test_sampled_positions.py::test_the_card_another_player_kept_in_this_draft_round_is_taken_back_and_they_pick_again_after_the_player`
+and `tests/engine/test_sampled_positions.py::test_a_decision_in_progress_for_another_player_stays_answerable_with_their_cards_dealt_afresh`
+(found by the fuzz run).
+
+### Cards the Player passed in the Draft
+
+**Call:** A card the Player passed in the Draft and can't see now is with the Player they passed it to last. In a
+sample, the cards they passed last in the current Draft are exactly those that Player picks from now. The others
+passed this Generation go among the cards that Player has kept in this Draft, or after it among those they buy from;
+once the buying is over, and for earlier Generations, they go in their hand. Where there is no room left, a card goes in that Player's hand,
+then anywhere else they hide Project Cards, and with no room at all, among the cards nothing is known of.
+
+**Why:** The spec's fair play: cards passed in the Draft are known to be with the Player they were passed to, unless
+since played or otherwise accounted for. With 2 Players this is exact for the current Draft: every card passed and not
+passed back was kept. A card passed in an earlier Generation may have been left unbought and discarded, which the
+Player can't know; the hand is the likeliest place. With 3 or more Players, the Player passed to may have passed it
+on. Chosen by Claude (2026-11-12), on the user's instruction to choose the recommended decisions.
+
+**Tests:** `tests/engine/test_sampled_positions.py::test_cards_the_player_passed_in_the_draft_stay_with_whom_they_went_to_and_the_last_ones_are_picked_from`.
+
+### What a Sampled Position doesn't know
+
+**Call:** A sample uses only the Player View, which holds no game log and doesn't remember the Player's own discards.
+So these are dealt as unknown cards:
+- the card Search for Life reveals and discards, and the cards a Prelude Card reveals until it finds two with a Tag:
+  those taken into a hand, and those discarded;
+- a Prelude Card discarded because it couldn't be played, and Valley Trust's 2 Prelude Cards discarded unseen by
+  others (its own Player saw them);
+- the cards the Player discarded themselves: dealt and not bought, sold with Sell Patents, discarded for Mars
+  University, or not kept of those looked at;
+- the Prelude Cards the Player was dealt and didn't keep, which went back in the box;
+- with 3 or more Players, where a card passed on in the Draft went next;
+- that some cards passed in the Draft were left unbought: when the Player passed to bought fewer cards than they were
+  passed (their hand grows by fewer, and they pay less), some of those went to the discard pile, but a sample still
+  fills their hand with them first.
+
+A sample may deal any of them into another Player's hand or the deck.
+
+**Why:** These are acceptable for now. A sample is never better informed than the Player View, so it can't be
+unfair. It may be less informed than a Player with a perfect memory, which costs strength, not fairness, and a
+Controller may remember what it saw itself. Public reveals are rare. The Player's own discards are the largest
+gap: by mid-Game, a Player has seen a dozen or more cards go to the discard pile. If Matches show it matters, the
+Player View can list the cards its Player knows to be in the discard pile until it is shuffled into the deck.
+Chosen by Claude (2026-11-12), on the user's instruction to choose the recommended decisions.
+
+**Tests:** `tests/engine/test_sampled_positions.py::test_two_games_that_differ_only_in_hidden_cards_give_the_same_sampled_position_for_the_same_seed`
+pins down that a sample depends on nothing outside the Player View.

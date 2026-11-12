@@ -47,6 +47,15 @@ impl Deck {
         deck
     }
 
+    /// A deck of exactly `cards`, in that order from the bottom up.
+    pub fn from_bottom_up(cards: &[usize]) -> Deck {
+        let mut deck = Deck::EMPTY;
+        for &card in cards {
+            deck.put_on_top(card);
+        }
+        deck
+    }
+
     fn put_on_top(&mut self, card: usize) {
         self.cards[self.size as usize] = card as u8;
         self.size += 1;

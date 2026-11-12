@@ -16,6 +16,14 @@ def test_the_benchmark_measures_games_per_second_copy_times_and_a_python_loop():
     assert "Games per second" in report(results)
 
 
+def test_the_benchmark_measures_the_time_per_sampled_position_and_per_sampler():
+    results = measure(seconds=0.2, processes=2, games_for_mean_generations=10)
+
+    assert [sample.moment for sample in results.samples] == ["at the start", "halfway", "at the end"]
+    assert all(sample.microseconds > 0 and sample.sampler_microseconds > 0 for sample in results.samples)
+    assert "Making a Sampled Position" in report(results)
+
+
 def test_the_benchmark_can_measure_games_with_prelude():
     results = measure(seconds=0.2, processes=2, prelude=True, games_for_mean_generations=10)
 

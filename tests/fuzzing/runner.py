@@ -1,5 +1,7 @@
 """The fuzzer: it plays Random Bot Games from normal setup, each Player with a Corporation of those
 dealt, and checks the invariants after every Decision and at the end of every Game (ticket 06).
+At about one Decision in SAMPLE_EVERY it also takes a Sampled Position for a Player at random, checks
+it the same way, and plays it to the end (ticket 07 of phase 2).
 
 Game `seed` has the settings `settings_for(seed)`, and its Random Bot picks come from the same
 seed. Every failure (a broken invariant, an error from the engine or from a check, or a
@@ -32,6 +34,9 @@ FAILURES_FOLDER = Path(__file__).parents[2] / "fuzz-failures"
 # about 1,500. The pick limit catches a Game that stalls inside a Generation.
 GENERATION_LIMIT = 100
 PICK_LIMIT = 50_000
+
+# A Sampled Position is played out from about one Decision in this many: some 25 per Game.
+SAMPLE_EVERY = 25
 
 # How many Games a worker process plays before reporting back.
 GAMES_PER_BATCH = 25
@@ -76,6 +81,7 @@ class FuzzedGame:
     generations: int
     failure: Failure | None
     cards_played: frozenset[str]
+    samples_played: int = 0
 
 
 def fuzz_game(
@@ -89,12 +95,17 @@ def fuzz_game(
     generation_limit: int = GENERATION_LIMIT,
     pick_limit: int = PICK_LIMIT,
     pick: Pick = pick_at_random,
+    sample_every: int = SAMPLE_EVERY,
 ) -> FuzzedGame:
     """Plays one Game with a Random Bot for every Player, checking it after every Decision,
-    until it is over or something goes wrong."""
+    until it is over or something goes wrong. At about one Decision in `sample_every` (never if 0),
+    a Sampled Position is checked and played to the end too, from random numbers of its own, so
+    that the Game is played the same either way."""
     game = tm_engine.Game(seed=seed, players=players, draft=draft, prelude=prelude)
     start = game.replay["start"]
     random_numbers = random.Random(seed)
+    sampling = random.Random(f"{seed}/samples")
+    samples_played = 0
     picks: list[int] = []
     generation = 1
     decision = None
@@ -114,6 +125,9 @@ def fuzz_game(
                 )
             if decision is not None and len(picks) >= pick_limit:
                 problems.append(f"the Game is still going after {len(picks):,} picks, past the fuzzing limit")
+            if not problems and decision is not None and sample_every and sampling.randrange(sample_every) == 0:
+                problems += play_a_sample(game, sampling, after_every_decision, at_the_end, pick_limit)
+                samples_played += 1
             if problems or decision is None:
                 break
             failing_pick = pick(random_numbers, decision)
@@ -128,7 +142,48 @@ def fuzz_game(
     failure = Failure(seed, players, problems, replay, failing_pick) if problems else None
     boards = view["players"] if view else []
     cards_played = frozenset(card for board in boards for card in cards_in_play(board))
-    return FuzzedGame(seed, players, len(picks), generation, failure, cards_played)
+    return FuzzedGame(seed, players, len(picks), generation, failure, cards_played, samples_played)
+
+
+def play_a_sample(
+    game: tm_engine.Game,
+    random_numbers: random.Random,
+    after_every_decision: Sequence[Check],
+    at_the_end: Sequence[Check],
+    pick_limit: int,
+) -> list[str]:
+    """Takes a Sampled Position of `game` for a Player at random, checks it, plays it to the end with
+    Random Bots and checks it again. It is fair only if a sample of it, a Game that Player can't tell
+    from the real one, gives the same sample as the real Game. Returns what went wrong, each problem
+    saying which sample it was: the Game's Replay, the Player and the seed bring it back."""
+    player = random_numbers.randrange(game.players)
+    seed = random_numbers.randrange(tm_engine.MAX_SEED)
+    what = f"a Sampled Position for Player {player} (seed {seed})"
+    try:
+        sample = game.sampler(player).sample(seed=seed)
+        view, decision = sample.full_view(), sample.decision
+        problems = [f"{what}: {problem}" for check in after_every_decision for problem in check(view, decision)]
+        if sample.player_view(player) != game.player_view(player):
+            problems.append(f"{what}: its Player View differs from the real one")
+        decision = game.decision
+        if player == decision["player"] and sample.decision["options"] != decision["options"]:
+            problems.append(f"{what}: its Decision has other Options than the real one")
+        resampled, sampled_again = sample.sampler(player), game.sampler(player)
+        if resampled.sample(seed=seed + 1).full_view() != sampled_again.sample(seed=seed + 1).full_view():
+            problems.append(f"{what}: a sample of it differs from a sample of the real Game (seed {seed + 1})")
+        if problems:
+            return problems
+        sample.play_randomly(seed=seed, picks=pick_limit)
+        view, decision = sample.full_view(), sample.decision
+        checks = [*after_every_decision, *at_the_end] if decision is None else after_every_decision
+        problems = [f"{what}, played to the end: {problem}" for check in checks for problem in check(view, decision)]
+        if decision is not None:
+            problems.append(f"{what} is still going after {pick_limit:,} random picks")
+        return problems
+    except (KeyboardInterrupt, SystemExit):
+        raise
+    except BaseException as error:  # A panic in the engine arrives as a BaseException.
+        return [f"{what} raised {type(error).__name__}: {error}"]
 
 
 def what_was_going_on(decision: dict[str, Any] | None, failing_pick: int | None) -> str:

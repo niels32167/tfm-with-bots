@@ -225,6 +225,9 @@ export interface View {
   /** The Prelude Card the current Player is playing, while its effects are carried out, such as placing
    * Aquifer Turbines' Ocean, by catalog id; null once they are done, as its price is paid. */
   playing_prelude_card: string | null;
+  /** The Project Card the current Player is paying for, by catalog id, which they play once it is paid;
+   * null otherwise. Played cards are shown face up, so every Player sees it. */
+  playing_card: string | null;
   temperature: number;
   /** In percent. */
   oxygen: number;
@@ -241,6 +244,10 @@ export interface View {
   discard: string[] | null;
   first_player: number;
   current_player: number | null;
+  /** What kind of Decision the current Player is answering, such as "sell_patents"; null once the Game
+   * is over. Everyone at the table sees it, though not always its Options. While Players buy cards (at
+   * setup choosing their Corporation and keeping Prelude Cards too), it is "buy_cards" throughout. */
+  deciding: string | null;
   actions_this_turn: number;
   players: PlayerBoard[];
   /** The five Milestones, in the order printed on the board. */

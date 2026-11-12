@@ -89,7 +89,8 @@ wrong Areas (`tests/fuzzing/invariants.py` lists them all).
 
 ## Fuzzing and speed
 
-The full fuzz run plays 100,000 Games on all cores and takes a few minutes:
+The full fuzz run plays 100,000 Games on all cores and takes about 48 minutes. At about one Decision in 25 it
+also takes a Sampled Position for a Player at random, checks that it is fair, and plays it to the end:
 
 ```bash
 uv run python -m tests.fuzzing
@@ -100,7 +101,7 @@ Every failure is saved in `fuzz-failures/` as a Replay file: **Load Replay…** 
 the moment it went wrong, with every Player set to human, so **Undo** steps back from there.
 
 The speed benchmark (ADR 0004) reports 2-player Games per second across all cores, how
-long copying a Game takes, and how many Decisions per second a Python loop gets through,
+long copying a Game and making a Sampled Position take, and how many Decisions per second a Python loop gets through,
 and the mean Generations of Random Bot Games without Prelude and with it. `--prelude`
 benchmarks Games with Prelude. It exits with status 1 if a target is missed:
 
@@ -127,8 +128,14 @@ step up the ladder is checked by a command; it is 3 if a Game went wrong. Stalle
 `--pick-limit` picks) and Games that went wrong are saved in `match-failures/` as Replay files.
 
 A Controller is handed only a read-only handle: its Player's Player View, the Decision and a random
-source, never the Game (`ai/controller.py`). A Controller that uses only that random source plays the
-same way from the same seeds.
+source, never the Game (`ai/controller.py`). To look ahead, it asks the handle for Sampled Positions:
+`handle.sample(seed=...)` gives a new Game with the cards its Player can't see dealt at random, made inside
+the engine from the Player View (see "Sampled Positions" in `docs/rules-notes.md`). A Controller that uses
+only that random source plays the same way from the same seeds.
+
+The registered Controllers are the Random Bot and the Flat Playout Bot (`flat_playout`), which plays each
+Option out at random on 20 Sampled Positions and picks the best mean Victory Point margin. A pick takes about
+14 ms on average and under 0.2 s at most.
 
 ## Cards
 
@@ -292,7 +299,7 @@ pick(game, "Play Mine")
 | `tests/cards/` | Tests of the card catalog, and each card's scenario tests (`test_<id>.py`) |
 | `tests/helpers.py` | `scenario()`, `player()`, `ocean()`, `city()`, `claimed()`, `funded()`, `terraformed_mars()`, `pick()`, `offered()`, `area()`, `milestone()`, `award()`, `resources()`, `hand()`, `played_cards()`, `final_scores()`, `load_game()`: helpers that make tests read like play |
 | `server/` | The local server, which asks registered Controllers for their picks |
-| `ai/` | Controllers and the tools that compare them: the handle a Controller is given (`controller.py`), the registered Controllers (`controllers.py`), the Random Bot (`random_bot.py`) and the Match tool (`match.py`) |
+| `ai/` | Controllers and the tools that compare them: the handle a Controller is given (`controller.py`), the registered Controllers (`controllers.py`), the Random Bot (`random_bot.py`), the Flat Playout Bot (`flat_playout.py`) and the Match tool (`match.py`) |
 | `tests/ai/` | Tests of fair play, the registered Controllers and the Match tool |
 | `gui/src/` | The browser GUI; the board is one SVG drawn by `gui/src/components/MarsBoard.tsx` with the parts beside it (`OxygenTrack`, `TemperatureTrack`, `OceanTrack`, `StandardProjects`, `MilestonesAwards`), sharing `boardLayout.tsx`, and the printed tracks are in `gui/src/tracks.ts` |
 | `gui/src/components/DevPanel.tsx`, `StateEditor.tsx`, `gui/src/scenario.ts` | The dev panel, its state editor, and the edits it makes to a Scenario |

@@ -63,7 +63,7 @@ def load(path: Path) -> dict[str, Any]:
 
 def test_a_broken_invariant_is_saved_as_a_replay_file_that_reproduces_it(tmp_path):
     check = temperature_stays_below(-20)
-    failure = fuzz_game(seed=1, players=3, after_every_decision=[check]).failure
+    failure = fuzz_game(seed=1, players=3, after_every_decision=[check], sample_every=0).failure
 
     file = load(save_failure(failure, tmp_path))
 
@@ -107,7 +107,7 @@ def test_an_error_while_checking_a_position_is_saved_as_a_replay_of_that_positio
             raise KeyError("planted")
         yield from ()
 
-    failure = fuzz_game(seed=1, players=2, after_every_decision=[breaks_at]).failure
+    failure = fuzz_game(seed=1, players=2, after_every_decision=[breaks_at], sample_every=0).failure
 
     assert failure.problems == ["checking the Game raised KeyError: 'planted'"]
     assert failure.failing_pick is None
@@ -124,7 +124,7 @@ def test_a_game_still_going_past_the_generation_limit_is_a_failure():
 
 
 def test_a_game_still_going_past_the_pick_limit_is_a_failure():
-    failure = fuzz_game(seed=1, players=2, pick_limit=50).failure
+    failure = fuzz_game(seed=1, players=2, pick_limit=50, sample_every=0).failure
 
     assert failure.problems == ["the Game is still going after 50 picks, past the fuzzing limit"]
     assert len(failure.replay["picks"]) == 50
@@ -134,7 +134,27 @@ def test_the_end_of_game_checks_run_once_the_game_is_over():
     def always_broken(view, decision):
         yield "planted"
 
-    failure = fuzz_game(seed=1, players=2, at_the_end=[always_broken]).failure
+    failure = fuzz_game(seed=1, players=2, at_the_end=[always_broken], sample_every=0).failure
 
     assert failure.problems == ["planted"]
     assert tm_engine.Game.from_replay(failure.replay).is_over
+
+
+def test_a_fuzzed_game_plays_sampled_positions_to_the_end_from_some_of_its_decisions():
+    game = fuzz_game(seed=1, players=3, prelude=True)
+
+    assert game.failure is None
+    assert 10 < game.samples_played < game.decisions / 10
+
+
+def test_a_sampled_position_that_breaks_an_invariant_is_saved_with_the_real_game_up_to_where_it_was_taken():
+    def broken_once_over(view, decision):
+        if decision is None:
+            yield "planted"
+
+    failure = fuzz_game(seed=1, players=2, after_every_decision=[broken_once_over], sample_every=1).failure
+
+    assert len(failure.replay["picks"]) == 0
+    [problem] = failure.problems
+    assert problem.startswith("a Sampled Position for Player ")
+    assert problem.endswith(", played to the end: planted")

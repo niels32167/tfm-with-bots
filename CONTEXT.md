@@ -119,7 +119,7 @@ A Controller other than a human, listed by name in `ai/controllers.py`, which th
 _Avoid_: AI (for the Random Bot), engine
 
 **Handle**:
-What a Controller is given to answer a Decision: its Player's Player View, the Decision and a random source, as plain data, never the Game.
+What a Controller is given to answer a Decision: its Player's Player View, the Decision and a random source, as plain data, and a way to get Sampled Positions; never the Game.
 _Avoid_: observation, state
 
 **Player View**:
@@ -161,7 +161,7 @@ A model that predicts what strong Players pick at a Decision, trained on Recorde
 A model that estimates a Player's chance of winning from their Player View, trained by self-play.
 
 **Sampled Position**:
-A complete Game made from a Player View by dealing the cards that Player can't see at random, consistent with what they know. It is how a Controller looks ahead without seeing hidden cards.
+A complete Game made from a Player View by dealing the cards that Player can't see at random, consistent with what they know. Other Players' secret choices in the current Draft round or buying step are taken back, to be made again. It is how a Controller looks ahead without seeing hidden cards.
 _Avoid_: determinization, copy (a copy of a Game keeps its real hidden cards)
 
 ## Flagged ambiguities
