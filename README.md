@@ -137,6 +137,26 @@ The registered Controllers are the Random Bot and the Flat Playout Bot (`flat_pl
 Option out at random on 20 Sampled Positions and picks the best mean Victory Point margin. A pick takes about
 14 ms on average and under 0.2 s at most.
 
+## Recorded Games
+
+Games humans played on Board Game Arena, from tfmstats.com's log archive (ADR 0012), unpacked into the
+gitignored `tm_statistics/` (147 GB, one JSON log per Game and perspective). The importer turns them into a
+compact private dataset in `.cache/recorded-games/` (about 1 GB), on all cores, in about 9 minutes:
+
+```bash
+uv run python -m ai.recorded_games
+uv run python -m ai.recorded_games.tables
+```
+
+It keeps 2-player Games on Tharsis with Corporate Era and the Draft, without Colonies, once each however
+many perspectives the archive holds, and writes each Player's setup, Draft and buy Decisions with only what
+that Player could see, the public position each was made in, the results, and a slim copy of the moves for
+rebuilding hands and replaying Games later. Player names are left out; ids are salted hashes. It reports
+coverage (Games read, skipped and why, names it couldn't map) and resumes after an interruption; the
+format is described in `ai/recorded_games/__init__.py`. The second command prints tables to compare with
+the spec and with tfmstats.com. The logs name no licence, so the archive, the dataset and anything trained
+from them stay out of git and are never published.
+
 ## Cards
 
 The printed card data (ADR 0005) comes from the fan-made card list at
@@ -300,7 +320,8 @@ pick(game, "Play Mine")
 | `tests/helpers.py` | `scenario()`, `player()`, `ocean()`, `city()`, `claimed()`, `funded()`, `terraformed_mars()`, `pick()`, `offered()`, `area()`, `milestone()`, `award()`, `resources()`, `hand()`, `played_cards()`, `final_scores()`, `load_game()`: helpers that make tests read like play |
 | `server/` | The local server, which asks registered Controllers for their picks |
 | `ai/` | Controllers and the tools that compare them: the handle a Controller is given (`controller.py`), the registered Controllers (`controllers.py`), the Random Bot (`random_bot.py`), the Flat Playout Bot (`flat_playout.py`) and the Match tool (`match.py`) |
-| `tests/ai/` | Tests of fair play, the registered Controllers and the Match tool |
+| `ai/recorded_games/` | The Recorded Game importer (`build.py`, run as `python -m ai.recorded_games`), one log to a dataset entry (`importer.py`), names to catalog ids (`names.py`), the slim moves (`moves.py`), reading the dataset (`dataset.py`) and its comparison tables (`tables.py`) |
+| `tests/ai/` | Tests of fair play, the registered Controllers the Match tool and the Recorded Game importer |
 | `gui/src/` | The browser GUI; the board is one SVG drawn by `gui/src/components/MarsBoard.tsx` with the parts beside it (`OxygenTrack`, `TemperatureTrack`, `OceanTrack`, `StandardProjects`, `MilestonesAwards`), sharing `boardLayout.tsx`, and the printed tracks are in `gui/src/tracks.ts` |
 | `gui/src/components/DevPanel.tsx`, `StateEditor.tsx`, `gui/src/scenario.ts` | The dev panel, its state editor, and the edits it makes to a Scenario |
 | `gui/src/cards/` | Cards drawn as the card list draws them (`PrintedCard.tsx`, `cardList.css`), the card gallery, the hand (`HandDock.tsx`), the played cards under the board (`PlayedCards.tsx`), and the zoom on any card (`CardZoom.tsx`) |

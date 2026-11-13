@@ -168,3 +168,4 @@ _Avoid_: determinization, copy (a copy of a Game keeps its real hidden cards)
 
 - "Action" means the game's Action (above). The reinforcement-learning sense of "action" (one thing the AI picks) is an **Option**.
 - "Log" alone is ambiguous: the engine's history is the **game log**, and a Board Game Arena log describes a **Recorded Game**.
+- "Rating" alone, as in the spec and the Recorded Game dataset, is a Player's Board Game Arena rating (its `game_rank`). The **Terraform Rating** is always named in full.
