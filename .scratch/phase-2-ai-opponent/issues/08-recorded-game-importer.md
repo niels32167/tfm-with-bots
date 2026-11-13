@@ -6,7 +6,9 @@ Each record describes one Player's Decision: the cards on offer, those kept so f
 
 Start from `experiments/logs_scan.py`, which scans the archive on all cores. No file in the archive is ever run, and it is read with `python -I` or equivalent.
 
-**Known traits to handle:** see "Recorded Games" in the spec. In particular, card names need a map to the catalog, wording differs by scraper version, and several perspectives of one Game count once.
+**Known traits to handle:** see "Recorded Games" in the spec. In particular, card names need a map to the catalog, wording differs by scraper version, and several perspectives of one Game count once. tfmstats.com's tables, built by the same scraper, show names it failed to translate: "Begginer Corp", "Milestone 5", "card_prelude_P34" and Award names in Polish ("Podróżnik", "Bankier"). Expect the same in the archive.
+
+**A cross-check:** tfmstats.com publishes tables computed from the same kind of logs (see "Statistics from tfmstats.com" in the spec). Computed from the dataset with the same filters, ours should come close to the site's. That checks name mapping, offers, keeps and duplicate perspectives better than total counts do. Set the site's filters to 2 Players, Tharsis, Prelude, Draft and no Colonies where a page has them, record the date, and press Reset afterwards (the site remembers its filters).
 
 **Blocked by:** 01 — Prelude cards in the catalog
 
@@ -21,5 +23,6 @@ Start from `experiments/logs_scan.py`, which scans the archive on all cores. No 
 - [ ] The dataset is well under 10 GB, and its size is recorded under Comments. Then I decide whether to delete the archive.
 - [ ] `tm_statistics/` and the dataset stay out of git.
 - [ ] Counts are compared with the spec's table, and any difference is explained under Comments.
+- [ ] The dataset's tables are compared with tfmstats.com's, dated, and differences beyond what the archive's date and the site's filters explain are investigated: starting-hand keep rates of the 20 most- and 20 least-kept cards; each Corporation's and Prelude Card's times chosen or kept and its win rate; and the times each Tharsis Milestone is claimed and Award funded, with the mean Generation.
 
 ## Comments

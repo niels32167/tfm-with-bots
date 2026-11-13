@@ -117,6 +117,7 @@ Stronger Players play closer Games: the winning margin falls from about 30 Victo
 - These are for cards bought in Generation 1 of Prelude Games, and rate a Victory Point at only 1.5 MC. So Prices must depend on the Generations left, and a Victory Point's Price must rise over the Game towards the cost of buying one with Standard Projects.
 - A Tag's Price depends on context, such as how much closer it brings the Requirements of cards in hand, and what it triggers on played cards.
 - The estimate of the Generations left is held fixed while comparing a Decision's Options, or the bot refuses to terraform.
+- For setup and Awards, tfmstats.com's tables give further starting values (see "Statistics from tfmstats.com").
 
 ### Models
 
@@ -140,6 +141,23 @@ Stronger Players play closer Games: the winning margin falls from about 30 Victo
   - Names differ from the card catalog (Allied Bank/Allied Banks, CEO's Favourite/Favorite Project).
 - Conceded Games are usable for Decisions, but not as evidence of final scores.
 - Some of the archive's dates are invalid, so a date filter must treat those as unknown.
+
+### Statistics from tfmstats.com
+
+tfmstats.com shows tables built by the same open-source scraping project as the archive, whose data it says is "freely available to the community" (checked 2026-11-13). Each is per item, with win rate, average rating change and counts:
+- Starting Hand: each card's keep rate when offered at setup, and the rating change when kept or not. 2 Players, ranked, Prelude and Draft on, no Colonies.
+- Project Cards: when played, or when offered.
+- Corporations and Preludes: when chosen or kept.
+- Combinations: pairs of Corporation, Prelude Card and starting-hand card, with each pair's lift over its parts. Same games as Starting Hand.
+- Milestones and Awards: when claimed or funded, with the mean Generation, and for Awards how often the funder doesn't win it (flip rate).
+
+How they are used:
+- **As checks:** the importer's tables should match them (ticket 08), and Controllers' setup choices, keep rates, synergies and Milestone and Award timing are compared with them (tickets 11, 13 and 14).
+- **As starting values:** for setup Prices and for funding Awards (ticket 11).
+- **Never as training data or fixed rules** (ADR 0013): a win rate when a card is played or a Milestone claimed mostly shows who was already ahead.
+- **Never as model inputs as they stand:** they include the held-out Games. Per-card statistics as inputs are computed from the training Games (ticket 12).
+
+Things to know: only Starting Hand and Combinations are fixed to our kind of Game; the other pages start with no filters (every player count, map and expansion) and remember the filters set, so press Reset afterwards. They include other expansions' Corporations and other maps' Milestones and Awards, and names the scraper failed to translate ("Begginer Corp", "Milestone 5", "card_prelude_P34", Award names in Polish). The pages need JavaScript, so read them in the browser pane.
 
 ### What ticket 09 starts from
 

@@ -6,7 +6,8 @@
 - the public state and the Player's own hand and known cards;
 - each card as an input in its own right: its id, and its printed facts from the catalog (cost, Tags, Requirements, Victory Points, effect data);
 - each Option as an input, from its structured details;
-- computed strategy facts: Generations left, each card's payback and distance to its Requirements, and Prices from ticket 11 (ADR 0013).
+- computed strategy facts: Generations left, each card's payback and distance to its Requirements, and Prices from ticket 11 (ADR 0013);
+- possibly per-card statistics such as tfmstats.com shows (keep rate, rating change when kept or not), computed from the training Games only. The site's own numbers include the held-out Games, so they would leak the test into the inputs.
 
 Fields Recorded Games can't supply in Draft and buy records must be marked missing, not faked.
 
