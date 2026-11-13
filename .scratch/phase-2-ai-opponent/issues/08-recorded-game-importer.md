@@ -197,3 +197,5 @@ Draft on; every page reset afterwards):
 - `uvx --offline ruff check` and `ruff format --line-length 120` are clean on the new files.
 - No engine or GUI change, so no clippy, rustfmt or GUI build.
 - The README gains a "Recorded Games" section.
+
+**The archive** (2026-11-13): the user keeps `tm_statistics/` for now. Whether to delete it is asked again later.
