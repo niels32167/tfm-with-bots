@@ -6,6 +6,15 @@ Consider how much to learn at each kind of Decision. Payment has up to 166 Optio
 
 Humans also make Decisions in ways the engine's chain may split differently, so ticket 10 decides how those map onto Options.
 
+**From ticket 09: the accuracy needed for hands.**
+- **Which Games.** Learn Action-phase Decisions from the "named" Games: 37,884 with Prelude and 4,547 without, 22,081 of them not conceded. Read the hands with `resync=True`.
+- **What a hand at a Decision must have:**
+  - its size right at every fresh Hand Counter check of the Game ("counted");
+  - every card the Player later plays from it present by name (99.43% are).
+- **Sold cards.** Cards that left without a name (Sell Patents, Mars University) are resolved in hindsight from named cards never played later, as ticket 10 does. The only error left is which never-played cards a Player still held: cards that drove no later play.
+- **Not required.** Exact hands throughout would leave 170 Games not conceded.
+- **Old-version Games** name only one Player's cards. They are left out at first.
+
 **Blocked by:** 10 — Recorded Games in the engine; 12 — Position encoding; 13 — Imitation Model for Draft and buy
 
 **Status:** ready-for-agent

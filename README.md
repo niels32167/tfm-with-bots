@@ -157,6 +157,11 @@ format is described in `ai/recorded_games/__init__.py`. The second command print
 the spec and with tfmstats.com. The logs name no licence, so the archive, the dataset and anything trained
 from them stay out of git and are never published.
 
+`ai/recorded_games/hands.py` rebuilds each Player's hand move by move from the slim moves (`HandReader`).
+Its size matches Board Game Arena's Hand Counter at 99.2% of the moves where that counter is fresh. Which
+cards it holds is known by name except after a discard the log doesn't name (Sell Patents, Mars University)
+and, in old logs, for the opponent's cards. Ticket 09 has the measurements.
+
 ## Cards
 
 The printed card data (ADR 0005) comes from the fan-made card list at

@@ -163,6 +163,11 @@ Things to know: only Starting Hand and Combinations are fixed to our kind of Gam
 
 A first rebuild, from the wording of move descriptions, finds 99.5% of played cards in the hand without Prelude and 98.6% with. But it is about 2 cards too large, and matches the `Hand Counter` at only about 48% of checks after a card is played. Additions look reliable, and some removal is being missed. Sell Patents is a suspect, not a finding. The script is `experiments/logs_hands2.py`.
 
+Result (ticket 09):
+- The missed removals are discards that never name their cards (Sell Patents, Mars University), plus a dozen wording traits.
+- `ai/recorded_games/hands.py` now rebuilds hand size to 99.2% of fresh Hand Counter checks, and 97.2% of Games at every check.
+- Ticket 09's Comments say which Games to trust and the accuracy tickets 10 and 14 need.
+
 ### Build order
 
 1. **Prelude:** tickets 01–05.

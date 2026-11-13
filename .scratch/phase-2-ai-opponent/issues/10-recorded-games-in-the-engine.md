@@ -9,6 +9,12 @@ It needs a way to start a Game with a chosen deal and draw order; find the small
 
 Expect many differences at first, mostly from parsing. Group them by cause and work down the largest groups. Stop when what remains is rare or isn't worth chasing, and record the decision.
 
+**From ticket 09:**
+- **Hands.** Take them from `ai.recorded_games.hands.HandReader` with `resync=True`. Replay first the 42,431 "named" Games, whose versions name both Players' cards; ticket 09's Comments say how to recognise them.
+- **Sold cards.** Sell Patents and Mars University discards never name their cards. Choose them in hindsight from the named cards in hand that the Player never plays later. Any such choice replays the same; it is possible for 99% of Players.
+- **Cards that entered unnamed** take their names from their plays.
+- **Parser differences, not engine bugs:** a play `HandReader` finds "missing" (0.57%), a Hand Counter mismatch at a fresh check, or an `unread` line (a renamed account, 710 Games).
+
 **Blocked by:** 05 — Prelude exit checks; 09 — Find what the hand rebuild misses
 
 **Status:** ready-for-agent

@@ -34,6 +34,7 @@ A Game (format 1):
     "cards"}], as in the Player View).
   - "buy": "offer" (the 4 cards drafted), "picked" (those kept, maybe none), "passed".
   Each has "kind", "player", "generation" and "position" (an index into "positions"). Cards are catalog ids.
-  Not in these records, because Recorded Games don't give them reliably: the Player's hand (ticket 09)
-  and the board's Tiles (ticket 10, from the moves). Action-phase Decisions will be further kinds.
+  Not in these records, because Recorded Games don't give them reliably: the Player's hand (rebuilt from
+  the moves by ai.recorded_games.hands, ticket 09) and the board's Tiles (ticket 10, from the moves).
+  Action-phase Decisions will be further kinds.
 """
