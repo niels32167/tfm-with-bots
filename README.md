@@ -51,7 +51,7 @@ The project has two phases:
 | Phase | Goal | Status |
 | --- | --- | --- |
 | **1. A playable game** | A correct, fast and well-tested engine with a GUI, all 208 Project Cards and 12 Corporations | ✅ Done |
-| **2. An AI opponent** | Prelude expansion, fair Controllers, then a ladder of ever stronger AIs trained on human games and self-play | 🚧 In progress: tickets 01–09 of 17 done |
+| **2. An AI opponent** | Prelude expansion, fair Controllers, then a ladder of ever stronger AIs trained on human games and self-play | 🚧 In progress: tickets 01–10 of 17 done |
 
 The engine covers the full base game on the Tharsis board with Corporate Era, the Draft, and the
 **Prelude** expansion: 2–5 Players and **all 267 cards** (208 Project Cards, 12 Corporations, and Prelude's 35
@@ -77,7 +77,8 @@ or AI Controllers.
   Load Replay, a card gallery, and a dev panel for hunting rule bugs.
 - **Learning from about 59,000 human Games.** An importer turns a 147 GB archive of Board Game Arena logs
   into a compact training set. It rebuilds each Player's hand move by move, and its hand sizes match Board
-  Game Arena's own counter 99.2% of the time.
+  Game Arena's own counter 99.2% of the time. Replayed through the engine, 73% of those Games play out
+  exactly as logged, which also tests the rules against real play.
 
 ## Screenshots
 
@@ -106,7 +107,7 @@ flowchart LR
         AI["AI Controllers<br/>Random Bot, Flat Playout Bot, …"]
         Match["Match tool<br/>Controller vs Controller"]
         Tests["pytest suite<br/>+ fuzzer + benchmark"]
-        Importer["Recorded Game importer<br/>Board Game Arena logs"]
+        Importer["Recorded Game importer<br/>and replay<br/>Board Game Arena logs"]
     end
     subgraph Rust["Rust (PyO3)"]
         Engine["tm_engine<br/>rules, Decisions, Replays,<br/>Player Views, Sampled Positions"]
@@ -119,6 +120,7 @@ flowchart LR
     Match --> Engine
     AI -->|"Player View, Decision,<br/>Sampled Positions"| Engine
     Tests --> Engine
+    Importer -->|"replays logs<br/>from their deal"| Engine
     Importer -.->|"training data"| AI
     Cards --> Engine
 ```
