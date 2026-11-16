@@ -7,6 +7,8 @@ The dataset is .cache/recorded-games/, out of git: never publish it or anything 
 - shards/NNN/games.jsonl.gz: one Game per line, in the format below.
 - shards/NNN/moves.jsonl.gz: the same Games' slim moves (ai.recorded_games.moves), for tickets 09 and 10.
   They name both Players' cards, as the logs do: raw material, never training data as they stand.
+- shards/NNN/replays.jsonl.gz: the Games replayed through the engine (ticket 10), one line each; see below.
+  Written by `uv run python -m ai.recorded_games.replay_dataset`, which also writes replays-report.txt.
 - salt: the secret behind the anonymous ids. Keep it to follow Players across rebuilds.
 - coverage.json and report.txt: what the build read, kept and skipped, and why.
 
@@ -36,5 +38,20 @@ A Game (format 1):
   Each has "kind", "player", "generation" and "position" (an index into "positions"). Cards are catalog ids.
   Not in these records, because Recorded Games don't give them reliably: the Player's hand (rebuilt from
   the moves by ai.recorded_games.hands, ticket 09) and the board's Tiles (ticket 10, from the moves).
-  Action-phase Decisions will be further kinds.
+  Action-phase Decisions are in the replays.
+
+A replayed Game (replays.jsonl.gz), for each Game with both Players' setup records:
+- "game"; "complete" (every Action in the log matched, and a Game not conceded ended with the log's scores);
+  "decisions" (picks in the Replay); "moves" and "moves_reached" (moves in the log, and those before the
+  first difference); "generation" (where the engine got to).
+- "difference": None, or the first one: "cause" (a group, such as "card not in hand"), "move_number" and
+  "detail".
+- "replay": the engine's Replay up to the first difference: its start holds the deal (the first player, and
+  the cards in the order dealt and drawn), and its picks every Option picked. Like the slim moves, it names
+  both Players' cards: raw material. "inferred" lists the picks, by index, that the log didn't give (passes
+  it left out, ties the trackers settled, cards sold or discarded in hindsight, alternatives retried).
+  ai.recorded_games.replay.action_decisions() rebuilds from it each
+  Decision outside setup and the Research phases (the Prelude Cards played and the Action phases) as its
+  Player saw it: the Player View, the Options and the pick. A Game replayed partly gives the Decisions before
+  its first difference.
 """

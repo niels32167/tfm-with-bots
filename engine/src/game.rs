@@ -21,6 +21,7 @@ use crate::cards::{
     AddToAnother, CARD_CATALOG, CARDS_OF_TYPE, CARDS_WITH, PROJECT_CARDS, project_cards_with,
 };
 use crate::corporations::ChoosingCorporation;
+use crate::deal::Deal;
 use crate::deck::Deck;
 use crate::draft::{DraftPass, Drafting};
 use crate::expenses::Expense;
@@ -101,6 +102,11 @@ pub struct Settings {
     /// without Prelude saves as it did.
     #[serde(default, skip_serializing_if = "std::ops::Not::not")]
     pub prelude: bool,
+    /// The first player and the cards in the order dealt and drawn, chosen instead of shuffled, to
+    /// replay a Recorded Game. Only a Game that has one names it. Boxed, so that copying a Game without
+    /// one stays as cheap as before (ADR 0004).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub deal: Option<Box<Deal>>,
 }
 
 #[derive(Clone, Debug)]
@@ -582,13 +588,19 @@ impl Game {
     pub fn new(settings: Settings) -> Result<Game, String> {
         check_player_count(settings.players)?;
         check_seed(settings.seed)?;
+        let mut on_top = match &settings.deal {
+            Some(deal) => deal.project_cards(settings.players, settings.prelude)?,
+            None => Vec::new(),
+        };
         let holding =
             if settings.corporations { Resources::default() } else { resources_without_a_corporation() };
         let players = vec![Player::new(holding); settings.players];
         let mut game = Game::prepare(Start::Settings(settings), players);
-        game.first_player = game.random_numbers.below(game.players.len());
+        game.first_player = match &game.settings.deal {
+            Some(deal) => deal.first_player,
+            None => game.random_numbers.below(game.players.len()),
+        };
         game.generation = 1;
-        let mut on_top = Vec::new();
         if game.settings.implemented_cards_first {
             on_top = (0..PROJECT_CARDS).collect();
             game.random_numbers.shuffle(&mut on_top);

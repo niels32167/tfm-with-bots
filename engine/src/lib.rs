@@ -10,6 +10,7 @@ mod card_resources;
 mod card_set;
 mod cards;
 mod corporations;
+mod deal;
 mod deck;
 mod draft;
 mod expenses;
@@ -44,12 +45,32 @@ struct PyGame {
 impl PyGame {
     /// A new Game from its settings, with the Draft unless `draft` is false. Without
     /// `corporations`, as a Replay saved before they existed plays, nobody has one. With `prelude`,
-    /// each Player is dealt Prelude Cards at setup, and the deck has Prelude's Project Cards.
+    /// each Player is dealt Prelude Cards at setup, and the deck has Prelude's Project Cards. A `deal`
+    /// gives the first player and the cards in the order dealt and drawn, as a dict (see deal.rs).
     #[new]
-    #[pyo3(signature = (*, seed, players = 2, draft = true, corporations = true, prelude = false))]
-    fn new(seed: u64, players: usize, draft: bool, corporations: bool, prelude: bool) -> PyResult<Self> {
-        let settings =
-            game::Settings { players, seed, implemented_cards_first: false, draft, corporations, prelude };
+    #[pyo3(signature = (*, seed, players = 2, draft = true, corporations = true, prelude = false, deal = None))]
+    fn new(
+        seed: u64,
+        players: usize,
+        draft: bool,
+        corporations: bool,
+        prelude: bool,
+        deal: Option<&Bound<'_, PyAny>>,
+    ) -> PyResult<Self> {
+        let deal = deal
+            .map(|deal| {
+                depythonize(deal).map_err(|error| PyValueError::new_err(format!("invalid deal: {error}")))
+            })
+            .transpose()?;
+        let settings = game::Settings {
+            players,
+            seed,
+            implemented_cards_first: false,
+            draft,
+            corporations,
+            prelude,
+            deal,
+        };
         let game = game::Game::new(settings).map_err(PyValueError::new_err)?;
         Ok(PyGame { game })
     }

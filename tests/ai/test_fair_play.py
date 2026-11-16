@@ -159,8 +159,9 @@ def test_the_leak_check_finds_a_game_and_a_hidden_card():
 
 def test_no_controller_imports_the_engine():
     # With the engine, a Controller could make Games of its own and find a Match's small seed from the
-    # cards dealt to it. Only the seam that builds handles and the Match tool may import it.
-    may_import_the_engine = {"controller.py", "match.py"}
+    # cards dealt to it. Only the seam that builds handles, the Match tool and the replay of Recorded Games,
+    # which builds training data and is never a Controller, may import it.
+    may_import_the_engine = {"controller.py", "match.py", "replay.py"}
     importing = []
     for path in sorted(Path(ai.__file__).parent.rglob("*.py")):
         tree = ast.parse(path.read_text())

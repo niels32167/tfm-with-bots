@@ -33,8 +33,8 @@ impl Game {
     /// shuffled Corporations: the base box's 12, and with Prelude its 5 too. Those left over, and later
     /// those not chosen, go back in the box.
     pub(crate) fn deal_corporations(&mut self) {
-        let mut corporations: Vec<usize> = corporations_with(self.settings.prelude).iter().collect();
-        self.random_numbers.shuffle(&mut corporations);
+        let in_game = corporations_with(self.settings.prelude);
+        let corporations = self.dealing_order(in_game.iter(), |deal| &deal.corporations);
         let mut dealing = corporations.chunks(CORPORATIONS_DEALT);
         for player in self.player_order() {
             let dealt = dealing.next().expect("there are enough Corporations for 5 Players");

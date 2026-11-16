@@ -210,6 +210,7 @@ impl Sampler {
             game.players[game.current_player].hand.insert(card);
         }
         game.settings.seed = seed;
+        game.settings.deal = None; // A deal would give the hidden cards' real order back.
         game.random_numbers = random_numbers.clone();
         if self.restart_buying {
             game.offer_buying_from(game.index_in_player_order());

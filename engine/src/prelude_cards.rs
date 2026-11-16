@@ -102,8 +102,7 @@ impl Game {
     /// Each Player, in player order from the first player, is dealt their Prelude Cards from the
     /// shuffled Prelude Cards. Those left over are the Prelude deck; those not kept go back in the box.
     pub(crate) fn deal_prelude_cards(&mut self) {
-        let mut cards: Vec<usize> = (FIRST_PRELUDE_CARD..CATALOG_CARDS).collect();
-        self.random_numbers.shuffle(&mut cards);
+        let cards = self.dealing_order(FIRST_PRELUDE_CARD..CATALOG_CARDS, |deal| &deal.prelude_cards);
         let mut dealing = cards.chunks(PRELUDE_CARDS_DEALT);
         for player in self.player_order() {
             let dealt = dealing.next().expect("there are enough Prelude Cards for 5 Players");
@@ -292,10 +291,10 @@ impl Game {
     }
 
     /// `player` draws up to `count` Prelude Cards at random from the Prelude deck, as from a shuffled
-    /// deck, and holds them to play one (Valley Trust's first action).
+    /// deck, and holds them to play one (Valley Trust's first action). With a deal, they are the next it names.
     pub(crate) fn draw_prelude_cards(&mut self, player: usize, count: usize) {
-        let mut cards: Vec<usize> = self.prelude_deck.iter().collect();
-        self.random_numbers.shuffle(&mut cards);
+        let deck = self.prelude_deck;
+        let mut cards = self.dealing_order(deck.iter(), |deal| &deal.prelude_cards);
         cards.truncate(count);
         for &card in &cards {
             self.prelude_deck.remove(card);

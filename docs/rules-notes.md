@@ -2325,3 +2325,35 @@ Chosen by Claude (2026-11-12), on the user's instruction to choose the recommend
 
 **Tests:** `tests/engine/test_sampled_positions.py::test_two_games_that_differ_only_in_hidden_cards_give_the_same_sampled_position_for_the_same_seed`
 pins down that a sample depends on nothing outside the Player View.
+
+## Recorded Games
+
+### A Game from a chosen deal
+
+**Call:** A new Game may be given a deal: the first player, and the Corporations, Prelude Cards and Project Cards in the
+order they are dealt and drawn. The cards it names are dealt or drawn in that order: at setup each Player's in player
+order from the first player, and later every draw from the deck, the Research phase's deal included. Valley Trust's
+first action draws the next Prelude Cards it names. Cards it leaves out are shuffled beneath, with the Game's seeded
+random numbers. The deal is part of the settings, so a Game's Replay holds it and reproduces the Game. A Game without
+one draws its random numbers exactly as before, and a Sampled Position leaves it out, as it would give the hidden cards'
+order back.
+
+**Why:** Replaying a Recorded Game through the engine needs the cards its log shows (ticket 10 of phase 2). A Scenario
+starts after setup, so setup's Decisions couldn't be replayed from one; a deal in the settings is the smallest change
+that keeps normal setup and ADR 0010. Chosen by the user (2026-11-16) from Claude's options.
+
+**Tests:** `tests/engine/test_deals.py`.
+
+### Board Game Arena's draw order for Experimental Forest
+
+**Call:** Experimental Forest places its Greenery, whose placement bonus may draw a card, and then reveals cards until
+two have a plant Tag. The engine draws the bonus card when the Greenery is placed, before revealing. Board Game Arena's
+logs name the revealed cards first and the bonus card after. The rulebook stands: the replay of Recorded Games deals
+the bonus card first, so that the engine draws the same cards as the log.
+
+**Why:** The rulebook gives a placement bonus when the Tile is placed, and the card places its Greenery before it
+reveals. Only the order in which cards come off the hidden deck differs, so no Player could tell, and replaying in the
+engine's order gives every Player the same cards as the Recorded Game. Chosen by Claude (2026-11-16), on the user's
+instruction to choose the recommended decisions.
+
+**Tests:** `tests/ai/recorded_games/test_replay.py::test_experimental_forests_placement_bonus_is_dealt_before_the_cards_it_reveals`.

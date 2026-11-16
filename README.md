@@ -389,6 +389,13 @@ with only what that Player could see. That takes about 9 minutes on all cores an
 1 GB. Player names are dropped and ids are salted hashes. The logs name no licence, so the archive, the
 dataset and anything trained on them stay private and out of this repository.
 
+Each Game whose log names both Players' cards is then replayed through the engine
+(`uv run python -m ai.recorded_games.replay_dataset`, about 10 minutes on all cores). The engine starts from the
+deal the log shows, answers every Decision from the log, and compares its trackers with the log's after each Action,
+stopping a Game at its first difference. 73% of the 44,714 Games replay to the end; the rest give the Decisions
+before their first difference. That adds about 16 million engine Decisions, about 10 million of them in the Action
+phases, each with the engine's own Options and Player View for imitation.
+
 | Recorded Games (2 Players, Tharsis, Corporate Era, Draft) | With Prelude | Without Prelude |
 | --- | ---: | ---: |
 | All Games | 51,422 | 7,622 |
