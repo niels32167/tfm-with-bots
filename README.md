@@ -344,4 +344,4 @@ The card faces copy the fan-made Terraforming Mars card list by ssimeonoff
 Its title font, Prototype, is free for personal use. The globe is "Mars Valles Marineris", a Viking 1
 Orbiter mosaic by NASA/USGS (JPL PIA04304), public domain, from
 commons.wikimedia.org/wiki/File:Mars_Valles_Marineris.jpeg. Terraforming Mars is a game by
-FryxGames; this is a private, personal project.
+FryxGames; this is an unofficial, non-commercial fan project, not affiliated with or endorsed by FryxGames.
