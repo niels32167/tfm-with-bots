@@ -17,6 +17,12 @@ shouldn't.**
 Player 1's played cards and at the bottom the hand. The board, Standard Projects, Milestones, Awards and cards
 light up and are clicked when a Decision offers them.</sub>
 
+> [!TIP]
+> **Like Terraforming Mars? Please support its creators and buy the game.** This is an unofficial fan
+> project, built out of love for the original. Get the board game from
+> [FryxGames](https://fryxgames.se/product/terraforming-mars/) or your local game store, or the official
+> digital version on [Steam](https://store.steampowered.com/app/800270/Terraforming_Mars/).
+
 ---
 
 ## Contents
@@ -527,4 +533,5 @@ Each significant decision is an Architecture Decision Record in [`docs/adr/`](do
   game is a reference for unclear rules and a cross-check of the card data. No code is copied from it.
 
 *Terraforming Mars* is a game by FryxGames. This is an unofficial, non-commercial fan project, not affiliated
-with or endorsed by FryxGames.
+with or endorsed by FryxGames. If you enjoy it, please support FryxGames by
+[buying the game](https://fryxgames.se/product/terraforming-mars/).
