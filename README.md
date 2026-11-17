@@ -305,6 +305,7 @@ microseconds, because self-play needs millions of Games on a laptop. A pure-Pyth
 | Copy a Game (start / halfway / end) | 0.20 / 0.61 / 0.88 µs | 0.22 / 0.45 / 0.71 µs | < 10 µs |
 | Make a Sampled Position (start / halfway / end) | 1.6 / 2.9 / 2.1 µs | 2.0 / 2.3 / 3.0 µs | < 10 µs |
 | Decisions per second through a Python loop | 280,794 | 248,110 | |
+| Encode a position and its Options (start / halfway / near the end), for information | 164 / 166 / 204 µs | 161 / 224 / 118 µs | |
 | Mean Generations of a Random Bot Game | 20.99 | 17.87 | |
 
 ```mermaid
@@ -315,7 +316,8 @@ xychart-beta
     bar [1000, 300, 5553, 53507]
 ```
 
-<sub>Measured on 2026-11-16 with `uv run python -m tools.benchmark` (`--prelude` for the second column) on a
+<sub>Encoding (ticket 12 of phase 2) measured on 2026-11-17; a Player View takes 32–49 µs at the same moments.
+Measured on 2026-11-16 with `uv run python -m tools.benchmark` (`--prelude` for the second column) on a
 laptop with an AMD Ryzen 7 8845HS (8 cores, 16 threads), on mains power, "performance" profile.</sub>
 
 ### Bots so far

@@ -41,3 +41,11 @@ def test_prelude_shortens_random_bot_games_as_the_benchmark_reports():
 
     assert "Mean Generations of Random Bot Games, without Prelude:" in text
     assert "with Prelude:" in text
+
+
+def test_the_benchmark_measures_the_time_per_encoding_beside_the_player_view():
+    results = measure(seconds=0.2, processes=2, games_for_mean_generations=10)
+
+    assert [encoding.moment for encoding in results.encodings] == ["at the start", "halfway", "near the end"]
+    assert all(encoding.microseconds > 0 and encoding.player_view_microseconds > 0 for encoding in results.encodings)
+    assert "Encoding a position and its Options" in report(results)

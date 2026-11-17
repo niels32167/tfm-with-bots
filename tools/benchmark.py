@@ -12,6 +12,9 @@
 - how long making a Sampled Position takes at those moments, for the Player whose Decision it is
   (the target is under 10 µs, as for a copy), and for information, how long making the Sampler that
   makes them takes, which every Controller's handle does once;
+- for information only, how long encoding a position and its Options (ai.encoding, ticket 12 of phase 2)
+  takes at the start of a Game, halfway and near its end, beside the Player View it is made from; a Random
+  Bot buys more cards than people do, so its hands, and the time, are larger;
 - for information only, how many Decisions per second a Python loop gets through, reading
   each Decision and picking an Option at random, as a Python Controller would;
 - for information only, the mean Generations of these Games without Prelude and with it
@@ -35,6 +38,8 @@ from dataclasses import dataclass
 
 import tm_engine
 
+from ai.encoding import encode
+
 PLAYERS = 2
 TARGET_GAMES_PER_SECOND = 1_000
 # ADR 0004 asks for copies "in microseconds"; this reads that as under 10 µs. Ticket 07 of phase 2 asks the
@@ -48,6 +53,9 @@ MAX_PICKS = 10_000
 # How many copies or samples each timing makes, and how many timings are made: the fastest one counts.
 CALLS_PER_TIMING = 10_000
 TIMINGS = 5
+
+# Encoding takes far longer than a copy, so fewer calls make each of its timings.
+ENCODINGS_PER_TIMING = 200
 
 # How many Games the mean Generations are taken over, with Prelude and without.
 GAMES_FOR_MEAN_GENERATIONS = 2_000
@@ -75,6 +83,14 @@ class SampleTime:
 
 
 @dataclass(frozen=True)
+class EncodingTime:
+    moment: str
+    generation: int
+    microseconds: float
+    player_view_microseconds: float
+
+
+@dataclass(frozen=True)
 class MeanGenerations:
     games: int
     without_prelude: float
@@ -90,6 +106,7 @@ class Results:
     games_per_second_in_all_processes: float
     copies: list[CopyTime]
     samples: list[SampleTime]
+    encodings: list[EncodingTime]
     python_decisions_per_second: float
     mean_generations: MeanGenerations
 
@@ -159,9 +176,9 @@ def moments(prelude: bool) -> list[tuple[str, int, tm_engine.Game]]:
     return [(moment, step, tm_engine.Game.from_replay(finished.replay, step=step)) for moment, step in steps]
 
 
-def microseconds_per_call(call: Callable[[], object]) -> float:
-    """How long one call takes, by the fastest of a few timings."""
-    return min(timeit.repeat(call, repeat=TIMINGS, number=CALLS_PER_TIMING)) / CALLS_PER_TIMING * 1e6
+def microseconds_per_call(call: Callable[[], object], calls: int = CALLS_PER_TIMING) -> float:
+    """How long one call takes, by the fastest of a few timings of `calls` calls."""
+    return min(timeit.repeat(call, repeat=TIMINGS, number=calls)) / calls * 1e6
 
 
 def copy_times(prelude: bool) -> list[CopyTime]:
@@ -183,6 +200,22 @@ def sample_times(prelude: bool) -> list[SampleTime]:
         sampler = functools.partial(game.sampler, player)
         generation = game.player_view(0)["generation"]
         times.append(SampleTime(moment, generation, microseconds_per_call(sample), microseconds_per_call(sampler)))
+    return times
+
+
+def encoding_times(prelude: bool) -> list[EncodingTime]:
+    """How long encoding the deciding Player's position and Options takes, and for comparison their Player
+    View, at the start of a Game, halfway through, and at its last Decision."""
+    times = []
+    for moment, step, game in moments(prelude):
+        if game.decision is None:
+            moment, game = "near the end", tm_engine.Game.from_replay(game.replay, step=step - 1)
+        decision = game.decision
+        view = game.player_view(decision["player"])
+        generation = view["generation"]
+        encoding = microseconds_per_call(functools.partial(encode, view, decision), ENCODINGS_PER_TIMING)
+        player_view = microseconds_per_call(functools.partial(game.player_view, decision["player"]))
+        times.append(EncodingTime(moment, generation, encoding, player_view))
     return times
 
 
@@ -227,6 +260,7 @@ def measure(
         games_per_second_in_all_processes=games_per_second(processes, seconds, prelude),
         copies=copy_times(prelude),
         samples=sample_times(prelude),
+        encodings=encoding_times(prelude),
         python_decisions_per_second=python_decisions_per_second(seconds, prelude),
         mean_generations=MeanGenerations(
             games_for_mean_generations,
@@ -266,6 +300,13 @@ def report(results: Results) -> str:
             f"  {sample.moment:12} (Generation {sample.generation:2}): {sample.microseconds:6.2f} µs "
             f"({met(sample.fast_enough)}); Sampler {sample.sampler_microseconds:6.2f} µs"
             for sample in results.samples
+        ),
+        "",
+        "Encoding a position and its Options for the deciding Player (ai.encoding), for information, beside their Player View:",
+        *(
+            f"  {encoding.moment:12} (Generation {encoding.generation:2}): {encoding.microseconds:6.0f} µs; "
+            f"Player View {encoding.player_view_microseconds:4.0f} µs"
+            for encoding in results.encodings
         ),
         "",
         "For information, a Python loop reading each Decision and picking at random:",

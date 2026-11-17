@@ -73,6 +73,14 @@ def card_catalog() -> dict[str, dict[str, Any]]:
     return {card["id"]: card for card in tm_engine.card_catalog()}
 
 
+@functools.cache
+def board_layout() -> tuple[dict[str, Any], ...]:
+    """Every Area as printed, without Tiles, in the order of the board in a Player View: what every Player
+    may read, for Controllers, which never import the engine. Shared, so never to be changed."""
+    board = tm_engine.Game(seed=0, players=2).player_view(0)["board"]
+    return tuple({key: value for key, value in area.items() if key not in ("tile", "claimed_by")} for area in board)
+
+
 def handle_at(replay: dict[str, Any], step: int, random_numbers: random.Random) -> Handle:
     """The handle for the Decision a Replay waits on after its first `step` picks: to explain a pick
     made in a past Game."""

@@ -264,6 +264,9 @@ class Prices:
         self.money_needed: float | None = None
         self.tags: dict[tuple[str, int], float] = {}
         self.prelude: float | None = None
+        # Prices of a Production step and a unit kept, by Resource: read from `view` only, so fixed.
+        self.productions: dict[str, float] = {}
+        self.units_kept: dict[str, float] = {}
 
     @staticmethod
     def of(view: dict[str, Any], player: int | None = None, weights: Weights = DEFAULT) -> Prices:
@@ -320,8 +323,10 @@ class Prices:
     def production(self, resource: str) -> float:
         """A Production step of `resource`: what it brings at each Production phase still to come
         that leaves time to use it. Plants still count in the last one, as they become a Greenery."""
-        paid = self.generations_left - (0 if resource == "plants" else 1)
-        return self.weights.unit(resource) * annuity(self.weights.discount, paid)
+        if resource not in self.productions:
+            paid = self.generations_left - (0 if resource == "plants" else 1)
+            self.productions[resource] = self.weights.unit(resource) * annuity(self.weights.discount, paid)
+        return self.productions[resource]
 
     def terraform_rating(self) -> float:
         """A Terraform Rating step: a Victory Point, and a MegaCredit at each Production phase."""
@@ -343,6 +348,12 @@ class Prices:
     def resource(self, resource: str) -> float:
         """A unit of `resource` kept. Plants and heat are worth a share of the Greenery and Temperature
         step that 8 of them make; energy becomes heat at the next Production phase."""
+        if resource not in self.units_kept:
+            self.units_kept[resource] = self.unit_kept(resource)
+        return self.units_kept[resource]
+
+    def unit_kept(self, resource: str) -> float:
+        """`resource()`, worked out."""
         if resource == "plants":
             return self.weights.conversion * self.greenery() / 8
         if resource == "heat":

@@ -76,8 +76,8 @@ Every failure is saved in `fuzz-failures/` as a Replay file: **Load Replay…** 
 the moment it went wrong, with every Player set to human, so **Undo** steps back from there.
 
 The speed benchmark (ADR 0004) reports 2-player Games per second across all cores, how
-long copying a Game and making a Sampled Position take, and how many Decisions per second a Python loop gets through,
-and the mean Generations of Random Bot Games without Prelude and with it. `--prelude`
+long copying a Game and making a Sampled Position take, how long encoding a position and its Options takes beside
+the Player View (`ai.encoding`), and how many Decisions per second a Python loop gets through, and the mean Generations of Random Bot Games without Prelude and with it. `--prelude`
 benchmarks Games with Prelude. It exits with status 1 if a target is missed:
 
 ```bash
