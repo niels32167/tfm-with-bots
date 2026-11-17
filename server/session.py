@@ -1,12 +1,12 @@
 """A Game in progress on the server, with a Controller attached to each Player."""
 
-import random
 from typing import Any
 
 import tm_engine
 
 from ai.controller import Controller, Handle, handle_for, offered
 from ai.controllers import REGISTERED, make_controller
+from ai.explain import explanation, server_random
 from tests.fuzzing.invariants import (
     each_reserved_area_used_only_by_its_card,
     special_tiles_where_their_cards_put_them,
@@ -75,14 +75,14 @@ class GameSession:
         *,
         draft: bool = True,
         prelude: bool = False,
-    ) -> "GameSession":
+    ) -> GameSession:
         """A new Game with one Player for each Controller, with the Draft unless `draft` is false, and
         with Prelude if `prelude` is true."""
         game = tm_engine.Game(seed=seed, players=len(controllers), draft=draft, prelude=prelude)
         return cls(game, controllers, bot_delay)
 
     @classmethod
-    def from_replay_file(cls, file: dict[str, Any], bot_delay: float) -> "GameSession":
+    def from_replay_file(cls, file: dict[str, Any], bot_delay: float) -> GameSession:
         """The Game saved in a Replay file, resumed where its Replay ends.
 
         Its picks are replayed one by one, so undo can go back through them too.
@@ -147,7 +147,7 @@ class GameSession:
             raise ValueError("no registered Controller is deciding")
         decision = self.game.decision
         player = decision["player"]
-        random_numbers = random.Random(f"{self.game.seed}/{decision['sequence']}")
+        random_numbers = server_random(self.game.seed, decision["sequence"])
         return self.controllers[player], self.answering[player], handle_for(self.game, random_numbers)
 
     def pick_for_controller(self, sequence: int, index: int) -> None:
@@ -216,7 +216,18 @@ class GameSession:
             "position_problems": [
                 problem for invariant in POSITION_INVARIANTS for problem in invariant(full_view, shown.decision)
             ],
+            "explanation": self._explanation(shown, at),
         }
+
+    def _explanation(self, game: tm_engine.Game, step: int) -> dict[str, Any] | None:
+        """Why the registered Controller answering the Decision at `step` picks what it picks, asked with
+        the handle and random source it was given (see `controller_turn`); None for a human's Decision,
+        once the Game is over, or for a Controller that can't explain itself."""
+        decision = game.decision
+        if decision is None or self.controllers[decision["player"]] == HUMAN:
+            return None
+        name = self.controllers[decision["player"]]
+        return explanation(make_controller(name), handle_for(game, server_random(game.seed, step)), name)
 
     def catch_up(self) -> list[dict[str, Any]]:
         """Everything a newly connected GUI needs, with the whole game log."""

@@ -2150,6 +2150,33 @@ input[aria-invalid="true"] {
   font-weight: 600;
 }
 
+.dev-panel-priced {
+  margin: 0;
+  padding-left: 26px;
+  max-height: 50vh;
+  overflow-y: auto;
+}
+
+.dev-panel-priced li {
+  margin-bottom: 6px;
+}
+
+.dev-panel-priced li.picked .priced-label {
+  color: var(--accent);
+  font-weight: 600;
+}
+
+.dev-panel-priced .priced-value {
+  float: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.dev-panel-priced .priced-reasons {
+  display: block;
+  color: var(--text-dim);
+  font-size: 0.9em;
+}
+
 .dev-panel-hidden-cards p {
   margin: 0 0 6px;
 }

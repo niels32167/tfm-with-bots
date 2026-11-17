@@ -59,6 +59,9 @@ A_GAME_FAILED = 3
 
 type Outcome = Literal["over", "stalled", "failed"]
 
+# Makes a new Controller for one Player in one Game.
+type Maker = Callable[[], Controller]
+
 
 @dataclass(frozen=True)
 class MatchSettings:
@@ -185,14 +188,21 @@ def side_of(name: str, side: int, finished: list[GameResult]) -> Side:
     return Side(name, wins, draws, losses, points / count, card_points / count, terraform_rating / count)
 
 
-def play_game(seed: int, controllers: tuple[str, str], sides: tuple[int, int], settings: MatchSettings) -> GameResult:
-    """Plays one Game of a Match, Player 1 answered by `controllers[0]` and Player 2 by `controllers[1]`.
-    Each Controller's random source is seeded by the seed, its side and its Player, so that a Controller
-    playing itself doesn't play the same Game twice on a seed."""
+def play_game(
+    seed: int,
+    controllers: tuple[str, str],
+    sides: tuple[int, int],
+    settings: MatchSettings,
+    makers: tuple[Maker, Maker] | None = None,
+) -> GameResult:
+    """Plays one Game of a Match, Player 1 answered by `controllers[0]` and Player 2 by `controllers[1]`,
+    made by name, or by `makers` for each Player if given. Each Controller's random source is seeded by
+    the seed, its side and its Player, so that a Controller playing itself doesn't play the same Game
+    twice on a seed."""
     game = tm_engine.Game(seed=seed, players=PLAYERS, draft=settings.draft, prelude=settings.prelude)
     start = game.replay["start"]
     first_player = game.player_view(0)["first_player"]
-    answering = [make_controller(name) for name in controllers]
+    answering = [make() for make in makers] if makers else [make_controller(name) for name in controllers]
     random_sources = [random.Random(f"{seed}/{side}/{player}") for player, side in enumerate(sides)]
     picks: list[int] = []
     outcome: Outcome = "stalled"
@@ -269,21 +279,25 @@ def run_match(
     processes: int | None = None,
     settings: MatchSettings | None = None,
     on_progress: Callable[[int], None] | None = None,
+    makers: tuple[Maker, Maker] | None = None,
 ) -> MatchResult:
     """Plays a Match of `games` Games between Controllers `a` and `b`, on `processes` worker processes
     (one per core by default; 1 plays them here), set up as `settings` says (the defaults if None).
     Seeds `first_seed` on are each played twice: first with `a` as Player 1, then with `b`. `on_progress`
-    is told how many Games are done as they finish. Raises ValueError for an odd number of Games or an
+    is told how many Games are done as they finish. With `makers`, `a` and `b` only name the
+    Controllers that its two factories make, such as Card Economy Bots with weights being fitted; on
+    more than one process they must pickle. Raises ValueError for an odd number of Games or an
     unknown Controller, before any Game starts."""
     if games <= 0 or games % 2:
         raise ValueError(f"a Match needs an even number of Games, at least 2, not {games}")
-    for name in (a, b):
+    for name in (a, b) if makers is None else ():
         make_controller(name)  # Unknown names are refused before any Game starts.
     names = (a, b)
     settings = settings or MatchSettings()
     seeds = [seed for seed in range(first_seed, first_seed + games // 2) for _ in (0, 1)]
     sides = [(first, 1 - first) for _ in range(games // 2) for first in (0, 1)]
     by_player = [(names[first], names[second]) for first, second in sides]
+    player_makers = [(makers[first], makers[second]) if makers else None for first, second in sides]
     processes = processes or os.cpu_count() or 1
     results: list[GameResult] = []
 
@@ -294,11 +308,14 @@ def run_match(
                 on_progress(len(results))
 
     if processes == 1:
-        collect(map(play_game, seeds, by_player, sides, repeat(settings)))
+        collect(map(play_game, seeds, by_player, sides, repeat(settings), player_makers))
     else:
         with ProcessPoolExecutor(processes) as pool:
             chunks = max(1, games // (processes * 8))
-            collect(pool.map(play_game, seeds, by_player, sides, repeat(settings, games), chunksize=chunks))
+            played = pool.map(
+                play_game, seeds, by_player, sides, repeat(settings, games), player_makers, chunksize=chunks
+            )
+            collect(played)
     return MatchResult(names, settings, tuple(results))
 
 

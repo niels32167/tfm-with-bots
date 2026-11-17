@@ -8,6 +8,7 @@ import importlib
 from collections.abc import Callable
 from dataclasses import dataclass
 
+from ai.card_economy import CardEconomyBot
 from ai.controller import Controller
 from ai.flat_playout import FlatPlayout
 from ai.random_bot import RandomBot
@@ -25,6 +26,7 @@ class Registered:
 REGISTERED: dict[str, Registered] = {
     "random_bot": Registered("Random Bot", RandomBot),
     "flat_playout": Registered("Flat Playout Bot", FlatPlayout),
+    "card_economy": Registered("Card Economy Bot", CardEconomyBot),
 }
 
 

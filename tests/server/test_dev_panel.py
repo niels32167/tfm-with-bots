@@ -52,9 +52,7 @@ def test_the_dev_views_view_is_what_the_screen_shows_at_that_step():
         earlier = gui.dev_view(2)
 
     assert latest["view"] == update["view"]
-    assert earlier["view"] == tm_engine.Game.from_replay(replay, step=2).player_view(
-        update["viewer"]
-    )
+    assert earlier["view"] == tm_engine.Game.from_replay(replay, step=2).player_view(update["viewer"])
     assert earlier["view"]["deck"] is None
 
 
@@ -67,9 +65,7 @@ def test_looking_in_the_dev_view_goes_only_to_the_gui_that_asked_and_changes_not
             gui.dev_view(step)
 
         assert gui.save_replay() == before
-        gui.send(
-            {"type": "pick", "sequence": update["decision"]["sequence"], "index": 0}
-        )
+        gui.send({"type": "pick", "sequence": update["decision"]["sequence"], "index": 0})
         next_update = gui.next_update()
 
     assert next_update["viewer"] == update["viewer"]
@@ -158,10 +154,7 @@ def test_the_position_shown_at_a_step_comes_as_a_scenario_that_starts_the_same_p
         latest = gui.dev_view()
 
     described = tm_engine.Game.from_scenario(latest["scenario"])
-    assert (
-        described.full_view()["players"][0]["hand"]
-        == latest["full_view"]["players"][0]["hand"]
-    )
+    assert described.full_view()["players"][0]["hand"] == latest["full_view"]["players"][0]["hand"]
     assert described.full_view()["deck"] == latest["full_view"]["deck"]
 
 
@@ -204,11 +197,7 @@ def set_global_parameters(scenario: dict[str, Any]) -> None:
 def put_cards(scenario: dict[str, Any]) -> None:
     """Puts two cards where the edit wants them, out of wherever they are, as the editor does."""
     for pile in (
-        *(
-            board[name]
-            for board in scenario["players"]
-            for name in ("hand", "played_cards")
-        ),
+        *(board[name] for board in scenario["players"] for name in ("hand", "played_cards")),
         scenario["deck"],
         scenario["discard"],
     ):
@@ -242,35 +231,24 @@ def set_a_land_claim(scenario: dict[str, Any]) -> None:
 EDITS = {
     give_resources: lambda view: view["players"][0]["resources"]["plants"] == 17,
     give_production: lambda view: view["players"][1]["production"]["heat"] == 6,
-    set_global_parameters: lambda view: (
-        (view["temperature"], view["oxygen"], view["oceans"]) == (-12, 9, 1)
-    ),
+    set_global_parameters: lambda view: (view["temperature"], view["oxygen"], view["oceans"]) == (-12, 9, 1),
     put_cards: lambda view: (
-        "mine" in view["players"][0]["hand"]
-        and "tardigrades" in view["players"][1]["played_cards"]
+        "mine" in view["players"][0]["hand"] and "tardigrades" in view["players"][1]["played_cards"]
     ),
     set_the_generation: lambda view: view["generation"] == 7,
     place_a_tile: lambda view: (
-        next(area for area in view["board"] if area["area"] == "C3")["tile"]["type"]
-        == "greenery"
+        next(area for area in view["board"] if area["area"] == "C3")["tile"]["type"] == "greenery"
     ),
-    set_card_resources: lambda view: (
-        view["players"][1]["card_resources"]["tardigrades"] == 4
-    ),
+    set_card_resources: lambda view: view["players"][1]["card_resources"]["tardigrades"] == 4,
     set_the_corporation: lambda view: (
-        view["players"][1]["corporation"] == "inventrix"
-        and view["players"][1]["first_action_due"]
+        view["players"][1]["corporation"] == "inventrix" and view["players"][1]["first_action_due"]
     ),
-    set_a_land_claim: lambda view: (
-        next(area for area in view["board"] if area["area"] == "G1")["claimed_by"] == 1
-    ),
+    set_a_land_claim: lambda view: next(area for area in view["board"] if area["area"] == "G1")["claimed_by"] == 1,
 }
 
 
 @pytest.mark.parametrize("edit", EDITS, ids=lambda edit: edit.__name__)
-def test_each_state_edit_produces_a_scenario_that_saves_reloads_and_runs_in_a_scenario_test(
-    edit, tmp_path
-):
+def test_each_state_edit_produces_a_scenario_that_saves_reloads_and_runs_in_a_scenario_test(edit, tmp_path):
     shows_the_edit = EDITS[edit]
     with connect() as gui:
         gui.skip_drafting_and_buying(gui.start(["human", "human"], seed=12))
@@ -341,9 +319,7 @@ def test_a_scenario_the_engine_refuses_leaves_the_game_as_it_is():
         (
             {
                 "players": [{"played_cards": ["lava_flows"]}, {}],
-                "tiles": [
-                    {"area": "C3", "tile": "special", "card": "lava_flows", "owner": 0}
-                ],
+                "tiles": [{"area": "C3", "tile": "special", "card": "lava_flows", "owner": 0}],
             },
             "is not on a volcano",
         ),
@@ -354,9 +330,7 @@ def test_a_scenario_the_engine_refuses_leaves_the_game_as_it_is():
         ({"land_claim": {"area": "C3", "player": 0}}, "who has not played Land Claim"),
     ],
 )
-def test_a_position_real_play_cannot_reach_starts_but_the_dev_view_says_why(
-    edit, problem
-):
+def test_a_position_real_play_cannot_reach_starts_but_the_dev_view_says_why(edit, problem):
     with connect() as gui:
         load(gui, scenario_file(edit))
         gui.next_update()
@@ -390,3 +364,35 @@ def test_a_scenario_loaded_from_a_file_plays_on_as_a_scenario_test_does(tmp_path
     pick(game, "Play Mine")
     assert player_board(game, 0)["production"]["steel"] == 1
     assert offered(game, "End Turn")
+
+
+def test_the_dev_view_explains_a_card_economy_bots_pick_and_not_a_humans():
+    with connect() as gui:
+        update = gui.skip_drafting_and_buying(gui.start(["human", "card_economy"], seed=12))
+        gui.pick(update, "Pass")
+        gui.wait_for_human()
+        replay = gui.save_replay()["replay"]
+        bot = 1 - update["viewer"]
+        steps = [
+            step
+            for step in range(len(replay["picks"]))
+            if (decision := tm_engine.Game.from_replay(replay, step=step).decision)["kind"] == "action"
+            and len(decision["options"]) > 2
+        ]
+        bots_step = next(s for s in steps if tm_engine.Game.from_replay(replay, step=s).decision["player"] == bot)
+        humans_step = next(s for s in steps if tm_engine.Game.from_replay(replay, step=s).decision["player"] != bot)
+
+        explained = gui.dev_view(bots_step)
+        not_explained = gui.dev_view(humans_step)
+
+    explanation = explained["explanation"]
+    assert explanation["controller"] == "Card Economy Bot"
+    # Its best-priced Option is the one it picked, and every Option is priced, best first.
+    assert explanation["options"][0]["index"] == explained["picked"]
+    prices = [option["price"] for option in explanation["options"]]
+    assert prices == sorted(prices, reverse=True)
+    assert {option["label"] for option in explanation["options"]} == {
+        option["label"] for option in explained["decision"]["options"]
+    }
+    assert explanation["generations_left"] > 1
+    assert not_explained["explanation"] is None

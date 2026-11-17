@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 
 import { useCardsById } from "../cards/catalog";
 import { PLAYER_COLOURS } from "../players";
-import type { Card, DevView, Scenario } from "../types";
+import type { Card, DevView, Explanation, Scenario } from "../types";
 import { GameLog } from "./GameLog";
 import { StateEditor } from "./StateEditor";
 
@@ -33,7 +33,7 @@ interface Edit {
  * the state editor and the game log. Only the state editor's Start button changes the Game. The
  * position being edited is kept across its tabs, until it is read again or the Game is replaced. */
 export function DevPanel({ cards, shown, step, onStep, fullView, onFullView, viewer, error, onStartFrom, onClose }: Props) {
-  const [tab, setTab] = useState<"replay" | "editor">("replay");
+  const [tab, setTab] = useState<"replay" | "bot" | "editor">("replay");
   const [edit, setEdit] = useState<Edit | null>(null);
   const read = (from: DevView) => setEdit({ scenario: from.scenario, readFrom: from });
   useEffect(() => {
@@ -64,6 +64,9 @@ export function DevPanel({ cards, shown, step, onStep, fullView, onFullView, vie
         <button className={tab === "replay" ? "selected" : ""} aria-pressed={tab === "replay"} onClick={() => setTab("replay")}>
           Replay
         </button>
+        <button className={tab === "bot" ? "selected" : ""} aria-pressed={tab === "bot"} onClick={() => setTab("bot")}>
+          Bot
+        </button>
         <button className={tab === "editor" ? "selected" : ""} aria-pressed={tab === "editor"} onClick={() => setTab("editor")}>
           State editor
         </button>
@@ -76,6 +79,12 @@ export function DevPanel({ cards, shown, step, onStep, fullView, onFullView, vie
           <DecisionAtStep shown={shown} hidden={!fullView && viewer !== null && shown.decision?.player !== viewer} />
           {fullView && <HandsAndDeck shown={shown} cards={cards} />}
           <GameLog log={shown.log} />
+        </>
+      )}
+      {shown && tab === "bot" && (
+        <>
+          <StepThrough shown={shown} onStep={onStep} step={step} />
+          <WhyPicked shown={shown} hidden={!fullView && viewer !== null && shown.decision?.player !== viewer} />
         </>
       )}
       {shown && tab === "editor" && edit && (
@@ -184,6 +193,62 @@ function DecisionAtStep({ shown, hidden }: DecisionAtStepProps) {
       )}
     </section>
   );
+}
+
+/** How many Options the Bot tab prices at first, before "Show all". */
+const TOP_OPTIONS = 5;
+
+interface WhyPickedProps {
+  shown: DevView;
+  /** Whether the Decision is another Player's, and the full view is off: its Options show their hand. */
+  hidden: boolean;
+}
+
+/** Why the Controller answering the step shown picks what it picks: its top Options, each with its price
+ * and the Prices that changed most. */
+function WhyPicked({ shown, hidden }: WhyPickedProps) {
+  const [all, setAll] = useState(false);
+  const { decision, explanation } = shown;
+  if (!decision) return <p className="dev-panel-note">The Game is over at this step.</p>;
+  if (!explanation) return <p className="dev-panel-note">No registered Controller that explains its picks answers this step.</p>;
+  if (hidden) return <p className="dev-panel-note">Switch on the full view to see why: its Options show its hand.</p>;
+  const options = all ? explanation.options : explanation.options.slice(0, TOP_OPTIONS);
+  return (
+    <section className="dev-panel-section dev-panel-why" aria-label="Why the Controller picks">
+      <h3>
+        <span className="player-dot" style={{ background: PLAYER_COLOURS[explanation.player] }} /> {explanation.controller},{" "}
+        {explanation.kind}
+      </h3>
+      <p className="dev-panel-note">{generationsLeft(explanation)}</p>
+      <ol className="dev-panel-priced">
+        {options.map((option) => (
+          <li key={option.index} className={option.index === shown.picked ? "picked" : ""}>
+            <span className="priced-label">
+              {option.label}
+              {option.index === shown.picked && " ← picked"}
+            </span>
+            <span className="priced-value">{signed(option.price)}</span>
+            {option.reasons.length > 0 && (
+              <span className="priced-reasons">{option.reasons.map(([what, change]) => `${what} ${signed(change)}`).join(", ")}</span>
+            )}
+          </li>
+        ))}
+      </ol>
+      {explanation.options.length > TOP_OPTIONS && (
+        <button className="link-button" onClick={() => setAll(!all)}>
+          {all ? `Show the top ${TOP_OPTIONS}` : `Show all ${explanation.options.length}`}
+        </button>
+      )}
+    </section>
+  );
+}
+
+function generationsLeft(explanation: Explanation): string {
+  return `Prices in MegaCredits against doing nothing, with about ${explanation.generations_left.toFixed(1)} Generations left for every Option.`;
+}
+
+function signed(value: number): string {
+  return `${value >= 0 ? "+" : "−"}${Math.abs(value).toFixed(1)}`;
 }
 
 /** Everything hidden at the step shown: all hands, the deck from the top down, and the discard pile. */

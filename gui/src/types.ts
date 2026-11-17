@@ -439,6 +439,29 @@ export interface DevView {
   scenario: Scenario;
   /** Why real play could not reach this position, if it could not. */
   position_problems: string[];
+  /** Why the registered Controller answering this step's Decision picks what it picks, or null for a
+   * human's Decision, once the Game is over, or for a Controller that can't explain itself. */
+  explanation: Explanation | null;
+}
+
+/** A Controller's explanation of a pick: every Option it was offered, priced, best first. */
+export interface Explanation {
+  /** The Controller's label, such as "Card Economy Bot". */
+  controller: string;
+  player: number;
+  kind: string;
+  /** The Generations left it estimated, held for every Option. */
+  generations_left: number;
+  options: PricedOption[];
+}
+
+export interface PricedOption {
+  index: number;
+  label: string;
+  /** What the Option is worth, in MegaCredits, against doing nothing. */
+  price: number;
+  /** The Prices that changed most, and by how much: [what, change]. */
+  reasons: [string, number][];
 }
 
 /** What a saved Replay file holds. */

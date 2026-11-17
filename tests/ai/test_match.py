@@ -1,6 +1,7 @@
 """The Match tool (`uv run python -m ai.match a b --games N`): two Controllers play N Games on N/2 seeds,
 each Controller taking each Player on every seed, and it reports how they did."""
 
+import functools
 import json
 
 import pytest
@@ -157,3 +158,32 @@ def test_games_without_prelude_or_the_draft_can_be_played():
     assert match.games[0].replay["start"]["settings"]["draft"] is False
     assert "prelude" not in match.games[0].replay["start"]["settings"]
     assert all(game.outcome == "over" for game in match.games)
+
+
+class Picking:
+    """Always picks the Option at a fixed index, or the last if there are fewer: a Controller made with
+    a setting, as the fitting of Prices makes them."""
+
+    def __init__(self, index: int) -> None:
+        self.index = index
+
+    def pick(self, handle: Handle) -> int:
+        return min(self.index, len(handle.decision["options"]) - 1)
+
+
+def test_a_match_can_be_played_between_controllers_made_by_factories():
+    match = run_match(
+        "first",
+        "second",
+        games=4,
+        first_seed=3,
+        processes=2,
+        makers=(functools.partial(Picking, 0), functools.partial(Picking, 1)),
+    )
+
+    assert [game.controllers for game in match.games] == [("first", "second"), ("second", "first")] * 2
+    assert all(game.outcome == "over" for game in match.games)
+    # The names only label the factories.
+    makers = (functools.partial(Picking, 0), functools.partial(Picking, 1))
+    renamed = run_match("x", "y", games=4, first_seed=3, processes=1, makers=makers)
+    assert [game.replay for game in renamed.games] == [game.replay for game in match.games]

@@ -108,9 +108,38 @@ source, never the Game (`ai/controller.py`). To look ahead, it asks the handle f
 the engine from the Player View (see "Sampled Positions" in `docs/rules-notes.md`). A Controller that uses
 only that random source plays the same way from the same seeds.
 
-The registered Controllers are the Random Bot and the Flat Playout Bot (`flat_playout`), which plays each
-Option out at random on 20 Sampled Positions and picks the best mean Victory Point margin. A pick takes about
-14 ms on average and under 0.2 s at most.
+The registered Controllers are the Random Bot, the Flat Playout Bot (`flat_playout`), which plays each
+Option out at random on 20 Sampled Positions and picks the best mean Victory Point margin (about 14 ms a pick
+on average, under 0.2 s at most), and the Card Economy Bot (`card_economy`).
+
+### The Card Economy Bot
+
+The Card Economy Bot (`ai/card_economy.py`) compares Options by their Prices (`ai/prices.py`): what things
+are worth in MegaCredits to its Player at that moment. Cards being chosen, drafted, bought or sold are
+priced from their printed data. Every other Option is picked on one Sampled Position, its own follow-up
+Decisions answered quickly, and the position that follows priced: its worth less the other Player's. The
+Generations left are estimated once per Decision and held for every Option, or the Bot would refuse to
+terraform. It explains any pick:
+
+```bash
+uv run python -m ai.explain saved-game.json --step 120
+```
+
+The Prices' weights are fitted by Matches, and checked against Recorded Games:
+
+```bash
+uv run python -m ai.fit_prices --generations 14 --population 10 --games 100
+uv run python -m ai.recorded_games.price_check
+uv run python -m tools.setup_choices
+```
+
+`ai.fit_prices` tunes every weight with a separable CMA-ES, each candidate playing the starting Bot; it keeps
+every core busy for about an hour and writes `.cache/price-fit.json`. `price_check` regresses the final
+Victory Point margin on the Players' position differences by Generations left, and prints the coefficients
+beside the Bot's Prices. `setup_choices` compares how often the Bot chooses each Corporation and keeps each
+Prelude Card with how often Players did. A check's figures may move a starting weight, as the spec allows
+(the card in hand's, from 4 to 6), but they are never a fitting target or a model input: they include
+held-out Games.
 
 ## Recorded Games
 
@@ -247,6 +276,9 @@ you had.
   at that step, the panel the Decision waiting there, its Options (another Player's only in the full view),
   the one picked and the game log so far. Nothing can be picked while looking back, and the Game carries on
   meanwhile.
+- **Bot:** at a step a registered Controller answers, why it picks what it picks, as `ai.explain` gives it:
+  every Option priced, best first, with the Prices that changed most. Another Player's reasons show only in
+  the full view, as their Options show their hand.
 - **State editor:** edits the position shown as a Scenario: Resources and Production, Terraform Rating,
   Global Parameters, the Generation, who holds the first-player marker and whose Turn it is, cards in a hand
   or among played cards, Card Resources, Corporations and their first action, actions used, Tiles and

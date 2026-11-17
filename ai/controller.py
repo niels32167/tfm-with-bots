@@ -8,6 +8,7 @@ with the engine could still cheat: a Match's seeds are small, so the cards dealt
 seed away. So no Controller imports the engine; tests/ai/test_fair_play.py checks it.
 """
 
+import functools
 import random
 from dataclasses import dataclass
 from typing import Any, Protocol
@@ -63,3 +64,16 @@ def handle_for(game: tm_engine.Game, random_numbers: random.Random) -> Handle:
     player = decision["player"]
     del decision["sequence"]
     return Handle(player, game.player_view(player), decision, random_numbers, game.sampler(player))
+
+
+@functools.cache
+def card_catalog() -> dict[str, dict[str, Any]]:
+    """The card catalog by card id: every card's printed data, which every Player may read. For
+    Controllers, which never import the engine. Shared, so never to be changed."""
+    return {card["id"]: card for card in tm_engine.card_catalog()}
+
+
+def handle_at(replay: dict[str, Any], step: int, random_numbers: random.Random) -> Handle:
+    """The handle for the Decision a Replay waits on after its first `step` picks: to explain a pick
+    made in a past Game."""
+    return handle_for(tm_engine.Game.from_replay(replay, step=step), random_numbers)

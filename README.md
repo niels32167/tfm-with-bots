@@ -104,7 +104,7 @@ flowchart LR
     end
     subgraph Python
         Server["Local server<br/>FastAPI + WebSocket"]
-        AI["AI Controllers<br/>Random Bot, Flat Playout Bot, …"]
+        AI["AI Controllers<br/>Random Bot, Flat Playout Bot,<br/>Card Economy Bot, …"]
         Match["Match tool<br/>Controller vs Controller"]
         Tests["pytest suite<br/>+ fuzzer + benchmark"]
         Importer["Recorded Game importer<br/>and replay<br/>Board Game Arena logs"]
@@ -328,6 +328,10 @@ interval.
 | --- | ---: | --- | --- | --- | --- | ---: |
 | Random Bot vs Random Bot (sanity check) | 1,000 | 51.6% (48.6–54.7%) | 78.5 – 77.2 | 5.2 – 5.3 | 43.2 – 42.8 | 17.9 |
 | **Flat Playout Bot vs Random Bot** | 200 | **100%** (98.1–100%) | **126.6 – 53.9** | 12.2 – 4.0 | 50.5 – 37.0 | 16.2 |
+| **Card Economy Bot vs Random Bot** | 400 | **100%** (99.0–100%) | **157.9 – 49.3** | 26.9 – 3.8 | 56.3 – 35.7 | 15.1 |
+| **Card Economy Bot vs Flat Playout Bot** | 1,000 | **96.4%** (95.0–97.3%) | **114.0 – 74.6** | 18.4 – 5.8 | 45.6 – 44.5 | 13.3 |
+| Card Economy Bot vs Flat Playout Bot at 1,000 playouts per Option | 100 | 29.5% (21.5–39.1%) | 93.0 – 103.7 | 16.8 – 13.3 | 40.6 – 48.9 | 12.8 |
+| Card Economy Bot vs itself | 1,000 | 49.9% (46.8–53.0%) | 117.6 – 97.5 (winner – loser) | 20.1 (winner) | 46.7 | 13.6 |
 | *For reference: human Games on Board Game Arena* | 51,422 | | 106 – 87 (winner – loser) | 28 (better Player) | | 10.7 |
 
 The **Flat Playout Bot** plays each Option out to the end of the Game at random on 20 Sampled Positions and
@@ -335,8 +339,22 @@ picks the best mean Victory Point margin. It needs about 14 ms per pick. It alre
 human Games end in about 11 Generations, against its 16, and humans score about 28 card Victory Points
 against its 12. That gap is what the training below is meant to close.
 
+The **Card Economy Bot** prices every Option in MegaCredits: Production by the Generations left, Victory
+Points rising towards what Standard Projects charge for them, cards in hand, Tags, Tiles, Milestones and
+Awards. It tries each Option one step ahead on a single Sampled Position and picks the best change in its
+worth less the other Player's. It needs about 3 ms per pick (31 ms at most). Its weights were fitted by
+Matches against itself with a CMA-ES, and it can explain any pick in the dev panel's Bot tab or with
+`uv run python -m ai.explain`. Against itself its Games still run 13.6 Generations, and its winners score
+20 card Victory Points against humans' 28. It can't use more time, though. Given 1,000 playouts per Option
+(0.7 s per pick), the Flat Playout Bot beats it in 70% of Games. Making good use of time is the job of
+search at play time (ticket 16).
+
 <sub>Measured on 2026-11-16 with `uv run python -m ai.match random_bot random_bot --games 1000` and
-`uv run python -m ai.match flat_playout random_bot --games 200`. The human figures come from the Recorded Game
+`uv run python -m ai.match flat_playout random_bot --games 200`, and on 2026-11-17 with
+`uv run python -m ai.match card_economy random_bot --games 400`,
+`uv run python -m ai.match card_economy flat_playout --games 1000 --first-seed 1000` and
+`uv run python -m ai.match card_economy card_economy --games 1000`; the Match at 1,000 playouts by a script
+recorded in ticket 11's Comments. The human figures come from the Recorded Game
 archive (2 Players, Tharsis, Corporate Era, Draft and Prelude) and are not a Match against these bots.</sub>
 
 ## The AI and its training
@@ -347,7 +365,7 @@ win a Match against the rung below before it counts. If a later step fails, the 
 ```mermaid
 flowchart LR
     R["Random Bot"]:::done --> F["Flat Playout Bot<br/>random playouts on<br/>Sampled Positions"]:::done
-    F --> C["Card Economy Bot<br/>Options by fitted Prices<br/>(ticket 11)"]:::todo
+    F --> C["Card Economy Bot<br/>Options by fitted Prices"]:::done
     C --> I["Imitation Model<br/>learns from ~59,000<br/>human Games<br/>(tickets 13–14)"]:::todo
     I --> V["Value Model<br/>improves by self-play<br/>(ticket 15)"]:::todo
     V --> S["Search at play time<br/>tree over Sampled Positions<br/>(ticket 16)"]:::todo
@@ -375,7 +393,7 @@ against the rung below. This table is updated as the ladder is climbed.
 | --- | --- | --- | --- | ---: | ---: | ---: |
 | Random Bot | ✅ | 51.6% vs itself | 0% | 78.5 | 17.9 | negligible |
 | Flat Playout Bot | ✅ | 100% (98.1–100%) | — | 126.6 | 16.2 | about 14 ms |
-| Card Economy Bot | ⏳ ticket 11 | | | | | |
+| Card Economy Bot | ✅ | 96.4% (95.0–97.3%) | the same Match | 114.0 | 13.3 | about 3 ms |
 | Imitation Model, Draft and buying | ⏳ ticket 13 | | | | | |
 | Imitation Model, every Decision | ⏳ ticket 14 | | | | | |
 | Value Model, after self-play | ⏳ ticket 15 | | | | | |
