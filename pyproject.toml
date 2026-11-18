@@ -8,6 +8,8 @@ dependencies = [
     "fastapi>=0.159",
     "uvicorn>=0.54",
     "websockets>=17.3",
+    "torch>=2.15.0",
+    "numpy>=2.5.5",
 ]
 
 [dependency-groups]

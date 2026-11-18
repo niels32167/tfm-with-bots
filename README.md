@@ -334,6 +334,7 @@ interval.
 | **Card Economy Bot vs Flat Playout Bot** | 1,000 | **96.4%** (95.0–97.3%) | **114.0 – 74.6** | 18.4 – 5.8 | 45.6 – 44.5 | 13.3 |
 | Card Economy Bot vs Flat Playout Bot at 1,000 playouts per Option | 100 | 29.5% (21.5–39.1%) | 93.0 – 103.7 | 16.8 – 13.3 | 40.6 – 48.9 | 12.8 |
 | Card Economy Bot vs itself | 1,000 | 49.9% (46.8–53.0%) | 117.6 – 97.5 (winner – loser) | 20.1 (winner) | 46.7 | 13.6 |
+| **Imitation Bot vs Card Economy Bot** | 600 | **84.3%** (81.2–87.0%) | **127.0 – 99.9** | 35.8 – 16.0 | 47.7 – 45.2 | 13.5 |
 | *For reference: human Games on Board Game Arena* | 51,422 | | 106 – 87 (winner – loser) | 28 (better Player) | | 10.7 |
 
 The **Flat Playout Bot** plays each Option out to the end of the Game at random on 20 Sampled Positions and
@@ -351,11 +352,19 @@ Matches against itself with a CMA-ES, and it can explain any pick in the dev pan
 (0.7 s per pick), the Flat Playout Bot beats it in 70% of Games. Making good use of time is the job of
 search at play time (ticket 16).
 
+The **Imitation Bot** chooses its Corporation and Prelude Cards, drafts and buys cards as the **Imitation Model**
+predicts strong Players would, and plays everything else as the Card Economy Bot does. The model is a small
+transformer over the cards a Player can see and the Options, trained on human Games (see below). On held-out Games
+it picks what the Player picked 67% of the time, against 54% for always taking the most-kept card and 39% for the
+Card Economy Bot's Prices. Those picks alone lift the Card Economy Bot from 16 to 36 card Victory Points a Game, more
+than humans' 28, and win 84% of Games against it.
+
 <sub>Measured on 2026-11-16 with `uv run python -m ai.match random_bot random_bot --games 1000` and
 `uv run python -m ai.match flat_playout random_bot --games 200`, and on 2026-11-17 with
 `uv run python -m ai.match card_economy random_bot --games 400`,
 `uv run python -m ai.match card_economy flat_playout --games 1000 --first-seed 1000` and
-`uv run python -m ai.match card_economy card_economy --games 1000`; the Match at 1,000 playouts by a script
+`uv run python -m ai.match card_economy card_economy --games 1000`, and on 2026-11-18 with
+`uv run python -m ai.match imitation card_economy --games 600 --processes 4`; the Match at 1,000 playouts by a script
 recorded in ticket 11's Comments. The human figures come from the Recorded Game
 archive (2 Players, Tharsis, Corporate Era, Draft and Prelude) and are not a Match against these bots.</sub>
 
@@ -368,8 +377,9 @@ win a Match against the rung below before it counts. If a later step fails, the 
 flowchart LR
     R["Random Bot"]:::done --> F["Flat Playout Bot<br/>random playouts on<br/>Sampled Positions"]:::done
     F --> C["Card Economy Bot<br/>Options by fitted Prices"]:::done
-    C --> I["Imitation Model<br/>learns from ~59,000<br/>human Games<br/>(tickets 13–14)"]:::todo
-    I --> V["Value Model<br/>improves by self-play<br/>(ticket 15)"]:::todo
+    C --> I["Imitation Model<br/>Draft and buying<br/>from human Games<br/>(ticket 13)"]:::done
+    I --> I2["Imitation Model<br/>every Decision<br/>(ticket 14)"]:::todo
+    I2 --> V["Value Model<br/>improves by self-play<br/>(ticket 15)"]:::todo
     V --> S["Search at play time<br/>tree over Sampled Positions<br/>(ticket 16)"]:::todo
     S --> H(["Beats me in<br/>most Games<br/>(ticket 17)"]):::goal
     classDef done fill:#2ea44f,color:#fff,stroke:#22863a
@@ -396,7 +406,7 @@ against the rung below. This table is updated as the ladder is climbed.
 | Random Bot | ✅ | 51.6% vs itself | 0% | 78.5 | 17.9 | negligible |
 | Flat Playout Bot | ✅ | 100% (98.1–100%) | — | 126.6 | 16.2 | about 14 ms |
 | Card Economy Bot | ✅ | 96.4% (95.0–97.3%) | the same Match | 114.0 | 13.3 | about 3 ms |
-| Imitation Model, Draft and buying | ⏳ ticket 13 | | | | | |
+| Imitation Bot: Imitation Model for setup, Draft and buying | ✅ | 84.3% (81.2–87.0%) | not measured | 127.0 | 13.5 | about 5 ms |
 | Imitation Model, every Decision | ⏳ ticket 14 | | | | | |
 | Value Model, after self-play | ⏳ ticket 15 | | | | | |
 | Search at play time | ⏳ ticket 16 | | | | | |
@@ -520,7 +530,7 @@ engine/        Rust rules engine and its Python bindings (tm_engine)
   cards/cards.json  printed card data + effects for all 267 cards
 server/        local FastAPI server: one WebSocket, Controllers in a worker thread
 gui/           React + TypeScript GUI (Vite); the board is one SVG
-ai/            Controllers, the Match tool, and the Recorded Game importer
+ai/            Controllers, the Match tool, the Recorded Game importer, and the Imitation Model (ai/imitation)
 tests/         rules, cards, engine, server, AI and fuzzing tests
 tools/         speed benchmark, card import, coverage and mismatch reports
 docs/          ADRs, rules notes, card mismatches, the developer guide

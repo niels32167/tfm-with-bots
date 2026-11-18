@@ -110,7 +110,8 @@ only that random source plays the same way from the same seeds.
 
 The registered Controllers are the Random Bot, the Flat Playout Bot (`flat_playout`), which plays each
 Option out at random on 20 Sampled Positions and picks the best mean Victory Point margin (about 14 ms a pick
-on average, under 0.2 s at most), and the Card Economy Bot (`card_economy`).
+on average, under 0.2 s at most), the Card Economy Bot (`card_economy`), and the Imitation Bot (`imitation`)
+once its model is trained.
 
 ### The Card Economy Bot
 
@@ -140,6 +141,38 @@ beside the Bot's Prices. `setup_choices` compares how often the Bot chooses each
 Prelude Card with how often Players did. A check's figures may move a starting weight, as the spec allows
 (the card in hand's, from 4 to 6), but they are never a fitting target or a model input: they include
 held-out Games.
+
+### The Imitation Bot
+
+The Imitation Bot (`imitation`, `ai/imitation/bot.py`) answers setup, the Draft and buying cards with the
+Imitation Model, which predicts the Option strong Players pick there, and leaves every other Decision to the Card
+Economy Bot. It is offered once a model is trained; the registered one is `.cache/models/imitation.pt`, which is
+private like the dataset it was trained on. Train, evaluate and check a model with:
+
+```bash
+uv run python -m ai.imitation.train --positions 20000000 --min-rating 500
+uv run python -m ai.imitation.evaluate --model .cache/models/imitation.pt
+uv run python -m ai.imitation.checks keep-rates --prelude-games-only
+uv run python -m ai.imitation.checks synergies --pairs point_luna:business_empire
+```
+
+Games are split by whole Game and by date (`ai/imitation/split.py`): about 80% train, the next 10% choose
+between models (validation), and the latest 10% are held out to test; Games without a valid date go by a hash of
+their id. Training reads the dataset while it trains: each Game's setup, Draft and buy Decisions come from its
+replay through the engine where the replay reaches them (the full Player View) and from its records elsewhere, and
+worker processes encode them, shuffle them and batch them (`ai/imitation/positions.py`). A run saves the model,
+its encoding format, its settings and its validation results every `--validate-every` positions, and the same
+command resumes it. It needs about 3.5 GB of RAM with 10 workers: run long ones outside the desktop app, with a
+cap, so that running out of memory stops the training rather than the app:
+
+```bash
+systemd-run --user --same-dir --unit=tm-train -p MemoryMax=6G -p MemorySwapMax=0 uv run python -m ai.imitation.train
+```
+
+`evaluate` reports accuracy on held-out Games by Decision kind, Generation, rating and source, beside a random
+pick, the most-kept card (keep rates of the training Games) and the Card Economy Bot's Prices. `checks` compares
+the model's keep rate for each card at setup with Players', and probes whether it gives a Corporation and a
+Prelude Card a higher chance together than apart.
 
 ## Recorded Games
 
@@ -334,6 +367,7 @@ pick(game, "Play Mine")
 | `ai/` | Controllers and the tools that compare them: the handle a Controller is given (`controller.py`), the registered Controllers (`controllers.py`), the Random Bot (`random_bot.py`), the Flat Playout Bot (`flat_playout.py`) and the Match tool (`match.py`) |
 | `ai/recorded_games/` | The Recorded Game importer (`build.py`, run as `python -m ai.recorded_games`), one log to a dataset entry (`importer.py`), names to catalog ids (`names.py`), the slim moves (`moves.py`), reading the dataset (`dataset.py`) and its comparison tables (`tables.py`) |
 | `tests/ai/` | Tests of fair play, the registered Controllers the Match tool and the Recorded Game importer |
+| `ai/imitation/` | The Imitation Model: the train/validation/test split (`split.py`), training positions read and encoded while training (`positions.py`), the model (`model.py`), the training command (`train.py`), accuracy against baselines (`evaluate.py`), keep-rate and synergy checks (`checks.py`) and the Imitation Bot (`bot.py`) |
 | `gui/src/` | The browser GUI; the board is one SVG drawn by `gui/src/components/MarsBoard.tsx` with the parts beside it (`OxygenTrack`, `TemperatureTrack`, `OceanTrack`, `StandardProjects`, `MilestonesAwards`), sharing `boardLayout.tsx`, and the printed tracks are in `gui/src/tracks.ts` |
 | `gui/src/components/DevPanel.tsx`, `StateEditor.tsx`, `gui/src/scenario.ts` | The dev panel, its state editor, and the edits it makes to a Scenario |
 | `gui/src/cards/` | Cards drawn as the card list draws them (`PrintedCard.tsx`, `cardList.css`), the card gallery, the hand (`HandDock.tsx`), the played cards under the board (`PlayedCards.tsx`), and the zoom on any card (`CardZoom.tsx`) |

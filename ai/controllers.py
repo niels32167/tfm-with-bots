@@ -1,13 +1,15 @@
 """The registered Controllers: what the Match tool, the server and the GUI's setup screen offer, and how
 Replay files name them. A Controller moves in here once it is finished enough to play against.
 
-A human is no registered Controller: they answer through the GUI, and the server handles them itself.
+A human is no registered Controller: they answer through the GUI, and the server handles them itself. A
+Controller that needs a trained model is available only once the model is there.
 """
 
 import importlib
 from collections.abc import Callable
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
+import ai.imitation
 from ai.card_economy import CardEconomyBot
 from ai.controller import Controller
 from ai.flat_playout import FlatPlayout
@@ -16,10 +18,20 @@ from ai.random_bot import RandomBot
 
 @dataclass(frozen=True)
 class Registered:
-    """A registered Controller: its `label` for people, and how to `make` one for one Player in one Game."""
+    """A registered Controller: its `label` for people, how to `make` one for one Player in one Game, and whether
+    it is `available` (its model trained, if it needs one), with `missing` saying what to do if not."""
 
     label: str
     make: Callable[[], Controller]
+    available: Callable[[], bool] = field(default=lambda: True)
+    missing: str = ""
+
+
+def imitation_bot() -> Controller:
+    # Imported when asked for, so that only processes playing it load PyTorch.
+    from ai.imitation.bot import ImitationBot
+
+    return ImitationBot()
 
 
 # By the name Replay files and the Match tool use, in the order the setup screen lists them.
@@ -27,7 +39,18 @@ REGISTERED: dict[str, Registered] = {
     "random_bot": Registered("Random Bot", RandomBot),
     "flat_playout": Registered("Flat Playout Bot", FlatPlayout),
     "card_economy": Registered("Card Economy Bot", CardEconomyBot),
+    "imitation": Registered(
+        "Imitation Bot",
+        imitation_bot,
+        available=lambda: ai.imitation.MODEL.exists(),
+        missing="train its model first: uv run python -m ai.imitation.train",
+    ),
 }
+
+
+def available() -> list[str]:
+    """The registered Controllers that can play now, in the registry's order."""
+    return [name for name, registered in REGISTERED.items() if registered.available()]
 
 
 def make_controller(name: str) -> Controller:
@@ -37,7 +60,10 @@ def make_controller(name: str) -> Controller:
     Raises ValueError for a name that is neither.
     """
     if name in REGISTERED:
-        return REGISTERED[name].make()
+        registered = REGISTERED[name]
+        if not registered.available():
+            raise ValueError(f"the {registered.label} isn't available: {registered.missing}")
+        return registered.make()
     if ":" in name:
         module_name, _, attribute = name.partition(":")
         try:

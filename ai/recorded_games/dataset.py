@@ -9,13 +9,23 @@ from typing import Any
 DATASET_FOLDER = Path(__file__).parents[2] / ".cache" / "recorded-games"
 
 
+def shards(folder: Path = DATASET_FOLDER) -> list[Path]:
+    """The dataset's finished shards, in order: each holds some Games, their slim moves and their replays."""
+    return [shard for shard in sorted((folder / "shards").glob("*")) if (shard / "shard.done").exists()]
+
+
+def read_shard(shard: Path, name: str) -> Iterator[dict[str, Any]]:
+    """Each line of one shard's file `name`, such as "games.jsonl.gz": none if the shard lacks it."""
+    if not (shard / name).exists():
+        return
+    with gzip.open(shard / name, "rt", encoding="utf-8") as lines:
+        for line in lines:
+            yield json.loads(line)
+
+
 def read_lines(folder: Path, name: str) -> Iterator[dict[str, Any]]:
-    for shard in sorted((folder / "shards").glob("*")):
-        if not (shard / "shard.done").exists() or not (shard / name).exists():
-            continue
-        with gzip.open(shard / name, "rt", encoding="utf-8") as lines:
-            for line in lines:
-                yield json.loads(line)
+    for shard in shards(folder):
+        yield from read_shard(shard, name)
 
 
 def read_games(folder: Path = DATASET_FOLDER) -> Iterator[dict[str, Any]]:

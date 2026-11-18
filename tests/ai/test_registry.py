@@ -7,7 +7,7 @@ import pytest
 import tm_engine
 
 from ai.controller import handle_for
-from ai.controllers import REGISTERED, make_controller
+from ai.controllers import REGISTERED, available, make_controller
 from ai.random_bot import RandomBot
 
 
@@ -39,6 +39,6 @@ def test_human_is_not_a_registered_controller():
 
 def test_a_registered_controller_picks_an_offered_option():
     game = tm_engine.Game(seed=2, players=2, draft=True, prelude=True)
-    for name in REGISTERED:
+    for name in available():
         index = make_controller(name).pick(handle_for(game, random.Random(0)))
         assert 0 <= index < len(game.decision["options"])

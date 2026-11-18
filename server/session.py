@@ -5,7 +5,7 @@ from typing import Any
 import tm_engine
 
 from ai.controller import Controller, Handle, handle_for, offered
-from ai.controllers import REGISTERED, make_controller
+from ai.controllers import REGISTERED, available, make_controller
 from ai.explain import explanation, server_random
 from tests.fuzzing.invariants import (
     each_reserved_area_used_only_by_its_card,
@@ -20,10 +20,10 @@ HUMAN = "human"
 
 
 def controllers_on_offer() -> list[dict[str, str]]:
-    """The Controllers the setup screen offers, by name and label: a human, then the registered ones.
-    Only these can play on the server; a Replay file can't name a module to import."""
+    """The Controllers the setup screen offers, by name and label: a human, then the registered ones that are
+    available. Only these can play on the server; a Replay file can't name a module to import."""
     return [{"name": HUMAN, "label": "Human"}] + [
-        {"name": name, "label": registered.label} for name, registered in REGISTERED.items()
+        {"name": name, "label": REGISTERED[name].label} for name in available()
     ]
 
 

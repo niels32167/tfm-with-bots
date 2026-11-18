@@ -1264,13 +1264,25 @@ def action_decisions(record: dict[str, Any]) -> Iterator[dict[str, Any]]:
     "view" (their Player View), "options" and "picked" (an index into them). Never the other Player's hand
     or the deck: only the Player View and the Decision leave the engine. "inferred" marks a pick the log
     didn't give (see Outcome.inferred), which training may leave out."""
+    return replayed_decisions(record, recorded=False)
+
+
+def recorded_kind_decisions(record: dict[str, Any]) -> Iterator[dict[str, Any]]:
+    """The setup and Research-phase Decisions of a replayed Game, up to its first difference, in the shape of
+    action_decisions(): the Decisions the dataset's records describe, but with the full Player View (the hand,
+    the Tiles and Card Resources), as the Player saw it in play (ticket 13 of phase 2)."""
+    return replayed_decisions(record, recorded=True)
+
+
+def replayed_decisions(record: dict[str, Any], *, recorded: bool) -> Iterator[dict[str, Any]]:
+    """The Decisions of a replayed Game whose kind is among RECORDED_KINDS, or those whose kind isn't."""
     if not record["replay"]:  # The Game stopped before the engine could start it.
         return
     game = tm_engine.Game.from_replay({"start": record["replay"]["start"], "picks": []})
     inferred = set(record.get("inferred", []))
     for number, picked in enumerate(record["replay"]["picks"]):
         decision = game.decision
-        if decision["kind"] not in RECORDED_KINDS:
+        if (decision["kind"] in RECORDED_KINDS) == recorded:
             view = game.player_view(decision["player"])
             yield {
                 "player": decision["player"],
