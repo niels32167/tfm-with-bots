@@ -233,3 +233,40 @@ Left as they are:
   - Credicor with Mining Operations, Vitor with Metals Company, Mining Guild with Aquifer Turbines, Point Luna with
     Research Network, and Saturn Systems with Acquired Space Agency (+3.0 to +3.9).
 - The probe's results follow below.
+- **Result:** `uv run python -m ai.imitation.checks synergies --most-games 1500 --pairs …` probed the registered model on
+  the first 1,500 test Games, 2,962 setup records with Prelude Cards kept. For each pair it gives the chance of the
+  Corporation with and without the Prelude Card dealt, and of keeping the Prelude Card first with and without the
+  Corporation chosen.
+
+  | Corporation | Prelude Card | Corporation with | without | Prelude Card with | without | Both higher |
+  | --- | --- | ---: | ---: | ---: | ---: | --- |
+  | Tharsis Republic | Early Settlement | 48.4% | 48.3% | 24.8% | 23.9% | yes |
+  | Tharsis Republic | Self-Sufficient Settlement | 48.6% | 48.3% | 10.6% | 10.7% | no |
+  | Saturn Systems | Io Research Outpost | 48.6% | 47.9% | 28.4% | 28.3% | yes |
+  | Mining Guild | Self-Sufficient Settlement | 50.4% | 50.2% | 11.0% | 10.6% | yes |
+  | Saturn Systems | Galilean Mining | 48.6% | 47.9% | 34.9% | 34.7% | yes |
+  | Credicor | Mining Operations | 60.9% | 61.3% | 30.3% | 30.3% | no |
+  | Vitor | Metals Company | 67.3% | 66.2% | 41.8% | 41.7% | yes |
+  | Mining Guild | Aquifer Turbines | 50.2% | 50.3% | 66.0% | 65.8% | no |
+  | Point Luna | Research Network | 74.0% | 73.3% | 20.6% | 20.6% | no |
+  | Saturn Systems | Acquired Space Agency | 45.3% | 48.3% | 10.1% | 10.3% | no |
+
+- **Not learned:** 5 of 10 pairs score higher together for both parts, but by under 1.1 points, which is no
+  synergy. The box stays unticked.
+- Likely causes, not measured:
+  - The registered model saw only 1M positions, and setup's Corporation and Prelude Card Decisions are under 5% of
+    them.
+  - Pair effects are rare in Players' picks: each pair is kept 200–300 times in the training Games.
+- **Open:**
+  - Read tfmstats.com's Combinations page when it answers, and rerun the probe on its 10 pairs.
+  - Train longer (the 450+, Prelude-only run of Box 4), possibly weighting setup Decisions.
+  - Rerun this probe. It takes about 15 minutes on 1,500 Games.
+
+**Open points:**
+- Box 6 (above).
+- A longer training run with the best settings from Box 4 (`--min-rating 450 --prelude-games-only`, 10M+
+  positions, about 50 min with `--compile`), to replace the registered model.
+- A Match against the Flat Playout Bot, which the README's training-progress table asks of each rung. Not run, for
+  time.
+- Keep rates: buying by chance rather than greedily, and checking the cards kept per setup (Box 5).
+- Ticket 14 extends imitation to every Decision. Payment Decisions (up to 526 Options) need batching apart.
