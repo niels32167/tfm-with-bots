@@ -334,7 +334,7 @@ interval.
 | **Card Economy Bot vs Flat Playout Bot** | 1,000 | **96.4%** (95.0–97.3%) | **114.0 – 74.6** | 18.4 – 5.8 | 45.6 – 44.5 | 13.3 |
 | Card Economy Bot vs Flat Playout Bot at 1,000 playouts per Option | 100 | 29.5% (21.5–39.1%) | 93.0 – 103.7 | 16.8 – 13.3 | 40.6 – 48.9 | 12.8 |
 | Card Economy Bot vs itself | 1,000 | 49.9% (46.8–53.0%) | 117.6 – 97.5 (winner – loser) | 20.1 (winner) | 46.7 | 13.6 |
-| **Imitation Bot vs Card Economy Bot** | 600 | **84.3%** (81.2–87.0%) | **127.0 – 99.9** | 35.8 – 16.0 | 47.7 – 45.2 | 13.5 |
+| **Imitation Bot vs Card Economy Bot** | 600 | **89.7%** (87.0–91.9%) | **130.8 – 96.8** | 37.8 – 15.9 | 48.4 – 44.3 | 13.3 |
 | *For reference: human Games on Board Game Arena* | 51,422 | | 106 – 87 (winner – loser) | 28 (better Player) | | 10.7 |
 
 The **Flat Playout Bot** plays each Option out to the end of the Game at random on 20 Sampled Positions and
@@ -355,16 +355,16 @@ search at play time (ticket 16).
 The **Imitation Bot** chooses its Corporation and Prelude Cards, drafts and buys cards as the **Imitation Model**
 predicts strong Players would, and plays everything else as the Card Economy Bot does. The model is a small
 transformer over the cards a Player can see and the Options, trained on human Games (see below). On held-out Games
-it picks what the Player picked 67% of the time, against 54% for always taking the most-kept card and 39% for the
-Card Economy Bot's Prices. Those picks alone lift the Card Economy Bot from 16 to 36 card Victory Points a Game, more
-than humans' 28, and win 84% of Games against it.
+it picks what the Player picked 72% of the time (75% for Players rated 600+), against 54% for always taking the
+most-kept card and 39% for the Card Economy Bot's Prices. Those picks alone lift the Card Economy Bot from 16 to 38
+card Victory Points a Game, more than humans' 28, and win 90% of Games against it.
 
 <sub>Measured on 2026-11-16 with `uv run python -m ai.match random_bot random_bot --games 1000` and
 `uv run python -m ai.match flat_playout random_bot --games 200`, and on 2026-11-17 with
 `uv run python -m ai.match card_economy random_bot --games 400`,
 `uv run python -m ai.match card_economy flat_playout --games 1000 --first-seed 1000` and
-`uv run python -m ai.match card_economy card_economy --games 1000`, and on 2026-11-18 with
-`uv run python -m ai.match imitation card_economy --games 600 --processes 4`; the Match at 1,000 playouts by a script
+`uv run python -m ai.match card_economy card_economy --games 1000`, and with
+`uv run python -m ai.match imitation card_economy --games 600 --processes 8` (2026-11-19); the Match at 1,000 playouts by a script
 recorded in ticket 11's Comments. The human figures come from the Recorded Game
 archive (2 Players, Tharsis, Corporate Era, Draft and Prelude) and are not a Match against these bots.</sub>
 
@@ -406,7 +406,7 @@ against the rung below. This table is updated as the ladder is climbed.
 | Random Bot | ✅ | 51.6% vs itself | 0% | 78.5 | 17.9 | negligible |
 | Flat Playout Bot | ✅ | 100% (98.1–100%) | — | 126.6 | 16.2 | about 14 ms |
 | Card Economy Bot | ✅ | 96.4% (95.0–97.3%) | the same Match | 114.0 | 13.3 | about 3 ms |
-| Imitation Bot: Imitation Model for setup, Draft and buying | ✅ | 84.3% (81.2–87.0%) | not measured | 127.0 | 13.5 | about 5 ms |
+| Imitation Bot: Imitation Model for setup, Draft and buying | ✅ | 89.7% (87.0–91.9%) | not measured | 130.8 | 13.3 | about 5 ms |
 | Imitation Model, every Decision | ⏳ ticket 14 | | | | | |
 | Value Model, after self-play | ⏳ ticket 15 | | | | | |
 | Search at play time | ⏳ ticket 16 | | | | | |

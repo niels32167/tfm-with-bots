@@ -264,9 +264,76 @@ Left as they are:
 
 **Open points:**
 - Box 6 (above).
-- A longer training run with the best settings from Box 4 (`--min-rating 450 --prelude-games-only`, 10M+
-  positions, about 50 min with `--compile`), to replace the registered model.
+- ~~A longer training run with the best settings from Box 4.~~ Done on 2026-11-19; see below.
 - A Match against the Flat Playout Bot, which the README's training-progress table asks of each rung. Not run, for
   time.
 - Keep rates: buying by chance rather than greedily, and checking the cards kept per setup (Box 5).
 - Ticket 14 extends imitation to every Decision. Payment Decisions (up to 526 Options) need batching apart.
+
+### 2026-11-19 — a longer run replaces the registered model (Claude)
+
+On the user's go-ahead, Box 4's best settings were trained for longer:
+```bash
+uv run python -m ai.imitation.train --positions 10000000 --validate-every 2000000 --min-rating 450 \
+  --prelude-games-only --compile --workers 10 --out .cache/models/runs/r450-prelude.pt
+```
+- It ran as a user systemd service capped at 6 GB, at 4.2 GB peak and about 6,500 positions a second. That is
+  26 minutes for 10M positions, about 4.2 passes over the 2,390,005 training positions.
+- Validation accuracy: 72.2% at 2M, 74.0% at 4M, 74.7% at 6M, 75.2% at 8M and 75.3% at 10M. The loss was still
+  falling, with no sign of overfitting.
+- It is now the registered model, `.cache/models/imitation.pt`. The first one stays in `.cache/models/runs/all.pt`.
+
+**Box 2 again, the same test positions as above** (`uv run python -m ai.imitation.evaluate --shard-share 8`):
+
+| | Positions | First model | **This model** | Most-kept | Bot's Prices |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| All | 89,764 | 67.0% | **71.7%** | 53.8% | 38.6% |
+| Buying cards | 49,071 | 65.6% | **71.6%** | 46.6% | 33.8% |
+| Draft | 36,819 | 69.1% | **72.0%** | 63.1% | 44.2% |
+| Prelude Cards | 2,568 | 64.0% | **70.1%** | 52.6% | 44.2% |
+| Corporation | 1,306 | 65.5% | **69.0%** | 66.2% | 54.0% |
+| Rated under 300 | 21,317 | 62.0% | 64.2% | 48.1% | 38.8% |
+| Rated 500–599 | 20,970 | 69.2% | 75.0% | 56.5% | 38.4% |
+| Rated 600+ | 29,620 | 69.5% | **75.3%** | 56.7% | 38.3% |
+
+- By Generation it holds 70.0–73.3%.
+- It now beats every baseline at every kind, the Corporation included. That was the first model's one tie.
+
+**Box 3 again:** `uv run python -m ai.match imitation card_economy --games 600 --processes 8`.
+- The Imitation Bot won **89.7% (87.0–91.9%)**, up from 84.3%.
+- Victory Points 130.8 against 96.8, card Victory Points 37.8 against 15.9, Terraform Rating 48.4 against 44.3.
+- 13.3 Generations; 0 stalled, 0 failed. The Match took 3.5 minutes with 8 processes, at 2.8 GB peak.
+
+**Box 6 again:** the same probe, the same 10 stand-in pairs and 2,962 setup records.
+
+| Corporation | Prelude Card | Corporation with | without | Prelude Card with | without | Both higher |
+| --- | --- | ---: | ---: | ---: | ---: | --- |
+| Tharsis Republic | Early Settlement | 44.9% | 33.2% | 42.0% | 17.9% | yes |
+| Tharsis Republic | Self-Sufficient Settlement | 34.9% | 34.4% | 8.4% | 4.5% | yes |
+| Saturn Systems | Io Research Outpost | 59.9% | 46.3% | 37.3% | 21.2% | yes |
+| Mining Guild | Self-Sufficient Settlement | 42.0% | 40.9% | 7.5% | 4.4% | yes |
+| Saturn Systems | Galilean Mining | 66.7% | 45.5% | 47.9% | 27.1% | yes |
+| Credicor | Mining Operations | 68.4% | 67.1% | 27.0% | 26.2% | yes |
+| Vitor | Metals Company | 68.0% | 65.8% | 38.1% | 37.5% | yes |
+| Mining Guild | Aquifer Turbines | 43.7% | 40.7% | 77.6% | 66.3% | yes |
+| Point Luna | Research Network | 77.0% | 76.6% | 17.7% | 14.9% | yes |
+| Saturn Systems | Acquired Space Agency | 58.7% | 46.5% | 0.0% | 0.0% | no |
+
+- **The longer run learned synergies.** 9 of 10 pairs score higher together for both parts, by up to 24 points.
+  The pairs with the highest lift move most:
+  - Tharsis Republic with Early Settlement: +11.7 for the Corporation, +24.1 for the Prelude Card.
+  - Saturn Systems with its Jovian Prelude Cards: +13.6 and +16.1, +21.2 and +20.8.
+  The first model, at 1M unfiltered positions, had moved under 1.1 points.
+- **The tenth pair can't be measured this way.**
+  - Acquired Space Agency is the highest-numbered Prelude Card (267 of 267).
+  - The records list kept cards in card-number order, so the first Prelude Card kept is never Acquired Space Agency
+    when another is kept. The model learned that order, giving 0.0% both ways.
+  - The Corporation part still rose from 46.5% to 58.7%.
+  - This is the same card-order trait as Box 5's buying. A probe over the whole keeping chain (kept at all, not
+    kept first) would measure it.
+- **Still not ticked**, for two reasons:
+  - The pairs are a stand-in ranked from the training Games. The box asks for tfmstats.com's Combinations page,
+    which still timed out on 2026-11-19.
+  - One pair isn't measurable with this probe.
+  - To close it: read the Combinations page when it answers, change the probe to "kept at all", and rerun
+    `uv run python -m ai.imitation.checks synergies --most-games 1500 --pairs …` (about 9 minutes).
