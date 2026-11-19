@@ -188,6 +188,52 @@ def side_of(name: str, side: int, finished: list[GameResult]) -> Side:
     return Side(name, wins, draws, losses, points / count, card_points / count, terraform_rating / count)
 
 
+@dataclass(frozen=True)
+class Claim:
+    """A Milestone claimed or an Award funded: which, by which Player (from 0), in which Generation, and for an
+    Award, whether its funder lost it: another Player had more at the end (a tie for first is no loss)."""
+
+    name: str
+    player: int
+    generation: int
+    lost: bool | None = None
+
+
+@dataclass(frozen=True)
+class GameSummary:
+    """What box 4 of ticket 14 compares between the Imitation Bot's Games against itself and Players' Games."""
+
+    generations: int
+    scores: list[dict[str, Any]]
+    milestones: list[Claim]
+    awards: list[Claim]
+
+
+def game_summary(replay: dict[str, Any]) -> GameSummary:
+    """A Replay (its start and picks) played through the engine: its Generations, the engine's scores, and each
+    Milestone claimed and Award funded with its Generation, from the pick that claims or funds it."""
+    game = tm_engine.Game.from_replay({"start": replay["start"], "picks": []})
+    milestones: list[Claim] = []
+    funded: list[tuple[str, int, int]] = []
+    for picked in replay["picks"]:
+        decision = game.decision
+        details = decision["options"][picked]["details"]
+        if details["type"] in ("claim_milestone", "fund_award"):
+            generation = game.player_view(decision["player"])["generation"]
+            if details["type"] == "claim_milestone":
+                milestones.append(Claim(details["milestone"], decision["player"], generation))
+            else:
+                funded.append((details["award"], decision["player"], generation))
+        game.pick(picked)
+    view = game.full_view()
+    counts = {award["award"]: award["counts"] for award in view["awards"]}
+    awards = [
+        Claim(award, player, generation, lost=counts[award][player] < max(counts[award]))
+        for award, player, generation in funded
+    ]
+    return GameSummary(view["generation"], game.scores, milestones, awards)
+
+
 def play_game(
     seed: int,
     controllers: tuple[str, str],

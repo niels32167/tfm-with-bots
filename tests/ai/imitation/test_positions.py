@@ -46,6 +46,11 @@ def picks_of(decisions: list[dict]) -> list[tuple]:
     )
 
 
+def recorded_kinds(decisions: list[dict]) -> list[dict]:
+    """The setup, Draft and buy Decisions: those the records describe."""
+    return [d for d in decisions if d["kind"] in RECORDED_KINDS]
+
+
 def test_without_a_replay_the_decisions_are_the_records():
     decisions = list(training_decisions(GAME, None))
 
@@ -54,7 +59,7 @@ def test_without_a_replay_the_decisions_are_the_records():
 
 
 def test_where_the_replay_reaches_the_decisions_come_from_it_with_the_hand_known():
-    decisions = list(training_decisions(GAME, replay_of_the_example()))
+    decisions = recorded_kinds(list(training_decisions(GAME, replay_of_the_example())))
 
     assert picks_of(decisions) == picks_of(list(recorded_decisions(GAME)))
     assert {d["source"] for d in decisions} == {"replay"}
@@ -66,13 +71,40 @@ def test_past_where_the_replay_stopped_the_decisions_come_from_the_records():
     # 12 setup picks, then 1 Prelude Card played each and a pass each; stop inside Generation 2's Draft.
     whole = replay_of_the_example()["replay"]["picks"]
     stopped = len(whole) - 6
-    decisions = list(training_decisions(GAME, replay_of_the_example(picks=stopped)))
+    decisions = recorded_kinds(list(training_decisions(GAME, replay_of_the_example(picks=stopped))))
 
     assert picks_of(decisions) == picks_of(list(recorded_decisions(GAME)))
     sources = {(d["generation"], d["kind"], d["source"]) for d in decisions}
     assert (1, "corporation", "replay") in sources
     assert (2, "buy_cards", "records") in sources
     assert (2, "buy_cards", "replay") not in sources
+
+
+def test_the_replay_also_gives_the_prelude_cards_played_and_every_action_phase_decision():
+    # Generation 1 of the example: Player 2 plays Donation and places its Greenery, Player 1 plays Allied Banks,
+    # and both pass (ticket 14 of phase 2).
+    decisions = list(training_decisions(GAME, replay_of_the_example()))
+
+    played = [
+        (d["player"], d["kind"], d["options"][d["picked"]]["label"], d["source"])
+        for d in decisions
+        if d["kind"] not in RECORDED_KINDS
+    ]
+    assert played == [
+        (1, "play_prelude_card", "Play Donation", "replay"),
+        (1, "area", "Place the Greenery on A1", "replay"),
+        (0, "play_prelude_card", "Play Allied Banks", "replay"),
+        (1, "action", "Pass", "replay"),
+        (0, "action", "Pass", "replay"),
+    ]
+
+
+def test_picks_the_recorded_games_log_didnt_give_are_left_out():
+    # Pick 13 is the Greenery's Area; marked inferred, as a pick chosen in hindsight would be.
+    decisions = list(training_decisions(GAME, {**replay_of_the_example(), "inferred": [13]}))
+
+    assert "area" not in {d["kind"] for d in decisions}
+    assert sum(d["kind"] == "action" for d in decisions) == 2
 
 
 # The example has 22 setup, Draft and buy Decisions, each with more than one Option: per Player a Corporation,
@@ -160,6 +192,28 @@ def test_training_batches_hold_each_position_once_padded_with_few_card_rows_wast
             real_rows = made_batch["card_mask"].sum(axis=1)
             assert made_batch["cards"].shape[1] == real_rows.max()
             assert made_batch["options"][~made_batch["option_mask"]].sum() == 0
+
+
+def test_for_evaluation_the_card_economy_bots_pick_is_noted_at_action_phase_decisions_too(tmp_path):
+    # It tries Options on Sampled Positions there, which only the replay's Game can give.
+    folder = write_dataset(tmp_path, [example("g", date="2024-01-01")], [{**replay_of_the_example(), "game": "g"}])
+
+    found = [p for p in kept(folder, "train", card_economy_picks=True) if p.kind not in RECORDED_KINDS]
+
+    assert {p.kind for p in found} == {"play_prelude_card", "area", "action"}
+    assert all(0 <= p.card_economy_pick < len(p.options) for p in found)
+
+
+def test_decisions_with_many_options_are_batched_together_so_that_few_option_rows_are_padding(tmp_path):
+    # The replayed Game's Area Decision has 48 Options; the others have 2 to 14 (Payment can have 240).
+    games = [example(f"g{n}", date="2024-01-01") for n in range(4)]
+    folder = write_dataset(tmp_path, games, [{**replay_of_the_example(), "game": f"g{n}"} for n in range(4)])
+
+    made = list(batches(folder, "train", PositionSettings(), workers=0, seed=1, size=4, buffer=200))
+
+    real = sum(int(made_batch["option_mask"].sum()) for made_batch in made)
+    padded = sum(made_batch["option_mask"].size for made_batch in made)
+    assert padded <= 1.5 * real  # Sorted by card rows alone: 1.76.
 
 
 def test_worker_processes_load_only_what_reading_the_dataset_needs_not_the_callers_main_module(tmp_path):

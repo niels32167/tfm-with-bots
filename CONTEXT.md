@@ -158,7 +158,7 @@ A Controller that compares Options by their Prices, computed from the card catal
 A model that predicts what strong Players pick at a Decision, trained on Recorded Games.
 
 **Imitation Bot**:
-The Registered Controller that answers setup, the Draft and buying cards with the Imitation Model, and every other Decision as the Card Economy Bot does.
+The Registered Controller that answers every Decision with the Imitation Model. Ticket 13's, which answered only setup, the Draft and buying cards with it and every other Decision as the Card Economy Bot does, stays registered as "Imitation Bot (Draft and buy)" to play against.
 
 **Value Model**:
 A model that estimates a Player's chance of winning from their Player View, trained by self-play.

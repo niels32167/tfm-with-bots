@@ -1,4 +1,4 @@
-"""Checks of what the Imitation Model learned, on held-out Games (ticket 13 of phase 2):
+"""Checks of what the Imitation Model learned (tickets 13 and 14 of phase 2):
 
 - Keep rates (box 5): each card's share kept at setup when dealt, by the model buying through the whole chain of
   buy Decisions itself (with the Corporation and Prelude Cards the Player chose), beside Players' share. The
@@ -8,8 +8,15 @@
   the Corporation chosen and with another. Each setup record is a probe: the pair is put into its offer, or taken out
   and replaced by a stand-in (the first card of its kind in the catalog that the offer lacks).
 
+- Self-play (ticket 14, box 4): a registered Controller's Games against itself beside Players' (rated at least
+  --min-rating, Games with Prelude not conceded and replayed fully through the engine): Generations, Victory Points
+  and card Victory Points, each Milestone claimed and Award funded and in which Generation, and the flip rate, how
+  often a funder lost the Award they funded. tfmstats.com's flip rate would need the site; the dataset's comes from
+  the replays' final scoring (the spec's "When tfmstats.com doesn't answer").
+
     uv run python -m ai.imitation.checks keep-rates --model .cache/models/imitation.pt
     uv run python -m ai.imitation.checks synergies --pairs credicor:allied_banks,helion:...
+    uv run python -m ai.imitation.checks self-play --games 200 --processes 6 --most-games 4000
 """
 
 import argparse
@@ -30,7 +37,8 @@ from ai.imitation.evaluate import Scorer
 from ai.imitation.model import collate, load_model, scored
 from ai.imitation.positions import encoded
 from ai.imitation.split import split_of
-from ai.recorded_games.dataset import DATASET_FOLDER, read_games
+from ai.match import Claim, GameSummary, game_summary, run_match
+from ai.recorded_games.dataset import DATASET_FOLDER, read_games, read_shard, shards
 from ai.recorded_games.records import recorded_decisions
 
 # Cards dealt at setup, and so a guard on the buying chain.
@@ -40,6 +48,124 @@ MOST_BUYS = CARDS_DEALT
 FEWEST_DEALT = 100
 
 type Counts = dict[str, tuple[int, int]]
+
+
+@dataclass(frozen=True)
+class MilestoneRate:
+    """How often a Milestone is claimed per Game, and the mean Generation it is claimed in."""
+
+    per_game: float = 0.0
+    generation: float = float("nan")
+
+
+@dataclass(frozen=True)
+class AwardRate:
+    """How often an Award is funded per Game, the mean Generation it is funded in, and the share its funder lost."""
+
+    per_game: float = 0.0
+    generation: float = float("nan")
+    lost: float = float("nan")
+
+
+@dataclass(frozen=True)
+class Benchmark:
+    """Means over Games: Generations, and a Player's Victory Points and card Victory Points. For each Milestone,
+    claims per Game and the mean Generation; for each Award, funded per Game, the mean Generation and the share its
+    funder lost; and the flip rate, the share of all Awards funded that their funder lost."""
+
+    games: int
+    generations: float
+    points: float
+    card_points: float
+    milestones: dict[str, MilestoneRate]
+    awards: dict[str, AwardRate]
+    flip_rate: float
+
+
+def benchmark(summaries: Iterable[GameSummary]) -> Benchmark:
+    games = list(summaries)
+    per_game = 1 / max(len(games), 1)
+    scores = [score for game in games for score in game.scores]
+    milestones: dict[str, list[Claim]] = defaultdict(list)
+    awards: dict[str, list[Claim]] = defaultdict(list)
+    for game in games:
+        for claim in game.milestones:
+            milestones[claim.name].append(claim)
+        for claim in game.awards:
+            awards[claim.name].append(claim)
+    funded = [claim for claims in awards.values() for claim in claims]
+    return Benchmark(
+        games=len(games),
+        generations=mean_of(game.generations for game in games),
+        points=mean_of(score["total"] for score in scores),
+        card_points=mean_of(score["cards"] for score in scores),
+        milestones={
+            name: MilestoneRate(len(claims) * per_game, mean_of(claim.generation for claim in claims))
+            for name, claims in sorted(milestones.items())
+        },
+        awards={
+            name: AwardRate(
+                len(claims) * per_game,
+                mean_of(claim.generation for claim in claims),
+                mean_of(float(bool(claim.lost)) for claim in claims),
+            )
+            for name, claims in sorted(awards.items())
+        },
+        flip_rate=mean_of(float(bool(claim.lost)) for claim in funded),
+    )
+
+
+def players_games(folder: Path, min_rating: int) -> Iterator[GameSummary]:
+    """Players' Games with Prelude, not conceded, replayed fully, with both Players rated at least `min_rating`."""
+    for shard in shards(folder):
+        replays = {record["game"]: record for record in read_shard(shard, "replays.jsonl.gz") if record["complete"]}
+        for game in read_shard(shard, "games.jsonl.gz"):
+            rated = all((board["rating"] or 0) >= min_rating for board in game["players"])
+            if game["prelude"] and not game["conceded"] and rated and game["game"] in replays:
+                yield game_summary(replays[game["game"]]["replay"])
+
+
+def benchmark_table(columns: dict[str, Benchmark]) -> str:
+    def row(label: str, values: Iterable[str]) -> str:
+        return f"{label:<34}" + "".join(f"{value:>32}" for value in values)
+
+    found = list(columns.values())
+    lines = [row("", columns), row("Games", (f"{b.games:,}" for b in found))]
+    lines.append(row("Generations", (f"{b.generations:.1f}" for b in found)))
+    lines.append(row("Victory Points (a Player)", (f"{b.points:.1f}" for b in found)))
+    lines.append(row("card Victory Points (a Player)", (f"{b.card_points:.1f}" for b in found)))
+    lines.append(row("Awards funded, lost (flip rate)", (f"{b.flip_rate:.1%}" for b in found)))
+    lines.append("Milestones: claimed per Game, mean Generation")
+    for name in sorted({name for b in found for name in b.milestones}):
+        cells = (b.milestones.get(name, MilestoneRate()) for b in found)
+        lines.append(row(f"  {name}", (f"{c.per_game:.2f}, Generation {c.generation:.1f}" for c in cells)))
+    lines.append("Awards: funded per Game, mean Generation, share lost")
+    for name in sorted({name for b in found for name in b.awards}):
+        cells = (b.awards.get(name, AwardRate()) for b in found)
+        lines.append(
+            row(f"  {name}", (f"{c.per_game:.2f}, Generation {c.generation:.1f}, {c.lost:.0%}" for c in cells))
+        )
+    return "\n".join(lines)
+
+
+def self_play_report(given: argparse.Namespace) -> int:
+    match = run_match(given.controller, given.controller, given.games, processes=given.processes)
+    print(
+        f"{given.controller} against itself: {len(match.finished)} finished, {match.stalled} stalled, {match.failed} failed"
+    )
+    columns = {
+        f"{given.controller} (self-play)": benchmark(game_summary(game.replay) for game in match.finished),
+        f"Players rated {given.min_rating}+": benchmark(
+            itertools.islice(players_games(given.dataset, given.min_rating), given.most_games)
+        ),
+    }
+    print(benchmark_table(columns))
+    return 0
+
+
+def mean_of(values: Iterable[float]) -> float:
+    found = list(values)
+    return sum(found) / len(found) if found else float("nan")
 
 
 def setup_records(games: Iterable[dict[str, Any]]) -> Iterator[tuple[dict[str, Any], dict[str, Any]]]:
@@ -260,7 +386,7 @@ def keep_rate_report(model_counts: Counts, player_counts: Counts, top: int) -> s
 
 def main(given_arguments: Sequence[str] | None = None) -> int:
     parser = argparse.ArgumentParser(prog="python -m ai.imitation.checks", description=__doc__.splitlines()[0])
-    parser.add_argument("check", choices=("keep-rates", "synergies"))
+    parser.add_argument("check", choices=("keep-rates", "synergies", "self-play"))
     parser.add_argument("--model", type=Path, default=MODEL)
     parser.add_argument("--dataset", type=Path, default=DATASET_FOLDER)
     parser.add_argument("--split", choices=("validation", "test"), default="test")
@@ -269,7 +395,13 @@ def main(given_arguments: Sequence[str] | None = None) -> int:
     parser.add_argument("--most-games", type=int, help="only the first this many held-out Games, for a quicker look")
     parser.add_argument("--pairs", default="", help="synergies: corporation:prelude_card pairs, comma-separated")
     parser.add_argument("--device", default="cuda" if torch.cuda.is_available() else "cpu")
+    parser.add_argument("--controller", default="imitation", help="self-play: the registered Controller")
+    parser.add_argument("--games", type=int, default=200, help="self-play: Games against itself")
+    parser.add_argument("--processes", type=int, help="self-play: worker processes (default: every core)")
+    parser.add_argument("--min-rating", type=int, default=450, help="self-play: Players rated at least this")
     given = parser.parse_args(given_arguments)
+    if given.check == "self-play":
+        return self_play_report(given)
     model = load_model(given.model, given.device)[0]
 
     def scorer(batch: Any) -> torch.Tensor:

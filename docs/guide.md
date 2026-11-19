@@ -144,23 +144,29 @@ held-out Games.
 
 ### The Imitation Bot
 
-The Imitation Bot (`imitation`, `ai/imitation/bot.py`) answers setup, the Draft and buying cards with the
-Imitation Model, which predicts the Option strong Players pick there, and leaves every other Decision to the Card
-Economy Bot. It is offered once a model is trained; the registered one is `.cache/models/imitation.pt`, which is
-private like the dataset it was trained on. Train, evaluate and check a model with:
+The Imitation Bot (`imitation`, `ai/imitation/bot.py`) answers every Decision with the Imitation Model, which
+predicts the Option strong Players pick there. It is offered once a model is trained; the registered one is
+`.cache/models/imitation.pt`, which is private like the dataset it was trained on. Ticket 13's bot, which answered
+only setup, the Draft and buying cards and left the rest to the Card Economy Bot, stays registered as
+`imitation_draft_buy` with its model in `.cache/models/imitation-draft-buy.pt`. Train, evaluate and check a model
+with:
 
 ```bash
-uv run python -m ai.imitation.train --positions 20000000 --min-rating 500
+uv run python -m ai.imitation.train --positions 6000000 --min-rating 450 --prelude-games-only \
+  --start-from .cache/models/imitation-draft-buy.pt
 uv run python -m ai.imitation.evaluate --model .cache/models/imitation.pt
 uv run python -m ai.imitation.checks keep-rates --prelude-games-only
 uv run python -m ai.imitation.checks synergies --pairs point_luna:business_empire
+uv run python -m ai.imitation.checks self-play --games 200 --most-games 4000
 ```
 
 Games are split by whole Game and by date (`ai/imitation/split.py`): about 80% train, the next 10% choose
 between models (validation), and the latest 10% are held out to test; Games without a valid date go by a hash of
 their id. Training reads the dataset while it trains: each Game's setup, Draft and buy Decisions come from its
-replay through the engine where the replay reaches them (the full Player View) and from its records elsewhere, and
-worker processes encode them, shuffle them and batch them (`ai/imitation/positions.py`). A run saves the model,
+replay through the engine where the replay reaches them (the full Player View) and from its records elsewhere; every
+other Decision comes from the replay alone, as far as it goes, leaving out the picks the log didn't give. Worker
+processes encode them, shuffle them and batch them by their Options and card rows (`ai/imitation/positions.py`).
+`--start-from` begins a run from another model's weights. A run saves the model,
 its encoding format, its settings and its validation results every `--validate-every` positions, and the same
 command resumes it. It needs about 3.5 GB of RAM with 10 workers: run long ones outside the desktop app, with a
 cap, so that running out of memory stops the training rather than the app:
@@ -170,9 +176,11 @@ systemd-run --user --same-dir --unit=tm-train -p MemoryMax=6G -p MemorySwapMax=0
 ```
 
 `evaluate` reports accuracy on held-out Games by Decision kind, Generation, rating and source, beside a random
-pick, the most-kept card (keep rates of the training Games) and the Card Economy Bot's Prices. `checks` compares
-the model's keep rate for each card at setup with Players', and probes whether it gives a Corporation and a
-Prelude Card a higher chance together than apart.
+pick, the most-kept card (keep rates of the training Games, so only at setup, Draft and buy Decisions) and the Card
+Economy Bot's pick (at Action-phase Decisions with a handle on the replay's Game). `checks` compares the model's
+keep rate for each card at setup with Players', probes whether it gives a Corporation and a Prelude Card a higher
+chance together than apart, and sets a bot's Games against itself beside Players' Games: Generations, Victory
+Points, Milestones, Awards and how often a funder loses the Award they funded.
 
 ## Recorded Games
 

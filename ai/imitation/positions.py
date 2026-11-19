@@ -1,4 +1,4 @@
-"""The training Decisions of the Imitation Model: setup, the Draft and buying cards, each as its Player saw it.
+"""The training Decisions of the Imitation Model: every Decision of a Recorded Game, each as its Player saw it.
 
 A Recorded Game gives them twice over. Its records (ai.recorded_games.records) cover every Game but lack the hand,
 the Tiles and Card Resources, so the encoding marks those and the Prices that need them missing. Its replay through
@@ -6,6 +6,10 @@ the engine (ticket 10), where there is one, gives the full Player View, as the C
 the replay's first difference. So each group of Decisions (one Player's setup, or their Draft or buy in one
 Generation) comes from the replay when the replay holds the whole group with the records' picks, and from the
 records otherwise. Each Decision says where it came from: "source" is "replay" or "records".
+
+Every other Decision (the Prelude Cards played and the Action phases) comes from the replay alone, as far as it
+goes: the records don't describe them (ticket 14). Picks the Recorded Game's log didn't give, which the replay
+inferred (a pass, the cards sold chosen in hindsight), aren't the Player's own and are left out.
 """
 
 import contextlib
@@ -23,12 +27,12 @@ from typing import Any
 import numpy as np
 
 from ai.card_economy import CardEconomyBot
-from ai.controller import Handle
+from ai.controller import Controller, Handle
 from ai.imitation.encoded import Position, stack
 from ai.imitation.split import Split, split_of
 from ai.recorded_games.dataset import read_shard, shards
 from ai.recorded_games.records import recorded_decisions
-from ai.recorded_games.replay import recorded_kind_decisions
+from ai.recorded_games.replay import action_decisions, recorded_kind_decisions
 
 type Group = tuple[int, int, str]
 
@@ -47,9 +51,13 @@ def picks_in(decisions: list[dict[str, Any]]) -> list[tuple[str, str | None]]:
     )
 
 
-def training_decisions(game: dict[str, Any], replay: dict[str, Any] | None) -> Iterator[dict[str, Any]]:
+def training_decisions(
+    game: dict[str, Any], replay: dict[str, Any] | None, *, also_asked: Controller | None = None
+) -> Iterator[dict[str, Any]]:
     """`game`'s setup, Draft and buy Decisions in the records' order of groups, from `replay` (its line of
-    replays.jsonl.gz, or None) where it holds the whole group, from the records otherwise."""
+    replays.jsonl.gz, or None) where it holds the whole group, from the records otherwise; then the replay's
+    other Decisions whose picks the Recorded Game's log gave, each with what `also_asked` picks there, if given (see
+    action_decisions)."""
     replayed: dict[Group, list[dict[str, Any]]] = defaultdict(list)
     if replay is not None:
         for decision in recorded_kind_decisions(replay):
@@ -63,6 +71,10 @@ def training_decisions(game: dict[str, Any], replay: dict[str, Any] | None) -> I
             yield from ({**decision, "source": "replay"} for decision in from_replay)
         else:
             yield from ({**decision, "source": "records"} for decision in from_records)
+    if replay is not None:
+        for decision in action_decisions(replay, also_asked=also_asked):
+            if not decision["inferred"]:
+                yield {**decision, "source": "replay"}
 
 
 @dataclass(frozen=True)
@@ -77,7 +89,10 @@ class PositionSettings:
 
 
 def card_economy_pick(decision: dict[str, Any]) -> int | None:
-    """The Option the Card Economy Bot picks, or None where the view lacks the hand (records after setup)."""
+    """The Option the Card Economy Bot picks, or None where the view lacks the hand (records after setup). At the
+    Action-phase Decisions, the replay asked it (`training_decisions`)."""
+    if "also_picked" in decision:
+        return decision["also_picked"]
     view, player = decision["view"], decision["player"]
     if view["players"][player].get("hand") is None:
         return None
@@ -107,7 +122,8 @@ def game_positions(
     if settings.prelude_games_only and not game["prelude"]:
         return
     ratings = [board["rating"] or 0 for board in game["players"]]
-    for decision in training_decisions(game, replay):
+    also_asked = CardEconomyBot() if settings.card_economy_picks else None
+    for decision in training_decisions(game, replay, also_asked=also_asked):
         if len(decision["options"]) < 2:
             continue
         if settings.min_rating is not None and ratings[decision["player"]] < settings.min_rating:
@@ -126,8 +142,11 @@ def shard_positions(shard: Path, split: Split, settings: PositionSettings) -> It
 # Positions a worker process sends at a time, and how many messages may wait for the trainer per worker.
 CHUNK = 256
 WAITING = 4
-# Batches sorted together by their card rows, so that a batch pads little.
+# Batches sorted together by their Options and card rows, so that a batch pads little.
 BATCHES_SORTED_TOGETHER = 16
+# Options in bands of up to 8, 16, 32, 64… : a batch holds Decisions of one band where it can, so that a Payment
+# with 240 Options pads few rows of the many with 2 to 8.
+OPTION_BAND = 8
 
 
 def positions(
@@ -161,7 +180,7 @@ def batches(
 ) -> Iterator[dict[str, np.ndarray]]:
     """Batches of at most `size` training positions, stacked by `stack`, made in the worker processes: each
     shuffles its positions through a buffer of `buffer`, so that a Game's positions spread among many others, and
-    sorts them into batches with about as many card rows."""
+    sorts them into batches with about as many Options and card rows."""
     chosen = chosen_shards(folder, seed, shard_share)
     make = functools.partial(stacked_batches, split=split, settings=settings, size=size, buffer=buffer, seed=seed)
     return from_workers(make, chosen, workers)
@@ -200,8 +219,12 @@ def stacked_batches(
     yield from sorted_batches(pool, size, rng)
 
 
+def option_band(position: Position) -> int:
+    return ((len(position.options) - 1) // OPTION_BAND).bit_length()
+
+
 def sorted_batches(pool: list[Position], size: int, rng: random.Random) -> list[dict[str, np.ndarray]]:
-    pool.sort(key=lambda position: len(position.cards))
+    pool.sort(key=lambda position: (option_band(position), len(position.cards)))
     made = [stack(pool[start : start + size]) for start in range(0, len(pool), size)]
     rng.shuffle(made)
     return made

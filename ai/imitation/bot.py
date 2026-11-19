@@ -1,5 +1,6 @@
-"""The Imitation Bot: a Controller that answers setup, the Draft and buying cards with the Imitation Model, picking
-the Option it scores highest, and leaves every other Decision to the Card Economy Bot.
+"""The Imitation Bot: a Controller that answers every Decision with the Imitation Model, picking the Option it
+scores highest (ticket 14 of phase 2). Ticket 13's answered only setup, the Draft and buying cards and left the
+rest to the Card Economy Bot; `imitated=DRAFT_AND_BUY` plays like it, to play against.
 
 It reads only its handle's Player View and Decision, encoded as for training (ai.encoding), so it plays fair.
 """
@@ -16,8 +17,8 @@ from ai.imitation.encoded import Position
 from ai.imitation.model import ImitationModel, collate, load_model
 from ai.prices import Prices
 
-# The Decisions the model answers: those it was trained on.
-IMITATED = frozenset({"corporation", "prelude_cards", "draft", "buy_cards"})
+# The Decisions ticket 13's model was trained on.
+DRAFT_AND_BUY = frozenset({"corporation", "prelude_cards", "draft", "buy_cards"})
 
 
 @functools.cache
@@ -28,11 +29,16 @@ def loaded(path: Path) -> ImitationModel:
 
 
 class ImitationBot:
-    """Picks with the Imitation Model saved at `path` (by default the registered one, ai.imitation.MODEL)."""
+    """Picks with the Imitation Model saved at `path` (by default the registered one, ai.imitation.MODEL): every
+    Decision, or only the kinds `imitated`, leaving the rest to the Card Economy Bot."""
 
-    def __init__(self, path: Path | None = None) -> None:
+    def __init__(self, path: Path | None = None, imitated: frozenset[str] | None = None) -> None:
         self.model = loaded(path or ai.imitation.MODEL)
+        self.imitated = imitated
         self.card_economy = CardEconomyBot()
+
+    def answers(self, handle: Handle) -> bool:
+        return self.imitated is None or handle.decision["kind"] in self.imitated
 
     def chances(self, handle: Handle) -> list[float]:
         """For each Option, the model's chance that a strong Player picks it."""
@@ -43,7 +49,7 @@ class ImitationBot:
     def pick(self, handle: Handle) -> int:
         if len(handle.decision["options"]) == 1:
             return 0
-        if handle.decision["kind"] not in IMITATED:
+        if not self.answers(handle):
             return self.card_economy.pick(handle)
         chances = self.chances(handle)
         return chances.index(max(chances))
@@ -51,7 +57,7 @@ class ImitationBot:
     def explain(self, handle: Handle) -> Explanation:
         """For the Decisions it answers, every Option with the model's chance (in percent) that a strong Player
         picks it, best first; the Card Economy Bot's explanation for the rest."""
-        if handle.decision["kind"] not in IMITATED:
+        if not self.answers(handle):
             return self.card_economy.explain(handle)
         prices = Prices.of(handle.player_view, handle.player, self.card_economy.weights)
         options = [

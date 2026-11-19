@@ -15,6 +15,7 @@ from ai.encoding import (
     DECISION_KINDS,
     OPTION_FIELDS,
     OPTION_TYPES,
+    PAYING_FOR,
     FormatMismatch,
     areas,
     card_number,
@@ -101,6 +102,22 @@ def test_lowering_an_opponents_production_encodes():
     assert option["card"] == card_number("heat_trappers")
     assert option["target"] == 2  # theirs
     assert option["production_heat"] == -2
+
+
+def test_paying_for_a_prelude_card_encodes_as_paying_for_that_card():
+    # Helion may pay Aquifer Turbines' 3 MegaCredits with heat; the engine names the Expense by the card
+    # (ticket 14 of phase 2: a recorded Game's Payment once failed to encode).
+    game = scenario(
+        player(prelude_cards=["aquifer_turbines"], corporation="helion", megacredits=5, heat=3), player(), prelude=True
+    )
+    pick(game, area="E4")
+    assert game.decision["kind"] == "payment"
+
+    encoded = encode(game.player_view(0), game.decision)
+
+    option = encoded.option(0)
+    assert PAYING_FOR[int(option["paying_for"]) - 1] == "card"
+    assert option["card"] == card_number("aquifer_turbines")
 
 
 # Positions checked for hidden-card invariance, and the Sampled Positions made for each.

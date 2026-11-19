@@ -47,6 +47,7 @@ class KeepRates:
 
     def __init__(self, counts: dict[tuple[str, str, str], list[int]]) -> None:
         self.counts = counts
+        self.kinds = {kind for kind, _, _ in counts}
 
     @classmethod
     def counted(cls, games: Iterable[dict[str, Any]]) -> KeepRates:
@@ -64,8 +65,11 @@ class KeepRates:
         offered, kept = self.counts.get((kind, option_type, card), (0, 0))
         return kept / offered if offered else 0.0
 
-    def pick(self, kind: str, options: Any) -> int:
-        """The Option, among encoded Option rows, whose card was kept most often."""
+    def pick(self, kind: str, options: Any) -> int | None:
+        """The Option, among encoded Option rows, whose card was kept most often; None at a kind of Decision the
+        records don't describe (the Action phase's), which has no keep rates."""
+        if kind not in self.kinds:
+            return None
         cards = [NO_CARD, *card_numbers()]
         rates = [self.rate(kind, OPTION_TYPES[int(row[TYPE_COLUMN])], cards[int(row[CARD_COLUMN])]) for row in options]
         return rates.index(max(rates))
@@ -99,6 +103,7 @@ class Accuracy:
     count: int = 0
     model_right: int = 0
     random_sum: float = 0.0
+    most_kept_count: int = 0
     most_kept_right: int = 0
     card_economy_count: int = 0
     card_economy_right: int = 0
@@ -114,7 +119,7 @@ class Accuracy:
 
     @property
     def most_kept(self) -> float:
-        return self.most_kept_right / self.count
+        return self.most_kept_right / self.most_kept_count if self.most_kept_count else float("nan")
 
     @property
     def card_economy(self) -> float:
@@ -152,12 +157,14 @@ def accuracy_report(
                 report["source"][position.source],
             ]
             right = pick == position.picked
-            most_kept = keep_rates.pick(position.kind, position.options) == position.picked
+            most_kept = keep_rates.pick(position.kind, position.options)
             for row in rows:
                 row.count += 1
                 row.model_right += right
                 row.random_sum += 1 / len(position.options)
-                row.most_kept_right += most_kept
+                if most_kept is not None:
+                    row.most_kept_count += 1
+                    row.most_kept_right += most_kept == position.picked
                 if position.card_economy_pick is not None:
                     row.card_economy_count += 1
                     row.card_economy_right += position.card_economy_pick == position.picked

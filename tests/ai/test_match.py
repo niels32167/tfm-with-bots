@@ -8,7 +8,8 @@ import pytest
 import tm_engine
 
 from ai.controller import Handle
-from ai.match import MatchSettings, main, report, run_match
+from ai.match import Claim, MatchSettings, game_summary, main, report, run_match
+from tests.helpers import city, pick, player, scenario
 
 
 class FirstOption:
@@ -187,3 +188,22 @@ def test_a_match_can_be_played_between_controllers_made_by_factories():
     makers = (functools.partial(Picking, 0), functools.partial(Picking, 1))
     renamed = run_match("x", "y", games=4, first_seed=3, processes=1, makers=makers)
     assert [game.replay for game in renamed.games] == [game.replay for game in match.games]
+
+
+def test_a_games_summary_gives_each_claim_with_its_generation_and_whether_a_funded_award_was_lost():
+    # Ticket 14, box 4. Player 1 claims Terraformer and funds Landlord in Generation 4, while Player 2 owns more
+    # Tiles: an Award its funder loses at the end (the flip rate's case).
+    game = scenario(
+        player(terraform_rating=35, megacredits=40),
+        player(),
+        generation=4,
+        tiles=[city("C3", owner=1), city("H2", owner=1)],
+    )
+    pick(game, type="claim_milestone", milestone="terraformer")
+    pick(game, type="fund_award", award="landlord")
+
+    summary = game_summary(game.replay)
+
+    assert summary.milestones == [Claim("terraformer", player=0, generation=4)]
+    assert summary.awards == [Claim("landlord", player=0, generation=4, lost=True)]
+    assert summary.generations == 4

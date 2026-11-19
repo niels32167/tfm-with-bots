@@ -2,6 +2,7 @@
 encoding format and the settings used (ticket 13 of phase 2, box 1)."""
 
 import pytest
+import torch
 
 from ai.encoding import format_stamp
 from ai.imitation.model import load_model
@@ -46,3 +47,17 @@ def test_a_run_resumes_from_its_checkpoint_and_refuses_other_settings(dataset, t
 
     assert train(dataset, out, "--positions", "120", "--min-rating", "600") == 2
     assert "other settings" in capsys.readouterr().err
+
+
+def test_a_run_can_start_from_a_saved_models_weights(dataset, tmp_path):
+    # Ticket 14 starts from ticket 13's model. With a learning rate of 0 the weights stay those it started from.
+    first = tmp_path / "first.pt"
+    train(dataset, first, "--positions", "40")
+    second = tmp_path / "second.pt"
+
+    assert train(dataset, second, "--positions", "40", "--learning-rate", "0", "--start-from", str(first)) == 0
+
+    started, then = load_model(first), load_model(second)
+    assert then[1]["settings"]["start_from"] == str(first)
+    for name, weights in started[0].state_dict().items():
+        assert torch.equal(weights, then[0].state_dict()[name]), name

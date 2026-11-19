@@ -10,6 +10,9 @@ accuracy on the validation Games and saves the model (`--out`) and a checkpoint 
 Run the same command again, with the same or a larger `--positions`, and it resumes from the checkpoint; with
 other settings it refuses, and says so.
 
+`--start-from` begins a new run from a saved model's weights (of the same shape and encoding format), as ticket
+14 started from ticket 13's model; a resumed run takes its checkpoint's weights instead.
+
 The model is saved with the encoding's format, its settings and its validation results (ai.imitation.model).
 Exit status: 0, or 2 for wrong arguments or settings that don't match the checkpoint.
 """
@@ -29,7 +32,7 @@ from torch.nn.functional import cross_entropy
 
 from ai.encoding import format_stamp
 from ai.imitation import MODEL
-from ai.imitation.model import Batch, ImitationModel, ModelShape, batch_of, save_model, scored
+from ai.imitation.model import Batch, ImitationModel, ModelShape, batch_of, load_model, save_model, scored
 from ai.imitation.positions import PositionSettings, batches
 from ai.recorded_games.dataset import DATASET_FOLDER
 
@@ -65,6 +68,7 @@ def arguments(given: Sequence[str] | None) -> argparse.Namespace:
     parser.add_argument("--validation-share", type=int, default=8, help="validate on every n-th shard")
     parser.add_argument("--device", default="cuda" if torch.cuda.is_available() else "cpu")
     parser.add_argument("--compile", action="store_true", help="compile the model (faster on the GPU)")
+    parser.add_argument("--start-from", type=Path, help="a saved model whose weights a new run starts from")
     return parser.parse_args(given)
 
 
@@ -82,6 +86,7 @@ def settings_of(given: argparse.Namespace) -> dict[str, Any]:
         "seed": given.seed,
         "validation_share": given.validation_share,
         "positions": given.positions,
+        "start_from": str(given.start_from) if given.start_from else None,
     }
 
 
@@ -147,6 +152,9 @@ def main(given_arguments: Sequence[str] | None = None) -> int:
         optimizer.load_state_dict(checkpoint["optimizer"])
         seen, passes, history = checkpoint["seen"], checkpoint["passes"], checkpoint["history"]
         print(f"resuming from {seen:,} positions seen")
+    elif given.start_from:
+        model.load_state_dict(load_model(given.start_from, given.device)[0].state_dict())
+        print(f"starting from {given.start_from}")
     if not given.device.startswith("cuda"):
         print("no GPU found: training on the CPU, which is much slower", flush=True)
     print(f"training on {given.device}: {settings}", flush=True)

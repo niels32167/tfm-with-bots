@@ -1,5 +1,5 @@
-"""The Imitation Model for setup, the Draft and buying cards (CONTEXT.md; ticket 13 of phase 2): it predicts the
-Option strong Players pick at those Decisions, trained on Recorded Games.
+"""The Imitation Model (CONTEXT.md; tickets 13 and 14 of phase 2): it predicts the Option strong Players pick at
+every Decision, trained on Recorded Games.
 
 - split.py: which Games train, which choose between models (validation) and which are held out (test).
 - positions.py: the training Decisions of each Game, and batches of them encoded (ai.encoding) while training.
@@ -17,3 +17,5 @@ from pathlib import Path
 MODELS_FOLDER = Path(__file__).parents[2] / ".cache" / "models"
 # The model the registered Imitation Bot plays with.
 MODEL = MODELS_FOLDER / "imitation.pt"
+# Ticket 13's model, for setup, the Draft and buying cards only, kept to play against.
+DRAFT_AND_BUY_MODEL = MODELS_FOLDER / "imitation-draft-buy.pt"

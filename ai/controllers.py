@@ -34,6 +34,12 @@ def imitation_bot() -> Controller:
     return ImitationBot()
 
 
+def draft_and_buy_imitation_bot() -> Controller:
+    from ai.imitation.bot import DRAFT_AND_BUY, ImitationBot
+
+    return ImitationBot(ai.imitation.DRAFT_AND_BUY_MODEL, imitated=DRAFT_AND_BUY)
+
+
 # By the name Replay files and the Match tool use, in the order the setup screen lists them.
 REGISTERED: dict[str, Registered] = {
     "random_bot": Registered("Random Bot", RandomBot),
@@ -44,6 +50,12 @@ REGISTERED: dict[str, Registered] = {
         imitation_bot,
         available=lambda: ai.imitation.MODEL.exists(),
         missing="train its model first: uv run python -m ai.imitation.train",
+    ),
+    "imitation_draft_buy": Registered(
+        "Imitation Bot (Draft and buy)",
+        draft_and_buy_imitation_bot,
+        available=lambda: ai.imitation.DRAFT_AND_BUY_MODEL.exists(),
+        missing="save ticket 13's model as .cache/models/imitation-draft-buy.pt",
     ),
 }
 

@@ -5,9 +5,18 @@ together than apart (box 6). A scorer with a known taste stands in for the model
 import torch
 
 from ai.encoding import OPTION_TYPES, card_number
-from ai.imitation.checks import model_keep_rates, players_keep_rates, synergy
+from ai.imitation.checks import (
+    AwardRate,
+    MilestoneRate,
+    benchmark,
+    model_keep_rates,
+    players_games,
+    players_keep_rates,
+    synergy,
+)
 from ai.imitation.model import Batch
-from tests.ai.imitation.test_positions import example
+from ai.match import Claim, GameSummary
+from tests.ai.imitation.test_positions import example, replay_of_the_example, write_dataset
 
 DONE = OPTION_TYPES.index("done")
 CREDICOR, EARLY_SETTLEMENT = "credicor", "early_settlement"
@@ -73,3 +82,47 @@ def test_the_prelude_card_counts_if_kept_at_all_not_only_if_kept_first():
 
     assert abs(found.prelude_with - 0.5) < 1e-6
     assert abs(found.prelude_without - 0.5) < 1e-6
+
+
+def test_the_benchmark_gives_means_per_game_and_the_share_of_funded_awards_lost():
+    def score(player: int, total: int, cards: int) -> dict:
+        return {"player": player, "total": total, "cards": cards}
+
+    games = [
+        GameSummary(
+            12,
+            [score(0, 100, 20), score(1, 80, 10)],
+            [Claim("mayor", 0, 5)],
+            [Claim("banker", 0, 6, lost=True), Claim("miner", 1, 10, lost=False)],
+        ),
+        GameSummary(
+            14, [score(0, 90, 30), score(1, 110, 40)], [Claim("mayor", 1, 7)], [Claim("banker", 1, 8, lost=False)]
+        ),
+    ]
+
+    found = benchmark(games)
+
+    assert found.games == 2
+    assert found.generations == 13
+    assert found.points == 95
+    assert found.card_points == 25
+    assert found.milestones["mayor"] == MilestoneRate(per_game=1.0, generation=6.0)
+    assert found.awards["banker"] == AwardRate(per_game=1.0, generation=7.0, lost=0.5)
+    assert found.flip_rate == 1 / 3
+
+
+def test_players_games_are_those_with_prelude_not_conceded_replayed_fully_and_both_players_rated_that_high(tmp_path):
+    games = [
+        {**example("strong", date="2024-01-01", ratings=(500, 460)), "conceded": False},
+        {**example("weak", date="2024-01-01", ratings=(500, 300)), "conceded": False},
+        {**example("conceded", date="2024-01-01"), "conceded": True},
+        {**example("cut short", date="2024-01-01"), "conceded": False},
+    ]
+    replays = [{**replay_of_the_example(), "game": game} for game in ("strong", "weak", "conceded")]
+    replays.append({**replay_of_the_example(picks=20), "game": "cut short", "complete": False})
+    folder = write_dataset(tmp_path, games, replays)
+
+    found = list(players_games(folder, min_rating=450))
+
+    assert len(found) == 1
+    assert found[0].generations == 2

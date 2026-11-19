@@ -407,6 +407,12 @@ def card_number(card: str) -> int:
     return card_numbers()[card]
 
 
+@cache
+def cards_by_name() -> dict[str, str]:
+    """Each card's id by its printed name."""
+    return {printed["name"]: card for card, printed in card_catalog().items()}
+
+
 def _printed_facts(printed: dict[str, Any]) -> list[float]:
     row = [0.0] * len(CARD_FACTS)
 
@@ -989,8 +995,10 @@ class _Encoder:
 
 def _paying_for(text: str) -> tuple[str, str, int]:
     """What a Payment Option's `paying_for` names ("2 cards", "the Asteroid Standard Project", "the Mayor
-    Milestone", "the Banker Award"): its kind in `PAYING_FOR`, and the Option field and number that say which or
-    how many."""
+    Milestone", "the Banker Award", or a Prelude Card's price by its name, "Aquifer Turbines"): its kind in
+    `PAYING_FOR`, and the Option field and number that say which or how many."""
+    if text in cards_by_name():
+        return "card", "card", card_number(cards_by_name()[text])
     words = text.split()
     named = "_".join(words[1:-2] if words[-1] == "Project" else words[1:-1]).lower()
     if words[-1] in ("card", "cards"):

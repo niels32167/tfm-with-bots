@@ -15,6 +15,7 @@ to that point: every Decision in it has the engine's own Options and Player View
 This module imports the engine: it builds data and is never a Controller (tests/ai/test_fair_play.py).
 """
 
+import random
 import re
 from collections import Counter
 from collections.abc import Iterator
@@ -24,6 +25,7 @@ from typing import Any
 
 import tm_engine
 
+from ai.controller import Controller, handle_for
 from ai.recorded_games.hands import Keep
 from ai.recorded_games.moves import expand_moves
 from ai.recorded_games.names import award_id, card_id, catalog, milestone_id
@@ -1257,14 +1259,15 @@ def replay_game(game: dict[str, Any], slim: dict[str, Any]) -> Outcome:
 RECORDED_KINDS = {"corporation", "prelude_cards", "buy_cards", "draft"}
 
 
-def action_decisions(record: dict[str, Any]) -> Iterator[dict[str, Any]]:
+def action_decisions(record: dict[str, Any], *, also_asked: Controller | None = None) -> Iterator[dict[str, Any]]:
     """The Decisions of a replayed Game (a line of replays.jsonl.gz) other than setup's and the Research
     phases': the Prelude Cards played and every Decision of the Action phases, up to the Game's first
     difference. Each is rebuilt through the engine as its Player saw it: "player", "generation", "kind",
     "view" (their Player View), "options" and "picked" (an index into them). Never the other Player's hand
     or the deck: only the Player View and the Decision leave the engine. "inferred" marks a pick the log
-    didn't give (see Outcome.inferred), which training may leave out."""
-    return replayed_decisions(record, recorded=False)
+    didn't give (see Outcome.inferred), which training may leave out. With `also_asked`, "also_picked" is what that
+    Controller picks there, with a handle on the replay's Game, as in play (for evaluation's baselines)."""
+    return replayed_decisions(record, recorded=False, also_asked=also_asked)
 
 
 def recorded_kind_decisions(record: dict[str, Any]) -> Iterator[dict[str, Any]]:
@@ -1274,7 +1277,9 @@ def recorded_kind_decisions(record: dict[str, Any]) -> Iterator[dict[str, Any]]:
     return replayed_decisions(record, recorded=True)
 
 
-def replayed_decisions(record: dict[str, Any], *, recorded: bool) -> Iterator[dict[str, Any]]:
+def replayed_decisions(
+    record: dict[str, Any], *, recorded: bool, also_asked: Controller | None = None
+) -> Iterator[dict[str, Any]]:
     """The Decisions of a replayed Game whose kind is among RECORDED_KINDS, or those whose kind isn't."""
     if not record["replay"]:  # The Game stopped before the engine could start it.
         return
@@ -1284,7 +1289,7 @@ def replayed_decisions(record: dict[str, Any], *, recorded: bool) -> Iterator[di
         decision = game.decision
         if (decision["kind"] in RECORDED_KINDS) == recorded:
             view = game.player_view(decision["player"])
-            yield {
+            replayed = {
                 "player": decision["player"],
                 "generation": view["generation"],
                 "kind": decision["kind"],
@@ -1293,4 +1298,7 @@ def replayed_decisions(record: dict[str, Any], *, recorded: bool) -> Iterator[di
                 "picked": picked,
                 "inferred": number in inferred,
             }
+            if also_asked is not None and len(decision["options"]) > 1:
+                replayed["also_picked"] = also_asked.pick(handle_for(game, random.Random(number)))
+            yield replayed
         game.pick(picked)
