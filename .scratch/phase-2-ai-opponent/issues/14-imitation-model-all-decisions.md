@@ -22,7 +22,7 @@ Humans also make Decisions in ways the engine's chain may split differently, so 
 - [ ] On held-out Games, it predicts picks better than a random pick and the Card Economy Bot, reported by Decision kind, Generation and rating.
 - [ ] A Controller using only this model plays complete Games with none stalled.
 - [ ] It beats the Controller from ticket 13 in a Match with the interval above 50%.
-- [ ] Its Games against itself are recorded beside the human benchmark: Generations, Victory Points and card Victory Points, and which Milestones it claims and Awards it funds, in which Generation, and how often it loses an Award it funded (tfmstats.com's flip rate). This is the first check that it plays like the Players it learned from.
+- [ ] Its Games against itself are recorded beside the human benchmark: Generations, Victory Points and card Victory Points, and which Milestones it claims and Awards it funds, in which Generation, and how often it loses an Award it funded (the flip rate: tfmstats.com's if it answers, or else the dataset's, from the replayed Games' final scoring; see "When tfmstats.com doesn't answer" in the spec). This is the first check that it plays like the Players it learned from.
 - [ ] It is selectable in the GUI, and a pick takes well under a second.
 
 ## Comments

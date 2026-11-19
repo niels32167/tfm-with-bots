@@ -157,6 +157,22 @@ How they are used:
 - **Never as training data or fixed rules** (ADR 0013): a win rate when a card is played or a Milestone claimed mostly shows who was already ahead.
 - **Never as model inputs as they stand:** they include the held-out Games. Per-card statistics as inputs are computed from the training Games (ticket 12).
 
+#### When tfmstats.com doesn't answer
+
+The site timed out from the laptop on 2026-11-18 and 2026-11-19, and may be down for a while or for good. Everything
+the models learn from is already local (the archive and the dataset built from it), so only the checks above depend
+on it. A ticket that compares with one of its tables does this:
+1. **Try the site first** when the box is worked, in the browser pane and with `curl`, and note the date.
+2. **If it answers,** use its table, as above.
+3. **If it doesn't,** compute the same table from the dataset and say so under the ticket's Comments.
+   - Rankings that choose what to check, such as the pairs with the highest lift, come from the training Games
+     only, so that the check is still made on Games the model never saw.
+   - Rates that describe how Players play, such as keep rates or the Award flip rate, may use every Game.
+   - Ticket 08 found the dataset's tables match the site's within what the archive's date and the site's filters
+     explain, so a box checked this way counts as met.
+4. **If the site answers later,** rerun the check on its table once, and record both results under the same
+   ticket. A box already ticked stays ticked unless the site's table changes the conclusion.
+
 Things to know: only Starting Hand and Combinations are fixed to our kind of Game; the other pages start with no filters (every player count, map and expansion) and remember the filters set, so press Reset afterwards. They include other expansions' Corporations and other maps' Milestones and Awards, and names the scraper failed to translate ("Begginer Corp", "Milestone 5", "card_prelude_P34", Award names in Polish). The pages need JavaScript, so read them in the browser pane.
 
 ### What ticket 09 starts from

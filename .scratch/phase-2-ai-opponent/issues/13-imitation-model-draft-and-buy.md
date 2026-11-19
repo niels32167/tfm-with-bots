@@ -15,7 +15,7 @@ Keep Games apart for testing by whole Game, not by Decision, and test on Games f
 - [x] The Controller with this model beats the Card Economy Bot in a Match with the interval above 50%. If it doesn't, the reason is investigated and recorded before moving on.
 - [x] Results for rating filters, and for training with and without Games without Prelude, are recorded under Comments.
 - [x] On held-out Games, its keep rate for each card is compared with Players' (the dataset's, which ticket 08 checked against tfmstats.com's Starting Hand page), with the largest differences explained under Comments.
-- [ ] It has learned synergies: for the 10 Corporation and Prelude pairs with the highest lift on tfmstats.com's Combinations page, and enough Games, it rates each part higher with the other than without. The result is recorded under Comments.
+- [ ] It has learned synergies: for the 10 Corporation and Prelude pairs with the highest lift, and enough Games, it gives each part a higher chance with the other than without. The result is recorded under Comments, with where the pairs came from: tfmstats.com's Combinations page if it answers, or else the dataset's training Games, ranked the same way (see "When tfmstats.com doesn't answer" in the spec).
 - [x] A small test overfits a few hand-written positions without a GPU.
 - [x] It is selectable in the GUI, and a pick takes well under a second.
 
@@ -337,3 +337,10 @@ uv run python -m ai.imitation.train --positions 10000000 --validate-every 200000
   - One pair isn't measurable with this probe.
   - To close it: read the Combinations page when it answers, change the probe to "kept at all", and rerun
     `uv run python -m ai.imitation.checks synergies --most-games 1500 --pairs …` (about 9 minutes).
+
+**2026-11-19, box 6 reworded with the user:** tfmstats.com may be down for a while or for good.
+- The box now takes the pairs from the site if it answers, and from the training Games otherwise. The spec's
+  "When tfmstats.com doesn't answer" gives the steps, and ticket 14's Award flip rate follows the same path.
+- The stand-in pairs above therefore count. Only the tenth pair's probe keeps the box open: switch to "kept at all",
+  then rerun.
+- If the site answers later, rerun the probe once on its pairs and record both results here.
