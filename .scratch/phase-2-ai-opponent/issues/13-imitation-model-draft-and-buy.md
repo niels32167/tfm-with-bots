@@ -15,7 +15,7 @@ Keep Games apart for testing by whole Game, not by Decision, and test on Games f
 - [x] The Controller with this model beats the Card Economy Bot in a Match with the interval above 50%. If it doesn't, the reason is investigated and recorded before moving on.
 - [x] Results for rating filters, and for training with and without Games without Prelude, are recorded under Comments.
 - [x] On held-out Games, its keep rate for each card is compared with Players' (the dataset's, which ticket 08 checked against tfmstats.com's Starting Hand page), with the largest differences explained under Comments.
-- [ ] It has learned synergies: for the 10 Corporation and Prelude pairs with the highest lift, and enough Games, it gives each part a higher chance with the other than without. The result is recorded under Comments, with where the pairs came from: tfmstats.com's Combinations page if it answers, or else the dataset's training Games, ranked the same way (see "When tfmstats.com doesn't answer" in the spec).
+- [x] It has learned synergies: for the 10 Corporation and Prelude pairs with the highest lift, and enough Games, it gives each part a higher chance with the other than without. The result is recorded under Comments, with where the pairs came from: tfmstats.com's Combinations page if it answers, or else the dataset's training Games, ranked the same way (see "When tfmstats.com doesn't answer" in the spec).
 - [x] A small test overfits a few hand-written positions without a GPU.
 - [x] It is selectable in the GUI, and a pick takes well under a second.
 
@@ -23,7 +23,7 @@ Keep Games apart for testing by whole Game, not by Decision, and test on Games f
 
 ### 2026-11-18 — implemented (Claude)
 
-Seven boxes are ticked. Box 6 is ticked on a stand-in list of pairs, because tfmstats.com was down (see Box 6). The
+Seven boxes were ticked on 2026-11-18, and box 6 on 2026-11-19 (see the end). The
 work is in `ai/imitation/`:
 - `split.py`: the train, validation and test split.
 - `positions.py`: the training Decisions, read and encoded while training.
@@ -344,3 +344,32 @@ uv run python -m ai.imitation.train --positions 10000000 --validate-every 200000
 - The stand-in pairs above therefore count. Only the tenth pair's probe keeps the box open: switch to "kept at all",
   then rerun.
 - If the site answers later, rerun the probe once on its pairs and record both results here.
+
+**Box 6 closed, 2026-11-19.** The probe now counts the Prelude Card as kept at all, first or second (`chance_kept`
+in `checks.py`). With 4 dealt and 2 kept, that is the chance of keeping it first, plus, for each other card kept
+first, the chance of keeping it second. A test checks that a scorer with no preference keeps any card with chance
+exactly 1/2, whatever its card number. Same model, pairs (from the training Games, as the box now allows) and 2,962
+setup records:
+
+| Corporation | Prelude Card | Corporation with | without | Prelude Card kept, with | without | Both higher |
+| --- | --- | ---: | ---: | ---: | ---: | --- |
+| Tharsis Republic | Early Settlement | 44.9% | 33.2% | 53.5% | 23.0% | yes |
+| Tharsis Republic | Self-Sufficient Settlement | 34.9% | 34.4% | 56.1% | 29.8% | yes |
+| Saturn Systems | Io Research Outpost | 59.9% | 46.3% | 63.3% | 34.9% | yes |
+| Mining Guild | Self-Sufficient Settlement | 42.0% | 40.9% | 55.2% | 29.4% | yes |
+| Saturn Systems | Galilean Mining | 66.7% | 45.5% | 64.9% | 36.8% | yes |
+| Credicor | Mining Operations | 68.4% | 67.1% | 65.0% | 61.4% | yes |
+| Vitor | Metals Company | 68.0% | 65.8% | 81.2% | 78.4% | yes |
+| Mining Guild | Aquifer Turbines | 43.7% | 40.7% | 82.5% | 70.4% | yes |
+| Point Luna | Research Network | 77.0% | 76.6% | 72.3% | 62.8% | yes |
+| Saturn Systems | Acquired Space Agency | 58.7% | 46.5% | 75.2% | 70.1% | yes |
+
+- **All 10 pairs score higher together for both parts.**
+- The Prelude Card's chance rises by 2.8 to 30.5 points. The pairs with the highest lift rise most: Tharsis
+  Republic's City Prelude Cards, and Saturn Systems' Jovian ones.
+- The Corporation's chance rises by 0.4 to 21.2 points. It rises least where the Corporation is already chosen at
+  about the same rate either way (Point Luna +0.4, Tharsis Republic with Self-Sufficient Settlement +0.5).
+- Acquired Space Agency now measures +5.1 points kept, where "kept first" read 0.0% both ways.
+- If tfmstats.com answers later, rerun the probe on its Combinations pairs (spec, "When tfmstats.com doesn't
+  answer") and record both results here:
+  `uv run python -m ai.imitation.checks synergies --most-games 1500 --pairs …` (about 15 minutes).

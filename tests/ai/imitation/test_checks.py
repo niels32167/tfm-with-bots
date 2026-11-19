@@ -59,3 +59,17 @@ def test_a_corporation_nobody_was_dealt_is_put_in_beside_the_one_the_player_chos
     found = synergy(never_buying, [example("a", date="2026-01-01")], "helion", EARLY_SETTLEMENT)
 
     assert found.probes == 2
+
+
+def no_preference(batch: Batch) -> torch.Tensor:
+    """The same score for every Option; padding never wins, as in the model."""
+    return torch.zeros(batch.options.shape[:2]).masked_fill(~batch.option_mask, float("-inf"))
+
+
+def test_the_prelude_card_counts_if_kept_at_all_not_only_if_kept_first():
+    # Of 4 Prelude Cards dealt, 2 are kept: with no preference, each is kept with chance 1/4 + 3/4 * 1/3 = 1/2,
+    # whatever its card number. Kept first would be 1/4, and never for a card the records always list last.
+    found = synergy(no_preference, [example("a", date="2026-01-01")], CREDICOR, EARLY_SETTLEMENT)
+
+    assert abs(found.prelude_with - 0.5) < 1e-6
+    assert abs(found.prelude_without - 0.5) < 1e-6

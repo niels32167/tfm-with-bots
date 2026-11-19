@@ -4,8 +4,8 @@
   buy Decisions itself (with the Corporation and Prelude Cards the Player chose), beside Players' share. The
   Players' shares are the dataset's, which ticket 08 checked against tfmstats.com's Starting Hand page.
 - Synergies (box 6): for a Corporation and a Prelude Card, the model's chance of choosing the Corporation with the
-  Prelude Card among those dealt and without it, and its chance of keeping the Prelude Card first with the
-  Corporation chosen and with another. Each setup record is a probe: the pair is put into its offer, or taken out
+  Prelude Card among those dealt and without it, and its chance of keeping the Prelude Card (first or second) with
+  the Corporation chosen and with another. Each setup record is a probe: the pair is put into its offer, or taken out
   and replaced by a stand-in (the first card of its kind in the catalog that the offer lacks).
 
     uv run python -m ai.imitation.checks keep-rates --model .cache/models/imitation.pt
@@ -144,6 +144,42 @@ def chance_of(scorer: Scorer, game: dict[str, Any], record: dict[str, Any], kind
     return chances(scorer, game, decision)[cards.index(card)]
 
 
+def after_keeping(decision: dict[str, Any], card: str) -> dict[str, Any]:
+    """The second Prelude Card Decision of a setup chain, once `card` is kept at the first: the same view with
+    `card` kept, and the other Prelude Cards dealt to choose from."""
+    kept = copy.deepcopy(decision)
+    kept["view"]["players"][decision["player"]]["prelude_cards"]["kept"] = [card]
+    others = [option["details"]["card"] for option in decision["options"] if option["details"]["card"] != card]
+    kept["options"] = [
+        {
+            "index": index,
+            "label": f"Keep {card_catalog()[other]['name']}",
+            "details": {"type": "keep_prelude_card", "card": other},
+        }
+        for index, other in enumerate(others)
+    ]
+    kept["picked"] = 0
+    return kept
+
+
+def chance_kept(scorer: Scorer, game: dict[str, Any], record: dict[str, Any], card: str) -> float:
+    """The chance the scorer keeps `card` among the 2 Prelude Cards kept at setup, kept first or second. Kept first
+    alone would be biased: the records list kept cards in card-number order, so the model learned that order."""
+    first = next(decision for decision in setup_chain(game, record) if decision["kind"] == "prelude_cards")
+    cards = [option["details"]["card"] for option in first["options"]]
+    seconds = [after_keeping(first, other) for other in cards if other != card]
+    with torch.no_grad():
+        scores = scorer(collate([encoded(game, decision) for decision in [first, *seconds]])).float()
+    given = torch.softmax(scores, dim=1)
+    kept_first = given[0, cards.index(card)].item()
+    kept_second = 0.0
+    for second, decision in enumerate(seconds, start=1):
+        other = next(c for c in cards if c not in [o["details"]["card"] for o in decision["options"]])
+        later = [option["details"]["card"] for option in decision["options"]]
+        kept_second += given[0, cards.index(other)].item() * given[second, later.index(card)].item()
+    return kept_first + kept_second
+
+
 def synergy(scorer: Scorer, games: Iterable[dict[str, Any]], corporation: str, prelude_card: str) -> Synergy:
     """The model's chances for `corporation` and `prelude_card` together and apart, over the setup records of Games
     with Prelude where Prelude Cards were kept."""
@@ -164,7 +200,7 @@ def synergy(scorer: Scorer, games: Iterable[dict[str, Any]], corporation: str, p
             probe["offer"] |= {"corporations": corporations, "prelude_cards": preludes}
             probe["picked"]["prelude_cards"] = [card for card in kept if card in preludes] or preludes[:1]
             totals[name] += chance_of(scorer, game, probe, "corporation", corporation)
-        # The Prelude Card, kept first with the Corporation chosen and with another chosen.
+        # The Prelude Card, kept with the Corporation chosen and with another chosen.
         dealt = with_card(offer["prelude_cards"], prelude_card, kept)
         others = without_card(offer["corporations"], corporation, "corporation")
         for name, offered, chosen in [
@@ -174,7 +210,7 @@ def synergy(scorer: Scorer, games: Iterable[dict[str, Any]], corporation: str, p
             probe = copy.deepcopy(record)
             probe["offer"] |= {"corporations": offered, "prelude_cards": dealt}
             probe["picked"] |= {"corporation": chosen, "prelude_cards": [card for card in kept if card in dealt]}
-            totals[name] += chance_of(scorer, game, probe, "prelude_cards", prelude_card)
+            totals[name] += chance_kept(scorer, game, probe, prelude_card)
         probes += 1
     return Synergy(
         corporation, prelude_card, probes, **{name: total / max(probes, 1) for name, total in totals.items()}
