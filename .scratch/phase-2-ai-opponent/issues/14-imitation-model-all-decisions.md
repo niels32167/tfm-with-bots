@@ -222,3 +222,94 @@ Left as they are:
   (about 1.6 hours) is the cheap next step.
 - **A Match against the Flat Playout Bot**, which the README's training-progress table asks of each rung. Not run, for
   time, as in ticket 13.
+
+### 2026-11-20 — the longer run, now the registered model (Claude)
+
+The user OK'd the longer run from the open points above. Every box still holds, with better numbers. The 6M model is
+kept in `.cache/models/runs/all-decisions.pt`, and `.cache/models/imitation.pt` is now the 20M model.
+
+**The run.** It used the same settings as the 6M run, warm-started from it:
+`train --positions 20000000 --validate-every 2000000 --min-rating 450 --prelude-games-only --compile --workers 10
+--start-from .cache/models/runs/all-decisions.pt --out .cache/models/runs/all-decisions-20m.pt`, under the 6 GB cap.
+- It took 1 hour 20 minutes at about 4,200 positions a second, about 3.1 passes over the 6,423,216 training positions.
+- systemd counted a **5.7 GB memory peak**, page cache included (cgroup anon was 4.4 GB at 2M). That is close to the
+  cap. A longer or wider run needs fewer workers or a higher cap.
+- **Validation accuracy:**
+  - The restarted learning rate first dipped it to 64.7% at 2M.
+  - It then rose to 65.5% at 4M, 66.5% at 8M, 67.1% at 12M, 67.9% at 16M and **68.4% at 20M**, against the 6M
+    model's 66.1%.
+  - Validation loss fell from 0.963 to 0.847. Train loss (0.842) stayed level with it, so there is no sign of
+    overfitting yet.
+- The model was chosen on validation. The test split was evaluated once, afterwards.
+
+**Box 1: held-out accuracy** (the same command and test positions; `.cache/models/runs/evaluate-14-20m-test.txt`):
+
+| Kind | Positions | 6M model | 20M model | Card Economy Bot | Random |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| All | 242,015 | 63.4% | **65.4%** | 37.3% | 21.4% |
+| action | 103,154 | 52.9% | **55.2%** | 24.8% | 11.0% |
+| area | 18,091 | 39.5% | **48.4%** | 39.8% | 11.6% |
+| payment | 17,010 | 92.9% | **94.4%** | 76.0% | 28.3% |
+| buy_cards | 49,071 | 71.5% | **72.1%** | 33.8% | 26.5% |
+| draft | 36,819 | 71.7% | **72.1%** | 44.2% | 36.1% |
+| free_award | 90 | 35.6% | **45.6%** | 32.2% | 20.0% |
+| play_prelude_card | 1,390 | 66.2% | **68.1%** | 67.0% | 48.7% |
+| resources | 1,166 | **73.3%** | 72.4% | 60.6% | 45.6% |
+
+- Every kind rose except `resources` (1,166 positions, down 0.9 points).
+- Every Generation rose by 1 to 2.7 points, the late ones most (10+: 56.7% → 59.0%).
+- Every rating band rose (600+: 65.5% → 68.0%).
+- **The Area tie is gone:** 48.4% against the Card Economy Bot's 39.8%. The single flattened board row was not what
+  held it back; more training was.
+- `play_prelude_card` (68.1% against 67.0%) is now the closest call to the Card Economy Bot.
+
+**Box 3: Match.** `uv run python -m ai.match imitation imitation_draft_buy --games 400 --processes 10`
+(`.cache/models/runs/match-14-20m.txt`):
+- It won **82.2% (78.2–85.7%)**, 329 to 71, with 0 stalled and 0 failed. The 6M model won 57.0%.
+- Mean Victory Points 104.1 – 87.8, card Victory Points 24.5 – 18.0, Terraform Rating 48.8 – 39.1.
+- Mean Generations 10.99.
+- Player 1 won 49.8% of Games.
+
+**Box 4: self-play beside Players** (`uv run python -m ai.imitation.checks self-play --games 200 --processes 10`;
+`.cache/models/runs/self-play-14-20m.txt`). 200 Games finished, 0 stalled.
+
+| | 20M model | 6M model | Players rated 450+ |
+| --- | ---: | ---: | ---: |
+| Generations | 10.4 | 11.0 | 10.5 |
+| Victory Points (a Player) | 91.4 | 90.3 | 98.5 |
+| card Victory Points (a Player) | 19.6 | 19.2 | 21.4 |
+| Awards funded, lost (flip rate) | **10.4%** | 35.3% | 7.8% |
+
+| Award | funded per Game, mean Generation, share lost (20M) | (Players) |
+| --- | --- | --- |
+| Banker | 0.18, 10.8, 28% | 0.41, 8.7, 6% |
+| Landlord | 0.60, 7.7, 15% | 0.65, 7.5, 11% |
+| Miner | 0.17, 7.9, 0% | 0.52, 7.7, 7% |
+| Scientist | 0.61, 8.9, 5% | 0.62, 7.9, 6% |
+| Thermalist | 0.27, 9.2, 7% | 0.53, 8.5, 9% |
+
+- **The flip rate fell from 35% to 10%,** near Players' 7.8%. Scientist, never funded by the 6M model, is now funded
+  as often as Players fund it, and Thermalist far more often than before.
+- **What is left:**
+  - It funds 1.83 Awards a Game against Players' 2.74, about a Generation later.
+  - Banker is still lost 28% of the time.
+  - Mayor is still claimed half as often (0.17 against 0.32). The other Milestones are within 0.1 a Game and half a
+    Generation.
+
+**Box 5: GUI and speed.**
+- The model has the same size and architecture, so the 3.1 ms mean pick time measured on 2026-11-19 stands. It was not
+  re-measured: the scratch script was gone.
+- `test_a_pick_takes_well_under_a_second` times the bot's code path, not this model's weights.
+- The GUI loads the registered file the same way. It was not re-checked in the browser pane for this run.
+
+**Docs:** the README's Match row, bot paragraph and training-progress row, and the guide's training recipe (both runs,
+the memory note).
+
+**Open points now:**
+- **Awards:** they are funded less often and later than Players fund them, and Banker is still often lost.
+- **Mayor** is claimed half as often as Players claim it.
+- **A Match against the Flat Playout Bot**, still not run.
+- **More training:** accuracy was still rising at 20M (+0.1 points over the last 2M, at the end of the cosine
+  schedule). A bigger model is more likely to help now than more passes.
+- `ai.match` prints the two column headers with no space between them (`a: imitationb: imitation_draft_buy`) when a
+  Controller's name is long. This is cosmetic and not from this ticket.

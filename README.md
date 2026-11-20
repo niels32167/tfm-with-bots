@@ -335,7 +335,7 @@ interval.
 | Card Economy Bot vs Flat Playout Bot at 1,000 playouts per Option | 100 | 29.5% (21.5–39.1%) | 93.0 – 103.7 | 16.8 – 13.3 | 40.6 – 48.9 | 12.8 |
 | Card Economy Bot vs itself | 1,000 | 49.9% (46.8–53.0%) | 117.6 – 97.5 (winner – loser) | 20.1 (winner) | 46.7 | 13.6 |
 | **Imitation Bot (Draft and buy) vs Card Economy Bot** | 600 | **89.7%** (87.0–91.9%) | **130.8 – 96.8** | 37.8 – 15.9 | 48.4 – 44.3 | 13.3 |
-| **Imitation Bot (every Decision) vs Imitation Bot (Draft and buy)** | 400 | **57.0%** (52.1–61.8%) | **99.7 – 96.6** | 24.2 – 20.8 | 47.2 – 41.0 | 11.5 |
+| **Imitation Bot (every Decision) vs Imitation Bot (Draft and buy)** | 400 | **82.2%** (78.2–85.7%) | **104.1 – 87.8** | 24.5 – 18.0 | 48.8 – 39.1 | 11.0 |
 | *For reference: human Games on Board Game Arena* | 51,422 | | 106 – 87 (winner – loser) | 28 (better Player) | | 10.7 |
 
 The **Flat Playout Bot** plays each Option out to the end of the Game at random on 20 Sampled Positions and
@@ -355,11 +355,12 @@ search at play time (ticket 16).
 
 The **Imitation Bot** plays every Decision as the **Imitation Model** predicts strong Players would. The model is a
 small transformer over the cards a Player can see and the Options, trained on human Games (see below). On held-out
-Games it picks what the Player picked 63% of the time, against 37% for the Card Economy Bot and 21% for a random
-pick: 72% when drafting and buying, 53% at the Action phase's main choice and 93% at Payments. It beats ticket 13's
-bot, which imitated only setup, drafting and buying, in 57% of Games. Its Games now end in about 11 Generations, as
-humans' do. Against itself it claims Milestones as often and as early as Players rated 450+. Awards are its weak
-spot: it loses 35% of the Awards it funds, where those Players lose 8%.
+Games it picks what the Player picked 65% of the time, against 37% for the Card Economy Bot and 21% for a random
+pick: 72% when drafting and buying, 55% at the Action phase's main choice, 48% at placing Tiles and 94% at
+Payments. It beats ticket 13's bot, which imitated only setup, drafting and buying, in 82% of Games. Its Games now
+end in about 11 Generations, as humans' do. Against itself it claims Milestones about as often and as early as
+Players rated 450+, and loses 10% of the Awards it funds, where those Players lose 8%. It still funds fewer Awards
+than they do, and later.
 
 <sub>Measured on 2026-11-16 with `uv run python -m ai.match random_bot random_bot --games 1000` and
 `uv run python -m ai.match flat_playout random_bot --games 200`, and on 2026-11-17 with
@@ -368,7 +369,7 @@ spot: it loses 35% of the Awards it funds, where those Players lose 8%.
 `uv run python -m ai.match card_economy card_economy --games 1000`, and with
 `uv run python -m ai.match imitation card_economy --games 600 --processes 8` (2026-11-19, ticket 13's bot, now
 `imitation_draft_buy`), and `uv run python -m ai.match imitation imitation_draft_buy --games 400 --processes 10`
-(2026-11-19); the Match at 1,000 playouts by a script
+(2026-11-20, the 20M-position model); the Match at 1,000 playouts by a script
 recorded in ticket 11's Comments. The human figures come from the Recorded Game
 archive (2 Players, Tharsis, Corporate Era, Draft and Prelude) and are not a Match against these bots.</sub>
 
@@ -411,7 +412,7 @@ against the rung below. This table is updated as the ladder is climbed.
 | Flat Playout Bot | ✅ | 100% (98.1–100%) | — | 126.6 | 16.2 | about 14 ms |
 | Card Economy Bot | ✅ | 96.4% (95.0–97.3%) | the same Match | 114.0 | 13.3 | about 3 ms |
 | Imitation Bot: Imitation Model for setup, Draft and buying | ✅ | 89.7% (87.0–91.9%) | not measured | 130.8 | 13.3 | about 5 ms |
-| Imitation Bot: Imitation Model for every Decision | ✅ | 57.0% (52.1–61.8%) | not measured | 99.7 | 11.5 | about 3 ms |
+| Imitation Bot: Imitation Model for every Decision | ✅ | 82.2% (78.2–85.7%) | not measured | 104.1 | 11.0 | about 3 ms |
 | Value Model, after self-play | ⏳ ticket 15 | | | | | |
 | Search at play time | ⏳ ticket 16 | | | | | |
 | **Against me in the GUI** | ⏳ ticket 17 | goal: win most of a fixed set of seeded Games | | | | |

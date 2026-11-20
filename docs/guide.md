@@ -152,24 +152,28 @@ only setup, the Draft and buying cards and left the rest to the Card Economy Bot
 with:
 
 ```bash
-uv run python -m ai.imitation.train --positions 6000000 --min-rating 450 --prelude-games-only \
-  --start-from .cache/models/imitation-draft-buy.pt
+uv run python -m ai.imitation.train --positions 6000000 --min-rating 450 --prelude-games-only --compile \
+  --start-from .cache/models/imitation-draft-buy.pt --out .cache/models/runs/all-decisions.pt
+uv run python -m ai.imitation.train --positions 20000000 --min-rating 450 --prelude-games-only --compile \
+  --start-from .cache/models/runs/all-decisions.pt --out .cache/models/runs/all-decisions-20m.pt
 uv run python -m ai.imitation.evaluate --model .cache/models/imitation.pt
 uv run python -m ai.imitation.checks keep-rates --prelude-games-only
 uv run python -m ai.imitation.checks synergies --pairs point_luna:business_empire
 uv run python -m ai.imitation.checks self-play --games 200 --most-games 4000
 ```
 
+The registered model is the second run's (about 1 hour 20 minutes), copied to `.cache/models/imitation.pt`.
+
 Games are split by whole Game and by date (`ai/imitation/split.py`): about 80% train, the next 10% choose
 between models (validation), and the latest 10% are held out to test; Games without a valid date go by a hash of
 their id. Training reads the dataset while it trains: each Game's setup, Draft and buy Decisions come from its
 replay through the engine where the replay reaches them (the full Player View) and from its records elsewhere; every
-other Decision comes from the replay alone, as far as it goes, leaving out the picks the log didn't give. Worker
+other Decision comes from the replay alone, as far as it goes, leaving out the picks the Recorded Game's log didn't give. Worker
 processes encode them, shuffle them and batch them by their Options and card rows (`ai/imitation/positions.py`).
 `--start-from` begins a run from another model's weights. A run saves the model,
 its encoding format, its settings and its validation results every `--validate-every` positions, and the same
-command resumes it. It needs about 3.5 GB of RAM with 10 workers: run long ones outside the desktop app, with a
-cap, so that running out of memory stops the training rather than the app:
+command resumes it. It needs about 3.5 to 4.5 GB of RAM with 10 workers (systemd counted a 5.7 GB peak for the
+20M-position run, page cache included): run long ones outside the desktop app, with a cap, so that running out of memory stops the training rather than the app:
 
 ```bash
 systemd-run --user --same-dir --unit=tm-train -p MemoryMax=6G -p MemorySwapMax=0 uv run python -m ai.imitation.train
