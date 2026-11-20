@@ -56,7 +56,7 @@ class Position:
             missing=np.asarray(encoding.missing, dtype=np.float32),
             cards=np.asarray(encoding.cards, dtype=np.float32).reshape(-1, len(CARD_FIELDS)),
             areas=np.asarray(encoding.areas, dtype=np.float32),
-            options=np.asarray(encoding.options, dtype=np.float32),
+            options=np.asarray(encoding.options, dtype=np.float32).reshape(-1, len(OPTION_FIELDS)),
             picked=picked,
             card_economy_pick=card_economy_pick,
         )

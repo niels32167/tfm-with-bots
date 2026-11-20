@@ -31,7 +31,7 @@ import os
 import random
 import re
 import sys
-from collections.abc import Callable, Iterable, Sequence
+from collections.abc import Callable, Iterable, Iterator, Sequence
 from concurrent.futures import ProcessPoolExecutor
 from dataclasses import dataclass, field
 from itertools import repeat
@@ -232,6 +232,21 @@ def game_summary(replay: dict[str, Any]) -> GameSummary:
         for award, player, generation in funded
     ]
     return GameSummary(view["generation"], game.scores, milestones, awards)
+
+
+def views_along(
+    replay: dict[str, Any], viewer: Callable[[dict[str, Any]], int | None]
+) -> Iterator[tuple[dict[str, Any], dict[str, Any]]]:
+    """At each Decision of a Replay, before its pick, the Decision and the Player View of the Player that
+    `viewer(decision)` names, or nothing if it names none: what the Value Model learns from (ai.value), one Player's
+    view of positions of a past Game."""
+    game = tm_engine.Game.from_replay({"start": replay["start"], "picks": []})
+    for picked in replay["picks"]:
+        decision = game.decision
+        player = viewer(decision)
+        if player is not None:
+            yield decision, game.player_view(player)
+        game.pick(picked)
 
 
 def play_game(

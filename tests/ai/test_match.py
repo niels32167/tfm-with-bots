@@ -8,7 +8,7 @@ import pytest
 import tm_engine
 
 from ai.controller import Handle
-from ai.match import Claim, MatchSettings, game_summary, main, report, run_match
+from ai.match import Claim, MatchSettings, game_summary, main, report, run_match, views_along
 from tests.helpers import city, pick, player, scenario
 
 
@@ -207,3 +207,17 @@ def test_a_games_summary_gives_each_claim_with_its_generation_and_whether_a_fund
     assert summary.milestones == [Claim("terraformer", player=0, generation=4)]
     assert summary.awards == [Claim("landlord", player=0, generation=4, lost=True)]
     assert summary.generations == 4
+
+
+def test_views_along_a_replay_give_each_decision_and_the_view_of_the_player_asked_for_before_its_pick():
+    game = tm_engine.Game(seed=4, players=2, draft=True, prelude=True)
+    game.play_randomly(seed=4, picks=60)
+    replay = game.replay
+    viewers = iter([0, 1, None] * 20)
+
+    views = list(views_along(replay, lambda decision: next(viewers)))
+
+    assert len(views) == 40  # none where the viewer is None
+    assert [view["viewer"] for _, view in views[:4]] == [0, 1, 0, 1]
+    ninth = tm_engine.Game.from_replay(replay, step=9)
+    assert views[6] == (ninth.decision, ninth.player_view(0))

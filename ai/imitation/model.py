@@ -113,6 +113,14 @@ class ImitationModel(nn.Module):
         return self.card_identity(numbers) + self.printed(self.card_facts[numbers])
 
     def forward(self, batch: Batch) -> torch.Tensor:
+        read = self.read(batch)
+        options = batch.options
+        scores = self.out(read[:, read.shape[1] - options.shape[1] :]).squeeze(-1).float()
+        return scores.masked_fill(~batch.option_mask, float("-inf"))
+
+    def read(self, batch: Batch) -> torch.Tensor:
+        """Every token of each position after the transformer: the global token, the board, the card rows and then
+        the Options."""
         cards = batch.cards
         card_tokens = (
             self.card(cards[..., CARD_COLUMN])
@@ -140,9 +148,7 @@ class ImitationModel(nn.Module):
         )
         always = torch.ones(len(cards), 2, dtype=torch.bool, device=cards.device)
         real = torch.cat([always, batch.card_mask, batch.option_mask], dim=1)
-        read = self.transformer(tokens, src_key_padding_mask=~real)
-        scores = self.out(read[:, -options.shape[1] :]).squeeze(-1).float()
-        return scores.masked_fill(~batch.option_mask, float("-inf"))
+        return self.transformer(tokens, src_key_padding_mask=~real)
 
 
 def scored(model: ImitationModel, batch: Batch, device: str) -> torch.Tensor:
@@ -166,11 +172,13 @@ def save_model(path: Path, model: ImitationModel, saved: dict[str, Any]) -> None
     partial.replace(path)
 
 
-def load_model(path: Path, device: torch.device | str = "cpu") -> tuple[ImitationModel, dict[str, Any]]:
-    """A saved model, ready to score, and what was saved with it. Refuses one saved under another encoding format
-    (ai.encoding.FormatMismatch)."""
+def load_model[M: ImitationModel](
+    path: Path, device: torch.device | str = "cpu", kind: type[M] = ImitationModel
+) -> tuple[M, dict[str, Any]]:
+    """A saved model, ready to score, and what was saved with it: an Imitation Model, or a model of another `kind`
+    built on it (ai.value.model). Refuses one saved under another encoding format (ai.encoding.FormatMismatch)."""
     checkpoint = torch.load(path, map_location=device, weights_only=True)
     check_format(checkpoint["format"])
-    model = ImitationModel(ModelShape(**checkpoint["shape"])).to(device)
+    model = kind(ModelShape(**checkpoint["shape"])).to(device)
     model.load_state_dict(checkpoint["weights"])
     return model.eval(), checkpoint["saved"]

@@ -10,6 +10,7 @@ from collections.abc import Callable
 from dataclasses import dataclass, field
 
 import ai.imitation
+import ai.value
 from ai.card_economy import CardEconomyBot
 from ai.controller import Controller
 from ai.flat_playout import FlatPlayout
@@ -40,6 +41,12 @@ def draft_and_buy_imitation_bot() -> Controller:
     return ImitationBot(ai.imitation.DRAFT_AND_BUY_MODEL, imitated=DRAFT_AND_BUY)
 
 
+def value_bot() -> Controller:
+    from ai.value.bot import ValueBot
+
+    return ValueBot()
+
+
 # By the name Replay files and the Match tool use, in the order the setup screen lists them.
 REGISTERED: dict[str, Registered] = {
     "random_bot": Registered("Random Bot", RandomBot),
@@ -56,6 +63,12 @@ REGISTERED: dict[str, Registered] = {
         draft_and_buy_imitation_bot,
         available=lambda: ai.imitation.DRAFT_AND_BUY_MODEL.exists(),
         missing="save ticket 13's model as .cache/models/imitation-draft-buy.pt",
+    ),
+    "value": Registered(
+        "Value Bot",
+        value_bot,
+        available=lambda: ai.value.MODEL.exists(),
+        missing="run the self-play loop, then register its best version: uv run python -m ai.value.loop --register",
     ),
 }
 

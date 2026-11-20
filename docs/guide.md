@@ -186,6 +186,31 @@ keep rate for each card at setup with Players', probes whether it gives a Corpor
 chance together than apart, and sets a bot's Games against itself beside Players' Games: Generations, Victory
 Points, Milestones, Awards and how often a funder loses the Award they funded.
 
+### The Value Bot and the self-play loop
+
+The Value Bot (`value`, `ai/value/bot.py`) tries the 6 Options the Imitation Model rates likeliest, each on the same
+4 Sampled Positions, and picks the one after which the **Value Model** gives its Player the best mean chance of
+winning. The Value Model is the Imitation Model's transformer with a new head, which reads the Player View alone (no
+Decision or Options) and gives the chance of winning and the expected Victory Point margin (`ai/value/model.py`). It
+is offered once a model is registered at `.cache/models/value.pt`.
+
+The self-play loop trains it, in a run folder under `.cache/models/value-runs/`:
+
+```bash
+systemd-run --user --same-dir --unit=tm-value -p MemoryMax=6G -p MemorySwapMax=0 \
+  uv run python -u -m ai.value.loop --minutes 50
+journalctl --user -u tm-value -f -o cat            # its progress
+uv run python -m ai.value.loop --register          # copy the run's best version to .cache/models/value.pt
+```
+
+It warm-starts the Value Model on Recorded Games' results (version v000), rates a fixed panel of old Controllers
+against each other, and then plays rounds: Games of the best version against itself and against a pool of earlier
+versions, the Imitation Bot and the Card Economy Bot; training a candidate on the last rounds' Games; a gating Match
+against the best, which it must score 55% in to replace it; and a rating against the panel, logged in the run's
+`ratings.tsv`. The same command resumes a stopped run at the step it was in; `--rounds` and `--minutes` may change,
+other settings are fixed by `run.json` and saved with every model, beside the seed and the engine's commit. See the
+module's description (`uv run python -m ai.value.loop --help`) for every setting.
+
 ## Recorded Games
 
 Games humans played on Board Game Arena, from tfmstats.com's log archive (ADR 0012), unpacked into the
