@@ -5,7 +5,7 @@ result per Game; only the chance of winning picks Options.
 
 It is saved and loaded like the Imitation Model (`save_model`, `load_model(..., kind=ValueModel)`), and starts from
 an Imitation Model's weights (`warm_started`): what that model learned about cards and positions is a start for
-what they are worth.
+which Player is ahead.
 """
 
 from pathlib import Path

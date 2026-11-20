@@ -27,9 +27,10 @@ A run lives in its own folder (`--run`, by default .cache/models/value-runs/main
 
 state.json lists the steps done. Each step's output is written whole or not at all, so a run stopped at any moment
 (Ctrl-C, `systemctl --user stop`, a reboot) resumes with the step it was in when the same command is given again.
-`--rounds` (the rounds in all), `--minutes` (for this invocation; no step starts after it) and `--processes` may change between
-invocations; every other setting is fixed when the run starts, saved in run.json and with every model, beside the
-seed and the engine's version, so that a run can be repeated. Other settings for the same run are refused.
+`--rounds` (the rounds in all), `--minutes` (for this invocation; no step starts after it), `--processes` and
+`--register` may change between invocations; every other setting is fixed when the run starts, saved in run.json
+and with every model, beside the seed, the commit, the engine's version and a hash of the Imitation Model's file, so
+that a run can be repeated. Other settings for the same run are refused.
 
 Every Game is played by ai.match, so each Controller answers through its handle. `--register` copies the run's best
 version to .cache/models/value.pt, where the registered Value Bot reads it.
@@ -40,6 +41,7 @@ Exit status: 0, or 2 for wrong arguments or settings that differ from the run's.
 import argparse
 import functools
 import gzip
+import hashlib
 import importlib.metadata
 import json
 import platform
@@ -86,7 +88,7 @@ RATING_SEEDS = 900_000
 def arguments(given: Sequence[str] | None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(prog="python -m ai.value.loop", description=__doc__.splitlines()[0])
     parser.add_argument("--run", type=Path, default=ai.value.RUNS_FOLDER / "main", help="the run's folder")
-    parser.add_argument("--rounds", type=int, default=1_000, help="rounds in all, then stop (default: no limit)")
+    parser.add_argument("--rounds", type=int, default=1_000, help="rounds in all, then stop (default 1,000)")
     parser.add_argument("--minutes", type=float, help="start no step after this many minutes")
     parser.add_argument("--register", action="store_true", help="copy the best version to .cache/models/value.pt")
     parser.add_argument("--policy", type=Path, default=ai.imitation.MODEL, help="the Imitation Model")
@@ -122,8 +124,9 @@ def settings_of(given: argparse.Namespace) -> dict[str, Any]:
     return {name: str(value) if isinstance(value, Path) else value for name, value in settings.items()}
 
 
-def provenance() -> dict[str, Any]:
-    """What else a repeat of the run needs: the engine's version, the commit of the code, and the encoding."""
+def provenance(policy: Path) -> dict[str, Any]:
+    """What else a repeat of the run needs: the engine's version, the commit of the code, the encoding, and a hash of
+    the Imitation Model's file (`policy`), which the settings name only by its path."""
 
     def git(*command: str) -> str:
         ran = subprocess.run(["git", *command], capture_output=True, text=True, cwd=REPOSITORY, check=False)
@@ -134,6 +137,7 @@ def provenance() -> dict[str, Any]:
         "commit": git("rev-parse", "HEAD") or "unknown",
         "uncommitted_changes": bool(git("status", "--porcelain")),
         "format": format_stamp(),
+        "policy_sha256": hashlib.sha256(policy.read_bytes()).hexdigest(),
         "python": platform.python_version(),
         "torch": str(torch.__version__),
     }
@@ -232,16 +236,16 @@ class Loop:
         self.write_json("state.json", self.state)
         lines = ["round\tversion\taccepted\tminutes\trating\t" + "\t".join(self.panel())]
         for row in self.state["ratings"]:
-            scores = "\t".join(f"{row['scores'][name]:.3f}" for name in self.panel())
-            lines.append(
-                f"{row['round']}\t{row['version']}\t{row['accepted']}\t{row['minutes']:.1f}\t{row['rating']:.0f}\t{scores}"
-            )
+            shown = [str(row["round"]), row["version"], str(row["accepted"])]
+            shown += [f"{row['minutes']:.1f}", f"{row['rating']:.0f}"]
+            shown += [f"{row['scores'][name]:.3f}" for name in self.panel()]
+            lines.append("\t".join(shown))
         partial = self.folder / "ratings.tsv.partial"
         partial.write_text("\n".join(lines) + "\n")
         partial.replace(self.folder / "ratings.tsv")
 
     def save_version(self, path: Path, model: ValueModel, **saved: Any) -> None:
-        save_model(path, model, {"settings": self.settings, "provenance": provenance(), **saved})
+        save_model(path, model, {"settings": self.settings, "provenance": provenance(self.given.policy), **saved})
 
     # The steps.
 
@@ -449,7 +453,7 @@ def main(given_arguments: Sequence[str] | None = None) -> int:
             )
             return WRONG_ARGUMENTS
     else:
-        loop.write_json("run.json", {"settings": loop.settings, "provenance": provenance()})
+        loop.write_json("run.json", {"settings": loop.settings, "provenance": provenance(given.policy)})
     if given.register:
         best = loop.model_path(loop.state["best"])
         ai.value.MODEL.parent.mkdir(parents=True, exist_ok=True)

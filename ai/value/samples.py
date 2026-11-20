@@ -3,13 +3,14 @@
 
 Two kinds of Games give them, both as Replays the engine plays through (ai.match.views_along):
 - Recorded Games with Prelude, not conceded, each up to its replay's first difference (ticket 10), with the result
-  of the Recorded Game's log. Games whose replay never started give none. A conceded Game's final score is no evidence of who would have won.
+  of the Recorded Game's log. A conceded Game's final score is no evidence of who would have won. Games whose replay
+  never started, or whose log lacks a final score, give none.
 - the loop's own Games, which it saves a round at a time as lines of {"replay", "results", "margins"}.
 
 At each Decision that isn't a follow-up (ai.value.encoded.FOLLOW_UPS), one of the two Players is chosen at random as
 the viewer, the deciding one or not, since the Value Bot rates positions after its pick and its follow-ups, often
-while the other Player decides. This module doesn't import PyTorch: it
-runs in the worker processes that make training batches.
+while the other Player decides. This module doesn't import PyTorch: it runs in the worker processes that make
+training batches.
 """
 
 import functools
@@ -52,12 +53,12 @@ def replay_samples(
     """A sample at a share `keep`, chosen at random, of the Decisions of `replay` that don't follow from the one
     before (FOLLOW_UPS), each seen by a Player chosen at random."""
 
-    def chosen(decision: dict[str, Any]) -> int | None:
+    def viewer_at(decision: dict[str, Any]) -> int | None:
         if decision["kind"] in FOLLOW_UPS or rng.random() >= keep:
             return None
         return rng.randrange(PLAYERS)
 
-    for _, view in views_along(replay, chosen):
+    for _, view in views_along(replay, viewer_at):
         viewer = view["viewer"]
         yield ValueSample(view_position(view), results[viewer], margins[viewer])
 
@@ -72,9 +73,9 @@ def recorded_samples(shard: Path, split: Split, rng: random.Random, keep: float 
             continue
         players = game["players"]
         winners = [board["winner"] for board in players]
-        if sum(winners) != 1:
+        points = [board["victory_points"] for board in players]
+        if sum(winners) != 1 or None in points:
             continue
-        points = [board["victory_points"] or 0 for board in players]
         results = [float(won) for won in winners]
         margins = [points[player] - points[1 - player] for player in range(PLAYERS)]
         yield from replay_samples(replay["replay"], results, margins, rng, keep)

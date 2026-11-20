@@ -46,6 +46,12 @@ class ImitationBot:
             scores = self.model(collate([Position.of(handle.player_view, handle.decision)]))[0]
         return torch.softmax(scores, dim=0).tolist()
 
+    def likeliest_picks(self, positions: list[Position]) -> list[int]:
+        """For each position, the Option the model rates likeliest, in one batch: for the Value Bot, which has the
+        Imitation Model answer the follow-ups of each Option it tries (ai.value.bot)."""
+        with torch.no_grad():
+            return self.model(collate(positions)).argmax(dim=1).tolist()
+
     def pick(self, handle: Handle) -> int:
         if len(handle.decision["options"]) == 1:
             return 0

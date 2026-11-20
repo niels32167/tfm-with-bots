@@ -35,8 +35,8 @@ def value_path(tmp_path):
 
 
 def handles_of_a_game(bot: ValueBot, seed: int = 2, until_generation: int = 2):
-    """Plays a Game with the bot on both sides until the Action phase of `until_generation`, giving each handle with
-    a choice and the bot's pick."""
+    """Plays a Game with the bot on both sides until the Action phase of `until_generation`, giving the handle of each
+    Decision with more than one Option, the bot's pick and the pick's number."""
     game = tm_engine.Game(seed=seed, players=2, draft=True, prelude=True)
     for step in range(MAX_PICKS):
         handle = handle_for(game, random.Random(step))
@@ -158,13 +158,13 @@ def test_an_option_is_rated_once_the_imitation_model_has_answered_what_follows_f
     card = handle.decision["options"][playing]["details"]["card"]
     bot = ValueBot(value_path, tried=len(handle.decision["options"]), samples=2, share=0.0)
 
-    afterstates = bot.afterstates(handle)
+    trials = bot.trials(handle)
 
-    assert len(afterstates) == 2 * len(handle.decision["options"])
-    for _, after in afterstates:
+    assert len(trials) == 2 * len(handle.decision["options"])
+    for _, after in trials:
         decision = after.decision
         assert decision is None or decision["player"] != handle.player or decision["kind"] not in FOLLOW_UPS
-    for index, after in afterstates:
+    for index, after in trials:
         if index == playing:
             assert card in after.player_view(handle.player)["players"][handle.player]["played_cards"]
 

@@ -336,6 +336,7 @@ interval.
 | Card Economy Bot vs itself | 1,000 | 49.9% (46.8–53.0%) | 117.6 – 97.5 (winner – loser) | 20.1 (winner) | 46.7 | 13.6 |
 | **Imitation Bot (Draft and buy) vs Card Economy Bot** | 600 | **89.7%** (87.0–91.9%) | **130.8 – 96.8** | 37.8 – 15.9 | 48.4 – 44.3 | 13.3 |
 | **Imitation Bot (every Decision) vs Imitation Bot (Draft and buy)** | 400 | **82.2%** (78.2–85.7%) | **104.1 – 87.8** | 24.5 – 18.0 | 48.8 – 39.1 | 11.0 |
+| **Value Bot vs Imitation Bot (every Decision)** | 400 | **57.0%** (52.1–61.8%) | **93.2 – 90.3** | 20.4 – 20.0 | 44.7 – 42.4 | 10.4 |
 | *For reference: human Games on Board Game Arena* | 51,422 | | 106 – 87 (winner – loser) | 28 (better Player) | | 10.7 |
 
 The **Flat Playout Bot** plays each Option out to the end of the Game at random on 20 Sampled Positions and
@@ -362,6 +363,16 @@ end in about 11 Generations, as humans' do. Against itself it claims Milestones 
 Players rated 450+, and loses 10% of the Awards it funds, where those Players lose 8%. It still funds fewer Awards
 than they do, and later.
 
+The **Value Bot** adds a **Value Model**, which estimates a Player's chance of winning from their Player View alone.
+For the Options the Imitation Model gives at least half the likeliest Option's chance (6 at most), it picks the
+Option on 4 Sampled Positions. It lets the Imitation Model answer what follows from it (a card's Payment, its Tile),
+and asks the Value Model how likely its Player now is to win. It picks the best mean, in 25 ms per pick on average.
+The Value Model starts from the Imitation Model's weights and learns from Recorded Games' results, and then from a
+self-play loop that plays, trains, gates each new version against the best and rates it against a fixed panel. The
+first 36-minute run beat the Imitation Bot in 57% of Games, almost all of it from the warm start: four rounds of
+self-play haven't yet improved on it. Against itself it funds more Awards than the Imitation Bot, and loses more of
+them (16%, where Players lose 8–9%).
+
 <sub>Measured on 2026-11-16 with `uv run python -m ai.match random_bot random_bot --games 1000` and
 `uv run python -m ai.match flat_playout random_bot --games 200`, and on 2026-11-17 with
 `uv run python -m ai.match card_economy random_bot --games 400`,
@@ -369,7 +380,8 @@ than they do, and later.
 `uv run python -m ai.match card_economy card_economy --games 1000`, and with
 `uv run python -m ai.match imitation card_economy --games 600 --processes 8` (2026-11-19, ticket 13's bot, now
 `imitation_draft_buy`), and `uv run python -m ai.match imitation imitation_draft_buy --games 400 --processes 10`
-(2026-11-20, the 20M-position model); the Match at 1,000 playouts by a script
+(2026-11-20, the 20M-position model), and `uv run python -m ai.match value imitation --games 400 --processes 10`
+(2026-11-20, ticket 15's v001); the Match at 1,000 playouts by a script
 recorded in ticket 11's Comments. The human figures come from the Recorded Game
 archive (2 Players, Tharsis, Corporate Era, Draft and Prelude) and are not a Match against these bots.</sub>
 
@@ -384,7 +396,7 @@ flowchart LR
     F --> C["Card Economy Bot<br/>Options by fitted Prices"]:::done
     C --> I["Imitation Model<br/>Draft and buying<br/>from human Games<br/>(ticket 13)"]:::done
     I --> I2["Imitation Model<br/>every Decision<br/>(ticket 14)"]:::done
-    I2 --> V["Value Model<br/>improves by self-play<br/>(ticket 15)"]:::todo
+    I2 --> V["Value Model<br/>improves by self-play<br/>(ticket 15)"]:::done
     V --> S["Search at play time<br/>tree over Sampled Positions<br/>(ticket 16)"]:::todo
     S --> H(["Beats me in<br/>most Games<br/>(ticket 17)"]):::goal
     classDef done fill:#2ea44f,color:#fff,stroke:#22863a
@@ -413,7 +425,7 @@ against the rung below. This table is updated as the ladder is climbed.
 | Card Economy Bot | ✅ | 96.4% (95.0–97.3%) | the same Match | 114.0 | 13.3 | about 3 ms |
 | Imitation Bot: Imitation Model for setup, Draft and buying | ✅ | 89.7% (87.0–91.9%) | not measured | 130.8 | 13.3 | about 5 ms |
 | Imitation Bot: Imitation Model for every Decision | ✅ | 82.2% (78.2–85.7%) | not measured | 104.1 | 11.0 | about 3 ms |
-| Value Model, after self-play | ⏳ ticket 15 | | | | | |
+| Value Bot: Value Model, after self-play | ✅ | 57.0% (52.1–61.8%) | not measured | 93.2 | 10.4 | about 25 ms |
 | Search at play time | ⏳ ticket 16 | | | | | |
 | **Against me in the GUI** | ⏳ ticket 17 | goal: win most of a fixed set of seeded Games | | | | |
 

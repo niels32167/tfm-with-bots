@@ -1,6 +1,7 @@
 """The Value Bot: a Controller that tries the Options the Imitation Model rates likeliest (`tried` of them) on the
 same few Sampled Positions (`samples`), and picks the one after which the Value Model gives its Player the best mean
-chance of winning. This is the TD-Gammon recipe (ticket 15 of phase 2): cheap copies and a game with chance.
+chance of winning. This is the TD-Gammon recipe (ticket 15 of phase 2): Sampled Positions cost little to make, and the
+Game has chance in it.
 
 "After" means once the Decisions that follow from the Option in its Player's chain are answered, as the Imitation Model
 rates likeliest: playing a card is rated once it is paid for and its Tile placed. Before that, the Player View hardly
@@ -24,7 +25,7 @@ import ai.value
 from ai.controller import Handle
 from ai.imitation.bot import ImitationBot
 from ai.imitation.encoded import Position
-from ai.imitation.model import collate, load_model
+from ai.imitation.model import load_model
 from ai.value.encoded import FOLLOW_UPS, result_of, view_position
 from ai.value.model import ValueModel, chances_of_winning
 
@@ -68,7 +69,7 @@ class ValueBot:
         tried = self.likeliest(handle)
         if len(tried) == 1:
             return tried[0]
-        rated = self.rated(handle)
+        rated = self.rated(handle, tried)
         return max(rated, key=lambda index: rated[index])  # The likeliest first, so it wins a tie.
 
     def likeliest(self, handle: Handle) -> list[int]:
@@ -79,33 +80,33 @@ class ValueBot:
         ranked = sorted(range(len(chances)), key=lambda index: -chances[index])[: self.tried]
         return [index for index in ranked if chances[index] >= least]
 
-    def afterstates(self, handle: Handle) -> list[tuple[int, Any]]:
-        """Each Option tried on each Sampled Position (a Game), once the Decisions that follow from it in its Player's
-        chain (FOLLOW_UPS) are answered as the Imitation Model rates likeliest: by Sampled Position, then Option."""
-        tried = self.likeliest(handle)
+    def trials(self, handle: Handle, tried: list[int] | None = None) -> list[tuple[int, Any]]:
+        """Each Option tried (by default the `likeliest`) on each Sampled Position (a Game), once the Decisions that
+        follow from it in its Player's chain (FOLLOW_UPS) are answered as the Imitation Model rates likeliest: by
+        Sampled Position, then Option."""
+        tried = self.likeliest(handle) if tried is None else tried
         samples = [handle.sample(seed=handle.random.randrange(SEEDS)) for _ in range(self.samples)]
-        afterstates = []
+        trials = []
         for sample in samples:
             for index in tried:
                 after = sample.copy()
                 after.pick(index)
-                afterstates.append((index, after))
+                trials.append((index, after))
         for _ in range(MOST_FOLLOW_UPS):
-            waiting = [after for _, after in afterstates if follows_up(after.decision, handle.player)]
+            waiting = [after for _, after in trials if follows_up(after.decision, handle.player)]
             if not waiting:
                 break
             positions = [Position.of(after.player_view(handle.player), after.decision) for after in waiting]
-            with torch.no_grad():
-                picks = self.policy.model(collate(positions)).argmax(dim=1).tolist()
-            for after, picked in zip(waiting, picks, strict=True):
+            for after, picked in zip(waiting, self.policy.likeliest_picks(positions), strict=True):
                 after.pick(picked)
-        return afterstates
+        return trials
 
-    def rated(self, handle: Handle) -> dict[int, float]:
-        """For each Option tried, the likeliest first: its Player's mean chance of winning in its afterstates."""
+    def rated(self, handle: Handle, tried: list[int] | None = None) -> dict[int, float]:
+        """For each Option tried (by default the `likeliest`), the likeliest first: its Player's mean chance of winning
+        once it is picked and its follow-ups answered, over the Sampled Positions."""
         found: dict[int, list[float]] = {}
         going: list[tuple[int, Position]] = []
-        for index, after in self.afterstates(handle):
+        for index, after in self.trials(handle, tried):
             found.setdefault(index, [])
             if after.scores is not None:
                 found[index].append(result_of(after.scores, handle.player))

@@ -188,9 +188,10 @@ Points, Milestones, Awards and how often a funder loses the Award they funded.
 
 ### The Value Bot and the self-play loop
 
-The Value Bot (`value`, `ai/value/bot.py`) tries the 6 Options the Imitation Model rates likeliest, each on the same
-4 Sampled Positions, and picks the one after which the **Value Model** gives its Player the best mean chance of
-winning. The Value Model is the Imitation Model's transformer with a new head, which reads the Player View alone (no
+The Value Bot (`value`, `ai/value/bot.py`) tries, of the 6 Options the Imitation Model rates likeliest, those it
+gives at least half the likeliest Option's chance, each on the same 4 Sampled Positions. It lets the Imitation Model
+answer the Decisions that follow from each (a card's Payment, its Tile), and picks the Option after which the **Value
+Model** gives its Player the best mean chance of winning. The Value Model is the Imitation Model's transformer with a new head, which reads the Player View alone (no
 Decision or Options) and gives the chance of winning and the expected Victory Point margin (`ai/value/model.py`). It
 is offered once a model is registered at `.cache/models/value.pt`.
 
@@ -210,6 +211,14 @@ against the best, which it must score 55% in to replace it; and a rating against
 `ratings.tsv`. The same command resumes a stopped run at the step it was in; `--rounds` and `--minutes` may change,
 other settings are fixed by `run.json` and saved with every model, beside the seed and the engine's commit. See the
 module's description (`uv run python -m ai.value.loop --help`) for every setting.
+
+The first run (ticket 15, `--minutes 35`, `.cache/models/value-runs/main`) took 36 minutes with 10 Match processes:
+- a 5.3-minute warm start, then rounds of about 7 minutes;
+- a peak of 4.65 GB anon under the 6 GB cap;
+- 17 MB of disk.
+
+Its v001 is registered. Only a share of each Game's positions is learned from (`--warm-keep`, `--keep`): with every
+position, the model learned which Game it was in rather than which positions win.
 
 ## Recorded Games
 
