@@ -5,7 +5,7 @@ from typing import Any
 import tm_engine
 
 from ai.controller import Controller, Handle, handle_for, offered
-from ai.controllers import REGISTERED, available, make_controller
+from ai.controllers import REGISTERED, available, make_controller, name_and_settings
 from ai.explain import explanation, server_random
 from tests.fuzzing.invariants import (
     each_reserved_area_used_only_by_its_card,
@@ -28,8 +28,10 @@ def controllers_on_offer() -> list[dict[str, str]]:
 
 
 def label_of(name: ControllerName) -> str:
-    """How the setup screen names the Controller called `name`."""
-    return next((offered["label"] for offered in controllers_on_offer() if offered["name"] == name), name)
+    """How the setup screen names the Controller called `name`, with any settings after its label."""
+    name, settings = name_and_settings(name)
+    label = next((offered["label"] for offered in controllers_on_offer() if offered["name"] == name), name)
+    return f"{label} ({settings.replace('&', ', ')})" if settings else label
 
 
 # What the fuzzer checks that a position must keep to and a Scenario doesn't refuse, so that the dev
@@ -52,7 +54,8 @@ class GameSession:
 
     def __init__(self, game: tm_engine.Game, controllers: list[ControllerName], bot_delay: float) -> None:
         known = [controller["name"] for controller in controllers_on_offer()]
-        unknown = [controller for controller in controllers if controller not in known]
+        # Settings may follow a name ("search?seconds=5"); the Controller refuses those it doesn't take when made.
+        unknown = [controller for controller in controllers if name_and_settings(controller)[0] not in known]
         if unknown:
             raise ValueError(f"unknown Controller {unknown[0]!r}; expected one of {known}")
         if len(controllers) != game.players:

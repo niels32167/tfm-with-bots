@@ -153,3 +153,27 @@ def test_a_controller_that_raises_is_reported_to_the_gui():
         error = gui.receive_error()
 
     assert "Broken" in error and "out of ideas" in error
+
+
+class Patient:
+    """Takes a setting, as the Search Bot takes its budget."""
+
+    def __init__(self, seconds: float = 1.0) -> None:
+        self.seconds = seconds
+
+    def pick(self, handle: Handle) -> int:
+        return 0
+
+
+def test_a_registered_controller_can_be_given_its_settings_by_name(monkeypatch):
+    # The Search Bot's budget is a setting: "search?seconds=5" in a new Game or a Replay file.
+    monkeypatch.setitem(REGISTERED, "patient", Registered("Patient", Patient, settings=("seconds",)))
+    with connect() as gui:
+        update = gui.start(["patient?seconds=0.5", "human"], seed=3)
+        file = gui.save_replay()
+        gui.send({"type": "new_game", "controllers": ["patient?minutes=5", "human"], "seed": 3})
+        error = gui.receive_error()
+
+    assert update["controllers"] == ["patient?seconds=0.5", "human"]
+    assert file["controllers"] == ["patient?seconds=0.5", "human"]
+    assert "minutes" in error

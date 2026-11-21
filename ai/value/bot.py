@@ -75,10 +75,7 @@ class ValueBot:
     def likeliest(self, handle: Handle) -> list[int]:
         """The Options tried: of the `tried` the Imitation Model rates likeliest, those it gives at least `share` of the
         likeliest Option's chance, likeliest first."""
-        chances = self.policy.chances(handle)
-        least = self.share * max(chances)
-        ranked = sorted(range(len(chances)), key=lambda index: -chances[index])[: self.tried]
-        return [index for index in ranked if chances[index] >= least]
+        return narrowed(self.policy.chances(handle), self.tried, self.share)
 
     def trials(self, handle: Handle, tried: list[int] | None = None) -> list[tuple[int, Any]]:
         """Each Option tried (by default the `likeliest`) on each Sampled Position (a Game), once the Decisions that
@@ -116,6 +113,14 @@ class ValueBot:
         for (index, _), chance in zip(going, chances, strict=True):
             found[index].append(chance)
         return {index: sum(values) / len(values) for index, values in found.items()}
+
+
+def narrowed(chances: list[float], tried: int, share: float) -> list[int]:
+    """Of the `tried` Options with the highest `chances`, those with at least `share` of the highest, highest first:
+    the Options the Value Bot and the Search Bot (ai.search) try."""
+    least = share * max(chances)
+    ranked = sorted(range(len(chances)), key=lambda index: -chances[index])[:tried]
+    return [index for index in ranked if chances[index] >= least]
 
 
 def follows_up(decision: dict[str, Any] | None, player: int) -> bool:

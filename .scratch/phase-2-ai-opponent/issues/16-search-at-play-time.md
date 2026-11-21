@@ -13,10 +13,164 @@ The quick test showed that playout counts matter a lot: going from 5 to 100 per 
 
 **Status:** ready-for-agent
 
-- [ ] The time budget is a setting, and the Controller keeps to it in the GUI, with the default chosen so that a Game is pleasant to play.
-- [ ] Strength against budget is recorded under Comments, for example 0.1, 1 and 5 seconds per Decision, against the Controller from ticket 15.
+- [x] The time budget is a setting, and the Controller keeps to it in the GUI, with the default chosen so that a Game is pleasant to play.
+- [x] Strength against budget is recorded under Comments, for example 0.1, 1 and 5 seconds per Decision, against the Controller from ticket 15.
 - [ ] It wins a Match against the Controller from ticket 15, with the interval above 50%, at the default budget.
-- [ ] Test: it plays only through the fair handle, and its picks are equal for equal Player Views given the same seed.
-- [ ] It is selectable in the GUI.
+- [x] Test: it plays only through the fair handle, and its picks are equal for equal Player Views given the same seed.
+- [x] It is selectable in the GUI.
 
 ## Comments
+
+### 2026-11-21 — implemented; the ladder Match not yet won (Claude)
+
+Four boxes are ticked. **Box 3 is not:** in two 400-Game Matches on seeds 0–199 the Search Bot beat the Value Bot
+in 51.5% (0.1 s) and 53.0% (1 s) of Games, and neither interval clears 50%. The evidence and what to try next follow.
+
+The code:
+- `ai/search.py`: the Search Bot (its docstring explains the search in full).
+- `ai/controllers.py`: `search`, "Search Bot", available once `.cache/models/value.pt` is registered. Settings may
+  follow a registered name, as in `search?seconds=5&leaves=playouts`: the Match tool, the server and Replay files take
+  them alike (`name_and_settings`, `settings_of`). A Controller registered without `settings` refuses them.
+- `server/session.py`: a Controller offered on the setup screen may be named with settings, and is labelled with them
+  ("Search Bot (seconds=5)").
+- `ai/value/bot.py`: `narrowed(chances, tried, share)`, the Options both bots try, is shared.
+- `ai/imitation/bot.py`: `chances_at(position)`, the Imitation Model's chances at a Sampled Position's Decision.
+- `CONTEXT.md`: **Search Bot**.
+
+**Decisions made with the user** (one opening batch, every recommendation taken but one):
+- **Information set MCTS, one tree.** The nodes are the Player's own Decisions as they see them; each walk down it is
+  on a fresh Sampled Position, so hidden cards are averaged over rather than known.
+- **Default budget: 1 second per Decision.** The recommendation added: lower it if 1 s proves no stronger than 0.1 s.
+- **Laptop time: about 1.5 hours** (the user's own pick, against the 3-hour recommendation). On seeing the sweep would
+  run over, the user said to run the final Match without asking. Laptop time came to about 2 hours: pilot 4 minutes,
+  sweep 42, the two final Matches 10.5 and 56.5, measurements and tests the rest.
+- **The Value Model at the leaves, with one check by random playouts.**
+
+**Chosen by Claude** (on the user's standing instruction to take the recommendation after the first batch):
+- **The Options searched are the Value Bot's**: of the 6 the Imitation Model rates likeliest, those with at least half
+  the likeliest one's chance. If one is left, it is picked at once and the budget isn't spent. This is the budget's
+  main saving: at 1 s, 84 of one Player's Decisions in a Game were searched (the 2026-11-21 timing Game below).
+- **Common random numbers at the root.** Each Sampled Position is walked once for every Option searched, from the same
+  seeds, and the Option with the best mean result is picked. So the root needs no exploration constant, and at the
+  smallest budget the bot is the Value Bot with a deeper rating.
+- **The other Player's Decisions are chance**, as the cards drawn are: an Option is drawn in proportion to the Imitation
+  Model's chances, narrowed by the same share. Follow-ups of either Player (FOLLOW_UPS) are answered by the Imitation
+  Model's likeliest, as in the Value Bot.
+- **A walk stops** at the Player's own next Decision, after 2 of the other Player's Decisions (`horizon`), or at the
+  end of the Game, and the Value Model rates the position there. A node grows below an Option once the Option has been
+  rated, and its Options are found again by label (and by count, should two share a label). PUCT picks among them, with
+  the Imitation Model's chances as priors, the times each was offered in place of the node's visits, and constant 0.25.
+- **Keeping to the budget:** a Sampled Position is begun only if it would end in time at the pace of the slowest so
+  far, and a walk only if it would at the pace of the slowest walk. A Sampled Position whose walks don't all finish is
+  left out, so that every Option is rated on the same ones. The first is always walked whole. The test first caught an
+  overrun of 20 ms on 0.4 s with only the Sampled Position check, and then 3 ms; with both checks it held in 8 runs.
+- **The budget is a setting** of the Controller (`seconds`; `samples` caps the Sampled Positions instead, which makes
+  picks repeatable) and follows its name elsewhere: `search?seconds=5`. The setup screen offers "Search Bot" at the
+  default; it has no field for the budget.
+- **The full suite:** 2,245 tests passed in 2.5 minutes, capped (peak 1.9 GB). Ruff is clean on the touched files at
+  120 columns.
+
+**Costs** (one core, laptop on mains, "performance" profile):
+- A forward pass of either model costs about 2 ms a position on one thread, and batching doesn't lower that. Encoding a
+  Player View costs another 0.25–1.1 ms. A mid-Game walk answers about 2.8 Decisions by model and costs about 10 ms.
+- So 1 s buys only about 4–10 Sampled Positions at a mid-Game Action with 3–6 Options searched. Late in the Game, walks
+  that end the Game need no model and hundreds fit.
+- One Game at 1 s against the Value Bot took 84 s on one core: 84 Decisions searched, 0.93 s each on average, 1.004 s at
+  most. In a 10-process Match a Game took about 2 minutes, and a 400-Game Match 56.5 minutes (peak 3.6 GB).
+
+**Box 2: strength against budget**, against the Value Bot (`value`, v006), on seeds from 3,000,000 (not the final
+Match's), with `uv run python -m ai.match "search?seconds=…" value --games N --processes 10 --first-seed 3000000`
+(`.cache/ticket-16/`):
+
+| Budget per Decision | Games | Search Bot score | Victory Points | Minutes |
+| --- | ---: | --- | --- | ---: |
+| 0.1 s | 100 | 60.5% (50.7–69.5%) | 92.0 – 88.8 | 2.8 |
+| 1 s | 100 | 59.0% (49.2–68.1%) | 93.3 – 91.9 | 14.7 |
+| 1 s (pilot, before the sweep) | 20 | 60.0% (38.7–78.1%) | 91.1 – 91.0 | 3.9 |
+| 5 s | 20 | 55.0% (34.2–74.2%) | 94.6 – 93.2 | 18.6 |
+| 1 s, random playouts at the leaves | 40 | 52.5% (37.5–67.1%) | 90.1 – 89.6 | 6.0 |
+
+- **More time didn't buy clear strength.** 0.1 s and 1 s scored alike, and 5 s no better in its 20 Games. The final
+  Matches (box 3) show the sweep's 0.1 s score was luck: 60.5% in 100 Games, then 51.5% in 400.
+- **The Value Model contributes more than random playouts:** 59.0% against 52.5% at 1 s, though within the noise of 40
+  Games. Random playouts undervalue engine building, as the ticket expected.
+
+**Box 3: the ladder Match**, `uv run python -u -m ai.match search value --games 400 --processes 10`
+(`.cache/models/runs/match-16-search-0.1s.txt`, `match-16-search-1s.txt`):
+
+| Budget | Score | Wins | Victory Points | card VP | Terraform Rating | Generations |
+| --- | --- | --- | --- | --- | --- | ---: |
+| 0.1 s | **51.5% (46.6–56.4%)** | 206 to 194 | 93.4 – 92.8 | 20.9 – 20.6 | 43.5 – 43.8 | 10.40 |
+| 1 s | **53.0% (48.1–57.8%)** | 212 to 188 | 93.1 – 93.1 | 20.8 – 20.7 | 43.2 – 44.1 | 10.39 |
+
+Both finished all 400 Games, none stalled. The default was set to 0.1 s after the sweep, under the rule above, and the
+first Match was played at it. When it failed, the default went back to the user's 1 s and the second Match was played
+on the same seeds. Two tries on the same seeds make even a pass weaker evidence, so both are reported. Together, 800
+Games give 52.3%.
+
+**Why search gains so little, as far as these numbers show:**
+- **The Value Model's errors look like bias, not noise.** Averaging more Sampled Positions (more time) should shrink
+  noise, and didn't help. A search that rates every position with the same model inherits its blind spots.
+- **Few Sampled Positions fit.** At 2 ms per forward pass, 1 s gives 4–10 Sampled Positions at a mid-Game Action, and the
+  other Player's drawn Options add noise to each.
+- **The ticket's quick test isn't comparable:** 100 playouts per Option beat a heuristic that never looks ahead, and saw
+  the hidden cards. Here both bots look ahead with the same model.
+
+**Box 1:** the budget is the `seconds` setting (above), 1 s by default, the user's choice for a pleasant Game. In the
+GUI (server and vite, browser pane at 1440x900), two Search Bots played from setup into Generation 4 with no console or
+server errors. A second WebSocket timed the 122 updates: the slowest came 1.048 s after the one before, which is the
+1 s pick plus the server's own work. None took over 1.1 s.
+
+**Box 4: the test**, `tests/ai/test_search.py`, with tiny untrained models (width 16, one layer), on the CPU:
+- it picks the same from two Games its Player can't tell apart, with the same random source and 4 Sampled Positions;
+- it keeps to 0.1 s and 0.4 s, and walks more Sampled Positions given more;
+- its tree grows below Options at the Player's own later Decisions;
+- an Option that ends the Game is rated by the Player's result;
+- with a share of 1 it picks as the Imitation Bot at once;
+- random-playout leaves rate by results;
+- it is registered, and its settings follow its name.
+
+`tests/ai/test_fair_play.py` checks that no module of `ai/` but the three allowed imports the engine, `ai/search.py`
+included. `tests/server/test_registered_controllers.py` checks settings by name on the server.
+
+**Box 5:** the setup screen offers "Search Bot" for each Player (checked in the browser pane, above).
+
+**Code review** (`/code-review` against 0696f31: one standards and one spec subagent, read-only, during the 1 s Match).
+
+Fixed (none changes a pick, so the Matches stand):
+- **Standards:**
+  - `MOST_STEPS` used the _Avoid_ word "step"; it is `MOST_ANSWERED`.
+  - `narrowed` repeated the Value Bot's `likeliest`; both now use `ai.value.bot.narrowed`. `SEEDS` is imported.
+  - The `?` in Controller names was split in three places; `name_and_settings` does it once.
+  - `leaves="mixed"` wasn't asked for and is gone.
+  - The `# type: ignore` in the registry.
+  - The test helper rebuilt a Handle by position; it uses `dataclasses.replace`.
+- **Spec:**
+  - The fairness test left the time budget on, so a busy computer could walk fewer Sampled Positions on one Game than
+    the other. It now uses `samples` alone.
+  - Options are keyed by label and count, in case two share a label. None did in 26,758 Decisions of 50 random
+    Games (`experiments/16/label_repeats.py`).
+  - A setting with no value (`search?seconds`) and a budget that isn't a number are refused when the Controller is
+    made.
+
+Left as they are:
+- **Tests read `search()`'s result** (Edges, visits, the tree) as well as picks. As with the Value Bot's `rated` and
+  `trials`, that result is the module's own interface.
+- **A Sampled Position left out for time** has still added visits below the root; only the root's means pick.
+- **An Edge keeps the prior** from the first Sampled Position that offered it.
+- **The first Sampled Position is always walked whole**, which with `leaves=playouts` can run over a small budget.
+- **The settings syntax is general** across registered Controllers, though only the Search Bot takes settings.
+- **The setup screen has no field for the budget.**
+
+**Open points (what to try for box 3):**
+- **Keep the policy's likeliest Option unless another beats it clearly.** With common random numbers each Sampled
+  Position gives a paired difference, so the bot can switch only when the difference is, say, 2 standard errors. That
+  is ticket 15's lesson (the Value Model's errors mustn't overrule a confident policy) applied to the search. It would
+  also stop early when the leader is clear, saving budget.
+- **A better Value Model**, since search inherits its bias: bigger gates and longer self-play (ticket 15's open points),
+  or training the Value Model on the Search Bot's own Games (expert iteration, out of scope by the spec unless search
+  stalls, which it has).
+- **Cheaper evaluations:** several threads per forward pass in the GUI, or a smaller model at the leaves, to fit more
+  Sampled Positions per second.
+- Tuning `horizon` (0 rates as the Value Bot does) and `exploration`, on Matches big enough to tell 3 points apart
+  (about 1,000 Games each).

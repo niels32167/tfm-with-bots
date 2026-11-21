@@ -42,8 +42,13 @@ class ImitationBot:
 
     def chances(self, handle: Handle) -> list[float]:
         """For each Option, the model's chance that a strong Player picks it."""
+        return self.chances_at(Position.of(handle.player_view, handle.decision))
+
+    def chances_at(self, position: Position) -> list[float]:
+        """For each Option of `position`, the model's chance that a strong Player picks it: for the Search Bot, which
+        asks it at the Decisions of Sampled Positions (ai.search)."""
         with torch.no_grad():
-            scores = self.model(collate([Position.of(handle.player_view, handle.decision)]))[0]
+            scores = self.model(collate([position]))[0]
         return torch.softmax(scores, dim=0).tolist()
 
     def likeliest_picks(self, positions: list[Position]) -> list[int]:

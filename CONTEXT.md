@@ -166,6 +166,9 @@ A model that estimates a Player's chance of winning from their Player View, trai
 **Value Bot**:
 The Registered Controller that tries the Options the Imitation Model rates likeliest, each on the same few Sampled Positions, and picks the one after which the Value Model gives its Player the best mean chance of winning. The self-play loop trains it in versions; a new version replaces the best only by winning a gating Match against it.
 
+**Search Bot**:
+The Registered Controller that searches a tree of its Player's own Decisions within a time budget per Decision, walking it on a fresh Sampled Position each time: the Imitation Model narrows the Options and answers the other Player's Decisions, and the Value Model rates the positions where walks stop.
+
 **Sampled Position**:
 A complete Game made from a Player View by dealing the cards that Player can't see at random, consistent with what they know. Other Players' secret choices in the current Draft round or buying step are taken back, to be made again. It is how a Controller looks ahead without seeing hidden cards.
 _Avoid_: determinization, copy (a copy of a Game keeps its real hidden cards)
