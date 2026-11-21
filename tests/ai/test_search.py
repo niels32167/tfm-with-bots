@@ -4,6 +4,7 @@ so it picks the same from any two Games its Player can't tell apart, given the s
 Sampled Positions."""
 
 import dataclasses
+import math
 import random
 import time
 
@@ -13,7 +14,7 @@ import torch
 
 from ai.controller import handle_for
 from ai.imitation.model import ImitationModel, ModelShape, save_model
-from ai.search import SearchBot
+from ai.search import Edge, SearchBot, Searched
 from ai.value.model import warm_started
 
 MAX_PICKS = 3_000
@@ -115,6 +116,38 @@ def test_an_option_that_ends_the_game_is_rated_by_the_players_result(value_path)
     assert searched.options[replay["picks"][-1]].mean == result
 
 
+def searched_with(results: dict[int, list[float]]) -> Searched:
+    """A search's result with these root results for each Option, likeliest first, one per Sampled Position."""
+    searched = Searched({index: Edge(prior=0.1) for index in results})
+    for row in zip(*results.values(), strict=True):
+        searched.add(list(row))
+    return searched
+
+
+def test_it_keeps_the_likeliest_option_unless_another_beats_it_clearly_on_the_same_sampled_positions():
+    # Option 3 is the likeliest. Option 0 beats it by 0.1 on every Sampled Position; Option 5 beats it by 0.15 on
+    # average, but by +0.5, -0.3, +0.6 and -0.2: a paired difference with a standard error of about 0.23.
+    searched = searched_with({3: [0.5, 0.6, 0.4, 0.5], 0: [0.6, 0.7, 0.5, 0.6], 5: [1.0, 0.3, 1.0, 0.3]})
+
+    assert searched.picked(margin=0.0) == 5  # the best mean, as before
+    assert searched.picked(margin=0.5) == 5
+    assert searched.picked(margin=2.0) == 0
+    assert searched_with({3: [0.5, 0.6, 0.4, 0.5], 5: [1.0, 0.3, 1.0, 0.3]}).picked(margin=2.0) == 3
+    # One Sampled Position gives no standard error, so only a margin of 0 lets another Option win on it.
+    assert searched_with({3: [0.5], 0: [0.6]}).picked(margin=0.0) == 0
+    assert searched_with({3: [0.5], 0: [0.6]}).picked(margin=1.0) == 3
+    # A tie goes to the likelier Option.
+    assert searched_with({3: [0.5, 0.5], 0: [0.6, 0.6], 5: [0.6, 0.6]}).picked(margin=2.0) == 0
+
+
+def test_with_an_endless_margin_it_searches_but_picks_as_the_imitation_bot(value_path):
+    bot = SearchBot(value_path, seconds=None, samples=3, share=0.0, margin=math.inf)
+    for handle, pick, _ in handles_of_a_game(bot):
+        chances = bot.policy.chances(handle)
+        assert pick == chances.index(max(chances))
+        assert bot.search(handle).samples == 3
+
+
 def test_with_a_share_of_one_it_picks_as_the_imitation_bot_at_once(value_path):
     bot = SearchBot(value_path, share=1.0)
     for handle, pick, _ in handles_of_a_game(bot):
@@ -148,8 +181,8 @@ def test_it_is_registered_once_a_value_model_is_and_its_budget_is_a_setting(valu
     assert bot.seconds == 1.0
 
     # Settings follow the name, for the Match tool, the server and Replay files alike.
-    bot = make_controller("search?seconds=0.1&leaves=playouts")
-    assert (bot.seconds, bot.leaves) == (0.1, "playouts")
+    bot = make_controller("search?seconds=0.1&leaves=playouts&margin=1.5")
+    assert (bot.seconds, bot.leaves, bot.margin) == (0.1, "playouts", 1.5)
     with pytest.raises(ValueError, match="seconds"):
         make_controller("search?second=5")
     with pytest.raises(ValueError, match="seconds"):

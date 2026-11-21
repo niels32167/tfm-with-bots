@@ -174,3 +174,83 @@ Left as they are:
   Sampled Positions per second.
 - Tuning `horizon` (0 rates as the Value Bot does) and `exploration`, on Matches big enough to tell 3 points apart
   (about 1,000 Games each).
+
+### 2026-11-21 — the paired rule tried; box 3 still not met (Claude)
+
+The user picked the first open point: keep the Imitation Model's likeliest Option unless another beats it clearly.
+**It didn't help.** At 1 s with a margin of 2 standard errors, the Search Bot scored **50.2% (45.4–55.1%)** against
+the Value Bot in a final 400-Game Match on seeds 0–199 (201 wins to 199). The plain best mean scored 53.0% on the
+same seeds. Box 3 stays unticked.
+
+**The code:**
+- `Searched.paired` keeps each Option's root result on each Sampled Position.
+- `Searched.picked(margin)` keeps the likeliest Option unless another beats it by a mean paired difference over
+  `margin` standard errors. Of those that do, it picks the best mean. With one Sampled Position there is no standard
+  error, so only a margin of 0 switches.
+- The new setting `margin` reaches it, as in `search?margin=2`.
+- **Two new tests:** the rule on a hand-made search result with known differences, and that an endless margin
+  picks as the Imitation Bot while still searching.
+- **The default margin is 0 (Chosen by Claude):** 0 is the plain best mean the earlier Matches played, and nothing
+  measured favours 2. The setting is kept so the experiment can be rerun.
+
+**How often each margin keeps the likeliest Option** (`experiments/16/switches.py`, against the Value Bot on seeds
+from 3,100,000; the rate is how often the pick is not the likeliest):
+
+| Budget | Decisions searched | Sampled Positions per Decision | margin 0 | 1 | 2 | 3 |
+| --- | ---: | --- | ---: | ---: | ---: | ---: |
+| 0.1 s (4 Games) | 400 | median 2; 24% have only 1 | 56.2% | 25.2% | 14.8% | 11.0% |
+| 1 s (2 Games) | 173 | median 14 (quartiles 9–26) | 54.3% | 39.3% | 25.4% | 17.9% |
+
+At 0.1 s the standard error rests on about 2 Sampled Positions, too few to mean much. So the rule was tried at the
+default 1 s rather than in the cheap 0.1 s Matches proposed earlier (Chosen by Claude).
+
+**The Matches** (`search?margin=2` at 1 s against `value`):
+
+| Seeds | Games | Score | Note |
+| --- | ---: | --- | --- |
+| from 3,000,000 (pilot) | 200 | 56.5% (49.6–63.2%) | at margin 0, the first 100 of these Games scored 59.0% |
+| 0–199 (final, `.cache/models/runs/match-16-search-1s-margin-2.txt`) | 400 | 50.2% (45.4–55.1%) | margin 0 scored 53.0% |
+
+**How they were run:**
+- **The pilot** ran as `search?margin=2`.
+- **The final Match** ran as plain `search`, so its report's header doesn't show the margin. The default `MARGIN` was 2
+  while it ran and was set back to 0 afterwards. To rerun it now, use `search?margin=2`.
+- **Going on to the final Match** depended on the pilot scoring about 55% or more, a bar Claude set before the pilot.
+  The pilot cleared it, but even it didn't beat margin 0.
+- **Stopping early** once the leader is clear (the open point's second half) wasn't built. Each Decision's budget is
+  its own, so stopping early would only shorten Matches; it wouldn't add strength.
+- **The switch rates** are saved in `.cache/ticket-16/switches.txt`. Their Sampled Positions per Decision cover every
+  Decision searched, the Draft and setup included. The README's "4–10 at a mid-Game Action" counts the Action phase
+  alone.
+
+**What this says:**
+- Over 1,000 Games at 1 s on these two seed ranges, the Search Bot scores about 53% against the Value Bot, whichever
+  rule picks.
+- Keeping closer to the Imitation Model's picks costs as much as the Value Model's noise does.
+- The bottleneck looks like the Value Model itself rather than how the search reads it.
+- So the remaining open points are the ones that improve or cheapen the Value Model:
+  - longer self-play with bigger gates;
+  - training it on the Search Bot's own Games (expert iteration);
+  - a smaller leaf model, to fit more Sampled Positions.
+
+**Code review** (`/code-review` against 2e0a26a, one standards and one spec subagent, read-only).
+
+Fixed:
+- **The final Match's record:** it ran as `search` with the default margin at 2, not as `search?margin=2` as first
+  written.
+- **"The first 100 of these seeds"** now reads "Games": the sweep's 100 Games cover 50 seeds.
+- **The 55% bar and the skipped early stop** are now recorded.
+- **The switch rates** are now saved.
+- **`Searched.add`** takes one Sampled Position's results, so the search and the test helper share one path.
+- **Clearer names:** `clear` is now `beating` and `error` is `standard_error`.
+- **The docstring's wording** is plainer.
+- **The endless-margin test** also asserts that it searched.
+
+Left as they are:
+- **Each root result is kept twice,** in its Edge and in `paired`. Both are added in one place.
+- **`paired` matches Options by their order in `options`,** as documented.
+- **The `margin` setting is kept,** though its default is 0, so the experiment can be rerun.
+
+The full suite passed (2,247 tests) before the fixes; the Search Bot, registry and fair-play tests pass after them.
+
+**Laptop time:** about 1.5 hours: the switch rates for 4 minutes, the pilot for 29 minutes and the final Match for 59.

@@ -85,7 +85,7 @@ REGISTERED: dict[str, Registered] = {
         search_bot,
         available=lambda: ai.value.MODEL.exists(),
         missing="register a Value Model first: uv run python -m ai.value.loop --register",
-        settings=("seconds", "samples", "tried", "share", "horizon", "exploration", "leaves"),
+        settings=("seconds", "samples", "tried", "share", "horizon", "exploration", "leaves", "margin"),
     ),
 }
 

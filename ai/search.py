@@ -7,8 +7,11 @@ walk down it, so that what the Player can't see is averaged over rather than kno
   Imitation Model rates likeliest, those it gives at least `share` of the likeliest Option's chance. If one is left,
   it is picked at once, without spending the budget.
 - **Each Sampled Position is walked once for every Option searched**, from the same seeds, so that Options are
-  compared on equal terms (as the Flat Playout and Value Bots do). The Option picked is the one with the best mean
-  result over all of them; ties go to the likelier.
+  compared on equal terms (as the Flat Playout and Value Bots do), and each Sampled Position gives a paired difference
+  between each other Option's result and the likeliest's. The likeliest is kept unless another beats it clearly: by
+  a mean paired difference of more than `margin` standard errors. Of those that do, the one with the best mean result is picked; ties go to the
+  likelier. A `margin` of 0 picks the best mean outright. This is ticket 15's lesson, that the Value Model's errors
+  shouldn't overrule a confident Imitation Model, applied to the search.
 - **A walk** picks the Option, then answers what follows:
   - follow-ups of anyone's (ai.value.encoded.FOLLOW_UPS: Payment, Area, target...) as the Imitation Model rates
     likeliest, as the Value Bot does;
@@ -52,6 +55,10 @@ SECONDS = 1.0
 HORIZON = 2
 # PUCT's constant at the Player's own later Decisions: how much a prior counts against the results so far.
 EXPLORATION = 0.25
+# How many standard errors of the paired difference another Option must beat the likeliest by to be picked instead;
+# 0 by default, Claude's call on 2026-11-21: at 1 second a margin of 2 scored 56.5% against the Value Bot in 200
+# Games and then 50.2% in the 400 of a final Match, where 0 scored 53.0% on the same seeds.
+MARGIN = 0.0
 # How the positions where walks stop are rated: by the Value Model, or by a random playout (to compare them).
 LEAVES = ("value", "playouts")
 # A guard: the most Decisions one walk answers before its position is rated wherever it is.
@@ -80,10 +87,38 @@ class Edge:
 
 @dataclass
 class Searched:
-    """What a search found: for each Option searched (by index), its Edge, and how many Sampled Positions it took."""
+    """What a search found: for each Option searched (by index, likeliest first), its Edge; how many Sampled Positions
+    it took; and on each of them, the result of each Option's walk, in the same order."""
 
     options: dict[int, Edge] = field(default_factory=dict)
     samples: int = 0
+    paired: list[list[float]] = field(default_factory=list)
+
+    def add(self, results: list[float]) -> None:
+        """Adds one Sampled Position's results, one for each Option searched, in the order of `options`."""
+        for edge, result in zip(self.options.values(), results, strict=True):
+            edge.offered += 1
+            edge.add(result)
+        self.paired.append(results)
+        self.samples += 1
+
+    def picked(self, margin: float) -> int:
+        """The likeliest Option, unless another beats it on the same Sampled Positions by a mean difference over
+        `margin` standard errors of that difference: then the best mean of those that do. With one Sampled Position
+        there is no standard error, so only a `margin` of 0 lets another Option win."""
+        indexes = list(self.options)
+        beating = [indexes[0]]
+        for column, index in enumerate(indexes[1:], start=1):
+            differences = [row[column] - row[0] for row in self.paired]
+            mean = sum(differences) / len(differences) if differences else 0.0
+            if len(differences) > 1:
+                variance = sum((difference - mean) ** 2 for difference in differences) / (len(differences) - 1)
+                standard_error = math.sqrt(variance / len(differences))
+            else:
+                standard_error = math.inf
+            if mean > 0 and (margin == 0 or mean > margin * standard_error):
+                beating.append(index)
+        return max(beating, key=lambda index: self.options[index].mean)  # The likeliest wins a tie.
 
 
 class SearchBot:
@@ -100,11 +135,14 @@ class SearchBot:
         horizon: int = HORIZON,
         exploration: float = EXPLORATION,
         leaves: str = "value",
+        margin: float = MARGIN,
     ) -> None:
         if seconds is None and samples is None:
             raise ValueError("a search needs a budget: seconds, samples or both")
         if not (seconds is None or (isinstance(seconds, int | float) and seconds > 0)):
             raise ValueError(f"seconds must be a number above 0, not {seconds!r}")
+        if not (isinstance(margin, int | float) and margin >= 0):
+            raise ValueError(f"margin must be a number of at least 0, not {margin!r}")
         if leaves not in LEAVES:
             raise ValueError(f"leaves must be one of {LEAVES}, not {leaves!r}")
         self.model, saved = loaded(Path(path or ai.value.MODEL))
@@ -116,14 +154,13 @@ class SearchBot:
         self.horizon = horizon
         self.exploration = exploration
         self.leaves = leaves
+        self.margin = margin
 
     def pick(self, handle: Handle) -> int:
         if len(handle.decision["options"]) == 1:
             return 0
         searched = self.search(handle)
-        if len(searched.options) == 1:
-            return next(iter(searched.options))
-        return max(searched.options, key=lambda index: searched.options[index].mean)  # The likeliest wins a tie.
+        return searched.picked(self.margin)
 
     def narrowed(self, chances: list[float]) -> list[int]:
         """The Options searched among those with these chances, likeliest first (ai.value.bot.narrowed)."""
@@ -151,10 +188,7 @@ class SearchBot:
                     return searched  # This Sampled Position is left out, so that every Option is rated on the same.
                 results.append(self.walk(sample.copy(), index, edge, handle.player, random.Random(walk_seed)))
                 slowest_walk = max(slowest_walk, time.perf_counter() - walk_begun)
-            for edge, result in zip(searched.options.values(), results, strict=True):
-                edge.offered += 1
-                edge.add(result)
-            searched.samples += 1
+            searched.add(results)
             slowest_sample = max(slowest_sample, time.perf_counter() - begun)
         return searched
 
