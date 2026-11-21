@@ -11,14 +11,16 @@ A run lives in its own folder (`--run`, by default .cache/models/value-runs/main
    Game's result. It is version v000, and is measured on the validation split. Only a share of each Game's
    positions is kept (`--warm-keep`, and `--keep` for the loop's own Games): every position of a Game has the same
    result, and with all of them in a few batches the model learns which Game it is in (it overfit so on
-   2026-11-20: training loss 0.33, validation loss 0.98).
+   2026-11-20: training loss 0.33, validation loss 0.98). With `--start-from`, v000 is instead a copy of a saved
+   Value Model, such as an earlier run's best version.
 2. **panel**: the fixed old Controllers (`--panel`) play each other, and their ratings are fitted from that.
 3. **rate v000**, and then each round:
 4. **play**: `--games` Games, half the best version against itself and half against a pool of every earlier
    accepted version and the `--pool-bots`, taken in turn. Every Game is saved, as a Replay with its results, for
    training: the last `--buffer-rounds` rounds are kept and older ones deleted.
-5. **train**: a candidate, from the best version's weights, learns from `--train-positions` positions of the kept
-   rounds.
+5. **train**: a candidate, from the best version's weights, makes `--train-passes` passes over the positions kept
+   from the kept rounds' Games. (The first run trained a fixed 100,000 positions a round, about five passes over
+   round 1's, and learned them by heart: training loss 0.18 against 0.46 at the warm start.)
 6. **gate**: the candidate plays the best version (`--gate-games`); it joins the pool as the new best only if it
    scores at least `--gate-score`.
 7. **rate**: the candidate plays each Controller of the panel (`--rating-games` each), on the same seeds for every
@@ -95,13 +97,14 @@ def arguments(given: Sequence[str] | None) -> argparse.Namespace:
     parser.add_argument("--dataset", type=Path, default=DATASET_FOLDER)
     parser.add_argument("--seed", type=int, default=0)
     parser.add_argument("--warm-positions", type=int, default=1_500_000)
+    parser.add_argument("--start-from", type=Path, help="a saved Value Model to start from instead of a warm start")
     parser.add_argument("--warm-learning-rate", type=float, default=1e-3)
     parser.add_argument("--warm-keep", type=float, default=0.1, help="share of each Recorded Game's positions kept")
     parser.add_argument("--validation-share", type=int, default=16, help="validate on every n-th shard")
     parser.add_argument("--games", type=int, default=120, help="Games played each round")
     parser.add_argument("--pool-bots", default="imitation,card_economy", help="registered Controllers in the pool")
     parser.add_argument("--buffer-rounds", type=int, default=3, help="rounds of Games learned from")
-    parser.add_argument("--train-positions", type=int, default=100_000, help="positions learned from each round")
+    parser.add_argument("--train-passes", type=int, default=1, help="passes over the kept rounds' Games each round")
     parser.add_argument("--keep", type=float, default=0.5, help="share of each of the loop's Games' positions kept")
     parser.add_argument("--learning-rate", type=float, default=2e-4, help="in each round")
     parser.add_argument("--gate-games", type=int, default=60)
@@ -175,9 +178,10 @@ def panel_ratings(names: list[str], matches: list[dict[str, Any]]) -> dict[str, 
 
 
 def budgeted(
-    make: Callable[[int], Iterator[list[ValueSample]]], positions: int, passes: int = 1_000_000
+    make: Callable[[int], Iterator[list[ValueSample]]], positions: int | None = None, passes: int = 1_000_000
 ) -> Iterator[list[ValueSample]]:
-    """Batches from `make(pass_number)`, pass after pass, until `positions` have been given or `passes` made."""
+    """Batches from `make(pass_number)`, pass after pass, until `positions` (if given) have been given or `passes`
+    made."""
     given = 0
     for number in range(passes):
         made = make(number)
@@ -187,7 +191,7 @@ def budgeted(
                 found = True
                 yield batch
                 given += len(batch)
-                if given >= positions:
+                if positions is not None and given >= positions:
                     return
         finally:
             made.close()  # type: ignore[attr-defined]
@@ -261,6 +265,11 @@ class Loop:
 
     def warm_start(self) -> None:
         given = self.given
+        if given.start_from is not None:
+            model = load_model(given.start_from, given.device, kind=ValueModel)[0]
+            self.save_version(self.model_path("v000"), model, version="v000", started_from=str(given.start_from))
+            print(f"warm start: v000 is {given.start_from}", flush=True)
+            return
         torch.manual_seed(given.seed)
         model = warm_started(given.policy).to(given.device)
         found = shards(given.dataset)
@@ -405,7 +414,7 @@ class Loop:
             )
 
         trained = fit(
-            model, budgeted(made, given.train_positions), learning_rate=given.learning_rate, device=given.device
+            model, budgeted(made, passes=given.train_passes), learning_rate=given.learning_rate, device=given.device
         )
         version = f"candidate-{number:03}"
         self.save_version(self.model_path(version), model, version=version, round=number, trained=trained)

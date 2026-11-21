@@ -3,6 +3,7 @@
 a gating Match and a rating. It stops and resumes safely (box 1), its Controllers answer through the fair handle,
 and each model is saved with its run's settings, seed and engine version (box 6)."""
 
+import gzip
 import json
 
 import pytest
@@ -16,7 +17,7 @@ from ai.value.bot import ValueBot
 from ai.value.loop import main
 from ai.value.model import ValueModel
 from tests.ai.imitation.test_positions import replay_of_the_example, write_dataset
-from tests.ai.value.test_samples import recorded
+from tests.ai.value.test_samples import recorded, settled_positions
 
 
 @pytest.fixture
@@ -29,7 +30,7 @@ def given(tmp_path):
     dataset = write_dataset(tmp_path / "dataset", games, [replay, {**replay, "game": "checked"}])
     return [
         "--run", str(tmp_path / "run"), "--policy", str(policy), "--dataset", str(dataset),
-        "--warm-positions", "48", "--games", "4", "--train-positions", "48", "--gate-games", "2",
+        "--warm-positions", "48", "--games", "4", "--train-passes", "1", "--gate-games", "2",
         "--rating-games", "2", "--panel", "random_bot", "--pool-bots", "random_bot", "--tried", "2", "--samples", "1",
         "--batch", "16", "--workers", "0", "--processes", "1", "--device", "cpu", "--validation-share", "1",
     ]  # fmt: skip
@@ -71,6 +72,11 @@ def test_the_loop_runs_stops_and_resumes_through_the_fair_handle(given, tmp_path
     assert [row["version"] for row in state["ratings"]] == ["v000", "candidate-001"]
     assert (run / "ratings.tsv").read_text().count("\n") == 3  # a header and a row each
     assert state["rounds"][0]["games"] == 4
+    # One pass over the round's Games: no position is learned twice.
+    kept = sum(
+        settled_positions(json.loads(line)["replay"]) for line in gzip.open(run / "games" / "round-001.jsonl.gz")
+    )
+    assert 0 < state["rounds"][0]["trained"]["positions"] <= kept
     assert set(state["rounds"][0]["scores"]) == {"v000", "random_bot"}  # against itself and the pool
     assert handles, "no Game was played through ai.match"
     assert all(type(handle) is Handle for handle in handles)
@@ -93,3 +99,18 @@ def test_the_loop_runs_stops_and_resumes_through_the_fair_handle(given, tmp_path
     capsys.readouterr()
     assert main([*given, "--seed", "5", "--rounds", "2"]) == 2
     assert "seed" in capsys.readouterr().err
+
+
+def test_a_run_can_start_from_a_saved_value_model_instead_of_a_warm_start(given, tmp_path):
+    # As the second run started from the first run's best version (2026-11-21).
+    first = tmp_path / "first"
+    assert main([*given, "--run", str(first), "--rounds", "0"]) == 0
+    earlier = first / "versions" / "v000.pt"
+
+    assert main([*given, "--run", str(tmp_path / "second"), "--rounds", "0", "--start-from", str(earlier)]) == 0
+
+    model, saved = load_model(tmp_path / "second" / "versions" / "v000.pt", kind=ValueModel)
+    before = load_model(earlier, kind=ValueModel)[0]
+    assert all(torch.equal(a, b) for a, b in zip(model.state_dict().values(), before.state_dict().values()))
+    assert saved["started_from"] == str(earlier)
+    assert saved["settings"]["start_from"] == str(earlier)
