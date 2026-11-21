@@ -313,3 +313,56 @@ the memory note).
   schedule). A bigger model is more likely to help now than more passes.
 - `ai.match` prints the two column headers with no space between them (`a: imitationb: imitation_draft_buy`) when a
   Controller's name is long. This is cosmetic and not from this ticket.
+
+### 2026-11-21 — box 4 rerun on tfmstats.com's tables (Claude)
+
+tfmstats.com answered again (checked 2026-11-20 and 2026-11-21), so box 4's comparison was rerun once on the site's own
+tables, as the spec's "When tfmstats.com doesn't answer" asks. Nothing was replayed or retrained: the bot's column is
+the 20M model's 200 Games against itself from 2026-11-20 (`.cache/models/runs/self-play-14-20m.txt`). Only the
+reference changes.
+- **How the site was read** (browser pane, from the home page's links): 2 Players, Tharsis, Prelude and Draft on, both
+  Players rated 450+, Colonies unfiltered (its toggle's off state is also its unfiltered state). These are the
+  filters ticket 15 used on 2026-11-20 for the Awards page, whose table is reused here.
+  - The Milestones page was read on 2026-11-21 with the same filters.
+  - The site gives counts, not rates per Game. The Corporations page, with the same filters, gives 50,083 Corporations
+    played, so about 25,040 Games. The per-Game rates below divide by that.
+  - Each page was Reset afterwards.
+
+| | 20M model | Players rated 450+ (dataset) | tfmstats.com |
+| --- | ---: | ---: | ---: |
+| Games | 200 | 4,111 | about 25,040 |
+| Milestones claimed per Game | 2.97 | 3.00 | 2.94 (73,534 claimed) |
+| Awards funded per Game | 1.83 | 2.73 | 2.34 (58,715 funded) |
+| **Flip rate** | **10.4%** | 7.8% | **9.3%** |
+
+| Milestone | claimed per Game, mean Generation (20M model) | (Players, dataset) | tfmstats.com: claimed, per Game, mean Generation |
+| --- | --- | --- | --- |
+| Builder | 0.85, 6.6 | 0.77, 6.5 | 19,239, 0.77, 6.5 |
+| Gardener | 0.85, 6.8 | 0.77, 6.4 | 18,370, 0.73, 6.4 |
+| Mayor | 0.17, 7.5 | 0.32, 6.9 | 8,150, 0.33, 6.8 |
+| Planner | 0.57, 5.2 | 0.57, 5.6 | 15,146, 0.60, 5.6 |
+| Terraformer | 0.53, 7.2 | 0.57, 7.0 | 12,629, 0.50, 7.1 |
+
+| Award | funded per Game, mean Generation, share lost (20M model) | (Players, dataset) | tfmstats.com: funded, per Game, mean Generation, flip |
+| --- | --- | --- | --- |
+| Banker | 0.18, 10.8, 28% | 0.41, 8.7, 6% | 8,644, 0.35, 8.7, 6.7% |
+| Landlord | 0.60, 7.7, 15% | 0.65, 7.5, 11% | 14,531, 0.58, 7.5, 11.3% |
+| Miner | 0.17, 7.9, 0% | 0.52, 7.7, 7% | 11,035, 0.44, 7.7, 11.4% |
+| Scientist | 0.61, 8.9, 5% | 0.62, 7.9, 6% | 13,697, 0.55, 7.7, 6.1% |
+| Thermalist | 0.27, 9.2, 7% | 0.53, 8.5, 9% | 10,808, 0.43, 8.5, 10.4% |
+
+- **The site agrees with the dataset.** Every Milestone's and Award's mean Generation is within 0.2 of the dataset's,
+  and Milestones per Game within 0.07 (Terraformer).
+  - The site counts fewer Awards per Game (2.34 against 2.73). Likely causes, not measured: the site includes
+    conceded Games, which end before late Awards are funded, and Colonies Games. The dataset's benchmark is Games
+    not conceded and replayed fully.
+  - The site's flip rate, 9.3%, is 1.5 points above the dataset's. Miner (11.4% against 7%) is the largest part.
+- **What the site's table says of the model:** the same as the dataset's.
+  - Milestones: within 0.12 a Game and 0.4 of a Generation of the site's, except Mayor, claimed half as often
+    (0.17 against 0.33).
+  - Flip rate: 10.4% against the site's 9.3%, a gap of 1.1 points where the dataset's was 2.6.
+  - Awards: still funded less often than Players fund them (1.83 against 2.34 a Game) and later. Banker is still lost
+    more often (28% against 6.7%).
+- **Box 4 stays ticked.** The site's tables don't change its conclusion: Game length and Milestones look like the
+  Players', Mayor and Awards are what it hasn't learned, and its flip rate is near Players'. The box asks for the
+  comparison to be recorded, and it now is, both ways.

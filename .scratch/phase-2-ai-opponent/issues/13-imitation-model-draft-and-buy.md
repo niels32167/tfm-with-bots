@@ -373,3 +373,106 @@ setup records:
 - If tfmstats.com answers later, rerun the probe on its Combinations pairs (spec, "When tfmstats.com doesn't
   answer") and record both results here:
   `uv run python -m ai.imitation.checks synergies --most-games 1500 --pairs …` (about 15 minutes).
+
+### 2026-11-21 — boxes 5 and 6 rerun on tfmstats.com's tables (Claude)
+
+tfmstats.com answered again (checked 2026-11-20 and 2026-11-21). As the spec's "When tfmstats.com doesn't answer"
+asks, boxes 5 and 6 were rerun once on the site's own tables. Both results are below, beside the dataset's.
+- **How the site was read:** on 2026-11-21, in the browser pane, from the home page's links. Both pages are fixed to
+  2-player ranked Games with Prelude and Draft on and Colonies off. Their data was fetched at 13:26–13:27 UTC that day.
+  - The Starting Hand table came from the page's own store (`startinghands:v1`). It has 215 cards, each offered
+    about 18,300–20,250 times.
+  - The Combinations page's Corporation and Prelude table has 595 pairs. Its "total lift" is in Board Game Arena rating
+    change, not win rate: the pair's mean rating change minus its Corporation's and its Prelude Card's. The stand-in
+    ranked by win rate.
+  - Its Min Games filter was set to 200, the stand-in's threshold, and cleared afterwards. The top 10 shown matched the
+    same ranking computed from its data.
+- Site numbers are a check only. Nothing from them went into a model or its training.
+- Both runs were capped and run one at a time (`systemd-run --user ... -p MemoryMax=6G`).
+
+**Box 5: keep rates against the Starting Hand page.** The same model as box 5 (`.cache/models/runs/all.pt`, the first
+registered model) and the same test Games with Prelude: 10,534 setups. A scratch script calls `checks.model_keep_rates`
+and `checks.players_keep_rates`, then compares with the site's table. It took 11 minutes, with a 1 GB peak. It
+reproduced box 5's numbers exactly.
+
+| 215 cards dealt 100+ times | Correlation | Mean absolute difference |
+| --- | ---: | ---: |
+| Model against the dataset's Players (box 5) | 0.925 | 13.2 points |
+| **Model against tfmstats.com** | **0.920** | **13.4 points** |
+| The dataset's Players against tfmstats.com | 0.993 | 2.7 points |
+
+- Cards kept per setup: Players 5.72, the model 5.35. The site gives about 5.78 (10 × its mean keep rate).
+- **The largest differences are the same cards** (the model's rate minus the site's):
+  - Terraforming Ganymede −54, Water Import from Europa −51, Beam from a Thorium Asteroid −50, Ganymede Colony −49,
+    Commercial District −41, Noctis City −40, Methane from Titan −38, Satellites −37, Callisto Penal Mines −36.
+  - Herbivores +35.
+  - Box 5's causes still apply: Jovian, space and City cards that pay off only with a plan are kept less often, and
+    the greedy one-card-at-a-time buying keeps fewer cards.
+- **Where the dataset and the site differ most:** Tardigrades 15.1% against 29.3%, Subterranean Reservoir 80.0% against
+  68.2%, and Black Polar Dust 38.0% against 28.6%. Every other card is within 8 points.
+  - Likely causes, not measured: about 480 deals per card in the test Games, against about 20,000 on the site. The site
+    also counts ranked Games only and has Games newer than the archive.
+- **Box 5 stays ticked.** The site's table doesn't change the conclusion: the dataset's keep rates match the site's
+  (0.993), the model's comparison moves by under 0.5 points, and the largest differences and their explanation are
+  the same.
+
+**Box 6: synergies on the Combinations page's top 10 pairs.** `uv run python -m ai.imitation.checks synergies --model
+.cache/models/imitation-draft-buy.pt --most-games 1500 --pairs …` was run on the model that closed box 6 (the 450+,
+Prelude-only run, identical to `runs/r450-prelude.pt`). It used the same 1,500 test Games and 2,962 setup records, and
+took 11 minutes.
+
+The site's pairs, by total lift, among pairs with 200+ Games:
+
+| Corporation | Prelude Card | Site: Games, lift | Corporation with | without | Prelude Card kept, with | without | Both higher |
+| --- | --- | --- | ---: | ---: | ---: | ---: | --- |
+| Ecoline | Huge Asteroid | 2,190, +1.02 | 58.5% | 55.8% | 64.1% | 51.3% | yes |
+| Tharsis Republic | Early Settlement | 3,271, +0.94 | 44.9% | 33.2% | 53.5% | 23.0% | yes |
+| Helion | Excentric Sponsor | 443, +0.90 | 31.2% | 31.7% | 16.8% | 19.0% | no |
+| Robinson Industries | Biosphere Support | 241, +0.81 | 32.0% | 32.3% | 14.5% | 18.0% | no |
+| Vitor | Biolabs | 1,761, +0.73 | 67.4% | 66.0% | 50.1% | 45.5% | yes |
+| Tharsis Republic | Self-Sufficient Settlement | 3,892, +0.72 | 34.9% | 34.4% | 56.1% | 29.8% | yes |
+| PhoboLog | Loan | 293, +0.71 | 18.5% | 19.0% | 3.6% | 3.8% | no |
+| Ecoline | Polar Industries | 2,140, +0.70 | 57.7% | 56.0% | 71.4% | 61.2% | yes |
+| Ecoline | Mohole | 1,609, +0.67 | 59.3% | 55.8% | 42.0% | 27.8% | yes |
+| Robinson Industries | Polar Industries | 1,194, +0.65 | 30.6% | 32.5% | 63.7% | 62.1% | no |
+
+- **6 of the site's 10 pairs score higher together for both parts.** On the stand-in pairs (2026-11-19, above) it was
+  10 of 10. Only two pairs are on both lists: Tharsis Republic with Early Settlement and with Self-Sufficient
+  Settlement.
+- The site ranks by the result (rating change), and the model imitates picks. So Players' own picks were counted for
+  the same pairs, over every Game with Prelude in the dataset (79,394 setup records with Prelude Cards kept; a scratch
+  script, 30 s). Describing how Players play may use every Game (spec).
+
+| Pair | Players choose the Corporation: with | without | Players keep the Prelude Card: with | without | Both higher (Players) | Both higher (model) |
+| --- | ---: | ---: | ---: | ---: | --- | --- |
+| Ecoline, Huge Asteroid | 61.9% of 1,098 | 62.4% | 69.9% of 680 | 48.8% | no | yes |
+| Tharsis Republic, Early Settlement | 66.9% of 1,016 | 53.3% | 86.3% of 680 | 34.3% | yes | yes |
+| Helion, Excentric Sponsor | 42.1% of 1,099 | 41.4% | 24.0% of 463 | 26.1% | no | no |
+| Robinson Industries, Biosphere Support | 39.6% of 1,075 | 39.3% | 14.8% of 426 | 23.5% | no | no |
+| Vitor, Biolabs | 61.4% of 1,090 | 63.2% | 60.4% of 669 | 50.3% | no | yes |
+| Tharsis Republic, Self-Sufficient Settlement | 69.9% of 1,062 | 52.9% | 94.1% of 742 | 46.1% | yes | yes |
+| PhoboLog, Loan | 34.3% of 1,073 | 35.1% | 18.5% of 368 | 11.5% | no | no |
+| Ecoline, Polar Industries | 62.5% of 1,052 | 62.4% | 73.1% of 657 | 61.9% | barely (+0.1) | yes |
+| Ecoline, Mohole | 64.2% of 997 | 62.2% | 56.1% of 640 | 34.6% | yes | yes |
+| Robinson Industries, Polar Industries | 41.7% of 1,066 | 39.0% | 68.5% of 444 | 62.4% | yes | no |
+
+- **Players' own picks show the synergy for only 4 or 5 of the site's 10 pairs.** For the other pairs, Players don't
+  choose the Corporation more often when the Prelude Card is dealt, or keep the Prelude Card less often with the
+  Corporation. Three of the model's four "no" pairs are Players' "no" too: Helion with Excentric Sponsor, and Robinson
+  Industries with Biosphere Support (443 and 241 Games on the site), and PhoboLog with Loan (293).
+- **Where Players' picks show it, the model learned it for 4 of 5 pairs.** The one it missed is Robinson Industries with
+  Polar Industries. Players choose Robinson 2.7 points more often with Polar Industries dealt (about 1.6 points' standard
+  error), and the model 1.9 points less often. The Prelude Card part the model has (+1.6, Players +6.1).
+- Its Prelude Card part also misses PhoboLog with Loan (Players +7.0 on 368 records, the model −0.2). Players don't
+  choose PhoboLog more often with Loan, though.
+- **Box 6 stays ticked, a judgement call stated here for the user to overrule.** On the site's pairs, the box's literal
+  count is 6 of 10, against 10 of 10 on the stand-in pairs.
+  - The site ranks pairs by how they score, and several of its top 10 are pairs Players don't pick together. Three
+    rest on 241–443 Games.
+  - The model imitates Players' picks. It reproduces their synergy on 4 of the 5 pairs where Players' picks show one,
+    and their lack of it on 3 of the other 5. The stand-in pairs were ranked by win rate among pairs kept 200+ times,
+    which favoured pairs Players do pick together.
+  - So the site's table doesn't change the conclusion that the model learned the synergies in Players' picks. It does
+    add one: **Robinson Industries with Polar Industries** is a real synergy in Players' picks that the model misses.
+  - If the user reads the box literally on the site's pairs, it would be unticked at 6 of 10. Training longer or
+    weighting setup Decisions (box 6's open points) would be the next step.
