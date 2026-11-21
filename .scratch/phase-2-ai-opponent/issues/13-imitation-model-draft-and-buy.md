@@ -476,3 +476,4 @@ The site's pairs, by total lift, among pairs with 200+ Games:
     add one: **Robinson Industries with Polar Industries** is a real synergy in Players' picks that the model misses.
   - If the user reads the box literally on the site's pairs, it would be unticked at 6 of 10. Training longer or
     weighting setup Decisions (box 6's open points) would be the next step.
+- **2026-11-21, the user's decision:** box 6 stays ticked on the site's pairs.
