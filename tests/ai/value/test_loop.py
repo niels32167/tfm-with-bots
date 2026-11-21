@@ -73,9 +73,8 @@ def test_the_loop_runs_stops_and_resumes_through_the_fair_handle(given, tmp_path
     assert (run / "ratings.tsv").read_text().count("\n") == 3  # a header and a row each
     assert state["rounds"][0]["games"] == 4
     # One pass over the round's Games: no position is learned twice.
-    kept = sum(
-        settled_positions(json.loads(line)["replay"]) for line in gzip.open(run / "games" / "round-001.jsonl.gz")
-    )
+    with gzip.open(run / "games" / "round-001.jsonl.gz") as lines:
+        kept = sum(settled_positions(json.loads(line)["replay"]) for line in lines)
     assert 0 < state["rounds"][0]["trained"]["positions"] <= kept
     assert set(state["rounds"][0]["scores"]) == {"v000", "random_bot"}  # against itself and the pool
     assert handles, "no Game was played through ai.match"

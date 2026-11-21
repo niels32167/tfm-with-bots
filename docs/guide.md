@@ -217,7 +217,9 @@ The first run (ticket 15, `--minutes 35`, `.cache/models/value-runs/main`) took 
 - a peak of 4.65 GB anon under the 6 GB cap;
 - 17 MB of disk.
 
-Its v001 is registered. Only a share of each Game's positions is learned from (`--warm-keep`, `--keep`): with every
+A second run (ticket 15, 2026-11-21) started from that v001 with `--start-from` and trained one pass over each
+round's Games (`--train-passes 1`, now the default; the first run's fixed 100,000 positions a round were learned by
+heart). It took 57 minutes for 6 rounds of 240 Games, and its v006 is now registered. Only a share of each Game's positions is learned from (`--warm-keep`, `--keep`): with every
 position, the model learned which Game it was in rather than which positions win.
 
 ## Recorded Games

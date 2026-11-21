@@ -255,3 +255,72 @@ Left as they are:
 - **Search with the Value Model** (ticket 16) is the next rung. This ticket's afterstate trials are a one-step search
   it can build on.
 
+
+### 2026-11-21 — a second, tuned run (Claude)
+
+The user asked to tune the loop and continue. Every box still holds. The registered `.cache/models/value.pt` is now
+the second run's v006. It is level with the first run's v001 against the Imitation Bot and slightly ahead of it head to
+head, within the interval.
+
+**Tuning** (commit 124ec58, test-first):
+- **`--train-passes` (default 1) replaces `--train-positions`.** A round now makes one pass over the positions kept from
+  its kept rounds' Games. The first run trained a fixed 100,000 positions, about five passes over round 1's, and
+  learned them by heart (loss 0.18).
+- **`--start-from`** makes v000 a copy of a saved Value Model instead of a warm start
+  (`test_a_run_can_start_from_a_saved_value_model_instead_of_a_warm_start`).
+- **Chosen by Claude:** 240 Games a round instead of 120, for more on-policy positions per pass. The other settings are
+  the defaults.
+
+Because the settings changed, this is a new run folder; `main` stays as the first run's record:
+```bash
+systemd-run --user --same-dir --unit=tm-value-2 -p MemoryMax=6G -p MemorySwapMax=0 \
+  uv run python -u -m ai.value.loop --run .cache/models/value-runs/second \
+  --start-from .cache/models/value-runs/main/versions/v001.pt --games 240 --minutes 55
+```
+
+**Box 1:**
+- The run took 57 minutes: 6 rounds of about 9.5 minutes (Games 5.5–6, training 0.4, gate 1.7, rating 1.5).
+- Peak anon was 4.65 GB; systemd counted 4.8 GB, page cache included.
+- The run folder is 28 MB.
+- The laptop had rebooted before the run, which emptied the session's scratch folder and the memory poller with it.
+  The poller was restarted 9 minutes in, and systemd's own `MemoryPeak` covers the whole run.
+
+**Box 2** (`.cache/models/value-runs/second/ratings.tsv`):
+
+| Round | Version | Gate: score against the best | Positions trained (loss) | Rating | vs Imitation |
+| ---: | --- | --- | --- | ---: | ---: |
+| 0 | v000 (the first run's v001) | | | +51 | 55% |
+| 1 | candidate-001 | 53.3%, rejected | 40,296 (0.46) | +51 | 55% |
+| 2 | candidate-002 | **60.8%, accepted as v002** | 81,212 (0.41) | **+139** | 70% |
+| 3 | candidate-003 | 50.0%, rejected | 121,980 (0.29) | +13 | 60% |
+| 4 | candidate-004 | 48.3%, rejected | 122,580 (0.36) | +51 | 60% |
+| 5 | candidate-005 | 55.8%, accepted as v005 | 121,656 (0.40) | +32 | 55% |
+| 6 | candidate-006 | 56.7%, accepted as v006 | 121,795 (0.29) | not rated (the time ran out) | |
+
+- One pass keeps the training loss near the warm start's: 0.29–0.46, against the first run's 0.18.
+- With one pass a round, three rounds' Games, about 120,000 positions, are learned from once each, as `--keep 0.5`
+  keeps them.
+
+**Box 3: Matches** (`.cache/models/runs/match-15-value-v006.txt`, `match-15-v006-v001.txt`):
+
+| Match | Games, seeds | Score | Victory Points |
+| --- | --- | --- | --- |
+| v006 vs Imitation Bot | 400, seeds 0–199 (as v001's) | **57.0% (52.1–61.8%)**, 228 to 172 | 93.4 – 91.0 |
+| v001 vs Imitation Bot (2026-11-20) | 400, seeds 0–199 | 57.0% (52.1–61.8%), 228 to 172 | 93.2 – 90.3 |
+| v006 vs v001, head to head | 400, seeds from 20,000 | **52.8% (47.9–57.6%)**, 211 to 189 | 92.6 – 92.3 |
+
+**What the second hour shows:**
+- **The memorising is fixed, but self-play has gained little so far.** The three gate acceptances (55.8–60.8% over 60
+  Games) are about what noise gives: a candidate no better than the best scores 55% or more about a quarter of the
+  time.
+- **The ratings swing by about ±60 Elo,** which is 20 Games against each panel Controller. v002's +139 didn't hold up:
+  v005 and v006 beat it head to head and rate lower.
+- **v006 is registered** as level against the Imitation Bot and slightly ahead head to head.
+
+**Likely next steps:**
+- Bigger gates and ratings (about 200 Games each) so that a real gain can be told from noise, at the cost of fewer
+  rounds an hour.
+- Or take the strength from search (ticket 16), which uses the Value Model as it is. The warm start supplies most of the
+  Value Bot's edge over the Imitation Bot.
+- Not run again: the self-play check (box 4) and the GUI check for v006. The code path is the same as v001's.
+- The 2026-11-20 run's v001 is still in `.cache/models/value-runs/main/versions/v001.pt`, to put back with a copy.

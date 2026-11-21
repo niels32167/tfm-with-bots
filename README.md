@@ -370,7 +370,9 @@ and asks the Value Model how likely its Player now is to win. It picks the best 
 The Value Model starts from the Imitation Model's weights and learns from Recorded Games' results, and then from a
 self-play loop that plays, trains, gates each new version against the best and rates it against a fixed panel. The
 first 36-minute run beat the Imitation Bot in 57% of Games, almost all of it from the warm start: four rounds of
-self-play haven't yet improved on it. Against itself it funds more Awards than the Imitation Bot, and loses more of
+self-play haven't yet improved on it. A second hour, with one pass over each round's Games, found a version that
+beats the first in 52.8% of 400 Games head to head (47.9–57.6%) and also scores 57.0% against the Imitation Bot: at
+most a small gain, within the noise of the loop's 60-Game gates. Against itself it funds more Awards than the Imitation Bot, and loses more of
 them (16%, where Players lose 8–9%).
 
 <sub>Measured on 2026-11-16 with `uv run python -m ai.match random_bot random_bot --games 1000` and
