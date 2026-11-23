@@ -27,6 +27,13 @@ def controllers_on_offer() -> list[dict[str, str]]:
     ]
 
 
+def warm_up() -> None:
+    """Makes each available registered Controller once, so that the models they load are loaded before a Visitor's
+    bot first thinks: on a tenth of a core (Render's free instance), loading torch and the models takes about 25 s."""
+    for name in available():
+        make_controller(name)
+
+
 def check_hosted(controllers: Any) -> None:
     """Refuses what a hosted server (ADR 0014) doesn't play though the local one does: Controllers named other than as
     a list of names; a Game without a human, so that registered Controllers don't play each other on a shared

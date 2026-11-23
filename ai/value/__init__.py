@@ -11,7 +11,7 @@ View, and learns it first from Recorded Games' results and then from self-play.
 - loop.py: `uv run python -m ai.value.loop`, the self-play loop.
 
 Models and the loop's runs are saved in .cache/models: out of git. Of them, only the registered model is published,
-in the hosted Space (ADR 0014).
+in the hosted server's image (ADR 0014).
 """
 
 from ai.imitation import MODELS_FOLDER

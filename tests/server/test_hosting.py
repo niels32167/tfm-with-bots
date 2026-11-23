@@ -188,3 +188,26 @@ def test_the_server_sends_the_built_gui_from_a_folder_beside_its_websocket(tmp_p
     assert client.get("/missing.js").status_code == 404
     with client.websocket_connect(f"/ws?visitor={ALICE}") as websocket:
         assert websocket.receive_json()["type"] == "card_catalog"
+
+
+class Made:
+    """Counts how often it is made."""
+
+    count = 0
+
+    def __init__(self) -> None:
+        Made.count += 1
+
+    def pick(self, handle: Any) -> int:
+        return 0
+
+
+def test_warming_up_makes_each_available_registered_controller_once(monkeypatch):
+    from server.session import warm_up
+
+    monkeypatch.setattr("ai.controllers.REGISTERED", {"made": Registered("Made", Made)})
+    Made.count = 0
+
+    warm_up()
+
+    assert Made.count == 1

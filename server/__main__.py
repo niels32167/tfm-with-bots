@@ -1,15 +1,18 @@
 """Starts the server: `uv run python -m server` for the local one, beside vite's dev server.
 
-Hosted for anyone with its link (ADR 0014), as the Hugging Face Space runs it:
-`python -m server --hosted --thinkers 2 --host 0.0.0.0 --port 7860 --gui gui/dist`.
+Hosted for anyone with its link (ADR 0014), as the Dockerfile runs it:
+`python -m server --hosted --thinkers 1 --host 0.0.0.0 --port 7860 --gui gui/dist`. Hosted, it loads the bots'
+models at once, while it already answers.
 """
 
 import argparse
+import threading
 from pathlib import Path
 
 import uvicorn
 
 from server.app import Hosting, create_app
+from server.session import warm_up
 
 
 def main() -> None:
@@ -26,6 +29,9 @@ def main() -> None:
     if arguments.hosted:
         hosting = Hosting() if arguments.thinkers is None else Hosting(thinkers=arguments.thinkers)
     app = create_app(hosting=hosting, gui=arguments.gui)
+    if arguments.hosted:
+        # The models load while the server already answers, rather than when a Visitor's bot first thinks.
+        threading.Thread(target=warm_up, name="warm-up", daemon=True).start()
     uvicorn.run(app, host=arguments.host, port=arguments.port)
 
 

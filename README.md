@@ -505,37 +505,37 @@ hand, payment and the dev panel.
 
 ### Host it online
 
-The `Dockerfile` builds one image with the engine, the bots, their models and the built GUI. Run it with
+The `Dockerfile` builds one image with the engine, the bots, their models and the built GUI. It runs
 `python -m server --hosted`: each Visitor gets their own Game against the bots, and the dev panel is off.
-[ADR 0014](docs/adr/0014-hosted-on-a-hugging-face-space.md) has the limits and what hosting publishes. To try the
+[ADR 0014](docs/adr/0014-hosted-for-anyone-with-the-link.md) has the limits and what hosting publishes. To try the
 image locally, then open http://localhost:7860:
 
 ```bash
 docker build -t terraforming-mars . && docker run --rm -p 7860:7860 terraforming-mars
 ```
 
-To put it on a Hugging Face Space:
-1. Create a Space on huggingface.co with the Docker SDK and the free CPU hardware.
-2. Log in from here:
+It is hosted on Render's free instance, from a public image on GitHub's registry:
+1. Once, give the GitHub CLI the right to push packages:
 
    ```bash
-   uvx --from huggingface_hub hf auth login
+   gh auth refresh -h github.com -s write:packages
    ```
 
-3. From a clean, committed tree, gather the Space's files: the committed project, the three models from
-   `.cache/models`, and the Space's card as its README.
+   Then log Docker in to the registry with that token:
 
    ```bash
-   deploy/huggingface/make_space.sh
+   gh auth token | docker login ghcr.io -u niels32167 --password-stdin
    ```
 
-4. Upload them, with your own user and Space name:
+2. From a clean, committed tree, build the image and push it as `ghcr.io/niels32167/terraforming-mars:latest`:
 
    ```bash
-   uvx --from huggingface_hub hf upload <user>/<space> .cache/deploy/space . --repo-type space
+   deploy/push_image.sh
    ```
 
-The Space builds the image and serves it at `https://<user>-<space>.hf.space`.
+3. The first time, on GitHub, set the package `terraforming-mars` to public (its Package settings, Change visibility).
+   Then on render.com, make a New Web Service from that existing image, with the Free instance type.
+4. After later pushes, redeploy the service on Render (Manual Deploy, then Deploy latest reference).
 
 ### Measure
 
@@ -596,7 +596,7 @@ engine/        Rust rules engine and its Python bindings (tm_engine)
   src/cards.rs   the card catalog and each card's effect data
   cards/cards.json  printed card data + effects for all 267 cards
 server/        FastAPI server: one WebSocket, Controllers in worker threads; `--hosted` keeps a Game per visitor
-deploy/        the Hugging Face Space's card and the script that gathers its files (the Dockerfile is at the root)
+deploy/        the script that builds the hosted server's image and pushes it (the Dockerfile is at the root)
 gui/           React + TypeScript GUI (Vite); the board is one SVG
 ai/            Controllers, the Match tool, the Recorded Game importer, and the Imitation Model (ai/imitation)
 tests/         rules, cards, engine, server, AI and fuzzing tests
@@ -626,7 +626,7 @@ Each significant decision is an Architecture Decision Record in [`docs/adr/`](do
 | [0011](docs/adr/0011-prelude-before-training.md) | Add Prelude before training, as most human Games use it |
 | [0012](docs/adr/0012-learn-from-recorded-games-first.md) | Learn from Recorded Games before self-play |
 | [0013](docs/adr/0013-a-ladder-of-controllers.md) | Build the AI as a ladder of Controllers |
-| [0014](docs/adr/0014-hosted-on-a-hugging-face-space.md) | Host the Game on a Hugging Face Space, a Game per visitor against the bots |
+| [0014](docs/adr/0014-hosted-for-anyone-with-the-link.md) | Host the Game for anyone with the link, a Game per Visitor against the bots |
 
 ## Credits
 

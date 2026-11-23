@@ -1,5 +1,5 @@
 # The hosted server (ADR 0014): one image with the engine, the bots and their models, and the built GUI, served
-# on one port. Built as the Hugging Face Space builds it (deploy/huggingface/make_space.sh), or by hand:
+# on one port. deploy/push_image.sh builds it and pushes it to GitHub's registry, where Render runs it; by hand:
 #   docker build -t terraforming-mars . && docker run --rm -p 7860:7860 terraforming-mars
 
 # The GUI, built to static files.
@@ -21,7 +21,7 @@ WORKDIR /engine
 COPY engine/ ./
 RUN maturin build --release --out /wheels
 
-# The server, run as the user Hugging Face Spaces run images as.
+# The server, run as an ordinary user rather than root.
 FROM python:3.14-slim
 COPY --from=ghcr.io/astral-sh/uv:0.12.22 /uv /usr/local/bin/uv
 WORKDIR /app
@@ -37,6 +37,8 @@ RUN useradd --create-home --uid 1000 user
 COPY --chown=user . .
 COPY --from=gui --chown=user /gui/dist gui/dist
 USER user
+# The port the host gives (Render sets PORT), and how many bots may think at once. Render's free instance has a
+# tenth of a core, though the process sees the host's cores, so one bot thinks at a time unless THINKERS says more.
+ENV PORT=7860 THINKERS=1
 EXPOSE 7860
-# The free Space has 2 cores, though the process sees the host's: one bot thinks on each.
-CMD ["python", "-m", "server", "--hosted", "--thinkers", "2", "--host", "0.0.0.0", "--port", "7860", "--gui", "gui/dist"]
+CMD ["sh", "-c", "exec python -m server --hosted --thinkers \"$THINKERS\" --host 0.0.0.0 --port \"$PORT\" --gui gui/dist"]
