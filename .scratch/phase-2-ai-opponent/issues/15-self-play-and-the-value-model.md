@@ -315,7 +315,8 @@ systemd-run --user --same-dir --unit=tm-value-2 -p MemoryMax=6G -p MemorySwapMax
   time.
 - **The ratings swing by about ±60 Elo,** which is 20 Games against each panel Controller. v002's +139 didn't hold up:
   v005 and v006 beat it head to head and rate lower.
-- **v006 is registered** as level against the Imitation Bot and slightly ahead head to head.
+- **v006 is registered** as level against the Imitation Bot and slightly ahead head to head. (On 2026-11-23 ticket 16
+  registered a warm start in its place; v006 is kept as `.cache/models/value-v006.pt`. See ticket 16's Comments.)
 
 **Likely next steps:**
 - Bigger gates and ratings (about 200 Games each) so that a real gain can be told from noise, at the cost of fewer

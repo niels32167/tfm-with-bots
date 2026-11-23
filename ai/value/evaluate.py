@@ -13,37 +13,13 @@ import argparse
 import sys
 from collections.abc import Sequence
 from pathlib import Path
-from typing import Any
 
 import torch
 
 from ai.imitation.model import load_model
 from ai.recorded_games.dataset import DATASET_FOLDER, shards
 from ai.value.model import ValueModel
-from ai.value.samples import budgeted, sample_batches
-from ai.value.train import measured
-
-# Validation positions measured: enough for a loss to two decimals.
-VALIDATION_POSITIONS = 100_000
-
-
-def validated(
-    model: ValueModel,
-    sources: list[Path],
-    *,
-    keep: float,
-    workers: int,
-    size: int,
-    device: str,
-    positions: int = VALIDATION_POSITIONS,
-) -> dict[str, Any]:
-    """`model` measured (ai.value.train.measured) on up to `positions` of the validation Games with Prelude of the
-    dataset shards `sources`, a share `keep` of each Game's, always the same ones for the same arguments."""
-
-    def made(_: int):
-        return sample_batches(sources, "validation", workers=workers, seed=0, size=size, buffer=size, keep=keep)
-
-    return measured(model, budgeted(made, positions, passes=1), device)
+from ai.value.train import VALIDATION_POSITIONS, validated
 
 
 def arguments(given: Sequence[str] | None) -> argparse.Namespace:

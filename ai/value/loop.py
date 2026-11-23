@@ -9,7 +9,7 @@ A run lives in its own folder (`--run`, by default .cache/models/value-runs/main
 1. **warm start**: the Value Model, warm-started from the Imitation Model's weights (`--policy`), learns from
    `--warm-positions` positions of Recorded Games not conceded, in the training split, with each Game's result:
    those with Prelude, or with `--warm-games all` those without it too. It is version v000, and is measured on the
-   validation split's Games with Prelude (ai.value.evaluate). Only a share of each Game's
+   validation split's Games with Prelude (ai.value.train.validated). Only a share of each Game's
    positions is kept (`--warm-keep`, and `--keep` for the loop's own Games): every position of a Game has the same
    result, and with all of them in a few batches the model learns which Game it is in (it overfit so on
    2026-11-20: training loss 0.33, validation loss 0.98). With `--start-from`, v000 is instead a copy of a saved
@@ -67,10 +67,9 @@ from ai.imitation.model import load_model, save_model
 from ai.match import Maker, MatchResult, MatchSettings, run_match
 from ai.recorded_games.dataset import DATASET_FOLDER, shards
 from ai.value.bot import SAMPLES, SHARE, TRIED, ValueBot
-from ai.value.evaluate import validated
 from ai.value.model import ValueModel, warm_started
 from ai.value.samples import ValueSample, budgeted, results_of, sample_batches
-from ai.value.train import fit
+from ai.value.train import fit, validated
 
 WRONG_ARGUMENTS = 2
 REPOSITORY = Path(__file__).parents[2]

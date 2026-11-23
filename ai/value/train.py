@@ -2,6 +2,7 @@
 (a draw is ½) plus MARGIN_WEIGHT times the squared error of the scaled Victory Point margin."""
 
 from collections.abc import Iterable
+from pathlib import Path
 from typing import Any
 
 import torch
@@ -10,8 +11,10 @@ from torch.nn.functional import binary_cross_entropy_with_logits, mse_loss
 from ai.imitation.model import Batch, batch_of, scored
 from ai.imitation.train import learning_rate as scheduled
 from ai.value.model import MARGIN, MARGIN_SCALE, WIN, ValueModel
-from ai.value.samples import ValueSample, stack_samples
+from ai.value.samples import ValueSample, budgeted, sample_batches, stack_samples
 
+# Validation positions measured: enough for a loss to two decimals.
+VALIDATION_POSITIONS = 100_000
 # How much the margin counts beside the result.
 MARGIN_WEIGHT = 0.25
 # Margins beyond this many MARGIN_SCALEs are learned as this many: a rout teaches no more than a clear win.
@@ -80,3 +83,22 @@ def measured(model: ValueModel, batches: Iterable[list[ValueSample]], device: st
         decided += int(clear.sum().item())
         right += int(((logits > 0) == (result > 0.5))[clear].sum().item())
     return {"positions": count, "loss": loss / max(count, 1), "accuracy": right / max(decided, 1)}
+
+
+def validated(
+    model: ValueModel,
+    sources: list[Path],
+    *,
+    keep: float,
+    workers: int,
+    size: int,
+    device: str,
+    positions: int = VALIDATION_POSITIONS,
+) -> dict[str, Any]:
+    """`model` measured (ai.value.train.measured) on up to `positions` of the validation Games with Prelude of the
+    dataset shards `sources`, a share `keep` of each Game's, always the same ones for the same arguments."""
+
+    def made(_: int):
+        return sample_batches(sources, "validation", workers=workers, seed=0, size=size, buffer=size, keep=keep)
+
+    return measured(model, budgeted(made, positions, passes=1), device)

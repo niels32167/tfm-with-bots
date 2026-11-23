@@ -261,13 +261,15 @@ The full suite passed (2,247 tests) before the fixes; the Search Bot, registry a
 `.cache/models/value-v006.pt`) in **57.0% (52.1–61.8%)** of a final 400-Game Match on seeds 0–199, 228 to 172
 (`.cache/models/runs/match-16-search-1s-warm-all.txt`; Victory Points 93.2 – 90.6, 0 stalled).
 
-**Decisions made with the user:** the route "a bigger warm start", and about 3 hours of laptop time (about 2 used).
+**Decisions made with the user:** the route "a bigger warm start", and about 3 hours of laptop time. About 2.3 hours
+were used: training 15 minutes, validation 4, the head to head 10, the pilot 28, the final Match 55, the Value Bot's
+Match 6 and the full suite 3.
 
 **What was found:**
 - The warm start already used every Prelude Game (14,806 in training, about 4.5 passes). Games without Prelude add
   only 2,916.
-- On the Prelude validation split's 77,802 positions (`uv run python -m ai.value.evaluate`), the earlier models were
-  badly calibrated:
+- On the Prelude validation split's 77,802 positions (`uv run python -m ai.value.evaluate`,
+  `.cache/ticket-16/validation.txt`), the earlier models were badly calibrated:
 
   | Model | Positions trained | Validation loss | Winner rated likelier |
   | --- | ---: | ---: | ---: |
@@ -279,7 +281,8 @@ The full suite passed (2,247 tests) before the fixes; the Search Bot, registry a
   | every Game, 400k | 400k | 0.460 | 76.5% |
 
 - So the warm start overfit at 1.5M positions, and self-play made the model overconfident (a loss over a coin's
-  0.693). Search averages win chances, so it suffers from that more than the Value Bot does.
+  0.693). A likely reason search suffers more from that than the Value Bot does (not measured): search averages win
+  chances over Sampled Positions and the other Player's drawn Options, while the Value Bot mostly ranks Options.
 
 **Matches:**
 - New model as a Value Bot vs v006, 400 Games on seeds from 20,000: 53.6% (48.7–58.5%)
@@ -287,13 +290,56 @@ The full suite passed (2,247 tests) before the fixes; the Search Bot, registry a
 - Pilot: Search Bot on it vs the v006 Value Bot, 200 Games from seed 3,200,000: 58.0% (51.1–64.6%), above the 55% bar
   set beforehand (`.cache/ticket-16/pilot-search-w-short.txt`).
 - Final: see above. The run is `.cache/models/value-runs/warm-all-short` (`--warm-games all --warm-positions 800000
-  --validation-share 1`, stopped after the warm start); it was registered with `--register`.
+  --validation-share 1 --rounds 0 --minutes 0.1`, which stops after the warm start); it was registered with
+  `--register`. Its provenance names commit 49ff2e2 with `uncommitted_changes: true`: the only uncommitted file then was
+  the untracked `experiments/16/model_files.py`, which training doesn't read, so the run repeats from 49ff2e2.
+- **The registered Value Bot** (now this model) against the Imitation Bot, 400 Games on seeds 0–199:
+  **60.5% (55.6–65.2%)**, 242 to 158 (`.cache/models/runs/match-15-value-warm-all.txt`), against v006's 57.0%. So the
+  Value Bot rung still holds with it.
 
-**Code** (commit 49ff2e2, test-first): `--warm-games all` (samples from Games without Prelude, validation still on
-Prelude Games); `ai/value/evaluate.py`; `budgeted` moved to `ai/value/samples.py`. Model-file Controllers for these
-Matches: `experiments/16/model_files.py` (with `PYTHONPATH=.:.scratch/phase-2-ai-opponent/experiments/16`).
+**Code** (commit 49ff2e2, test-first):
+- `--warm-games all` adds samples from Games without Prelude; validation stays on Prelude Games.
+- `ai/value/evaluate.py` is the new command.
+- `validated` (in `ai/value/train.py` since the review) is shared by the loop and the command.
+- `budgeted` moved to `ai/value/samples.py`.
+- Three new tests: Games without Prelude give samples only when asked for; the loop's warm start learns from them and
+  still validates on Prelude Games; the command measures each model on the same positions.
+- Model-file Controllers for these Matches are in `experiments/16/model_files.py` (run with
+  `PYTHONPATH=.:.scratch/phase-2-ai-opponent/experiments/16`).
 
-**Not done (the usage limit was reached):**
-- /code-review of 49ff2e2; the full suite (the value and fair-play tests passed: 36).
-- The registered Value Bot (now the new model) not yet re-measured against the Imitation Bot.
-- Pushing the image (`deploy/push_image.sh`) and redeploying on Render; the live site still has v006.
+**Chosen by Claude** (on the user's standing instruction to take the recommendation after the first batch):
+- **The seams** were `recorded_samples`, the loop's command line and the new command.
+- **800k positions:** 400k scored the same, and 2.5M overfit.
+- **Registering on the pilot.** The head to head (53.6%) didn't clearly beat v006 as planned. But box 3 is about
+  search, so the pilot was the gate.
+- **The final Match's opponent** is ticket 15's Controller, the Value Bot on v006, not the newly registered `value`.
+
+**Code review** (`/code-review` against 627b75c, one standards and one spec subagent, read-only).
+
+Fixed:
+- **Standards:**
+  - `validated` lived in the command module, so the loop depended on a command. It is now in `train.py`, beside
+    `measured`.
+  - A README line over 120 columns.
+  - `W` in `model_files.py` is now `WARM_ALL`.
+- **Spec:**
+  - The README and ticket 15 still described the registered Value Bot as v006 after self-play. The rows now name
+    v006 where it played, and the Value Bot rung shows the new model's 60.5%.
+  - The README's "doesn't yet win" sentence and its ticket count.
+  - The Search Bot rung's figure is labelled as against ticket 15's Value Bot (v006).
+  - The causal claim about search is marked as not measured.
+  - The validation numbers are saved to a result file.
+  - The provenance's uncommitted-changes flag is explained.
+
+Left as they are:
+- **`prelude_only` travels with `split`, `size`, `buffer`, `seed` and `keep`** (Data Clumps), and
+  `--warm-games` is a string turned into a bool. A sampling-settings type would collect them, for a later change.
+- **Two tests build a similar three-Game dataset.**
+- **The Search Bot hasn't played the new Value Bot.** Box 3 names ticket 15's Controller.
+
+**The full suite:** 2,262 tests passed in 2.7 minutes. Ruff is clean on the touched files at 120 columns.
+
+**Open points:**
+- **Self-play from this warm start** should first fix the overconfidence: many more Games a round, or a calibration
+  check (`ai.value.evaluate`) as part of the gate.
+- **The Awards flip rate** of the new Value Bot hasn't been measured (ticket 15's box 4 check).

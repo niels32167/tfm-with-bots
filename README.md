@@ -54,7 +54,7 @@ The project has two phases:
 | Phase | Goal | Status |
 | --- | --- | --- |
 | **1. A playable game** | A correct, fast and well-tested engine with a GUI, all 208 Project Cards and 12 Corporations | ✅ Done |
-| **2. An AI opponent** | Prelude expansion, fair Controllers, then a ladder of ever stronger AIs trained on human games and self-play | 🚧 In progress: tickets 01–15 of 17 done, 16 under way |
+| **2. An AI opponent** | Prelude expansion, fair Controllers, then a ladder of ever stronger AIs trained on human games and self-play | 🚧 In progress: tickets 01–16 of 17 done |
 
 The engine covers the full base game on the Tharsis board with Corporate Era, the Draft, and the
 **Prelude** expansion: 2–5 Players and **all 267 cards** (208 Project Cards, 12 Corporations, and Prelude's 35
@@ -339,11 +339,12 @@ interval.
 | Card Economy Bot vs itself | 1,000 | 49.9% (46.8–53.0%) | 117.6 – 97.5 (winner – loser) | 20.1 (winner) | 46.7 | 13.6 |
 | **Imitation Bot (Draft and buy) vs Card Economy Bot** | 600 | **89.7%** (87.0–91.9%) | **130.8 – 96.8** | 37.8 – 15.9 | 48.4 – 44.3 | 13.3 |
 | **Imitation Bot (every Decision) vs Imitation Bot (Draft and buy)** | 400 | **82.2%** (78.2–85.7%) | **104.1 – 87.8** | 24.5 – 18.0 | 48.8 – 39.1 | 11.0 |
-| **Value Bot vs Imitation Bot (every Decision)** | 400 | **57.0%** (52.1–61.8%) | **93.2 – 90.3** | 20.4 – 20.0 | 44.7 – 42.4 | 10.4 |
-| **Search Bot (1 s, the 2026-11-23 Value Model) vs Value Bot (v006)** | 400 | **57.0%** (52.1–61.8%) | **93.2 – 90.6** | 20.3 – 19.7 | 44.2 – 43.3 | 10.3 |
-| Search Bot (1 s, v006) vs Value Bot | 400 | 53.0% (48.1–57.8%) | 93.1 – 93.1 | 20.8 – 20.7 | 43.2 – 44.1 | 10.4 |
-| Search Bot (0.1 s per Decision) vs Value Bot | 400 | 51.5% (46.6–56.4%) | 93.4 – 92.8 | 20.9 – 20.6 | 43.5 – 43.8 | 10.4 |
-| Search Bot (1 s, the likeliest Option kept unless beaten by 2 standard errors) vs Value Bot | 400 | 50.2% (45.4–55.1%) | 93.8 – 93.5 | 21.4 – 20.7 | 43.3 – 44.0 | 10.4 |
+| **Value Bot vs Imitation Bot (every Decision)** | 400 | **60.5%** (55.6–65.2%) | **92.5 – 88.0** | 19.1 – 19.4 | 45.4 – 41.3 | 10.3 |
+| Value Bot (ticket 15's v006, after self-play) vs Imitation Bot | 400 | 57.0% (52.1–61.8%) | 93.2 – 90.3 | 20.4 – 20.0 | 44.7 – 42.4 | 10.4 |
+| **Search Bot (1 s) vs Value Bot (v006)** | 400 | **57.0%** (52.1–61.8%) | **93.2 – 90.6** | 20.3 – 19.7 | 44.2 – 43.3 | 10.3 |
+| Search Bot (1 s, on v006) vs Value Bot (v006) | 400 | 53.0% (48.1–57.8%) | 93.1 – 93.1 | 20.8 – 20.7 | 43.2 – 44.1 | 10.4 |
+| Search Bot (0.1 s, on v006) vs Value Bot (v006) | 400 | 51.5% (46.6–56.4%) | 93.4 – 92.8 | 20.9 – 20.6 | 43.5 – 43.8 | 10.4 |
+| Search Bot (1 s on v006, the likeliest Option kept unless beaten by 2 standard errors) vs Value Bot (v006) | 400 | 50.2% (45.4–55.1%) | 93.8 – 93.5 | 21.4 – 20.7 | 43.3 – 44.0 | 10.4 |
 | *For reference: human Games on Board Game Arena* | 51,422 | | 106 – 87 (winner – loser) | 28 (better Player) | | 10.7 |
 
 The **Flat Playout Bot** plays each Option out to the end of the Game at random on 20 Sampled Positions and
@@ -374,23 +375,22 @@ The **Value Bot** adds a **Value Model**, which estimates a Player's chance of w
 For the Options the Imitation Model gives at least half the likeliest Option's chance (6 at most), it picks the
 Option on 4 Sampled Positions. It lets the Imitation Model answer what follows from it (a card's Payment, its Tile),
 and asks the Value Model how likely its Player now is to win. It picks the best mean, in 25 ms per pick on average.
-The Value Model starts from the Imitation Model's weights and learns from Recorded Games' results, and then from a
-self-play loop that plays, trains, gates each new version against the best and rates it against a fixed panel. The
-first 36-minute run beat the Imitation Bot in 57% of Games, almost all of it from the warm start: four rounds of
-self-play haven't yet improved on it. A second hour, with one pass over each round's Games, found a version that
-beats the first in 52.8% of 400 Games head to head (47.9–57.6%) and also scores 57.0% against the Imitation Bot: at
-most a small gain, within the noise of the loop's 60-Game gates. Against itself it funds more Awards than the Imitation Bot, and loses more of
-them (16%, where Players lose 8–9%).
+The Value Model starts from the Imitation Model's weights and learns from Recorded Games' results. Ticket 15 went on
+with a self-play loop that plays, trains, gates each new version against the best and rates it against a fixed
+panel. Its best version, v006, beat the Imitation Bot in 57% of Games, but on held-out Recorded Games it was badly
+overconfident: a validation loss of 1.06, worse than a coin's 0.69. The registered Value Model is now a warm start
+alone (2026-11-23): 800k positions of every Recorded Game, those without Prelude too, with a validation loss of 0.46.
+It beats the Imitation Bot in 60.5% of Games and v006 in 53.6% head to head. Against itself, v006's Value Bot funded
+more Awards than the Imitation Bot, and lost more of them (16%, where Players lose 8–9%).
 
 The **Search Bot** spends a time budget per Decision (1 s by default) on information set Monte Carlo tree search. It
 tries the Value Bot's Options on fresh Sampled Positions, the same ones for each Option. Each walk answers the other
 Player's Decisions as the Imitation Model rates them and grows a tree of the Player's own later Decisions. The Value
-Model rates the positions where walks stop. It doesn't yet win the ladder's Match: 53.0% of 400 Games against the
-Value Bot at 1 s (48.1–57.8%) and 51.5% at 0.1 s. More time didn't help in a sweep either (0.1, 1 and 5 s), which
-suggests the search inherits the Value Model's errors rather than averaging them away. A forward pass costs about
-2 ms on one core, so 1 s buys only 4–10 Sampled Positions at a mid-Game Action. Keeping the Imitation Model's
-likeliest Option unless another beats it by 2 standard errors on the same Sampled Positions (`search?margin=2`)
-didn't help either: 50.2%. What did: a warm start of 800k positions on every Recorded Game, which is far better calibrated (validation loss 0.46 against v006's 1.06). With it the Search Bot beat the v006 Value Bot in 57.0% of 400 Games (52.1–61.8%, 2026-11-23).
+Model rates the positions where walks stop. On the registered Value Model it beats ticket 15's Value Bot (v006) in
+57.0% of 400 Games (52.1–61.8%). On v006 itself it scored only 53.0% at 1 s and 51.5% at 0.1 s, and more time didn't
+help (a sweep of 0.1, 1 and 5 s). Keeping the Imitation Model's likeliest Option unless another beats it by 2
+standard errors (`search?margin=2`) didn't help either: 50.2%. What helped was the better-calibrated Value Model. A
+forward pass costs about 2 ms on one core, so 1 s buys only 4–10 Sampled Positions at a mid-Game Action.
 
 <sub>Measured on 2026-11-16 with `uv run python -m ai.match random_bot random_bot --games 1000` and
 `uv run python -m ai.match flat_playout random_bot --games 200`, and on 2026-11-17 with
@@ -401,7 +401,9 @@ didn't help either: 50.2%. What did: a warm start of 800k positions on every Rec
 `imitation_draft_buy`), and `uv run python -m ai.match imitation imitation_draft_buy --games 400 --processes 10`
 (2026-11-20, the 20M-position model), and `uv run python -m ai.match value imitation --games 400 --processes 10`
 (2026-11-20, ticket 15's v001), and on 2026-11-21 with `uv run python -m ai.match search value --games 400
---processes 10`, at 1 s, at `search?seconds=0.1` and with a margin of 2 (now `search?margin=2`); the Match at 1,000 playouts by a script
+--processes 10`, at 1 s, at `search?seconds=0.1` and with a margin of 2 (now `search?margin=2`), and on 2026-11-23
+with `uv run python -m ai.match value imitation --games 400 --processes 10` and `search` against the v006 Value Bot
+(`experiments/16/model_files.py`, ticket 16's Comments); the Match at 1,000 playouts by a script
 recorded in ticket 11's Comments. The human figures come from the Recorded Game
 archive (2 Players, Tharsis, Corporate Era, Draft and Prelude) and are not a Match against these bots.</sub>
 
@@ -416,7 +418,7 @@ flowchart LR
     F --> C["Card Economy Bot<br/>Options by fitted Prices"]:::done
     C --> I["Imitation Model<br/>Draft and buying<br/>from human Games<br/>(ticket 13)"]:::done
     I --> I2["Imitation Model<br/>every Decision<br/>(ticket 14)"]:::done
-    I2 --> V["Value Model<br/>improves by self-play<br/>(ticket 15)"]:::done
+    I2 --> V["Value Model<br/>who is ahead, from<br/>human Games (ticket 15)"]:::done
     V --> S["Search at play time<br/>tree over Sampled Positions<br/>(ticket 16)"]:::done
     S --> H(["Beats me in<br/>most Games<br/>(ticket 17)"]):::goal
     classDef done fill:#2ea44f,color:#fff,stroke:#22863a
@@ -445,8 +447,8 @@ against the rung below. This table is updated as the ladder is climbed.
 | Card Economy Bot | ✅ | 96.4% (95.0–97.3%) | the same Match | 114.0 | 13.3 | about 3 ms |
 | Imitation Bot: Imitation Model for setup, Draft and buying | ✅ | 89.7% (87.0–91.9%) | not measured | 130.8 | 13.3 | about 5 ms |
 | Imitation Bot: Imitation Model for every Decision | ✅ | 82.2% (78.2–85.7%) | not measured | 104.1 | 11.0 | about 3 ms |
-| Value Bot: Value Model, after self-play | ✅ | 57.0% (52.1–61.8%) | not measured | 93.2 | 10.4 | about 25 ms |
-| Search Bot: search at play time | ✅ | 57.0% (52.1–61.8%) | not measured | 93.2 | 10.3 | up to 1 s (the budget) |
+| Value Bot: Value Model (a warm start on every Recorded Game) | ✅ | 60.5% (55.6–65.2%) | not measured | 92.5 | 10.3 | about 25 ms |
+| Search Bot: search at play time | ✅ | 57.0% (52.1–61.8%), against ticket 15's Value Bot (v006) | not measured | 93.2 | 10.3 | up to 1 s (the budget) |
 | **Against me in the GUI** | ⏳ ticket 17 | goal: win most of a fixed set of seeded Games | | | | |
 
 ### The training data
