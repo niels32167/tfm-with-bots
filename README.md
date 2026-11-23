@@ -11,6 +11,9 @@ Rust, a browser GUI to play it in, and a ladder of AI opponents that will be tra
 then by self-play, with one goal: **an AI that beats me in most 2-player Games without seeing cards it
 shouldn't.**
 
+**Play it online** at https://terraforming-mars-latest.onrender.com against the bots. It runs on a free instance
+that sleeps when nobody plays, so the first visit can take about a minute to wake it.
+
 ![A Game in progress: Mars with Oceans, Greeneries and Cities, the Oxygen and Temperature tracks, Milestones and Awards, both player boards, the game log and the played cards](docs/images/game-board.png)
 
 <sub>Generation 9, seen by the human Player 1 (red) against the Flat Playout Bot (green). Below the board are
@@ -534,7 +537,8 @@ It is hosted on Render's free instance, from a public image on GitHub's registry
    ```
 
 3. The first time, on GitHub, set the package `terraforming-mars` to public (its Package settings, Change visibility).
-   Then on render.com, make a New Web Service from that existing image, with the Free instance type.
+   Then on render.com, make a New Web Service from that existing image, with the Free instance type. It runs as
+   https://terraforming-mars-latest.onrender.com.
 4. After later pushes, redeploy the service on Render (Manual Deploy, then Deploy latest reference).
 
 ### Measure

@@ -2,7 +2,7 @@
 
 The Game is also hosted, so that anyone with the link can play it without running the server. It runs on Render's
 free instance, from a public image on GitHub's registry, `ghcr.io/niels32167/terraforming-mars` (the user's call on
-2026-11-23). The image is built from the `Dockerfile` by `deploy/push_image.sh`. It holds the engine, the CPU build
+2026-11-23), at https://terraforming-mars-latest.onrender.com. The image is built from the `Dockerfile` by `deploy/push_image.sh`. It holds the engine, the CPU build
 of torch, the three models and the built GUI, which the server sends on the same port as its WebSocket. The local
 server is unchanged.
 
@@ -27,6 +27,8 @@ Measured in Docker at those limits, the server:
 - answers 23 s after starting;
 - uses about 230–300 MB with every model loaded;
 - keeps a Visitor's longest wait over a Search Bot's Turn to 2.9 s in 40 s of play.
+
+Live on Render, 30 s of play against the Search Bot reached Generation 7, with a longest wait of 2.8 s.
 
 **Considered options:**
 - *A Hugging Face Space.* It was prepared first. But Docker Spaces on the free hardware now need a PRO subscription
