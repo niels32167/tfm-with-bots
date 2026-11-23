@@ -78,8 +78,8 @@ def test_the_loops_games_are_read_back_from_their_file(tmp_path):
     assert len(samples) == settled_positions(game.replay)
 
 
-def recorded(game_id: str, *, conceded: bool = False, date: str = "2024-01-01") -> dict:
-    game = example(game_id, date=date)
+def recorded(game_id: str, *, conceded: bool = False, date: str = "2024-01-01", prelude: bool = True) -> dict:
+    game = example(game_id, date=date, prelude=prelude)
     points = [90, 75]
     players = [
         {**board, "winner": won, "victory_points": vp} for board, won, vp in zip(game["players"], [True, False], points)
@@ -99,6 +99,21 @@ def test_recorded_games_give_their_replays_positions_with_the_logs_winner(tmp_pa
     assert len(trained) == settled_positions(replay["replay"])
     assert {(sample.result, sample.margin) for sample in trained if sample.position.player == 0} == {(1.0, 15)}
     assert {(sample.result, sample.margin) for sample in trained if sample.position.player == 1} == {(0.0, -15)}
+
+
+def test_recorded_games_without_prelude_give_samples_only_when_asked_for(tmp_path):
+    # The Value Model plays with Prelude, but a Game without it still shows who is ahead (ticket 16's box 3).
+    replay = replay_of_the_example()
+    games = [recorded("example"), recorded("plain", prelude=False)]
+    folder = write_dataset(tmp_path, games, [replay, {**replay, "game": "plain"}])
+    shards = sorted((folder / "shards").iterdir())
+
+    def counted(prelude_only: bool) -> int:
+        rng = random.Random(0)
+        return sum(1 for shard in shards for _ in recorded_samples(shard, "train", rng, prelude_only=prelude_only))
+
+    assert counted(prelude_only=True) == settled_positions(replay["replay"])
+    assert counted(prelude_only=False) == 2 * settled_positions(replay["replay"])
 
 
 def test_samples_stack_into_arrays_with_their_targets():

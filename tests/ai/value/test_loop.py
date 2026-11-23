@@ -113,3 +113,27 @@ def test_a_run_can_start_from_a_saved_value_model_instead_of_a_warm_start(given,
     assert all(torch.equal(a, b) for a, b in zip(model.state_dict().values(), before.state_dict().values()))
     assert saved["started_from"] == str(earlier)
     assert saved["settings"]["start_from"] == str(earlier)
+
+
+def test_a_warm_start_may_learn_from_games_without_prelude_and_still_validates_on_prelude_games(given, tmp_path):
+    # Ticket 16's box 3: the archive holds more Games without Prelude than with it.
+    replay = replay_of_the_example()
+    games = [
+        recorded("plain", prelude=False),
+        recorded("checked", date="2025-09-15"),
+        recorded("checked plain", date="2025-09-15", prelude=False),
+    ]
+    replays = [{**replay, "game": game["game"]} for game in games]
+    dataset = write_dataset(tmp_path / "plain dataset", games, replays)
+
+    def warm_started(run: str, *extra: str) -> dict:
+        settings = [*given, "--run", str(tmp_path / run), "--dataset", str(dataset), "--warm-keep", "1"]
+        assert main([*settings, "--rounds", "0", *extra]) == 0
+        return load_model(tmp_path / run / "versions" / "v000.pt", kind=ValueModel)[1]
+
+    prelude_only, every_game = warm_started("prelude"), warm_started("all", "--warm-games", "all")
+
+    assert prelude_only["trained"]["positions"] == 0
+    assert every_game["trained"]["positions"] > 0
+    assert every_game["settings"]["warm_games"] == "all"
+    assert every_game["validation"]["positions"] == settled_positions(replay["replay"])

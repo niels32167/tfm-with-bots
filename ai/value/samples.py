@@ -2,9 +2,10 @@
 (1 for a win, ½ for a draw, 0 for a loss) and Victory Point margin over the other Player.
 
 Two kinds of Games give them, both as Replays the engine plays through (ai.match.views_along):
-- Recorded Games with Prelude, not conceded, each up to its replay's first difference (ticket 10), with the result
-  of the Recorded Game's log. A conceded Game's final score is no evidence of who would have won. Games whose replay
-  never started, or whose log lacks a final score, give none.
+- Recorded Games not conceded, each up to its replay's first difference (ticket 10), with the result of the Recorded
+  Game's log. A conceded Game's final score is no evidence of who would have won. Games whose replay never started,
+  or whose log lacks a final score, give none. Games without Prelude count only if asked for: the Value Model plays
+  with Prelude, but such a Game still shows who is ahead.
 - the loop's own Games, which it saves a round at a time as lines of {"replay", "results", "margins"}.
 
 At each Decision that isn't a follow-up (ai.value.encoded.FOLLOW_UPS), one of the two Players is chosen at random as
@@ -15,7 +16,7 @@ training batches.
 
 import functools
 import random
-from collections.abc import Iterator
+from collections.abc import Callable, Iterator
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
@@ -63,13 +64,20 @@ def replay_samples(
         yield ValueSample(view_position(view), results[viewer], margins[viewer])
 
 
-def recorded_samples(shard: Path, split: Split, rng: random.Random, keep: float = 1.0) -> Iterator[ValueSample]:
-    """The samples (a share `keep` of them) of one dataset shard's Games in `split` with Prelude, not conceded, that
-    have a replay."""
+def recorded_samples(
+    shard: Path, split: Split, rng: random.Random, keep: float = 1.0, *, prelude_only: bool = True
+) -> Iterator[ValueSample]:
+    """The samples (a share `keep` of them) of one dataset shard's Games in `split`, not conceded, that have a
+    replay: those with Prelude, or every one if not `prelude_only`."""
     replays = {replay["game"]: replay for replay in read_shard(shard, "replays.jsonl.gz")}
     for game in read_shard(shard, "games.jsonl.gz"):
         replay = replays.get(game["game"])
-        if not (replay and replay["replay"]) or not game["prelude"] or game["conceded"] or split_of(game) != split:
+        if (
+            not (replay and replay["replay"])
+            or (prelude_only and not game["prelude"])
+            or game["conceded"]
+            or split_of(game) != split
+        ):
             continue
         players = game["players"]
         winners = [board["winner"] for board in players]
@@ -96,16 +104,19 @@ def stack_samples(samples: list[ValueSample]) -> dict[str, np.ndarray]:
 
 
 def file_samples(
-    chosen: list[Path], *, split: Split, size: int, buffer: int, seed: int, keep: float
+    chosen: list[Path], *, split: Split, size: int, buffer: int, seed: int, keep: float, prelude_only: bool = True
 ) -> Iterator[list[ValueSample]]:
-    """A worker process's batches: a share `keep` of the samples of its files (dataset shards and files of the loop's
-    Games), shuffled through `buffer` and sorted into batches of about as many card rows, in a random order."""
+    """A worker process's batches: a share `keep` of the samples of its files (dataset shards, whose Games without
+    Prelude count only if not `prelude_only`, and files of the loop's Games), shuffled through `buffer` and sorted
+    into batches of about as many card rows, in a random order."""
     rng = random.Random(f"{seed}:{chosen[:1]}")
     found = (
         sample
         for path in chosen
         for sample in (
-            recorded_samples(path, split, rng, keep) if path.is_dir() else self_play_samples(path, rng, keep)
+            recorded_samples(path, split, rng, keep, prelude_only=prelude_only)
+            if path.is_dir()
+            else self_play_samples(path, rng, keep)
         )
     )
     pool: list[ValueSample] = []
@@ -125,12 +136,44 @@ def sorted_batches(pool: list[ValueSample], size: int, rng: random.Random) -> li
 
 
 def sample_batches(
-    sources: list[Path], split: Split, *, workers: int, seed: int, size: int, buffer: int, keep: float = 1.0
+    sources: list[Path],
+    split: Split,
+    *,
+    workers: int,
+    seed: int,
+    size: int,
+    buffer: int,
+    keep: float = 1.0,
+    prelude_only: bool = True,
 ) -> Iterator[list[ValueSample]]:
-    """Batches of at most `size` samples from `sources` (dataset shards, whose Games in `split` count, and files of
-    the loop's Games, which count whole), a share `keep` of each Game's, made in `workers` processes (0: here), never
-    all held at once."""
+    """Batches of at most `size` samples from `sources` (dataset shards, whose Games in `split` count, those without
+    Prelude only if not `prelude_only`, and files of the loop's Games, which count whole), a share `keep` of each
+    Game's, made in `workers` processes (0: here), never all held at once."""
     chosen = list(sources)
     random.Random(seed).shuffle(chosen)
-    make = functools.partial(file_samples, split=split, size=size, buffer=buffer, seed=seed, keep=keep)
+    make = functools.partial(
+        file_samples, split=split, size=size, buffer=buffer, seed=seed, keep=keep, prelude_only=prelude_only
+    )
     return from_workers(make, chosen, workers)
+
+
+def budgeted(
+    make: Callable[[int], Iterator[list[ValueSample]]], positions: int | None = None, passes: int = 1_000_000
+) -> Iterator[list[ValueSample]]:
+    """Batches from `make(pass_number)`, pass after pass, until `positions` (if given) have been given or `passes`
+    made."""
+    given = 0
+    for number in range(passes):
+        made = make(number)
+        found = False
+        try:
+            for batch in made:
+                found = True
+                yield batch
+                given += len(batch)
+                if positions is not None and given >= positions:
+                    return
+        finally:
+            made.close()  # type: ignore[attr-defined]
+        if not found:
+            return

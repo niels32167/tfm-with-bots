@@ -7,8 +7,9 @@ results, then improves it by self-play, one round at a time.
 
 A run lives in its own folder (`--run`, by default .cache/models/value-runs/main) and goes through named steps:
 1. **warm start**: the Value Model, warm-started from the Imitation Model's weights (`--policy`), learns from
-   `--warm-positions` positions of Recorded Games with Prelude, not conceded, in the training split, with each
-   Game's result. It is version v000, and is measured on the validation split. Only a share of each Game's
+   `--warm-positions` positions of Recorded Games not conceded, in the training split, with each Game's result:
+   those with Prelude, or with `--warm-games all` those without it too. It is version v000, and is measured on the
+   validation split's Games with Prelude (ai.value.evaluate). Only a share of each Game's
    positions is kept (`--warm-keep`, and `--keep` for the loop's own Games): every position of a Game has the same
    result, and with all of them in a few batches the model learns which Game it is in (it overfit so on
    2026-11-20: training loss 0.33, validation loss 0.98). With `--start-from`, v000 is instead a copy of a saved
@@ -66,17 +67,16 @@ from ai.imitation.model import load_model, save_model
 from ai.match import Maker, MatchResult, MatchSettings, run_match
 from ai.recorded_games.dataset import DATASET_FOLDER, shards
 from ai.value.bot import SAMPLES, SHARE, TRIED, ValueBot
+from ai.value.evaluate import validated
 from ai.value.model import ValueModel, warm_started
-from ai.value.samples import ValueSample, results_of, sample_batches
-from ai.value.train import fit, measured
+from ai.value.samples import ValueSample, budgeted, results_of, sample_batches
+from ai.value.train import fit
 
 WRONG_ARGUMENTS = 2
 REPOSITORY = Path(__file__).parents[2]
 
 # Positions each worker process holds to shuffle.
 SHUFFLE_BUFFER = 4_096
-# Validation positions measured after the warm start: enough for a loss to two decimals.
-VALIDATION_POSITIONS = 100_000
 # The anchor of the ratings: the Imitation Bot is rated 0.
 ANCHOR = "imitation"
 # Settings that may change between invocations of one run: none changes what the run learns.
@@ -100,6 +100,12 @@ def arguments(given: Sequence[str] | None) -> argparse.Namespace:
     parser.add_argument("--start-from", type=Path, help="a saved Value Model to start from instead of a warm start")
     parser.add_argument("--warm-learning-rate", type=float, default=1e-3)
     parser.add_argument("--warm-keep", type=float, default=0.1, help="share of each Recorded Game's positions kept")
+    parser.add_argument(
+        "--warm-games",
+        choices=["prelude", "all"],
+        default="prelude",
+        help="the Recorded Games warmed on: those with Prelude, or all (validation is on Prelude Games either way)",
+    )
     parser.add_argument("--validation-share", type=int, default=16, help="validate on every n-th shard")
     parser.add_argument("--games", type=int, default=120, help="Games played each round")
     parser.add_argument("--pool-bots", default="imitation,card_economy", help="registered Controllers in the pool")
@@ -175,28 +181,6 @@ def panel_ratings(names: list[str], matches: list[dict[str, Any]]) -> dict[str, 
             found += [(ratings[m["a"]], m["games"] - m["points"], m["games"]) for m in matches if m["b"] == name]
             ratings[name] = rating_against(found)
     return ratings
-
-
-def budgeted(
-    make: Callable[[int], Iterator[list[ValueSample]]], positions: int | None = None, passes: int = 1_000_000
-) -> Iterator[list[ValueSample]]:
-    """Batches from `make(pass_number)`, pass after pass, until `positions` (if given) have been given or `passes`
-    made."""
-    given = 0
-    for number in range(passes):
-        made = make(number)
-        found = False
-        try:
-            for batch in made:
-                found = True
-                yield batch
-                given += len(batch)
-                if positions is not None and given >= positions:
-                    return
-        finally:
-            made.close()  # type: ignore[attr-defined]
-        if not found:
-            return
 
 
 class Loop:
@@ -284,6 +268,7 @@ class Loop:
                 size=given.batch,
                 buffer=SHUFFLE_BUFFER,
                 keep=given.warm_keep,
+                prelude_only=given.warm_games == "prelude",
             )
 
         trained = fit(
@@ -293,22 +278,13 @@ class Loop:
             device=given.device,
             budget=given.warm_positions,
         )
-        validation = measured(
+        validation = validated(
             model,
-            budgeted(
-                lambda _: sample_batches(
-                    found[:: given.validation_share],
-                    "validation",
-                    workers=min(given.workers, 4),
-                    seed=0,
-                    size=given.batch,
-                    buffer=given.batch,
-                    keep=given.warm_keep,
-                ),
-                VALIDATION_POSITIONS,
-                passes=1,
-            ),
-            given.device,
+            found[:: given.validation_share],
+            keep=given.warm_keep,
+            workers=min(given.workers, 4),
+            size=given.batch,
+            device=given.device,
         )
         print(
             f"warm start: {trained['positions']:,} positions of Recorded Games, train loss {trained['loss']:.4f}; "
