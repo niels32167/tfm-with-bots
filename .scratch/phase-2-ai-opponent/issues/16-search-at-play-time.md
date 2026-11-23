@@ -15,7 +15,7 @@ The quick test showed that playout counts matter a lot: going from 5 to 100 per 
 
 - [x] The time budget is a setting, and the Controller keeps to it in the GUI, with the default chosen so that a Game is pleasant to play.
 - [x] Strength against budget is recorded under Comments, for example 0.1, 1 and 5 seconds per Decision, against the Controller from ticket 15.
-- [ ] It wins a Match against the Controller from ticket 15, with the interval above 50%, at the default budget.
+- [x] It wins a Match against the Controller from ticket 15, with the interval above 50%, at the default budget.
 - [x] Test: it plays only through the fair handle, and its picks are equal for equal Player Views given the same seed.
 - [x] It is selectable in the GUI.
 
@@ -254,3 +254,46 @@ Left as they are:
 The full suite passed (2,247 tests) before the fixes; the Search Bot, registry and fair-play tests pass after them.
 
 **Laptop time:** about 1.5 hours: the switch rates for 4 minutes, the pilot for 29 minutes and the final Match for 59.
+
+### 2026-11-23 — a better-calibrated Value Model; box 3 met (Claude)
+
+**Box 3 is met.** With the new Value Model registered, the Search Bot (1 s) beat ticket 15's Value Bot (v006, kept as
+`.cache/models/value-v006.pt`) in **57.0% (52.1–61.8%)** of a final 400-Game Match on seeds 0–199, 228 to 172
+(`.cache/models/runs/match-16-search-1s-warm-all.txt`; Victory Points 93.2 – 90.6, 0 stalled).
+
+**Decisions made with the user:** the route "a bigger warm start", and about 3 hours of laptop time (about 2 used).
+
+**What was found:**
+- The warm start already used every Prelude Game (14,806 in training, about 4.5 passes). Games without Prelude add
+  only 2,916.
+- On the Prelude validation split's 77,802 positions (`uv run python -m ai.value.evaluate`), the earlier models were
+  badly calibrated:
+
+  | Model | Positions trained | Validation loss | Winner rated likelier |
+  | --- | ---: | ---: | ---: |
+  | v006 (ticket 15, registered) | 1.5M, then self-play | 1.06 | 71.0% |
+  | v001 | 1.5M, then self-play | 1.11 | 71.3% |
+  | v000 (ticket 15's warm start) | 1.5M, Prelude only | 0.569 | 75.0% |
+  | every Game, 2.5M | 2.5M | 0.666 (overfit) | 74.5% |
+  | **every Game, 800k (registered)** | 800k | **0.460** | **76.6%** |
+  | every Game, 400k | 400k | 0.460 | 76.5% |
+
+- So the warm start overfit at 1.5M positions, and self-play made the model overconfident (a loss over a coin's
+  0.693). Search averages win chances, so it suffers from that more than the Value Bot does.
+
+**Matches:**
+- New model as a Value Bot vs v006, 400 Games on seeds from 20,000: 53.6% (48.7–58.5%)
+  (`.cache/ticket-16/h2h-w-short-v006.txt`).
+- Pilot: Search Bot on it vs the v006 Value Bot, 200 Games from seed 3,200,000: 58.0% (51.1–64.6%), above the 55% bar
+  set beforehand (`.cache/ticket-16/pilot-search-w-short.txt`).
+- Final: see above. The run is `.cache/models/value-runs/warm-all-short` (`--warm-games all --warm-positions 800000
+  --validation-share 1`, stopped after the warm start); it was registered with `--register`.
+
+**Code** (commit 49ff2e2, test-first): `--warm-games all` (samples from Games without Prelude, validation still on
+Prelude Games); `ai/value/evaluate.py`; `budgeted` moved to `ai/value/samples.py`. Model-file Controllers for these
+Matches: `experiments/16/model_files.py` (with `PYTHONPATH=.:.scratch/phase-2-ai-opponent/experiments/16`).
+
+**Not done (the usage limit was reached):**
+- /code-review of 49ff2e2; the full suite (the value and fair-play tests passed: 36).
+- The registered Value Bot (now the new model) not yet re-measured against the Imitation Bot.
+- Pushing the image (`deploy/push_image.sh`) and redeploying on Render; the live site still has v006.
