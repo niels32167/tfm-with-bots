@@ -27,6 +27,20 @@ def controllers_on_offer() -> list[dict[str, str]]:
     ]
 
 
+def check_hosted(controllers: Any) -> None:
+    """Refuses what a hosted server (ADR 0014) doesn't play though the local one does: Controllers named other than as
+    a list of names; a Game without a human, so that registered Controllers don't play each other on a shared
+    computer; and settings after a registered Controller's name, such as a Search Bot's budget. GameSession checks
+    the rest."""
+    if not isinstance(controllers, list) or not all(isinstance(name, str) for name in controllers):
+        raise ValueError(f"the Controllers must be a list of names, not {controllers!r}")
+    if HUMAN not in controllers:
+        raise ValueError("a hosted server needs a human in every Game")
+    tuned = [name for name in controllers if name_and_settings(name)[1]]
+    if tuned:
+        raise ValueError(f"a hosted server plays its bots without settings, not {tuned[0]!r}")
+
+
 def label_of(name: ControllerName) -> str:
     """How the setup screen names the Controller called `name`, with any settings after its label."""
     name, settings = name_and_settings(name)

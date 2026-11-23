@@ -134,6 +134,10 @@ _Avoid_: fixture, test state, setup
 A Game's settings and seed (or Scenario) plus the Options picked, in order. It reproduces the Game exactly.
 _Avoid_: save state, log (the game log is the human-readable history)
 
+**Visitor**:
+Someone playing on the hosted server from their own browser, with their own Game against the bots, found again by the visitor id the browser keeps.
+_Avoid_: user, client, session (the server's GameSession is one Game)
+
 **Hotseat**:
 Several human Controllers sharing one screen. All hands are visible, since it is a testing setup.
 

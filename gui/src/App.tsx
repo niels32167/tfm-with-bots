@@ -82,13 +82,16 @@ export function App() {
   };
 
   if (!connected) {
+    const local = ["localhost", "127.0.0.1", "[::1]"].includes(window.location.hostname);
     return (
       <main className="splash">
         <h1>Terraforming Mars</h1>
-        <p>Connecting to the local server…</p>
-        <p className="hint">
-          Start it with <code>uv run python -m server</code> in the project folder.
-        </p>
+        <p>{error ?? (local ? "Connecting to the local server…" : "Connecting to the server…")}</p>
+        {local && (
+          <p className="hint">
+            Start it with <code>uv run python -m server</code> in the project folder.
+          </p>
+        )}
       </main>
     );
   }
@@ -137,7 +140,9 @@ export function App() {
         onLoadReplay={(file) => loadReplay(file, game.bot_delay)}
         onBotDelay={server.setBotDelay}
         devPanelOpen={devPanelOpen}
-        onToggleDevPanel={() => (devPanelOpen ? closeDevPanel() : setDevPanelOpen(true))}
+        onToggleDevPanel={
+          server.hosted ? undefined : () => (devPanelOpen ? closeDevPanel() : setDevPanelOpen(true))
+        }
       />
       <div className="table">
         <div className="table-main">
@@ -192,7 +197,7 @@ export function App() {
       )}
       {cardGallery}
       <CardZoom cards={server.cards} />
-      {devPanelOpen && (
+      {devPanelOpen && !server.hosted && (
         <DevPanel
           key={devPanelKey}
           cards={server.cards}

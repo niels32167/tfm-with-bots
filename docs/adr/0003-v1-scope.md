@@ -4,4 +4,4 @@ v1 covers all Project Cards and Corporations in the base box with Corporate Era 
 
 Explicitly out of v1: solo mode, Prelude, Venus Next, Colonies, Turmoil, and the Hellas and Elysium boards. Prelude is the first candidate afterwards, because it is small and shortens Games, which also speeds up training (added before training by ADR 0011).
 
-This is a personal, private project, so real card names and text are used. Card data is kept in one place in case it ever has to be replaced for a public release.
+This is a personal, private project, so real card names and text are used. Card data is kept in one place in case it ever has to be replaced for a public release. The Game is hosted publicly since 2026-11-23, with the real card texts (ADR 0014).

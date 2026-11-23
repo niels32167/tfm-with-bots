@@ -15,7 +15,8 @@ interface Props {
   onLoadReplay: (file: File) => void;
   onBotDelay: (delay: number) => void;
   devPanelOpen: boolean;
-  onToggleDevPanel: () => void;
+  /** Left out where the dev panel is off, as on a hosted server. */
+  onToggleDevPanel?: () => void;
 }
 
 /** The bar across the top: the seed, the card gallery, the tools for Replays, and the dev panel's switch. */
@@ -55,9 +56,11 @@ export function TopBar({
         <button className="link-button" onClick={onNewGame}>
           New Game
         </button>
-        <button className="link-button" aria-pressed={devPanelOpen} onClick={onToggleDevPanel}>
-          Dev panel
-        </button>
+        {onToggleDevPanel && (
+          <button className="link-button" aria-pressed={devPanelOpen} onClick={onToggleDevPanel}>
+            Dev panel
+          </button>
+        )}
       </div>
     </header>
   );

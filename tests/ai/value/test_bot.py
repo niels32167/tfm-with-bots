@@ -190,3 +190,21 @@ def test_with_a_share_of_one_it_picks_as_the_imitation_bot(value_path):
     for handle, pick, _ in handles_of_a_game(bot):
         chances = bot.policy.chances(handle)
         assert pick == chances.index(max(chances))
+
+
+def test_a_value_model_moved_to_another_computer_finds_its_policy_in_the_models_folder(tmp_path, monkeypatch):
+    # The policy's path is saved as it was on the computer that trained it; a Docker image has the project elsewhere.
+    import ai.imitation
+
+    models = tmp_path / "models"
+    models.mkdir()
+    torch.manual_seed(0)
+    save_model(models / "imitation.pt", ImitationModel(ModelShape(width=16, layers=1, heads=2)), {"note": "untrained"})
+    path = models / "value.pt"
+    gone = tmp_path / "the-training-computer" / "imitation.pt"
+    save_model(path, warm_started(models / "imitation.pt"), {"settings": {"policy": str(gone)}})
+    monkeypatch.setattr(ai.imitation, "MODELS_FOLDER", models)
+
+    from ai.imitation.bot import loaded
+
+    assert ValueBot(path).policy.model is loaded(models / "imitation.pt")

@@ -16,7 +16,28 @@ import type {
 /** The server's latest update: Controllers, seed, Player View and Decision (the log is kept apart). */
 export type GameUpdate = Omit<Update, "type" | "log_start" | "log">;
 
-/** The connection to the local server, the card catalog, the Controllers on offer, and the latest Game state it
+// The shape of a visitor id, which the server checks.
+const VISITOR_ID = /^[A-Za-z0-9-]{8,64}$/;
+const VISITOR_KEY = "terraforming-mars-visitor";
+
+/** This browser's visitor id, kept so that a hosted server finds this visitor's Game again after a reload. The
+ * local server ignores it. Without storage (a private window, say) it lasts as long as the page. */
+function visitorId(): string {
+  const fresh =
+    typeof crypto.randomUUID === "function"
+      ? crypto.randomUUID()
+      : Array.from(crypto.getRandomValues(new Uint8Array(16)), (byte) => byte.toString(16).padStart(2, "0")).join("");
+  try {
+    const kept = window.localStorage.getItem(VISITOR_KEY);
+    if (kept && VISITOR_ID.test(kept)) return kept;
+    window.localStorage.setItem(VISITOR_KEY, fresh);
+  } catch {
+    // Storage may be blocked; the id made here then serves this page alone.
+  }
+  return fresh;
+}
+
+/** The connection to the server, the card catalog, the Controllers on offer, and the latest Game state it
  * sent. */
 export function useGameServer() {
   const [connected, setConnected] = useState(false);
@@ -24,6 +45,8 @@ export function useGameServer() {
   const [cards, setCards] = useState<Card[]>([]);
   // A human and the registered Controllers, which the server sends next.
   const [controllers, setControllers] = useState<ControllerOnOffer[]>([]);
+  // Whether the server is hosted for anyone with its link, as it says with the Controllers.
+  const [hosted, setHosted] = useState(false);
   const [game, setGame] = useState<GameUpdate | null>(null);
   const [log, setLog] = useState<string[]>([]);
   // What the dev panel last asked to see.
@@ -36,31 +59,41 @@ export function useGameServer() {
   useEffect(() => {
     let stopped = false;
     let retry: number | undefined;
+    const visitor = visitorId();
 
     function connect() {
       const protocol = window.location.protocol === "https:" ? "wss" : "ws";
-      const ws = new WebSocket(`${protocol}://${window.location.host}/ws`);
+      const ws = new WebSocket(`${protocol}://${window.location.host}/ws?visitor=${visitor}`);
       socket.current = ws;
       // Events from a socket that has since been replaced (say, by React's dev-mode
       // double mount) must not touch the state.
       const isCurrent = () => socket.current === ws;
-      ws.onopen = () => {
-        if (!isCurrent()) return;
-        // The server sends the current Game straight away, if it has one. Whatever
-        // was shown before belongs to a connection (maybe a server) that is gone.
-        setGame(null);
-        setLog([]);
-        setDevView(null);
-        setError(null);
-        setPickedSequence(null);
-        setConnected(true);
-      };
+      // Whether the server welcomed this connection with the card catalog. A hosted server that turns it away
+      // (when full) sends an error instead and closes it, and the error stays on the splash screen meanwhile.
+      let welcomed = false;
       ws.onclose = () => {
         if (!isCurrent()) return;
         setConnected(false);
+        // An error from a Game that was going on belongs to that Game, not to the splash screen.
+        if (welcomed) setError(null);
         if (!stopped) retry = window.setTimeout(connect, 1000);
       };
-      ws.onmessage = (event) => isCurrent() && receive(JSON.parse(event.data) as ServerMessage);
+      ws.onmessage = (event) => {
+        if (!isCurrent()) return;
+        const message = JSON.parse(event.data) as ServerMessage;
+        if (message.type === "card_catalog") {
+          welcomed = true;
+          // The server sends the current Game straight after, if it has one. Whatever was shown before belongs
+          // to a connection (maybe a server) that is gone.
+          setGame(null);
+          setLog([]);
+          setDevView(null);
+          setPickedSequence(null);
+          setError(null);
+          setConnected(true);
+        }
+        receive(message);
+      };
     }
 
     function receive(message: ServerMessage) {
@@ -70,6 +103,7 @@ export function useGameServer() {
           break;
         case "controllers":
           setControllers(message.controllers);
+          setHosted(message.hosted);
           break;
         case "update": {
           const { type: _type, log_start, log: lines, ...state } = message;
@@ -166,6 +200,7 @@ export function useGameServer() {
     connected,
     cards,
     controllers,
+    hosted,
     game,
     log,
     devView,

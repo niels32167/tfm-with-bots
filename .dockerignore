@@ -1,0 +1,20 @@
+# Only what the hosted server needs (Dockerfile): no local builds, environments, datasets or experiments.
+.git
+.venv
+**/__pycache__
+.pytest_cache
+engine/target
+gui/node_modules
+gui/dist
+tm_statistics
+fuzz-failures
+match-failures
+.scratch
+docs
+# The models the bots play with, and nothing else of .cache (runs, datasets, downloads).
+.cache/*
+!.cache/models
+.cache/models/*
+!.cache/models/imitation.pt
+!.cache/models/imitation-draft-buy.pt
+!.cache/models/value.pt

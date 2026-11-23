@@ -44,7 +44,7 @@ import ai.value
 from ai.controller import Handle
 from ai.imitation.bot import ImitationBot
 from ai.imitation.encoded import Position
-from ai.value.bot import SEEDS, SHARE, TRIED, loaded, narrowed
+from ai.value.bot import SEEDS, SHARE, TRIED, loaded, narrowed, policy_path
 from ai.value.encoded import FOLLOW_UPS, result_of, view_position
 from ai.value.model import chances_of_winning
 
@@ -146,7 +146,7 @@ class SearchBot:
         if leaves not in LEAVES:
             raise ValueError(f"leaves must be one of {LEAVES}, not {leaves!r}")
         self.model, saved = loaded(Path(path or ai.value.MODEL))
-        self.policy = ImitationBot(Path(saved["settings"]["policy"]))
+        self.policy = ImitationBot(policy_path(saved))
         self.seconds = seconds
         self.samples = samples
         self.tried = tried

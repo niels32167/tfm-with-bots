@@ -10,7 +10,8 @@ View, and learns it first from Recorded Games' results and then from self-play.
   picks the one the Value Model rates best.
 - loop.py: `uv run python -m ai.value.loop`, the self-play loop.
 
-Models and the loop's runs are saved in .cache/models: out of git, never published.
+Models and the loop's runs are saved in .cache/models: out of git. Of them, only the registered model is published,
+in the hosted Space (ADR 0014).
 """
 
 from ai.imitation import MODELS_FOLDER

@@ -9,7 +9,7 @@ every Decision, trained on Recorded Games.
 - bot.py: the Imitation Bot, the Controller that picks with the model.
 
 Models are trained from the private dataset (.cache/recorded-games) and saved in .cache/models: out of git,
-never published.
+published only in the hosted Space (ADR 0014).
 """
 
 from pathlib import Path

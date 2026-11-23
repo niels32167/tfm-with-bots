@@ -21,6 +21,7 @@ from typing import Any
 
 import torch
 
+import ai.imitation
 import ai.value
 from ai.controller import Handle
 from ai.imitation.bot import ImitationBot
@@ -50,6 +51,15 @@ def loaded(path: Path) -> tuple[ValueModel, dict[str, Any]]:
     return load_model(path, kind=ValueModel)
 
 
+def policy_path(saved: dict[str, Any]) -> Path:
+    """The Imitation Model a Value Model was trained beside, from what was saved with it. The path saved is the one on
+    the computer that trained it; where the project has moved since (into a Docker image, say), it is the file of
+    that name in the models folder (ai.imitation.MODELS_FOLDER)."""
+    path = Path(saved["settings"]["policy"])
+    in_models_folder = ai.imitation.MODELS_FOLDER / path.name
+    return in_models_folder if not path.exists() and in_models_folder.exists() else path
+
+
 class ValueBot:
     """Picks with the Value Model saved at `path` (by default the registered one, ai.value.MODEL), narrowed by the
     Imitation Model it was trained beside (saved with it as the setting "policy")."""
@@ -58,7 +68,7 @@ class ValueBot:
         self, path: Path | None = None, tried: int = TRIED, samples: int = SAMPLES, share: float = SHARE
     ) -> None:
         self.model, saved = loaded(Path(path or ai.value.MODEL))
-        self.policy = ImitationBot(Path(saved["settings"]["policy"]))
+        self.policy = ImitationBot(policy_path(saved))
         self.tried = tried
         self.samples = samples
         self.share = share

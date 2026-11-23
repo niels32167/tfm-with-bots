@@ -490,7 +490,12 @@ export interface Update {
 
 export type ServerMessage =
   | { type: "card_catalog"; cards: Card[] }
-  | { type: "controllers"; controllers: ControllerOnOffer[] }
+  | {
+      type: "controllers";
+      controllers: ControllerOnOffer[];
+      /** Hosted for anyone with its link: each visitor has their own Game, and the dev panel is off. */
+      hosted: boolean;
+    }
   | Update
   | { type: "game_over"; scores: Score[] }
   | { type: "replay_file"; file: ReplayFile }

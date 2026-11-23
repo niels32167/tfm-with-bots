@@ -503,6 +503,40 @@ Then open http://localhost:5173, choose the number of Players and who plays each
 Flat Playout Bot), and start a Game. The [developer guide](docs/guide.md#play) explains the screen, the
 hand, payment and the dev panel.
 
+### Host it online
+
+The `Dockerfile` builds one image with the engine, the bots, their models and the built GUI. Run it with
+`python -m server --hosted`: each Visitor gets their own Game against the bots, and the dev panel is off.
+[ADR 0014](docs/adr/0014-hosted-on-a-hugging-face-space.md) has the limits and what hosting publishes. To try the
+image locally, then open http://localhost:7860:
+
+```bash
+docker build -t terraforming-mars . && docker run --rm -p 7860:7860 terraforming-mars
+```
+
+To put it on a Hugging Face Space:
+1. Create a Space on huggingface.co with the Docker SDK and the free CPU hardware.
+2. Log in from here:
+
+   ```bash
+   uvx --from huggingface_hub hf auth login
+   ```
+
+3. From a clean, committed tree, gather the Space's files: the committed project, the three models from
+   `.cache/models`, and the Space's card as its README.
+
+   ```bash
+   deploy/huggingface/make_space.sh
+   ```
+
+4. Upload them, with your own user and Space name:
+
+   ```bash
+   uvx --from huggingface_hub hf upload <user>/<space> .cache/deploy/space . --repo-type space
+   ```
+
+The Space builds the image and serves it at `https://<user>-<space>.hf.space`.
+
 ### Measure
 
 ```bash
@@ -561,7 +595,8 @@ engine/        Rust rules engine and its Python bindings (tm_engine)
   src/board.rs   the Tharsis board, Areas and where each Tile may go
   src/cards.rs   the card catalog and each card's effect data
   cards/cards.json  printed card data + effects for all 267 cards
-server/        local FastAPI server: one WebSocket, Controllers in a worker thread
+server/        FastAPI server: one WebSocket, Controllers in worker threads; `--hosted` keeps a Game per visitor
+deploy/        the Hugging Face Space's card and the script that gathers its files (the Dockerfile is at the root)
 gui/           React + TypeScript GUI (Vite); the board is one SVG
 ai/            Controllers, the Match tool, the Recorded Game importer, and the Imitation Model (ai/imitation)
 tests/         rules, cards, engine, server, AI and fuzzing tests
@@ -591,6 +626,7 @@ Each significant decision is an Architecture Decision Record in [`docs/adr/`](do
 | [0011](docs/adr/0011-prelude-before-training.md) | Add Prelude before training, as most human Games use it |
 | [0012](docs/adr/0012-learn-from-recorded-games-first.md) | Learn from Recorded Games before self-play |
 | [0013](docs/adr/0013-a-ladder-of-controllers.md) | Build the AI as a ladder of Controllers |
+| [0014](docs/adr/0014-hosted-on-a-hugging-face-space.md) | Host the Game on a Hugging Face Space, a Game per visitor against the bots |
 
 ## Credits
 

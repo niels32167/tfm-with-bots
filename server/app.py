@@ -1,4 +1,4 @@
-"""The local server: the GUI talks to it over one WebSocket, and it drives the engine.
+"""The server: the GUI talks to it over one WebSocket, and it drives the engine.
 
 Messages from the GUI:
     {"type": "new_game", "controllers": ["human", "random_bot"], "seed": 7, "bot_delay": 0.8, "draft": true,
@@ -21,8 +21,11 @@ Messages to the GUI:
     {"type": "card_catalog", "cards": [...]}
         (the printed data of every card, sent first to each new connection)
     {"type": "controllers", "controllers": [{"name": "human", "label": "Human"},
-                                            {"name": "random_bot", "label": "Random Bot"}, ...]}
-        (the Controllers the setup screen offers, sent next: a human and the registered ones)
+                                            {"name": "random_bot", "label": "Random Bot"}, ...],
+     "hosted": false}
+        (the Controllers the setup screen offers, sent next: a human and the registered ones; and whether the
+         server is hosted for anyone with its link, where the dev panel is off, every Game needs a human and
+         bots play without settings)
     {"type": "update", "controllers": [...], "viewer": 0 or null, "seed": 7, "bot_delay": 0.8,
      "can_undo": true, "view": ..., "decision": ... or null, "log_start": n, "log": [...]}
         (viewer null means the view is the full view)
@@ -38,31 +41,62 @@ Messages to the GUI:
          asked, as it holds what Players hide from each other, and it changes nothing in the Game)
     {"type": "error", "message": "..."}
         (also when a registered Controller raises an error or picks an Option not offered; the Game
-         then waits, and Undo, a new Game or Load Replay… go on from there)
+         then waits, and Undo, a new Game or Load Replay… go on from there. A hosted server sends one
+         instead of the card catalog when it turns a connection away, and then closes it: without a
+         Visitor id (close code 1008), or when it is full (1013))
 
 The server holds one Game at a time, shared by every open connection, so reloading
-the page picks the Game up where it was. A registered Controller thinks in a worker thread, handed
+the page picks the Game up where it was. Hosted for anyone with its link (`Hosting`, ADR 0014), it holds one
+Game for each Visitor instead, found again by the Visitor id the GUI keeps and sends as `/ws?visitor=<id>`. A registered Controller thinks in a worker thread, handed
 only plain data (ADR 0013), so that the server goes on answering while it does; its pick is dropped
 if the Game has moved on by then, after an undo, say.
 """
 
 import asyncio
 import contextlib
+import os
 import random
+import re
+import time
+from collections.abc import Callable
+from concurrent.futures import Executor, ThreadPoolExecutor
+from dataclasses import dataclass, field
+from pathlib import Path
 from typing import Any
 
 import tm_engine
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
+from fastapi.staticfiles import StaticFiles
 
-from server.session import GameSession, controllers_on_offer, label_of
+from server.session import GameSession, check_hosted, controllers_on_offer, label_of
 
 DEFAULT_BOT_DELAY = 0.8
+# What a visitor id looks like: the GUI makes one with crypto.randomUUID() and keeps it in the browser.
+VISITOR_ID = re.compile(r"[A-Za-z0-9-]{8,64}")
+
+
+@dataclass(frozen=True)
+class Hosting:
+    """How the server runs when hosted for anyone with its link (ADR 0014): each Visitor has their own Game, and at
+    most `most_visitors` are kept. A Visitor with no open connection for `idle_seconds` is forgotten, Game and all.
+    At most `thinkers` registered Controllers think at once, across every Visitor's Game, by default one for each
+    core this process may use, so that one Visitor's Search Bot slows the others' bots rather than the server."""
+
+    most_visitors: int = 100
+    idle_seconds: float = 6 * 60 * 60
+    thinkers: int = field(default_factory=lambda: os.process_cpu_count() or 1)
+    clock: Callable[[], float] = field(default=time.monotonic)
 
 
 class GameHost:
-    """Hosts the current Game for every open connection, and plays the registered Controllers' picks."""
+    """Hosts a Game for its open connections (every one, or a Visitor's on a hosted server), and plays the
+    registered Controllers' picks, in `thinking`'s threads if given. A `hosted` one refuses what a hosted server
+    doesn't play (server.session.check_hosted) and the dev panel."""
 
-    def __init__(self) -> None:
+    def __init__(self, *, hosted: bool = False, thinking: Executor | None = None) -> None:
+        self.hosted = hosted
+        # Where registered Controllers think: asyncio's own threads, unless the hosted server shares a few.
+        self.thinking = thinking
         self.session: GameSession | None = None
         self.connections: set[WebSocket] = set()
         self.controller_task: asyncio.Task | None = None
@@ -72,7 +106,7 @@ class GameHost:
     async def join(self, websocket: WebSocket) -> None:
         self.connections.add(websocket)
         await websocket.send_json(self.card_catalog_message)
-        await websocket.send_json({"type": "controllers", "controllers": controllers_on_offer()})
+        await websocket.send_json({"type": "controllers", "controllers": controllers_on_offer(), "hosted": self.hosted})
         if self.session is not None:
             for message in self.session.catch_up():
                 await websocket.send_json(message)
@@ -93,8 +127,13 @@ class GameHost:
                     file = self.current_session().replay_file()
                     await websocket.send_json({"type": "replay_file", "file": file})
                 case "load_replay":
-                    await self.start(GameSession.from_replay_file(message["file"], bot_delay(message)))
+                    file = message["file"]
+                    if self.hosted and isinstance(file, dict):
+                        check_hosted(file.get("controllers"))
+                    await self.start(GameSession.from_replay_file(file, bot_delay(message)))
                 case "dev_view":
+                    if self.hosted:
+                        raise ValueError("the dev panel is off on a hosted server")
                     await websocket.send_json(self.current_session().dev_view(whole_number_or_none(message, "step")))
                 case "set_bot_delay":
                     self.current_session().bot_delay = bot_delay(message)
@@ -112,6 +151,8 @@ class GameHost:
             raise ValueError(f"the seed must be a whole number from 0 to {tm_engine.MAX_SEED}, not {seed!r}")
         draft = true_or_false(message, "draft", default=True)
         prelude = true_or_false(message, "prelude", default=False)
+        if self.hosted:
+            check_hosted(message["controllers"])
         session = GameSession.new(message["controllers"], seed, bot_delay(message), draft=draft, prelude=prelude)
         await self.start(session)
 
@@ -164,7 +205,7 @@ class GameHost:
             sequence = session.game.decision["sequence"]
             name, controller, handle = session.controller_turn()
             try:
-                index = await asyncio.to_thread(controller.pick, handle)
+                index = await loop.run_in_executor(self.thinking, controller.pick, handle)
             except Exception as error:  # noqa: BLE001 - shown to the GUI, which can undo or start afresh.
                 await self.broadcast({"type": "error", "message": f"{label_of(name)} raised {error!r}"})
                 return
@@ -212,18 +253,73 @@ def bot_delay(message: dict[str, Any]) -> float:
     return delay
 
 
-def create_app() -> FastAPI:
+class Visitors:
+    """The hosted server's Visitors, each with their own GameHost, within `hosting`'s limits."""
+
+    def __init__(self, hosting: Hosting) -> None:
+        self.hosting = hosting
+        self.hosts: dict[str, GameHost] = {}
+        self.last_left: dict[str, float] = {}
+        self.thinking = ThreadPoolExecutor(max_workers=hosting.thinkers, thread_name_prefix="thinking")
+
+    def host_for(self, visitor: str) -> GameHost | None:
+        """`visitor`'s GameHost, new if they have none, or None if the server is full. Visitors idle too long are
+        forgotten first; one with a connection open never is."""
+        self.forget_the_idle()
+        if visitor not in self.hosts:
+            if len(self.hosts) >= self.hosting.most_visitors:
+                return None
+            self.hosts[visitor] = GameHost(hosted=True, thinking=self.thinking)
+        return self.hosts[visitor]
+
+    def left(self, visitor: str) -> None:
+        """Notes when `visitor` closed a connection, from which their idle time counts once none is open."""
+        self.last_left[visitor] = self.hosting.clock()
+
+    def forget_the_idle(self) -> None:
+        now = self.hosting.clock()
+        for visitor, host in list(self.hosts.items()):
+            if not host.connections and now - self.last_left.get(visitor, now) > self.hosting.idle_seconds:
+                host.stop_controllers()
+                del self.hosts[visitor]
+                del self.last_left[visitor]
+
+
+async def turn_away(websocket: WebSocket, message: str, code: int) -> None:
+    """Tells the GUI why its connection is refused, and closes it."""
+    await websocket.send_json({"type": "error", "message": message})
+    await websocket.close(code=code)
+
+
+def create_app(hosting: Hosting | None = None, gui: Path | None = None) -> FastAPI:
+    """The server: for one Game shared by every connection, or with `hosting`, for one Game per Visitor. With
+    `gui`, the folder of the built GUI (`npm run build` makes gui/dist), it also sends the GUI's pages, so that
+    one port serves both; otherwise vite's dev server does."""
     app = FastAPI(title="Terraforming Mars")
-    host = GameHost()
+    shared = GameHost()
+    visitors = Visitors(hosting) if hosting is not None else None
 
     @app.websocket("/ws")
-    async def play(websocket: WebSocket) -> None:
+    async def play(websocket: WebSocket, visitor: str | None = None) -> None:
         await websocket.accept()
-        await host.join(websocket)
+        if visitors is not None and (visitor is None or not VISITOR_ID.fullmatch(visitor)):
+            await turn_away(websocket, "this server needs a visitor id; reload the page", code=1008)
+            return
+        host = shared if visitors is None else visitors.host_for(visitor)
+        if host is None:
+            await turn_away(websocket, "the server is full: too many have a Game on it; try again later", code=1013)
+            return
         try:
+            await host.join(websocket)
             while True:
                 await host.handle(websocket, await websocket.receive_json())
         except WebSocketDisconnect:
+            pass
+        finally:
             host.leave(websocket)
+            if visitors is not None:
+                visitors.left(visitor)
 
+    if gui is not None:
+        app.mount("/", StaticFiles(directory=gui, html=True), name="gui")
     return app
