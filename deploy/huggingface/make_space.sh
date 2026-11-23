@@ -5,7 +5,8 @@
 # Then upload it, logged in to Hugging Face with `uvx --from huggingface_hub hf auth login`:
 #   uvx --from huggingface_hub hf upload <user>/<space> <folder> . --repo-type space
 set -euo pipefail
-root=$(git rev-parse --show-toplevel)
+# The project is the one this script is in, wherever it is run from.
+root=$(git -C "$(dirname "$0")" rev-parse --show-toplevel)
 cd "$root"
 out=${1:-.cache/deploy/space}
 if [ -n "$(git status --porcelain)" ]; then
