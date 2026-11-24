@@ -65,6 +65,10 @@ def search_bot(**settings: Any) -> Controller:
     return SearchBot(**settings)
 
 
+def five_second_search_bot() -> Controller:
+    return search_bot(seconds=5.0)
+
+
 # By the name Replay files and the Match tool use, in the order the setup screen lists them.
 REGISTERED: dict[str, Registered] = {
     "random_bot": Registered("Random Bot", RandomBot, description="Picks at random. For learning the rules."),
@@ -106,6 +110,16 @@ REGISTERED: dict[str, Registered] = {
         description="Searches for a second before each pick. Very hard.",
         most_players=MODELS_PLAYERS,
         settings=("seconds", "samples", "tried", "share", "horizon", "exploration", "leaves", "margin"),
+    ),
+    # By a name of its own, as a hosted server refuses settings: on a tenth of a core, 5 s buys about half the search
+    # that 1 s buys on a whole one.
+    "search_5s": Registered(
+        "Search Bot (5 s)",
+        five_second_search_bot,
+        available=lambda: ai.value.MODEL.exists(),
+        missing="register a Value Model first: uv run python -m ai.value.loop --register",
+        description="Searches for five seconds before each pick, for slow servers. Very hard.",
+        most_players=MODELS_PLAYERS,
     ),
 }
 

@@ -345,6 +345,7 @@ interval.
 | Search Bot (1 s, on v006) vs Value Bot (v006) | 400 | 53.0% (48.1–57.8%) | 93.1 – 93.1 | 20.8 – 20.7 | 43.2 – 44.1 | 10.4 |
 | Search Bot (0.1 s, on v006) vs Value Bot (v006) | 400 | 51.5% (46.6–56.4%) | 93.4 – 92.8 | 20.9 – 20.6 | 43.5 – 43.8 | 10.4 |
 | Search Bot (1 s on v006, the likeliest Option kept unless beaten by 2 standard errors) vs Value Bot (v006) | 400 | 50.2% (45.4–55.1%) | 93.8 – 93.5 | 21.4 – 20.7 | 43.3 – 44.0 | 10.4 |
+| Search Bot (2 Sampled Positions, as many as 1 s buys on a tenth of a core) vs Value Bot | 400 | 50.2% (45.4–55.1%) | 90.2 – 90.4 | 19.3 – 18.7 | 43.7 – 43.8 | 10.2 |
 | *For reference: human Games on Board Game Arena* | 51,422 | | 106 – 87 (winner – loser) | 28 (better Player) | | 10.7 |
 
 The **Flat Playout Bot** plays each Option out to the end of the Game at random on 20 Sampled Positions and
@@ -390,7 +391,10 @@ Model rates the positions where walks stop. On the registered Value Model it bea
 57.0% of 400 Games (52.1–61.8%). On v006 itself it scored only 53.0% at 1 s and 51.5% at 0.1 s, and more time didn't
 help (a sweep of 0.1, 1 and 5 s). Keeping the Imitation Model's likeliest Option unless another beats it by 2
 standard errors (`search?margin=2`) didn't help either: 50.2%. What helped was the better-calibrated Value Model. A
-forward pass costs about 2 ms on one core, so 1 s buys only 4–10 Sampled Positions at a mid-Game Action.
+forward pass costs about 2 ms on one core, so 1 s buys only 4–10 Sampled Positions at a mid-Game Action. Over
+every Decision searched, 1 s buys a median of 14 on a whole core of the laptop, but 2 on a tenth of it, the hosted
+server's share. With 2 it only equals the registered Value Bot (50.2%). So it can also be chosen with 5 s, which buys a
+median of 7 on that tenth (ticket 17's Comments).
 
 <sub>Measured on 2026-11-16 with `uv run python -m ai.match random_bot random_bot --games 1000` and
 `uv run python -m ai.match flat_playout random_bot --games 200`, and on 2026-11-17 with
@@ -403,7 +407,8 @@ forward pass costs about 2 ms on one core, so 1 s buys only 4–10 Sampled Posit
 (2026-11-20, ticket 15's v001), and on 2026-11-21 with `uv run python -m ai.match search value --games 400
 --processes 10`, at 1 s, at `search?seconds=0.1` and with a margin of 2 (now `search?margin=2`), and on 2026-11-23
 with `uv run python -m ai.match value imitation --games 400 --processes 10` and `search` against the v006 Value Bot
-(`experiments/16/model_files.py`, ticket 16's Comments); the Match at 1,000 playouts by a script
+(`experiments/16/model_files.py`, ticket 16's Comments), and on 2026-11-24 with `uv run python -m ai.match
+"search?seconds=3600&samples=2" value --games 400 --processes 10 --first-seed 3500000`; the Match at 1,000 playouts by a script
 recorded in ticket 11's Comments. The human figures come from the Recorded Game
 archive (2 Players, Tharsis, Corporate Era, Draft and Prelude) and are not a Match against these bots.</sub>
 
@@ -449,7 +454,7 @@ against the rung below. This table is updated as the ladder is climbed.
 | Imitation Bot: Imitation Model for every Decision | ✅ | 82.2% (78.2–85.7%) | not measured | 104.1 | 11.0 | about 3 ms |
 | Value Bot: Value Model (a warm start on every Recorded Game) | ✅ | 60.5% (55.6–65.2%) | not measured | 92.5 | 10.3 | about 25 ms |
 | Search Bot: search at play time | ✅ | 57.0% (52.1–61.8%), against ticket 15's Value Bot (v006) | not measured | 93.2 | 10.3 | up to 1 s (the budget) |
-| **Against me in the GUI** | ⏳ ticket 17 | goal: win most of a fixed set of seeded Games | | | | |
+| **Against me in the GUI** | ⏳ ticket 17 | goal: win at least 6 of the first 10 Games, fixed seeds, against the Search Bot (5 s) | | | | |
 
 ### The training data
 

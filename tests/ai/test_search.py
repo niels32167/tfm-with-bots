@@ -191,3 +191,18 @@ def test_it_is_registered_once_a_value_model_is_and_its_budget_is_a_setting(valu
         make_controller("search?seconds=soon")
     with pytest.raises(ValueError, match="takes no settings"):
         make_controller("random_bot?seconds=5")
+
+
+def test_it_is_also_registered_with_five_seconds_for_slow_computers(value_path, tmp_path, monkeypatch):
+    """A hosted server refuses settings, so a longer budget needs a name of its own (ticket 17)."""
+    import ai.value
+    from ai.controllers import available, make_controller
+
+    monkeypatch.setattr(ai.value, "MODEL", tmp_path / "none-yet.pt")
+    assert "search_5s" not in available()
+
+    monkeypatch.setattr(ai.value, "MODEL", value_path)
+    assert "search_5s" in available()
+    bot = make_controller("search_5s")
+    assert isinstance(bot, SearchBot)
+    assert bot.seconds == 5.0

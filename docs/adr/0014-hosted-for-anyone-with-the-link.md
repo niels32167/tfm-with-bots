@@ -13,7 +13,8 @@ out: it needs invite links and a Player View for each human.
 On a hosted server (`python -m server --hosted`):
 - The dev panel and its state editor are off. Save and Load Replay stay.
 - Every Game needs a human, so bots don't play each other on a shared computer.
-- Bots play without settings (no `search?seconds=60`).
+- Bots play without settings (no `search?seconds=60`). Beside the Search Bot's usual 1 s there is a registered one
+  with 5 s (`search_5s`, the user's call on 2026-11-24): a tenth of a core buys 1 s too little search (README).
 - At most `THINKERS` bots think at once (1 by default), across every Visitor's Game.
 - At most 100 Visitors are kept, and one is forgotten 6 hours after closing their last connection.
 - The bots' models are loaded at startup, not when a Visitor's bot first thinks.
@@ -29,6 +30,9 @@ Measured in Docker at those limits, the server:
 - keeps a Visitor's longest wait over a Search Bot's Turn to 2.9 s in 40 s of play.
 
 Live on Render, 30 s of play against the Search Bot reached Generation 7, with a longest wait of 2.8 s.
+
+Those are for the Search Bot's usual 1 s. With 5 s, on 2026-11-24 and a tenth of the laptop's core, 200 s of play kept
+a Visitor's longest wait for one pick to 5.0 s and used 388 MB at most. Other Visitors' bots wait their turn meanwhile.
 
 **Considered options:**
 - *A Hugging Face Space.* It was prepared first. But Docker Spaces on the free hardware now need a PRO subscription
