@@ -31,3 +31,7 @@ The design is in ADR 0015. Decisions made by Claude, on the user's standing inst
 **Open points for the user:** Hotseat's unlimited undo, and the meaning of "current round" above. The hosted image is not rebuilt.
 
 **Checks:** 2,311 tests, clippy, `cargo fmt`, the GUI build, and the browser at 1440x900, 1366x650, 1000x560 and 700x700. A whole Game against a bot was not played to its end in the new GUI.
+
+### 2026-11-24 — the advice panel froze (Claude)
+
+Two tabs on one Game each ask for advice at every Decision, and the server kept one request per Game, so the later one cancelled the other's, whose panel stayed on "Thinking…". Each connection now has its own (`test_two_tabs_on_the_same_game_are_both_answered`). One tab asking at every Decision of a whole Game against the Value Bot (177) was answered every time, in 0.19 s at most.

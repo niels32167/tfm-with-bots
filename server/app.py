@@ -119,7 +119,8 @@ class GameHost:
         self.session: GameSession | None = None
         self.connections: set[WebSocket] = set()
         self.controller_task: asyncio.Task | None = None
-        self.advice_task: asyncio.Task | None = None
+        # The advice each connection waits for: each tab asks for its own.
+        self.advice_tasks: dict[WebSocket, asyncio.Task] = {}
         # The card catalog never changes, so it is read from the engine once.
         self.card_catalog_message = {"type": "card_catalog", "cards": tm_engine.card_catalog()}
 
@@ -133,6 +134,8 @@ class GameHost:
 
     def leave(self, websocket: WebSocket) -> None:
         self.connections.discard(websocket)
+        if websocket in self.advice_tasks:
+            self.advice_tasks.pop(websocket).cancel()
 
     async def handle(self, websocket: WebSocket, message: dict[str, Any]) -> None:
         try:
@@ -209,12 +212,12 @@ class GameHost:
         await self.share_news()
 
     def ask_for_advice(self, websocket: WebSocket, sequence: int, name: str) -> None:
-        """Has the registered Controller `name` think about the human's Decision, and send its advice. The advice asked
-        for before is no longer waited for: if its thread has begun, it finishes unheard."""
+        """Has the registered Controller `name` think about the human's Decision, and send its advice. The advice this
+        connection asked for before is no longer waited for: if its thread has begun, it finishes unheard."""
         find = self.current_session().adviser(sequence, name)
-        if self.advice_task is not None:
-            self.advice_task.cancel()
-        self.advice_task = asyncio.create_task(self.give_advice(websocket, find, name))
+        if websocket in self.advice_tasks:
+            self.advice_tasks[websocket].cancel()
+        self.advice_tasks[websocket] = asyncio.create_task(self.give_advice(websocket, find, name))
 
     async def give_advice(self, websocket: WebSocket, find: Callable[[], dict[str, Any]], name: str) -> None:
         try:
@@ -235,10 +238,10 @@ class GameHost:
             # rather than wait for it. A Controller still thinking in its thread finishes, unheard.
             self.controller_task.cancel()
             self.controller_task = None
-        if self.advice_task is not None:
-            # It was about the Game as it was.
-            self.advice_task.cancel()
-            self.advice_task = None
+        # Advice being found is about the Game as it was.
+        for task in self.advice_tasks.values():
+            task.cancel()
+        self.advice_tasks.clear()
 
     async def share_news(self) -> None:
         """Sends what changed, then lets the registered Controllers pick if the Decision is theirs."""

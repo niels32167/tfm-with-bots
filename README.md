@@ -74,7 +74,7 @@ or AI Controllers.
   consistent with what it knows. Tests check that a hidden card never changes a Sampled Position.
 - **Reproducible down to the pick.** Every Game comes from a seed and is stored as a Replay (its start
   and the index of each Option picked). Any Game, bug or Match can be loaded again at any step.
-- **Tested heavily.** 2,311 tests, scenario tests that read like play, a scenario test for every card,
+- **Tested heavily.** 2,312 tests, scenario tests that read like play, a scenario test for every card,
   and a fuzzer that plays 100,000 random Games and checks rule invariants after every Decision.
 - **A game you can actually play.** A browser GUI laid out like Board Game Arena's, with Undo, Save and
   Load Replay, a card gallery, a bot's advice on each of your Decisions, and a dev panel for hunting rule bugs.

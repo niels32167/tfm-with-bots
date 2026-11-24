@@ -5,10 +5,12 @@ import time
 from typing import ClassVar
 
 import pytest
+from fastapi.testclient import TestClient
 
 from ai.advice import PRICE, Advice
 from ai.controller import Handle
 from ai.controllers import REGISTERED, Registered
+from server.app import create_app
 from tests.helpers import player
 from tests.server.helpers import Gui, connect
 
@@ -159,3 +161,23 @@ def test_advice_that_cant_be_given_is_refused():
         assert "stale" in gui.receive_error()
         gui.send({"type": "advice", "sequence": update["decision"]["sequence"], "controller": "broken"})
         assert "out of ideas" in gui.receive_error()
+
+
+def test_two_tabs_on_the_same_game_are_both_answered():
+    with (
+        TestClient(create_app()) as client,
+        client.websocket_connect("/ws") as one,
+        client.websocket_connect("/ws") as two,
+    ):
+        tabs = [Gui(one), Gui(two)]
+        tabs[0].load({"players": [player(), player()]})
+        tabs[1].wait_for_human()
+        for tab in tabs:
+            tab.send({"type": "advice", "sequence": 0, "controller": "slow"})
+        time.sleep(1.5)
+        # Anything the server answers a tab with comes after its advice, so that a tab left without fails, not hangs.
+        for tab in tabs:
+            tab.send({"type": "save_replay"})
+        answers = [tab.receive()["type"] for tab in tabs]
+
+    assert answers == ["advice", "advice"]
