@@ -154,8 +154,8 @@ impl Game {
     }
 
     /// Once a Prelude Card is done, the current Player plays their next: with two left they choose
-    /// which, and the last they play without a Decision. With none left, the next Player plays theirs.
-    /// Played as a first action (Valley Trust), the Action ends instead.
+    /// which, and the last they play without a Decision, unless the Game asks for it (see `Settings`).
+    /// With none left, the next Player plays theirs. Played as a first action (Valley Trust), the Action ends instead.
     pub(crate) fn play_next_prelude_card(&mut self) {
         if self.phase != Phase::PreludeCards {
             return self.finish_action();
@@ -163,7 +163,9 @@ impl Game {
         let kept = self.players[self.current_player].prelude_cards.kept;
         match kept.len() {
             0 => self.offer_prelude_cards_from(self.index_in_player_order() + 1),
-            1 => self.play_prelude_card(kept.iter().next().expect("one is left")),
+            1 if !self.settings.ask_last_prelude_card => {
+                self.play_prelude_card(kept.iter().next().expect("one is left"))
+            }
             _ => {}
         }
     }

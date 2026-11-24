@@ -5,6 +5,7 @@ import { isYou, PLAYER_COLOURS } from "../players";
 import type { Card, Decision, DecisionOption } from "../types";
 import type { GameUpdate } from "../useGameServer";
 import { notImplementedNote, useCardsById } from "./catalog";
+import type { Selection } from "./choosing";
 import { PrintedCard } from "./PrintedCard";
 
 interface Props {
@@ -14,6 +15,10 @@ interface Props {
   /** True while a pick is on its way to the server. */
   disabled: boolean;
   onPick: (sequence: number, index: number) => void;
+  /** The cards toggled to sell or discard, which are sent together with Done. */
+  selection: Selection;
+  /** The cards the bot would choose. */
+  advised: string[];
   folded: boolean;
   onFold: (folded: boolean) => void;
 }
@@ -22,8 +27,8 @@ interface Props {
  * and outlined, and the hint the hand shows while they are offered. */
 export const HAND_OPTIONS: Record<string, { verb: string; className: string; hint: string }> = {
   play_card: { verb: "Play", className: "playable", hint: "Click a highlighted card to play it" },
-  sell_card: { verb: "Sell", className: "sellable", hint: "Click a card to sell it" },
-  discard_card: { verb: "Discard", className: "discardable", hint: "Click a card to discard it and draw one" },
+  sell_card: { verb: "Sell", className: "sellable", hint: "Click the cards to sell, then Done" },
+  discard_card: { verb: "Discard", className: "discardable", hint: "Click a card to discard for another" },
 };
 
 /** The Options picked by clicking a card in the hand: playing it, selling it with Sell
@@ -36,10 +41,10 @@ export function handOptions(decision: Decision | null): Map<string, DecisionOpti
 /** The hand, docked at the bottom of the window so it is always in reach. Only the tops of the
  * cards show (cost, Tags, title); pointing at one enlarges it (`CardZoom`), and pointing at the dock's
  * header raises the dock over the board with every card whole, until the mouse leaves it. Cards that can be played
- * or sold now are outlined and clicked to do so. In the full view (Hotseat, or no human)
+ * now are outlined and clicked to do so; those to sell or discard are toggled. In the full view (Hotseat, or no human)
  * a tab per Player picks whose hand to show, following the Player deciding. It folds away to a
  * single line. */
-export function HandDock({ game, cards, disabled, onPick, folded, onFold }: Props) {
+export function HandDock({ game, cards, disabled, onPick, selection, advised, folded, onFold }: Props) {
   const catalog = useCardsById(cards);
   // A hand picked by its tab, for as long as the same Player is deciding.
   const [picked, setPicked] = useState<{ player: number; whileDeciding: number | null } | null>(null);
@@ -102,17 +107,23 @@ export function HandDock({ game, cards, disabled, onPick, folded, onFold }: Prop
             const option = options.get(id);
             if (decision && option) {
               const { verb, className } = HAND_OPTIONS[option.details.type];
+              // Cards to sell or discard are toggled; one to play, or to discard for Olympus Conference, is clicked.
+              const toggles = selection.offers(id);
+              const chosen = selection.chosen.includes(id);
               return (
                 <div key={id} className="hand-slot">
                   <button
-                    className={`small-card in-dock ${className}`}
+                    className={`small-card in-dock ${className} ${chosen ? "chosen" : ""}`}
                     disabled={disabled}
                     aria-label={`${verb} ${card.name}`}
-                    onClick={() => onPick(decision.sequence, option.index)}
+                    aria-pressed={toggles ? chosen : undefined}
+                    onClick={() => (toggles ? selection.toggle(id) : onPick(decision.sequence, option.index))}
                     data-zoom-card={id}
                     data-zoom-cost={costs[id]}
                   >
                     <PrintedCard card={card} cost={costs[id]} />
+                    {chosen && <span className="card-ribbon chosen">✓</span>}
+                    {advised.includes(id) && <span className="card-ribbon advised">Bot's pick</span>}
                   </button>
                 </div>
               );

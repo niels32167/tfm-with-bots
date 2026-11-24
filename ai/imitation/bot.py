@@ -11,6 +11,7 @@ from pathlib import Path
 import torch
 
 import ai.imitation
+from ai.advice import STRONG_PLAYERS, Advice
 from ai.card_economy import CardEconomyBot, Explanation, PricedOption
 from ai.controller import Handle
 from ai.imitation.encoded import Position
@@ -64,6 +65,15 @@ class ImitationBot:
             return self.card_economy.pick(handle)
         chances = self.chances(handle)
         return chances.index(max(chances))
+
+    def advise(self, handle: Handle) -> Advice:
+        """For the Decisions it answers, the chance that a strong Player picks each Option; the Card Economy Bot's
+        advice for the rest."""
+        if not self.answers(handle):
+            return self.card_economy.advise(handle)
+        chances = self.chances(handle)
+        measured: dict[int, list[float | None]] = {index: [chance] for index, chance in enumerate(chances)}
+        return Advice(chances.index(max(chances)), (STRONG_PLAYERS,), measured)
 
     def explain(self, handle: Handle) -> Explanation:
         """For the Decisions it answers, every Option with the model's chance (in percent) that a strong Player

@@ -66,6 +66,12 @@ def handle_for(game: tm_engine.Game, random_numbers: random.Random) -> Handle:
     return Handle(player, game.player_view(player), decision, random_numbers, game.sampler(player))
 
 
+def last_prelude_card(decision: dict[str, Any]) -> bool:
+    """Whether `decision` is only to play a last Prelude Card, as a Game at a human's screen asks it and any other Game
+    plays it at once (ADR 0015). A Controller looking ahead picks it as a follow-up, so that both Games look alike."""
+    return decision["kind"] == "play_prelude_card" and len(decision["options"]) == 1
+
+
 @functools.cache
 def card_catalog() -> dict[str, dict[str, Any]]:
     """The card catalog by card id: every card's printed data, which every Player may read. For

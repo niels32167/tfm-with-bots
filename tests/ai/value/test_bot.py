@@ -12,6 +12,7 @@ import pytest
 import tm_engine
 import torch
 
+from ai.card_economy import CardEconomyBot
 from ai.controller import handle_for
 from ai.imitation.model import ImitationModel, ModelShape, save_model
 from ai.value.bot import ValueBot
@@ -208,3 +209,31 @@ def test_a_value_model_moved_to_another_computer_finds_its_policy_in_the_models_
     from ai.imitation.bot import loaded
 
     assert ValueBot(path).policy.model is loaded(models / "imitation.pt")
+
+
+def playing_prelude_cards(*, asked: bool):
+    """The same Game both ways: a Player choosing which Prelude Card to play first."""
+    scenario = {
+        "players": [{"prelude_cards": ["donation", "loan"]}, {"prelude_cards": ["supplier", "mohole"]}],
+        "prelude": True,
+        "ask_last_prelude_card": asked,
+    }
+    return tm_engine.Game.from_scenario(scenario)
+
+
+def test_a_prelude_card_is_rated_once_the_last_one_is_played_whether_or_not_the_game_asks_for_it(value_path):
+    bot = ValueBot(value_path, samples=2, share=0.0)
+
+    rated = [bot.rated(handle_for(playing_prelude_cards(asked=asked), random.Random(0))) for asked in (False, True)]
+
+    assert len(rated[0]) == 2
+    assert rated[0] == rated[1]
+
+
+def test_the_card_economy_bot_prices_a_prelude_card_once_the_last_one_is_played_either_way():
+    explained = [
+        CardEconomyBot().explain(handle_for(playing_prelude_cards(asked=asked), random.Random(0)))
+        for asked in (False, True)
+    ]
+
+    assert explained[0] == explained[1]

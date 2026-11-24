@@ -11,6 +11,10 @@ export const HUMAN: ControllerName = "human";
 export interface ControllerOnOffer {
   name: ControllerName;
   label: string;
+  /** What it does, in a few words. */
+  description: string;
+  /** The most Players a Game it plays in has. */
+  most_players: number;
 }
 
 export interface OptionDetails {
@@ -359,6 +363,8 @@ export interface Replay {
           corporations: boolean;
           /** Only in a Replay of a Game with Prelude. */
           prelude?: boolean;
+          /** Only in a Replay of a Game that asks for each Player's last Prelude Card. */
+          ask_last_prelude_card?: boolean;
         };
       }
     | { scenario: { seed: number } };
@@ -415,6 +421,8 @@ export interface Scenario {
   draft: boolean;
   /** Only in a Scenario with Prelude. */
   prelude?: boolean;
+  /** Only in a Scenario of a Game that asks for each Player's last Prelude Card. */
+  ask_last_prelude_card?: boolean;
 }
 
 /** The dev panel's look at one step of the Game: it never changes the Game, and only the GUI that
@@ -478,14 +486,50 @@ export interface Update {
   seed: number;
   /** Seconds each registered Controller's pick takes at least, where there is something to follow. */
   bot_delay: number;
-  /** Whether there is an earlier human Decision to go back to. */
+  /** Whether a human's last Decision can still be taken back. */
   can_undo: boolean;
+  /** Whether the human has taken their Turn, and the bots wait for them to end it. */
+  turn_over: boolean;
+  /** The bots a human may ask what they would do, the one suggested first. */
+  advisers: ControllerName[];
   view: View;
   /** The current Decision, only when a human must answer it. */
   decision: Decision | null;
   /** Index of the first game log line in `log`; earlier lines were sent before. */
   log_start: number;
   log: string[];
+}
+
+/** A pick that would draw or look at cards, which can't be taken back: what its button says. */
+export interface ConfirmPick {
+  sequence: number;
+  index: number;
+  /** "Draw 2 cards". */
+  label: string;
+}
+
+/** What a bot would do at a human's Decision. */
+export interface Advice {
+  /** The Decision it is about. */
+  sequence: number;
+  controller: ControllerName;
+  /** The cards it would choose, where the Decision asks for cards: at setup, all of them. */
+  cards: string[];
+  /** What it would do at the Decision, and at setup at those that follow. */
+  decisions: AdvisedDecision[];
+}
+
+export interface AdvisedDecision {
+  /** The Decision's kind. */
+  kind: string;
+  /** The index of the Option it would pick. */
+  picked: number;
+  /** What the Options are rated by. */
+  measures: { name: string; percent: boolean }[];
+  /** The best Options, best first, with what each measure says of it, or null for nothing. */
+  options: { index: number; label: string; measured: (number | null)[] }[];
+  /** How many more Options there are. */
+  more: number;
 }
 
 export type ServerMessage =
@@ -497,6 +541,8 @@ export type ServerMessage =
       hosted: boolean;
     }
   | Update
+  | ({ type: "confirm_pick" } & ConfirmPick)
+  | ({ type: "advice" } & Advice)
   | { type: "game_over"; scores: Score[] }
   | { type: "replay_file"; file: ReplayFile }
   | ({ type: "dev_view" } & DevView)
@@ -515,7 +561,10 @@ export interface NewGameSettings {
 
 export type ClientMessage =
   | ({ type: "new_game" } & NewGameSettings)
-  | { type: "pick"; sequence: number; index: number }
+  | { type: "pick"; sequence: number; index: number; ask_before_drawing?: boolean }
+  | { type: "choose_cards"; sequence: number; cards: string[] }
+  | { type: "end_turn" }
+  | { type: "advice"; sequence: number; controller: ControllerName }
   | { type: "undo" }
   | { type: "save_replay" }
   | { type: "load_replay"; file: unknown; bot_delay: number }

@@ -23,8 +23,8 @@ interface Props {
   onCancel?: () => void;
 }
 
-/** The new-Game screen: Players, their Controllers, the seed, how fast bots pick, whether the
- * Research phases have the Draft, and whether the Game has Prelude. */
+/** The intro and new-Game screen: Players and who controls each, whether the Research phases have the Draft and the Game
+ * Prelude, the seed and how fast bots pick. */
 export function NewGameSetup({
   offered,
   initialControllers,
@@ -48,6 +48,9 @@ export function NewGameSetup({
 
   const controllers = allControllers.slice(0, playerCount);
   const seed = parseSeed(seedText);
+  const cantPlay = controllers
+    .map((name) => offered.find((candidate) => candidate.name === name))
+    .find((candidate) => candidate !== undefined && candidate.most_players < playerCount);
 
   const setController = (player: number, controller: ControllerName) =>
     setAllControllers((previous) => previous.map((old, index) => (index === player ? controller : old)));
@@ -64,88 +67,105 @@ export function NewGameSetup({
   };
 
   return (
-    <main className="splash">
+    <main className="intro">
+      <div className="intro-planet" aria-hidden />
+      <header className="intro-title">
+        <h1>
+          <span>Terraforming</span> Mars
+        </h1>
+        <p>
+          Warm the planet, make its air breathable and fill its oceans. Lead a Corporation, and outdo your rivals by the
+          time Mars is a world to live on.
+        </p>
+      </header>
+
       <div className="setup">
-        <h1>New Game</h1>
+        <h2 className="setup-title">New Game</h2>
 
         <section className="setup-section" aria-labelledby="setup-players">
-          <h2 id="setup-players">Players</h2>
-          <div className="segmented" role="group" aria-label="Number of Players">
-            {PLAYER_COUNTS.map((count) => (
-              <button
-                key={count}
-                className={count === playerCount ? "selected" : ""}
-                aria-pressed={count === playerCount}
-                onClick={() => setPlayerCount(count)}
-              >
-                {count}
-              </button>
-            ))}
+          <div className="setup-row">
+            <h3 id="setup-players">Players</h3>
+            <div className="segmented" role="group" aria-label="Number of Players">
+              {PLAYER_COUNTS.map((count) => (
+                <button
+                  key={count}
+                  className={count === playerCount ? "selected" : ""}
+                  aria-pressed={count === playerCount}
+                  onClick={() => setPlayerCount(count)}
+                >
+                  {count}
+                </button>
+              ))}
+            </div>
           </div>
           <ol className="setup-players">
             {controllers.map((controller, player) => (
-              <li key={player} className="setup-player">
-                <span className="player-dot" style={{ background: PLAYER_COLOURS[player] }} />
-                <span className="setup-player-name">Player {player + 1}</span>
-                <div className="segmented" role="group" aria-label={`Player ${player + 1}'s Controller`}>
-                  {offered.map((candidate) => (
-                    <button
-                      key={candidate.name}
-                      className={candidate.name === controller ? "selected" : ""}
-                      aria-pressed={candidate.name === controller}
-                      onClick={() => setController(player, candidate.name)}
-                    >
-                      {candidate.label}
-                    </button>
-                  ))}
-                </div>
+              <li key={player} className="setup-player" style={{ borderLeftColor: PLAYER_COLOURS[player] }}>
+                <label htmlFor={`controller-${player}`}>Player {player + 1}</label>
+                <select
+                  id={`controller-${player}`}
+                  value={controller}
+                  onChange={(event) => setController(player, event.target.value)}
+                >
+                  <ControllerOptions offered={offered} chosen={controller} players={playerCount} />
+                </select>
+                <p className="setup-hint">{offered.find((candidate) => candidate.name === controller)?.description}</p>
               </li>
             ))}
           </ol>
-          <p className="setup-hint">{viewHint(controllers)}</p>
+          {cantPlay ? (
+            <p className="setup-error">
+              The {cantPlay.label} plays only in {cantPlay.most_players}-Player Games.
+            </p>
+          ) : (
+            <p className="setup-hint">{viewHint(controllers)}</p>
+          )}
         </section>
 
-        <section className="setup-section setup-row">
-          <label className="setup-seed">
-            Seed{" "}
-            <input
-              type="text"
-              inputMode="numeric"
-              placeholder="random"
-              value={seedText}
-              aria-invalid={seed === "invalid"}
-              onChange={(event) => setSeedText(event.target.value.trim())}
-            />
-          </label>
-          <BotSpeedSelect delay={botDelay} onChange={setBotDelay} />
-        </section>
-        <section className="setup-section">
-          <label className="setup-checkbox">
-            <input type="checkbox" checked={draft} onChange={(event) => setDraft(event.target.checked)} />
-            Draft
-          </label>
-          <p className="setup-hint">
-            From Generation 2, each Player is dealt 4 cards, keeps one and passes the rest on, until every card is
-            kept; then they buy from the cards they kept. Off, each Player draws 4 cards to buy from.
-          </p>
-        </section>
-        <section className="setup-section">
+        <section className="setup-section setup-switches">
           <label className="setup-checkbox">
             <input type="checkbox" checked={prelude} onChange={(event) => setPrelude(event.target.checked)} />
-            Prelude
+            <span>
+              Prelude
+              <small>Keep 2 of 4 Prelude Cards at setup for a faster start, and play with Prelude's cards.</small>
+            </span>
           </label>
-          <p className="setup-hint">
-            At setup, each Player is also dealt 4 Prelude Cards and keeps 2, which they play before Generation 1's
-            first Turn; Prelude's Project Cards join the deck and its Corporations the deal.
-          </p>
+          <label className="setup-checkbox">
+            <input type="checkbox" checked={draft} onChange={(event) => setDraft(event.target.checked)} />
+            <span>
+              Draft
+              <small>From Generation 2, pick cards one at a time from hands passed around.</small>
+            </span>
+          </label>
         </section>
-        {seed === "invalid" && (
-          <p className="setup-error">
-            A seed is a whole number from 0 to {Number.MAX_SAFE_INTEGER}; leave it empty for a random one.
-          </p>
-        )}
+
+        <details className="setup-more">
+          <summary>More options</summary>
+          <div className="setup-row">
+            <label className="setup-seed">
+              Seed{" "}
+              <input
+                type="text"
+                inputMode="numeric"
+                placeholder="random"
+                value={seedText}
+                aria-invalid={seed === "invalid"}
+                onChange={(event) => setSeedText(event.target.value.trim())}
+              />
+            </label>
+            <BotSpeedSelect delay={botDelay} onChange={setBotDelay} />
+          </div>
+          {seed === "invalid" && (
+            <p className="setup-error">
+              A seed is a whole number from 0 to {Number.MAX_SAFE_INTEGER}; leave it empty for a random one.
+            </p>
+          )}
+        </details>
         {error && <p className="setup-error">{error}</p>}
 
+        <button className="option setup-start" disabled={seed === "invalid" || cantPlay !== undefined} onClick={start}>
+          Start Game
+        </button>
         <div className="setup-buttons">
           {onCancel && (
             <button className="link-button" onClick={onCancel}>
@@ -154,12 +174,34 @@ export function NewGameSetup({
           )}
           <CardsButton onClick={onShowCards} />
           <LoadReplayButton className="link-button" onLoad={(file) => onLoad(file, botDelay)} />
-          <button className="option big" disabled={seed === "invalid"} onClick={start}>
-            Start Game
-          </button>
         </div>
       </div>
     </main>
+  );
+}
+
+interface ControllerOptionsProps {
+  offered: ControllerOnOffer[];
+  chosen: ControllerName;
+  players: number;
+}
+
+/** The Controllers to choose from in a drop-down: a human, then the bots as the server lists them.
+ * Those that don't play in Games of this many `players` can't be chosen. */
+function ControllerOptions({ offered, chosen, players }: ControllerOptionsProps) {
+  const option = ({ name, label, most_players: most }: ControllerOnOffer) => (
+    <option key={name} value={name} disabled={most < players}>
+      {most < players ? `${label} (${most} Players only)` : label}
+    </option>
+  );
+  const known = offered.some((candidate) => candidate.name === chosen);
+  return (
+    <>
+      {offered.filter(({ name }) => name === HUMAN).map(option)}
+      <optgroup label="Bots">{offered.filter(({ name }) => name !== HUMAN).map(option)}</optgroup>
+      {/* A Controller with settings, as a Replay file may name one. */}
+      {!known && <option value={chosen}>{chosen}</option>}
+    </>
   );
 }
 

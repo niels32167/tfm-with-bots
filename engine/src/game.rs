@@ -102,6 +102,12 @@ pub struct Settings {
     /// without Prelude saves as it did.
     #[serde(default, skip_serializing_if = "std::ops::Not::not")]
     pub prelude: bool,
+    /// Whether the last Prelude Card a Player plays after setup is a Decision of its own, with one
+    /// Option, rather than played as soon as the one before is done. Off unless named: only a Game at a
+    /// human's screen has it on (ADR 0015), so a Replay saved before plays as it did, and only a Replay
+    /// that has it on names it.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub ask_last_prelude_card: bool,
     /// The first player and the cards in the order dealt and drawn, chosen instead of shuffled, to
     /// replay a Recorded Game. Only a Game that has one names it. Boxed, so that copying a Game without
     /// one stays as cheap as before (ADR 0004).

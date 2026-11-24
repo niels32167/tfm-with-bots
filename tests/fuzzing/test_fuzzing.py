@@ -28,6 +28,7 @@ def test_fuzzed_games_cover_2_to_5_players_and_the_draft_and_prelude_on_and_off(
     assert [each["players"] for each in settings] == [2, 3, 4, 5] * 4
     assert [each["draft"] for each in settings] == ([True] * 4 + [False] * 4) * 2
     assert [each["prelude"] for each in settings] == [False] * 8 + [True] * 8
+    assert {settings_for(seed)["ask_last_prelude_card"] for seed in (8, 15, 24, 31)} == {False, True}
 
 
 def test_fuzzed_games_play_every_corporation():

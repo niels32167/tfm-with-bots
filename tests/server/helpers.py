@@ -1,6 +1,6 @@
 """Helpers for talking to the local server over its WebSocket, the way the GUI does."""
 
-from collections.abc import Iterator
+from collections.abc import Iterator, Sequence
 from contextlib import contextmanager
 from typing import Any
 
@@ -57,12 +57,17 @@ class Gui:
         return self._receive_until(lambda message: message["type"] == "update", "an update")
 
     def wait_for_human(self) -> dict[str, Any]:
-        """Updates until a human must answer a Decision or the Game is over; returns that update."""
-        return self._receive_until(
-            lambda message: message["type"] == "update"
-            and (message["decision"] is not None or message["view"]["phase"] == "over"),
-            "a human Decision",
-        )
+        """Updates until a human must answer a Decision or the Game is over, ending the human's Turn once it
+        is over; returns that update."""
+
+        def wanted(message: dict[str, Any]) -> bool:
+            if message["type"] != "update":
+                return False
+            if message["turn_over"]:
+                self.send({"type": "end_turn"})
+            return message["decision"] is not None or message["view"]["phase"] == "over"
+
+        return self._receive_until(wanted, "a human Decision")
 
     def save_replay(self) -> dict[str, Any]:
         """Asks for the Replay file of the current Game and returns it."""
@@ -104,12 +109,22 @@ class Gui:
                 update = self.wait_for_human()
         raise AssertionError(f"still drafting or buying after {MAX_MESSAGES} picks")
 
-    def pick(self, update: dict[str, Any], label: str) -> None:
+    def load(self, scenario: dict[str, Any], controllers: Sequence[str] = ("human", "random_bot")) -> dict[str, Any]:
+        """Starts a Game from a Scenario; returns the first update in which a human must decide."""
+        file = {"controllers": list(controllers), "replay": {"start": {"scenario": scenario}, "picks": []}}
+        self.send({"type": "load_replay", "file": file, "bot_delay": 0})
+        return self.wait_for_human()
+
+    def choose(self, update: dict[str, Any], cards: list[str]) -> None:
+        """Chooses `cards` (their ids), and is done, in answer to `update`'s Decision."""
+        self.send({"type": "choose_cards", "sequence": update["decision"]["sequence"], "cards": cards})
+
+    def pick(self, update: dict[str, Any], label: str, **fields: Any) -> None:
         """Picks the one Option in `update`'s Decision whose label contains `label`."""
         decision = update["decision"]
         found = matching_options(decision["options"], label)
         assert len(found) == 1, f"expected one Option matching {label!r}, offered: {decision['options']}"
-        self.send({"type": "pick", "sequence": decision["sequence"], "index": found[0]["index"]})
+        self.send({"type": "pick", "sequence": decision["sequence"], "index": found[0]["index"], **fields})
 
     def undo(self) -> dict[str, Any]:
         self.send({"type": "undo"})

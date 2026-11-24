@@ -23,11 +23,12 @@ import torch
 
 import ai.imitation
 import ai.value
+from ai.advice import STRONG_PLAYERS, WINS, Advice
 from ai.controller import Handle
 from ai.imitation.bot import ImitationBot
 from ai.imitation.encoded import Position
 from ai.imitation.model import load_model
-from ai.value.encoded import FOLLOW_UPS, result_of, view_position
+from ai.value.encoded import is_follow_up, result_of, view_position
 from ai.value.model import ValueModel, chances_of_winning
 
 # The Options tried and the Sampled Positions each is tried on, by default: about 30 ms a Decision on one core.
@@ -82,6 +83,14 @@ class ValueBot:
         rated = self.rated(handle, tried)
         return max(rated, key=lambda index: rated[index])  # The likeliest first, so it wins a tie.
 
+    def advise(self, handle: Handle) -> Advice:
+        """The chance of winning of the Options tried, and for every Option the chance that a strong Player picks it."""
+        chances = self.policy.chances(handle)
+        rated = self.rated(handle, narrowed(chances, self.tried, self.share))
+        picked = max(rated, key=lambda index: rated[index])
+        measured = {index: [rated.get(index), chance] for index, chance in enumerate(chances)}
+        return Advice(picked, (WINS, STRONG_PLAYERS), measured)
+
     def likeliest(self, handle: Handle) -> list[int]:
         """The Options tried: of the `tried` the Imitation Model rates likeliest, those it gives at least `share` of the
         likeliest Option's chance, likeliest first."""
@@ -89,7 +98,7 @@ class ValueBot:
 
     def trials(self, handle: Handle, tried: list[int] | None = None) -> list[tuple[int, Any]]:
         """Each Option tried (by default the `likeliest`) on each Sampled Position (a Game), once the Decisions that
-        follow from it in its Player's chain (FOLLOW_UPS) are answered as the Imitation Model rates likeliest: by
+        follow from it in its Player's chain (`follows_up`) are answered as the Imitation Model rates likeliest: by
         Sampled Position, then Option."""
         tried = self.likeliest(handle) if tried is None else tried
         samples = [handle.sample(seed=handle.random.randrange(SEEDS)) for _ in range(self.samples)]
@@ -134,5 +143,5 @@ def narrowed(chances: list[float], tried: int, share: float) -> list[int]:
 
 
 def follows_up(decision: dict[str, Any] | None, player: int) -> bool:
-    """Whether `decision` is `player`'s and follows from the one before (FOLLOW_UPS)."""
-    return decision is not None and decision["player"] == player and decision["kind"] in FOLLOW_UPS
+    """Whether `decision` is `player`'s and follows from the one before (ai.value.encoded.is_follow_up)."""
+    return decision is not None and decision["player"] == player and is_follow_up(decision)

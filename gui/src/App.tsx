@@ -1,10 +1,14 @@
 import { useEffect, useState } from "react";
 
+import { advisedOption, cardsAdvised, useAdvice, useAdviceSwitch } from "./advice";
 import { BuyingPanel, cardsShownFor } from "./cards/BuyingPanel";
+import { useCardsById } from "./cards/catalog";
+import { choiceFor, choiceState, useSelection } from "./cards/choosing";
 import { CardGallery } from "./cards/CardGallery";
 import { CardZoom } from "./cards/CardZoom";
 import { HandDock, handOptions } from "./cards/HandDock";
 import { PlayedCards } from "./cards/PlayedCards";
+import { AdvicePanel } from "./components/AdvicePanel";
 import { DEFAULT_BOT_DELAY } from "./components/BotSpeedSelect";
 import { DevPanel } from "./components/DevPanel";
 import { FinalScores } from "./components/FinalScores";
@@ -44,6 +48,20 @@ export function App() {
   }, [devView]);
   // Which Game the dev panel looks at: another one starts it afresh, without an old position to edit.
   const [devPanelKey, setDevPanelKey] = useState(0);
+
+  // The cards toggled for a Decision that asks for some, and what the bot asked would do.
+  const catalog = useCardsById(server.cards);
+  const choice = game ? choiceFor(game, catalog) : null;
+  const selection = useSelection(choice, server.gameNumber);
+  const [adviceSwitch, setAdviceSwitch] = useAdviceSwitch();
+  const { bot, advice } = useAdvice(
+    game,
+    server.gameNumber,
+    adviceSwitch.on,
+    adviceSwitch.bot,
+    server.advice,
+    server.askForAdvice,
+  );
 
   // The hand unfolds when a new Decision lets a card in it be played or sold; it can be folded again.
   const handHasOptions = handOptions(game?.decision ?? null).size > 0;
@@ -129,8 +147,12 @@ export function App() {
   const scores = shown.view.scores;
   // True while a pick is on its way to the server.
   const picking = pickedSequence === shown.decision?.sequence;
+  const shownChoice = shown.decision && choice ? choiceState(choice, selection.chosen, catalog) : null;
+  const advisedCards = shown.decision && advice ? cardsAdvised(advice, shown.decision) : [];
+  // At setup there is no hand yet, so its dock leaves its room to the cards to choose from.
+  const handDockFolded = handFolded || shown.view.phase === "setup";
   return (
-    <div className={`game ${handFolded ? "hand-dock-folded" : ""} ${devPanelOpen ? "dev-panel-open" : ""}`}>
+    <div className={`game ${handDockFolded ? "hand-dock-folded" : ""} ${devPanelOpen ? "dev-panel-open" : ""}`}>
       <TopBar
         game={shown}
         onShowScores={scores && !showScores ? () => setShowScores(true) : undefined}
@@ -139,6 +161,8 @@ export function App() {
         onSaveReplay={server.saveReplay}
         onLoadReplay={(file) => loadReplay(file, game.bot_delay)}
         onBotDelay={server.setBotDelay}
+        adviceOn={adviceSwitch.on}
+        onToggleAdvice={() => setAdviceSwitch({ ...adviceSwitch, on: !adviceSwitch.on })}
         devPanelOpen={devPanelOpen}
         onToggleDevPanel={
           server.hosted ? undefined : () => (devPanelOpen ? closeDevPanel() : setDevPanelOpen(true))
@@ -162,17 +186,42 @@ export function App() {
               disabled={picking}
               onPick={server.pick}
               onUndo={server.undo}
+              choice={shownChoice}
+              onChoose={() => choice && server.chooseCards(choice.decision.sequence, selection.chosen)}
+              confirming={server.confirming}
+              onConfirm={server.confirmPick}
+              onCancel={server.cancelPick}
+              onEndTurn={server.endTurn}
+              advised={advisedOption(advice)}
             />
           )}
           <main className="board-area">
             {cardsShownFor(shown) !== null && (
-              <BuyingPanel game={shown} cards={server.cards} disabled={picking} onPick={server.pick} />
+              <BuyingPanel
+                game={shown}
+                cards={server.cards}
+                disabled={picking}
+                selection={selection}
+                choice={shownChoice}
+                advised={advisedCards}
+              />
             )}
             <MarsBoard game={shown} cards={server.cards} disabled={picking} onPick={server.pick} />
           </main>
           <PlayedCards game={shown} cards={server.cards} disabled={picking} onPick={server.pick} />
         </div>
         <aside className="side-panel">
+          {adviceSwitch.on && !lookingBack && (
+            <AdvicePanel
+              game={shown}
+              cards={server.cards}
+              offered={server.controllers}
+              bot={bot}
+              advice={advice}
+              onBot={(chosen) => setAdviceSwitch({ on: true, bot: chosen })}
+              onClose={() => setAdviceSwitch({ ...adviceSwitch, on: false })}
+            />
+          )}
           <GlobalReadings view={shown.view} />
           <PlayerBoards game={shown} cards={server.cards} offered={server.controllers} />
           <GameLog log={lookingBack ? devView.log : log} players={shown.view.players.map((board) => board.name)} />
@@ -183,7 +232,9 @@ export function App() {
         cards={server.cards}
         disabled={picking}
         onPick={server.pick}
-        folded={handFolded}
+        selection={selection}
+        advised={advisedCards}
+        folded={handDockFolded}
         onFold={setHandFolded}
       />
       {scores && showScores && (

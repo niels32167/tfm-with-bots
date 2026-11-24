@@ -13,7 +13,7 @@ walk down it, so that what the Player can't see is averaged over rather than kno
   likelier. A `margin` of 0 picks the best mean outright. This is ticket 15's lesson, that the Value Model's errors
   shouldn't overrule a confident Imitation Model, applied to the search.
 - **A walk** picks the Option, then answers what follows:
-  - follow-ups of anyone's (ai.value.encoded.FOLLOW_UPS: Payment, Area, target...) as the Imitation Model rates
+  - follow-ups of anyone's (ai.value.encoded.is_follow_up: Payment, Area, target...) as the Imitation Model rates
     likeliest, as the Value Bot does;
   - the other Player's Decisions by drawing an Option at random in proportion to the Imitation Model's chances,
     narrowed by `share`: they are chance to this Player, like the cards drawn, which the Sampled Position deals;
@@ -41,11 +41,12 @@ from pathlib import Path
 from typing import Any
 
 import ai.value
+from ai.advice import STRONG_PLAYERS, WINS, Advice
 from ai.controller import Handle
 from ai.imitation.bot import ImitationBot
 from ai.imitation.encoded import Position
 from ai.value.bot import SEEDS, SHARE, TRIED, loaded, narrowed, policy_path
-from ai.value.encoded import FOLLOW_UPS, result_of, view_position
+from ai.value.encoded import is_follow_up, result_of, view_position
 from ai.value.model import chances_of_winning
 
 # The budget per Decision by default, in seconds: the user's choice on 2026-11-21. Against the Value Bot (ticket 16's
@@ -162,6 +163,13 @@ class SearchBot:
         searched = self.search(handle)
         return searched.picked(self.margin)
 
+    def advise(self, handle: Handle) -> Advice:
+        """The mean result of the Options searched, if more than one was, and the chance that a strong Player picks
+        them."""
+        searched = self.search(handle)
+        measured = {index: [edge.mean if edge.visits else None, edge.prior] for index, edge in searched.options.items()}
+        return Advice(searched.picked(self.margin), (WINS, STRONG_PLAYERS), measured)
+
     def narrowed(self, chances: list[float]) -> list[int]:
         """The Options searched among those with these chances, likeliest first (ai.value.bot.narrowed)."""
         return narrowed(chances, self.tried, self.share)
@@ -241,7 +249,7 @@ class SearchBot:
             decision = game.decision
             if decision is None:
                 return False
-            follow_up = decision["kind"] in FOLLOW_UPS
+            follow_up = is_follow_up(decision)
             if not follow_up and (decision["player"] == player or answered >= self.horizon):
                 return decision["player"] == player
             game.pick(self.answer(game, decision, follow_up, rng))

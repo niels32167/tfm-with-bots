@@ -90,12 +90,19 @@ class Game:
         players: int = 2,
         draft: bool = True,
         corporations: bool = True,
+        prelude: bool = False,
+        ask_last_prelude_card: bool = False,
+        deal: dict[str, Any] | None = None,
     ) -> None:
         """A new Game from its settings; the first player is drawn from the seed. It begins with
         the setup: each Player is dealt 2 Corporations and 10 Project Cards from the shuffled deck, and
         chooses a Corporation and buys cards, hidden until every Player is done. From Generation 2,
         each Research phase has the Draft unless `draft` is False. Without `corporations`, as a Replay
         saved before they existed plays, each Player starts with 42 MegaCredits and no Corporation.
+        With `prelude`, each Player is also dealt 4 Prelude Cards at setup and keeps 2; with
+        `ask_last_prelude_card` too, the last one a Player plays is a Decision of its own, with one
+        Option, rather than played as soon as the one before is done. A `deal` gives the first player and
+        the cards in the order dealt and drawn (see deal.rs).
 
         Raises ValueError for an unsupported Player count or a seed above MAX_SEED.
         """

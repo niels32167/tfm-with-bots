@@ -1965,7 +1965,7 @@ and `tests/rules/test_games_without_prelude.py`.
 
 **Call:** After setup, before Generation 1's Action phase, each Player in player order from the first player plays
 both Prelude Cards they kept, one at a time, finishing both before the next Player starts. With two left they choose
-which to play first; the last is played without a Decision. A Prelude Card is played like a Project Card with no cost
+which to play first; the last is played without a Decision, unless the Game asks for it. A Prelude Card is played like a Project Card with no cost
 and no Requirements: it joins their played cards, sets off Triggers, and its effects are carried out in the usual
 order, Tiles included. This is all part of Generation 1, and the Action phase begins with the first player once every
 Player is done. A Corporation's first action (Inventrix, Tharsis Republic) comes after, as the Player's first Action.
@@ -1975,7 +1975,9 @@ player plays their pair of picked Prelude cards in player order", and "the whole
 It doesn't say in which order within the pair; the open-source game lets the Player choose, and plays all of one
 Player's before the next Player's. A first action is the Player's first Action, which comes in the Action phase. A
 Decision with one Option changes nothing ("The Research phase, and who is asked to buy"). Chosen by Claude
-(2026-11-07), on the user's instruction to choose the recommended decisions.
+(2026-11-07), on the user's instruction to choose the recommended decisions. In a Game at a human's screen the last one is
+a Decision with one Option after all (`ask_last_prelude_card`, ADR 0015), as the user asked (2026-11-24): they play it with
+a click, knowing what the first one gave.
 
 **Tests:** `tests/rules/test_prelude_setup.py::test_each_player_in_player_order_plays_both_prelude_cards_in_the_order_they_choose_then_generation_1_begins`,
 `test_a_corporations_first_action_comes_after_the_prelude_cards` and

@@ -90,6 +90,29 @@ code {
   background: #b30000;
 }
 
+/* What finishes something: Done, End Turn, and drawing cards, which can't be taken back. */
+.option.done {
+  background: #2e8b3a;
+}
+
+.option.done:hover:not(:disabled) {
+  background: #23702d;
+}
+
+.option.draw {
+  background: #b5650a;
+}
+
+.option.draw:hover:not(:disabled) {
+  background: #94520a;
+}
+
+/* What the bot would pick, while its advice is shown. */
+.option.advised {
+  outline: 3px solid #b48cff;
+  outline-offset: 2px;
+}
+
 .link-button {
   background: transparent;
   color: var(--text-dim);
@@ -168,21 +191,84 @@ input[aria-invalid="true"] {
   color: var(--text-dim);
 }
 
-/* The new-Game setup screen. */
+/* The intro and new-Game screen: Mars rising behind the title, and the settings beside it. It scrolls where the window
+   is too small for it, so nothing is out of reach. */
+.intro {
+  position: relative;
+  min-height: 100vh;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 460px);
+  align-items: center;
+  gap: 24px clamp(24px, 6vw, 96px);
+  padding: clamp(20px, 5vh, 56px) clamp(20px, 6vw, 96px);
+  overflow: hidden;
+}
+
+.intro-planet {
+  position: absolute;
+  left: -18vmin;
+  bottom: -42vmin;
+  width: 104vmin;
+  aspect-ratio: 1;
+  border-radius: 50%;
+  background: url("/mars/mars-valles-marineris.jpeg") center / 112%;
+  /* Night on the far side, and a thin lit atmosphere. */
+  box-shadow:
+    inset -18vmin -10vmin 30vmin rgba(0, 0, 0, 0.85),
+    0 0 6vmin rgba(255, 140, 90, 0.35),
+    0 0 18vmin rgba(226, 69, 44, 0.25);
+}
+
+.intro-title {
+  position: relative;
+  align-self: start;
+  max-width: 34rem;
+  text-shadow: 0 2px 18px rgba(0, 0, 0, 0.8);
+}
+
+.intro-title h1 {
+  font-family: Prototype, sans-serif;
+  font-weight: 400;
+  font-size: clamp(3rem, 8vw, 7rem);
+  line-height: 0.95;
+  text-transform: uppercase;
+  color: #ffb48a;
+}
+
+.intro-title h1 span {
+  display: block;
+  font-size: 0.45em;
+  letter-spacing: 0.06em;
+  color: var(--text);
+}
+
+.intro-title p {
+  margin: 18px 0 0;
+  font-size: 1.1rem;
+  line-height: 1.5;
+}
+
 .setup {
-  width: min(520px, 100%);
+  position: relative;
   display: flex;
   flex-direction: column;
   gap: 18px;
-  text-align: left;
-  background: var(--panel);
+  background: rgba(16, 14, 18, 0.86);
   border: 1px solid var(--panel-border);
-  border-radius: 12px;
+  border-radius: 14px;
   padding: 24px;
+  box-shadow: 0 12px 48px rgba(0, 0, 0, 0.6);
 }
 
-.setup h1 {
-  font-size: 1.6rem;
+@media (max-width: 900px) {
+  .intro {
+    grid-template-columns: minmax(0, 1fr);
+    align-content: start;
+  }
+}
+
+.setup-title {
+  font-size: 1.5rem;
 }
 
 .setup-section {
@@ -191,15 +277,9 @@ input[aria-invalid="true"] {
   gap: 10px;
 }
 
-.setup-section > .segmented {
-  align-self: flex-start;
-}
-
-.setup-section h2 {
-  font-size: 0.8rem;
-  text-transform: uppercase;
-  letter-spacing: 0.1em;
-  color: var(--text-dim);
+.setup h3 {
+  margin: 0;
+  font-size: 1rem;
 }
 
 .setup-players {
@@ -212,14 +292,32 @@ input[aria-invalid="true"] {
 }
 
 .setup-player {
-  display: flex;
+  display: grid;
+  grid-template-columns: 5rem minmax(0, 1fr);
   align-items: center;
-  gap: 10px;
+  gap: 2px 12px;
+  padding: 8px 12px;
+  border-left: 5px solid;
+  border-radius: 6px;
+  background: var(--panel);
 }
 
-.setup-player-name {
+.setup-player label {
   font-weight: 600;
-  margin-right: auto;
+}
+
+.setup-player select {
+  width: 100%;
+  padding: 8px 10px;
+}
+
+.setup-player select option,
+.setup-player select optgroup {
+  background: #1b1a1f;
+}
+
+.setup-player .setup-hint {
+  grid-column: 2;
 }
 
 .setup-hint {
@@ -228,18 +326,47 @@ input[aria-invalid="true"] {
   font-size: 0.9rem;
 }
 
+.setup-switches {
+  gap: 12px;
+}
+
 .setup-checkbox {
   display: flex;
-  align-items: center;
-  gap: 8px;
+  align-items: flex-start;
+  gap: 10px;
   font-weight: 600;
+  cursor: pointer;
+}
+
+.setup-checkbox input {
+  width: 18px;
+  height: 18px;
+  margin: 1px 0 0;
+  accent-color: var(--mercury);
+}
+
+.setup-checkbox small {
+  display: block;
+  font-size: 0.85rem;
+  font-weight: 400;
+  color: var(--text-dim);
+}
+
+.setup-more summary {
+  cursor: pointer;
+  color: var(--text-dim);
+}
+
+.setup-more[open] summary {
+  margin-bottom: 10px;
 }
 
 .setup-row {
-  flex-direction: row;
+  display: flex;
   flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
+  gap: 10px;
 }
 
 .setup-seed input {
@@ -251,11 +378,20 @@ input[aria-invalid="true"] {
   color: #ff8a7a;
 }
 
+.option.setup-start {
+  padding: 14px;
+  font-size: 1.15rem;
+  background: var(--mercury);
+}
+
+.option.setup-start:hover:not(:disabled) {
+  background: #f05a3f;
+}
+
 .setup-buttons {
   display: flex;
   flex-wrap: wrap;
-  align-items: center;
-  justify-content: flex-end;
+  justify-content: center;
   gap: 10px;
 }
 
@@ -789,6 +925,107 @@ input[aria-invalid="true"] {
   flex-direction: column;
   gap: 6px;
   min-width: 0;
+}
+
+/* What the bot would do, above everything else in the side panel. */
+.advice-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px 12px;
+  background: #231a38;
+  border: 1px solid #b48cff;
+  border-radius: 10px;
+  font-size: 0.88rem;
+}
+
+.advice-panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.advice-panel-header h2 {
+  font-size: 1rem;
+}
+
+.advice-panel-header .link-button {
+  padding: 1px 8px;
+}
+
+.advice-panel select option {
+  background: #231a38;
+}
+
+.advice-panel-note,
+.advice-panel-cards {
+  margin: 0;
+}
+
+.advice-panel-note {
+  color: var(--text-dim);
+}
+
+.advice-decision h3 {
+  margin: 0 0 4px;
+  font-size: 0.88rem;
+  color: #cdb4ff;
+}
+
+.advice-decision ol {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-height: 46vh;
+  overflow-y: auto;
+}
+
+.advice-decision li {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 4px 6px;
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.advice-decision li.picked {
+  background: rgba(180, 140, 255, 0.28);
+  font-weight: 650;
+}
+
+.advice-value {
+  position: relative;
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 0 5px;
+  font-size: 0.8rem;
+  font-weight: 400;
+  font-variant-numeric: tabular-nums;
+  color: #ddd3f2;
+}
+
+.advice-value > :not(.advice-bar) {
+  position: relative;
+}
+
+.advice-bar {
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  border-radius: 3px;
+  background: rgba(180, 140, 255, 0.38);
+}
+
+.top-bar .advice-toggle.on {
+  background: #6a3fc4;
+  border-color: #6a3fc4;
+  color: #fff;
 }
 
 .global-readings {
@@ -1901,6 +2138,19 @@ input[aria-invalid="true"] {
   align-content: flex-start;
 }
 
+/* At setup, a titled row for each kind of card. */
+.buying-panel-rows {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.buying-panel-row h3 {
+  margin: 0 0 8px;
+  font-size: 0.95rem;
+  color: var(--accent);
+}
+
 /* A card to buy, drawn at the zoom that fits them all in view. Sizes inside are zoomed too. */
 .buy-card {
   position: relative;
@@ -1911,15 +2161,26 @@ input[aria-invalid="true"] {
   transition: transform 150ms ease-in-out;
 }
 
+/* Cards that may be chosen are outlined thinly until they are. */
 .buy-card.buyable {
   cursor: pointer;
-  outline: 6px solid var(--accent);
+  outline: 3px solid var(--accent);
   outline-offset: 3px;
 }
 
 .buy-card.buyable:disabled {
   cursor: default;
   opacity: 0.6;
+}
+
+.buy-card.buyable:hover:not(:disabled) {
+  transform: translateY(-8px);
+}
+
+.buy-card.buyable.chosen,
+.small-card.in-dock.chosen {
+  outline: 10px solid #6fcf7a;
+  outline-offset: 3px;
 }
 
 .buy-card.bought {
@@ -1944,6 +2205,40 @@ input[aria-invalid="true"] {
   background: #6fcf7a;
   color: #10240f;
   font-size: 26px;
+}
+
+.card-ribbon.chosen {
+  top: -14px;
+  left: auto;
+  right: -14px;
+  transform: none;
+  padding: 4px 14px;
+  background: #6fcf7a;
+  color: #10240f;
+  font-size: 30px;
+}
+
+/* Over the card's lower edge, so that it covers none of its text. */
+.card-ribbon.advised {
+  bottom: -14px;
+  background: #b48cff;
+  color: #1c0f38;
+  font-size: 22px;
+}
+
+/* In the hand dock only the tops of the cards show. */
+button.small-card.in-dock {
+  position: relative;
+}
+
+.in-dock .card-ribbon.chosen {
+  top: 6px;
+  right: 6px;
+}
+
+.in-dock .card-ribbon.advised {
+  top: 70px;
+  bottom: auto;
 }
 
 .card-ribbon.not-implemented {

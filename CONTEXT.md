@@ -122,6 +122,10 @@ _Avoid_: AI (for the Random Bot), engine
 What a Controller is given to answer a Decision: its Player's Player View, the Decision and a random source, as plain data, and a way to get Sampled Positions; never the Game.
 _Avoid_: observation, state
 
+**Advice**:
+What a registered Controller would do at a human's Decision, and how it rates the Options, shown to learn from. It is found from that Player's handle.
+_Avoid_: hint, explanation (a Controller's reasons for its own pick, in the dev panel)
+
 **Player View**:
 Everything one Player is allowed to know: their own hand, all public information, and the cards they passed in the Draft. Never another Player's hand or the deck order. AI Controllers see only the Player View.
 _Avoid_: observation, visible state

@@ -61,9 +61,12 @@ def test_the_gui_is_told_the_controllers_it_can_offer():
         gui.send({"type": "save_replay"})  # anything, to read what the server sent on connecting
         gui.receive_error()
 
-    assert gui.controllers[0] == {"name": "human", "label": "Human"}
-    assert {"name": "random_bot", "label": "Random Bot"} in gui.controllers
-    assert {"name": "first_option", "label": "First Option"} in gui.controllers
+    named = {controller["name"]: controller for controller in gui.controllers}
+    assert gui.controllers[0]["label"] == "Human"
+    assert named["random_bot"]["label"] == "Random Bot"
+    assert named["first_option"]["label"] == "First Option"
+    assert "at random" in named["random_bot"]["description"]
+    assert named["random_bot"]["most_players"] == 5
 
 
 def test_a_registered_controller_plays_a_player_and_is_saved_in_the_replay_file():

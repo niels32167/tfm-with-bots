@@ -1,8 +1,9 @@
-import { CARD_PRICE, playersAreBuying } from "../cards/BuyingPanel";
+import { playersAreBuying } from "../cards/BuyingPanel";
+import { CARD_PRICE, type ChoiceState } from "../cards/choosing";
 import { HAND_OPTIONS } from "../cards/HandDock";
 import { TILE_NAMES } from "../format";
 import { controllerLabel, PLAYER_COLOURS, playerTitle } from "../players";
-import type { Card, ControllerOnOffer, NextCardEffect, TileType } from "../types";
+import type { Card, ConfirmPick, ControllerOnOffer, NextCardEffect, TileType } from "../types";
 import type { GameUpdate } from "../useGameServer";
 import { LogLine } from "./GameLog";
 import { cardBeingPaidFor, PaymentPicker } from "./PaymentPicker";
@@ -20,6 +21,16 @@ interface Props {
   disabled: boolean;
   onPick: (sequence: number, index: number) => void;
   onUndo: () => void;
+  /** Where the choice of cards the Decision asks for stands, if it asks for one, and what sends it. */
+  choice: ChoiceState | null;
+  onChoose: () => void;
+  /** A pick that would draw cards, to be confirmed. */
+  confirming: ConfirmPick | null;
+  onConfirm: (asked: ConfirmPick) => void;
+  onCancel: () => void;
+  onEndTurn: () => void;
+  /** The Option the bot would pick, if its advice is shown. */
+  advised: number | null;
 }
 
 // Options picked where they are drawn rather than as buttons here: Standard Projects in their panel,
@@ -58,8 +69,25 @@ const OTHER_AREAS: Record<string, string> = {
 
 /** The current Decision, with its Options as buttons and Undo at the end, like Board Game Arena's title
  * bar: a centred sentence naming the Player in their colour, and while a registered Controller acts, what it last
- * did underneath. A payment Decision gets the payment picker instead. */
-export function StatusBar({ game, cards, offered, latest, error, disabled, onPick, onUndo }: Props) {
+ * did underneath. A payment Decision gets the payment picker instead, a choice of cards its Done button, and a pick
+ * that draws cards is asked for once more. */
+export function StatusBar({
+  game,
+  cards,
+  offered,
+  latest,
+  error,
+  disabled,
+  onPick,
+  onUndo,
+  choice,
+  onChoose,
+  confirming,
+  onConfirm,
+  onCancel,
+  onEndTurn,
+  advised,
+}: Props) {
   const { decision, view } = game;
   const options = decision?.options ?? [];
   const pickedElsewhere = (type: string) =>
@@ -74,12 +102,27 @@ export function StatusBar({ game, cards, offered, latest, error, disabled, onPic
     options.some((option) => PICKED_IN_THE_PROJECTS.has(option.details.type)) && "Standard Project",
     options.some((option) => PICKED_IN_THE_BAR.has(option.details.type)) && "Milestone or Award",
   ].filter((place): place is string => Boolean(place));
+  const asked = confirming !== null && confirming.sequence === decision?.sequence ? confirming : null;
   return (
     <div className="status-bar" role="status">
       <span className="status-text">
-        <StatusSentence game={game} text={statusText(game, cards, offered)} />
+        {asked ? (
+          `${options[asked.index]?.label}?${game.viewer === null ? "" : " You can't undo it once you have seen the cards."}`
+        ) : (
+          <StatusSentence game={game} text={statusText(game, cards, offered)} />
+        )}
       </span>
-      {decision?.kind === "payment" && (
+      {asked && (
+        <span className="status-options">
+          <button className="option draw" disabled={disabled} onClick={() => onConfirm(asked)}>
+            {asked.label}
+          </button>
+          <button className="option" onClick={onCancel}>
+            Cancel
+          </button>
+        </span>
+      )}
+      {!asked && decision?.kind === "payment" && (
         <PaymentPicker
           key={decision.sequence}
           decision={decision}
@@ -87,13 +130,22 @@ export function StatusBar({ game, cards, offered, latest, error, disabled, onPic
           onPay={(index) => onPick(decision.sequence, index)}
         />
       )}
-      {decision && decision.kind !== "area" && decision.kind !== "payment" && (
+      {!asked && decision && choice && (
+        <span className="status-options">
+          <button className="option done" disabled={disabled || !choice.ready} onClick={onChoose}>
+            {choice.button}
+          </button>
+          {choice.missing && <span className="status-hint">{choice.missing}</span>}
+        </span>
+      )}
+      {!asked && decision && !choice && decision.kind !== "area" && decision.kind !== "payment" && (
         <span className="status-options">
           {buttons.map((option) => (
             <button
               key={option.index}
-              className={`option option-${option.details.type}`}
+              className={`option option-${option.details.type} ${option.index === advised ? "advised" : ""}`}
               disabled={disabled}
+              title={option.index === advised ? "The bot's pick" : undefined}
               onClick={() => onPick(decision.sequence, option.index)}
             >
               {option.label}
@@ -102,9 +154,16 @@ export function StatusBar({ game, cards, offered, latest, error, disabled, onPic
           {elsewhere.length > 0 && <span className="status-hint">{elsewhereHint(elsewhere)}</span>}
         </span>
       )}
-      {game.can_undo && <UndoButton onUndo={onUndo} />}
+      {game.turn_over && (
+        <span className="status-options">
+          <button className="option done" onClick={onEndTurn}>
+            End Turn
+          </button>
+        </span>
+      )}
+      {!asked && game.can_undo && <UndoButton onUndo={onUndo} />}
       {error && <span className="status-error">{error}</span>}
-      {!decision && view.phase !== "over" && latest && (
+      {!decision && !game.turn_over && view.phase !== "over" && latest && (
         <span className="status-latest">
           <LogLine line={latest} players={view.players.map((player) => player.name)} />
         </span>
@@ -116,7 +175,7 @@ export function StatusBar({ game, cards, offered, latest, error, disabled, onPic
 /** Undo, in red, at the end of the status bar. */
 export function UndoButton({ onUndo }: { onUndo: () => void }) {
   return (
-    <button className="option undo" title="Go back to the last Decision a human answered" onClick={onUndo}>
+    <button className="option undo" title="Take back the last Decision a human answered" onClick={onUndo}>
       Undo
     </button>
   );
@@ -145,6 +204,7 @@ function statusText(game: GameUpdate, cards: Card[], offered: ControllerOnOffer[
   const { view, decision } = game;
   if (view.phase === "over" || view.current_player === null) return "The Game is over.";
   const who = playerTitle(game, view.current_player);
+  if (game.turn_over) return "Your Turn is over: end it, or undo.";
   const bot = controllerLabel(offered, game.controllers[view.current_player]);
   const paidFor = cards.find((card) => card.id === cardBeingPaidFor(decision));
   if (paidFor && decision?.options[0].details.action) {
@@ -159,18 +219,17 @@ function statusText(game: GameUpdate, cards: Card[], offered: ControllerOnOffer[
     const { paying_for: payingFor, cost } = decision.options[0].details;
     return `${who} must choose how to pay for ${payingFor as string} (${cost as number} MegaCredits):`;
   }
-  if (decision?.kind === "corporation") {
-    return `${who} must choose one of the Corporations above: click the one to play.`;
-  }
-  if (decision?.kind === "prelude_cards") {
-    const kept = view.players[decision.player].prelude_cards?.kept.length ?? 0;
-    return `${who} must keep ${kept > 0 ? "one more" : "2"} of the Prelude Cards above: click a card to keep.`;
+  if (decision && view.phase === "setup" && ["corporation", "prelude_cards", "buy_cards"].includes(decision.kind)) {
+    const preludeCards = view.prelude ? ", 2 Prelude Cards" : "";
+    return `${who} must choose a Corporation${preludeCards} and the Project Cards to buy: click cards to try them out, then Done.`;
   }
   if (decision?.kind === "play_prelude_card" && view.phase === "action") {
-    return `${who} must play one of the Prelude Cards drawn above, discarding the others: click the one to play.`;
+    return `${who} must play one of the Prelude Cards drawn above, discarding the others: click the one to play, then Play.`;
   }
   if (decision?.kind === "play_prelude_card") {
-    return `${who} must play both Prelude Cards above, one at a time: click the one to play first.`;
+    return decision.options.length > 1
+      ? `${who} must play both Prelude Cards above, one at a time: click the one to play first, then Play.`
+      : `${who} must play the last Prelude Card:`;
   }
   if (decision?.kind === "play_card") {
     const prelude = cards.find((each) => each.id === view.players[decision.player].next_card);
@@ -246,35 +305,30 @@ function statusText(game: GameUpdate, cards: Card[], offered: ControllerOnOffer[
   if (decision?.kind === "draft") {
     const passingTo = view.players[decision.player].drafting?.passing_to;
     const to = passingTo === undefined ? "on" : `to ${playerTitle(game, passingTo)}`;
-    return `${who} must keep one of the cards above and pass the rest ${to}: click the card to keep.`;
+    return `${who} must keep one of the cards above and pass the rest ${to}: click the card to keep, then Done.`;
   }
   const keeping = decision?.kind === "keep_cards" ? view.players[decision.player].keeping : null;
   if (keeping && keeping.price > 0) {
     const card = cards.find((each) => each.id === keeping.card)?.name ?? "the card";
     return (
       `${who} may buy the card above for ${keeping.price} MegaCredits with the action of ${card}: ` +
-      "click it, or Done to discard it."
+      "click it and Done, or Done alone to discard it."
     );
   }
   if (keeping) {
     const card = cards.find((each) => each.id === keeping.card)?.name ?? "the card played";
     const count = keeping.kept.length > 0 ? `${keeping.keep} more` : `${keeping.keep}`;
-    return `${who} must keep ${count} of the cards above for ${card} and discard the rest: click a card to keep.`;
+    return `${who} must keep ${count} of the cards above for ${card} and discard the rest: click the cards to keep, then Done.`;
   }
   if (decision?.kind === "buy_cards") {
-    const bought = view.players[decision.player].buying?.bought.length ?? 0;
-    return (
-      `${who} may buy any of the cards above for ${CARD_PRICE} MegaCredits each: click them, then Done. ` +
-      `Bought: ${bought} (${bought * CARD_PRICE} MegaCredits).`
-    );
+    return `${who} may buy any of the cards above for ${CARD_PRICE} MegaCredits each: click them, then Done.`;
   }
   if (decision?.kind === "sell_patents") {
     const sale = decision.options.find((option) => option.details.type === "sell_card");
-    const then = decision.options.some((option) => option.details.type === "done") ? ", then Done:" : ".";
-    return `${who} may sell cards from the hand for ${sale?.details.megacredits} MegaCredit each: click them${then}`;
+    return `${who} may sell cards from the hand for ${sale?.details.megacredits} MegaCredit each: click them, then Done.`;
   }
   if (decision?.kind === "discard_to_draw") {
-    return `${who} may discard a card from the hand to draw one (Mars University): click it, or Done to keep the hand.`;
+    return `${who} may discard a card from the hand to draw one (Mars University): click it, then Discard, or keep the hand.`;
   }
   if (view.phase === "draft") return `${who} (${bot}) is drafting cards…`;
   if (view.phase === "prelude_cards") return `${who} (${bot}) is playing their Prelude Cards…`;

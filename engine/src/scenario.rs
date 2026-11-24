@@ -71,6 +71,10 @@ pub struct Scenario {
     /// Prelude Cards. Off by default, and only a Scenario that has it on names it.
     #[serde(skip_serializing_if = "std::ops::Not::not")]
     pub prelude: bool,
+    /// Whether the last Prelude Card a Player plays is a Decision of its own (see `Settings`). Off by
+    /// default, and only a Scenario that has it on names it.
+    #[serde(skip_serializing_if = "std::ops::Not::not")]
+    pub ask_last_prelude_card: bool,
     /// Only with Prelude: the Prelude Cards in the Prelude deck, which Valley Trust's first action
     /// draws from at random, by catalog id. Left out, every Prelude Card the Scenario names nowhere
     /// else.
@@ -97,6 +101,7 @@ impl Default for Scenario {
             discard: Vec::new(),
             draft: true,
             prelude: false,
+            ask_last_prelude_card: false,
             prelude_deck: None,
         }
     }
@@ -548,6 +553,7 @@ impl Game {
             discard: ids(self.discard.iter()),
             draft: self.settings.draft,
             prelude: self.settings.prelude,
+            ask_last_prelude_card: self.settings.ask_last_prelude_card,
             // Prelude Cards drawn for a first action under way go back into it.
             prelude_deck: self.settings.prelude.then(|| {
                 let mut deck = self.prelude_deck;

@@ -14,6 +14,9 @@ interface Props {
   onSaveReplay: () => void;
   onLoadReplay: (file: File) => void;
   onBotDelay: (delay: number) => void;
+  /** Whether the bot's advice is shown. */
+  adviceOn: boolean;
+  onToggleAdvice: () => void;
   devPanelOpen: boolean;
   /** Left out where the dev panel is off, as on a hosted server. */
   onToggleDevPanel?: () => void;
@@ -28,6 +31,8 @@ export function TopBar({
   onSaveReplay,
   onLoadReplay,
   onBotDelay,
+  adviceOn,
+  onToggleAdvice,
   devPanelOpen,
   onToggleDevPanel,
 }: Props) {
@@ -42,6 +47,16 @@ export function TopBar({
         </span>
       )}
       <div className="top-bar-tools">
+        {game.controllers.includes(HUMAN) && (
+          <button
+            className={`link-button advice-toggle ${adviceOn ? "on" : ""}`}
+            aria-pressed={adviceOn}
+            title="Show what a bot would do at each of your Decisions, to learn from it"
+            onClick={onToggleAdvice}
+          >
+            {adviceOn ? "Hide what the bot would do" : "See what the bot would do"}
+          </button>
+        )}
         {hasBots && <BotSpeedSelect delay={game.bot_delay} onChange={onBotDelay} />}
         <CardsButton onClick={onShowCards} />
         <button className="link-button" onClick={onSaveReplay}>

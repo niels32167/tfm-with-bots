@@ -74,10 +74,10 @@ or AI Controllers.
   consistent with what it knows. Tests check that a hidden card never changes a Sampled Position.
 - **Reproducible down to the pick.** Every Game comes from a seed and is stored as a Replay (its start
   and the index of each Option picked). Any Game, bug or Match can be loaded again at any step.
-- **Tested heavily.** 2,111 tests, scenario tests that read like play, a scenario test for every card,
+- **Tested heavily.** 2,311 tests, scenario tests that read like play, a scenario test for every card,
   and a fuzzer that plays 100,000 random Games and checks rule invariants after every Decision.
 - **A game you can actually play.** A browser GUI laid out like Board Game Arena's, with Undo, Save and
-  Load Replay, a card gallery, and a dev panel for hunting rule bugs.
+  Load Replay, a card gallery, a bot's advice on each of your Decisions, and a dev panel for hunting rule bugs.
 - **Learning from about 59,000 human Games.** An importer turns a 147 GB archive of Board Game Arena logs
   into a compact training set. It rebuilds each Player's hand move by move, and its hand sizes match Board
   Game Arena's own counter 99.2% of the time. Replayed through the engine, 73% of those Games play out
@@ -570,7 +570,7 @@ and coverage reports, and the Recorded Game importer.
 
 Correctness comes first: a bot trained on a buggy engine learns the bugs.
 
-- **2,111 tests** (`uv run pytest`): scenario tests of the rules that read like play
+- **2,311 tests** (`uv run pytest`): scenario tests of the rules that read like play
   (`scenario(...)`, `pick(game, "Play Mine")`), tests of the engine module, the server's WebSocket, fair
   play and the importer.
 - **A scenario test for every card.** Each card has its own test file, `tests/cards/test_<id>.py`, and the

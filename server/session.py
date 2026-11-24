@@ -1,17 +1,24 @@
 """A Game in progress on the server, with a Controller attached to each Player."""
 
+from collections.abc import Callable
 from typing import Any
 
 import tm_engine
 
 from ai.controller import Controller, Handle, handle_for, offered
-from ai.controllers import REGISTERED, available, make_controller, name_and_settings
+from ai.controllers import MOST_PLAYERS, REGISTERED, advisers, available, make_controller, name_and_settings
 from ai.explain import explanation, server_random
+from server.advice import advise
+from server.card_choice import picks_for_cards
+from server.drawing import cards_left, what_it_draws
 from tests.fuzzing.invariants import (
     each_reserved_area_used_only_by_its_card,
     special_tiles_where_their_cards_put_them,
     tiles_only_on_legal_areas,
 )
+
+# The phases in which a Player takes Turns, or plays their Prelude Cards as one: where a human ends theirs themselves.
+TURNS = ("prelude_cards", "action", "final_greenery")
 
 # A Controller's name: "human", who answers through the GUI, or a registered Controller's, such as
 # "random_bot". Replay files name each Player's Controller this way.
@@ -19,11 +26,19 @@ type ControllerName = str
 HUMAN = "human"
 
 
-def controllers_on_offer() -> list[dict[str, str]]:
-    """The Controllers the setup screen offers, by name and label: a human, then the registered ones that are
-    available. Only these can play on the server; a Replay file can't name a module to import."""
-    return [{"name": HUMAN, "label": "Human"}] + [
-        {"name": name, "label": REGISTERED[name].label} for name in available()
+def controllers_on_offer() -> list[dict[str, Any]]:
+    """The Controllers the setup screen offers, by name and label, with what each does and in Games of how many Players
+    at most: a human, then the registered ones that are available. Only these can play on the server; a Replay file
+    can't name a module to import."""
+    human = {"name": HUMAN, "label": "Human", "description": "You, at this screen.", "most_players": MOST_PLAYERS}
+    return [human] + [
+        {
+            "name": name,
+            "label": REGISTERED[name].label,
+            "description": REGISTERED[name].description,
+            "most_players": REGISTERED[name].most_players,
+        }
+        for name in available()
     ]
 
 
@@ -87,8 +102,10 @@ class GameSession:
         self.answering: list[Controller | None] = []
         self.new_controllers()
         self.log_lines_sent = 0
-        # The sequence number of every Decision a human has answered, latest last, for undo.
-        self.answered_by_humans: list[int] = []
+        # The sequence numbers of the Decisions undo may go back to, latest last (see `_pick`).
+        self.undoable: list[int] = []
+        # Whether the human's Turn is over, but the registered Controllers wait for them to say so.
+        self.turn_over = False
 
     @classmethod
     def new(
@@ -102,7 +119,14 @@ class GameSession:
     ) -> GameSession:
         """A new Game with one Player for each Controller, with the Draft unless `draft` is false, and
         with Prelude if `prelude` is true."""
-        game = tm_engine.Game(seed=seed, players=len(controllers), draft=draft, prelude=prelude)
+        game = tm_engine.Game(
+            seed=seed,
+            players=len(controllers),
+            draft=draft,
+            prelude=prelude,
+            # A human plays each of their Prelude Cards with a click (ADR 0015).
+            ask_last_prelude_card=prelude and HUMAN in controllers,
+        )
         return cls(game, controllers, bot_delay)
 
     @classmethod
@@ -142,7 +166,12 @@ class GameSession:
         self.answering = [None if name == HUMAN else make_controller(name) for name in self.controllers]
 
     def waiting_on_controller(self) -> bool:
-        """Whether a registered Controller, not a human, must answer the Decision."""
+        """Whether a registered Controller, not a human, must answer the Decision now: it doesn't while a human
+        whose Turn is over hasn't said so."""
+        return self.registered_controller_decides() and not self.turn_over
+
+    def registered_controller_decides(self) -> bool:
+        """Whether the Decision is a registered Controller's, not a human's."""
         controller = self.deciding_controller()
         return controller is not None and controller != HUMAN
 
@@ -186,25 +215,74 @@ class GameSession:
 
     def pick_for_human(self, sequence: int, index: int) -> None:
         """Applies a human's pick. Raises ValueError if it isn't theirs to make or is stale."""
-        if self.waiting_on_controller():
-            raise ValueError(f"this Decision belongs to a {label_of(self.deciding_controller())}, not a human")
+        self._check_for_human()
         self._pick(index, sequence)
+
+    def choose_cards(self, sequence: int, cards: list[str]) -> None:
+        """Picks what chooses exactly `cards` for the Decision numbered `sequence` and those that make up one choice
+        with it (server.card_choice). Raises ValueError, changing nothing, if the human can't choose them."""
+        self._check_for_human(sequence)
+        for number, index in enumerate(picks_for_cards(self.game, cards)):
+            self._pick(index, undo_to_here=number == 0)
+
+    def what_it_draws(self, sequence: int, index: int) -> str | None:
+        """What a human's pick would have them draw or look at, or None (server.drawing). Raises ValueError if it
+        isn't theirs to make, is stale or isn't offered."""
+        self._check_for_human(sequence)
+        if not offered(self.game.decision, index):
+            raise ValueError(
+                f"there is no Option {index}; the Decision has {len(self.game.decision['options'])} Options"
+            )
+        return what_it_draws(self.game, index)
+
+    def _check_for_human(self, sequence: int | None = None) -> None:
+        """Raises ValueError unless a human answers the Decision, which is numbered `sequence` if given."""
+        if self.registered_controller_decides():
+            raise ValueError(f"this Decision belongs to a {label_of(self.deciding_controller())}, not a human")
+        decision = self.game.decision
+        if sequence is not None and decision is not None and decision["sequence"] != sequence:
+            raise ValueError(f"stale pick: it answers Decision {sequence}, not {decision['sequence']}")
+        if decision is None:
+            raise ValueError("the Game is over, so there is no Decision to answer")
+
+    def adviser(self, sequence: int, name: ControllerName) -> Callable[[], dict[str, Any]]:
+        """What finds what the registered Controller `name` would do at the human's Decision numbered `sequence`, as an
+        advice message. It thinks on a copy of the Game, so it may run in another thread. Raises ValueError if the
+        Decision isn't a human's or is stale, or that Controller gives no advice in this Game."""
+        self._check_for_human(sequence)
+        if name not in self.advisers():
+            raise ValueError(f"no Controller {name!r} gives advice in this Game; those that do are {self.advisers()}")
+        game = self.game.copy()
+        about = {"type": "advice", "sequence": sequence, "controller": name}
+        return lambda: {**about, **advise(game, name)}
+
+    def advisers(self) -> list[ControllerName]:
+        """The registered Controllers a human may ask for advice in this Game, the one suggested first."""
+        return advisers(self.game.players)
+
+    def end_turn(self) -> None:
+        """The human, whose Turn is over, says so, and the others go on."""
+        if not self.turn_over:
+            raise ValueError("the Turn is not over")
+        self.turn_over = False
 
     @property
     def can_undo(self) -> bool:
-        return bool(self.answered_by_humans)
+        return bool(self.undoable)
 
     def undo(self) -> None:
-        """Goes back to the Decision a human answered last, so they can answer it again.
+        """Goes back to the Decision a human answered last, so they can answer it again, unless that would give
+        them an advantage (see `_pick`).
 
         Every pick made since, the registered Controllers' included, is dropped.
         """
-        if not self.answered_by_humans:
-            raise ValueError("there is no earlier human Decision to go back to")
+        if not self.undoable:
+            raise ValueError("there is no Decision to go back to, or what followed it can't be taken back")
         # A Decision's sequence number counts the picks before it, so the Replay
         # rebuilt at that step is waiting on that Decision again.
-        sequence = self.answered_by_humans.pop()
+        sequence = self.undoable.pop()
         self.game = tm_engine.Game.from_replay(self.game.replay, step=sequence)
+        self.turn_over = False
         self.new_controllers()
         # The game log is now shorter. The next news starts where it ends, which tells
         # the GUI to drop the lines after that.
@@ -264,11 +342,26 @@ class GameSession:
         self.log_lines_sent += len(messages[0]["log"])
         return messages
 
-    def _pick(self, index: int, sequence: int | None = None) -> None:
+    def _pick(self, index: int, sequence: int | None = None, *, undo_to_here: bool = True) -> None:
+        """Applies a pick, and notes what it means for undo and whether it ends a human's Turn. Undo may come back to a human's Decision unless `undo_to_here` is false, as for all but the
+        first pick of one choice."""
         decision = self.game.decision
+        before = self.game.full_view()
         self.game.pick(index, sequence)
-        if self.controllers[decision["player"]] == HUMAN:
-            self.answered_by_humans.append(decision["sequence"])
+        after = self.game.full_view()
+        by_human = self.controllers[decision["player"]] == HUMAN
+        if by_human and undo_to_here:
+            self.undoable.append(decision["sequence"])
+        if self.viewer is None:
+            return  # The screen shows everything, so undo gives nothing away, and no Turn is waited for.
+        if not by_human or shows_what_was_hidden(before, after):
+            self.undoable.clear()
+        self.turn_over = (
+            by_human
+            and before["phase"] in TURNS
+            and after["current_player"] not in (None, self.viewer)
+            and not ends_turn(before["phase"], decision["options"][index]["details"]["type"])
+        )
 
     def _view_of(self, game: tm_engine.Game) -> dict[str, Any]:
         """What the screen shows of `game`: see `viewer`."""
@@ -283,6 +376,8 @@ class GameSession:
             "seed": self.game.seed,
             "bot_delay": self.bot_delay,
             "can_undo": self.can_undo,
+            "turn_over": self.turn_over,
+            "advisers": self.advisers(),
             "view": self._view_of(self.game),
             # The Decision goes to the GUI only when a human must answer it.
             "decision": self.game.decision if self.deciding_controller() == HUMAN else None,
@@ -292,3 +387,22 @@ class GameSession:
         if self.game.is_over:
             return [update, {"type": "game_over", "scores": self.game.scores}]
         return [update]
+
+
+def shows_what_was_hidden(before: dict[str, Any], after: dict[str, Any]) -> bool:
+    """Whether a pick that led from one full view to the other showed its Player what they couldn't know: it drew,
+    looked at, dealt or passed on cards, or ended the Generation, the Game, or a phase everyone chooses in secretly. The end of
+    the last Player's Prelude Cards, which Generation 1's first Turn follows, shows nothing."""
+    if cards_left(before) != cards_left(after) or before["generation"] != after["generation"]:
+        return True
+    if [board["passed_in_draft"] for board in before["players"]] != [
+        board["passed_in_draft"] for board in after["players"]
+    ]:
+        return True
+    phases = (before["phase"], after["phase"])
+    return phases[0] != phases[1] and phases != ("prelude_cards", "action")
+
+
+def ends_turn(phase: str, option_type: str) -> bool:
+    """Whether a human picking an Option of `option_type` says with it that their Turn is over."""
+    return option_type in ("end_turn", "pass") or (phase == "final_greenery" and option_type == "done")

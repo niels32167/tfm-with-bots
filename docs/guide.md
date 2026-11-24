@@ -312,7 +312,8 @@ npm --prefix gui run dev
 ```
 
 Then open http://localhost:5173. The setup screen asks for the number of Players, each
-Player's Controller (human, or a registered Controller such as the Random Bot), a seed (empty for a
+Player's Controller in a drop-down (human, or a registered Controller such as the Random Bot; the model bots play
+only 2-Player Games), the Draft and Prelude, and under **More options** a seed (empty for a
 random one) and the bot speed: how long each of their picks takes at least. With two or more humans
 (Hotseat), or none, the screen shows the full view; with one human, only that Player's Player View. A
 registered Controller thinks in a worker thread, so the server stays responsive while it does.
@@ -324,12 +325,23 @@ the thermometer and how many Oceans are left to its right, and the Standard Proj
 Milestones and Awards around it; those a Decision offers are lit, and clicked there.
 
 During a Game, the top bar shows the seed (click to copy) and has **Cards**, **Save Replay**,
-**Load Replay…** and the bot speed. **Undo** is in the status bar, in red: it goes back
-to the last Decision a human answered, skipping the registered Controllers' picks. While one acts, the
+**Load Replay…** and the bot speed. **Undo** is in the status bar, in red: it takes your last
+Decision back, as long as that gives nothing away. Once you have seen cards, another Player has acted or the Generation
+is over, what came before stays (in Hotseat, which shows everything anyway, it goes back any number of times). While a
+registered Controller acts, the
 status bar says what it last did; it doesn't pause for a Decision with one Option. **Cards** (also on the setup screen) opens the
 card gallery: every card, filtered by type, Tag, or name or number; hover over a card to
 enlarge it, or click it to see it large. The server keeps the Game in memory, so
 reloading the page picks it up again.
+
+Cards are chosen by clicking them, which toggles them, and then **Done** in the status bar: at setup the Corporation,
+Prelude Cards and Project Cards, each in a row, with what the combination leaves you with, and later in the Draft,
+buying, keeping and selling cards. A pick that draws or looks at cards is asked for once more, as **Draw 2 cards**, since it can't be
+undone. Each Prelude Card is played with its own button, and after your second Action **End Turn** lets the others go on.
+
+**See what the bot would do** in the top bar shows advice beside the board for each of your Decisions: what a bot of your choice would
+pick, and how it rates the Options, such as by your chance to win and the chance that a strong Player picks it. Its
+picks are marked on the cards and buttons. It knows only what you know.
 
 Below the board is an area for each Player, you first: their Resources, Production and Tags, then
 their cards in the columns Headquarters, Automated, Effects and Actions. Their Events are folded away
@@ -411,8 +423,8 @@ pick(game, "Play Mine")
 | `tools/card_coverage.py` | The coverage report: catalog cards without a scenario test |
 | `tests/cards/` | Tests of the card catalog, and each card's scenario tests (`test_<id>.py`) |
 | `tests/helpers.py` | `scenario()`, `player()`, `ocean()`, `city()`, `claimed()`, `funded()`, `terraformed_mars()`, `pick()`, `offered()`, `area()`, `milestone()`, `award()`, `resources()`, `hand()`, `played_cards()`, `final_scores()`, `load_game()`: helpers that make tests read like play |
-| `server/` | The local server, which asks registered Controllers for their picks |
-| `ai/` | Controllers and the tools that compare them: the handle a Controller is given (`controller.py`), the registered Controllers (`controllers.py`), the Random Bot (`random_bot.py`), the Flat Playout Bot (`flat_playout.py`) and the Match tool (`match.py`) |
+| `server/` | The local server, which asks registered Controllers for their picks, and what only a human at a screen needs (ADR 0015): choices of cards (`card_choice.py`), asking before a draw (`drawing.py`) and advice (`advice.py`) |
+| `ai/` | Controllers and the tools that compare them: the handle a Controller is given (`controller.py`), the registered Controllers (`controllers.py`), the Random Bot (`random_bot.py`), the Flat Playout Bot (`flat_playout.py`), advice for humans (`advice.py`) and the Match tool (`match.py`) |
 | `ai/recorded_games/` | The Recorded Game importer (`build.py`, run as `python -m ai.recorded_games`), one log to a dataset entry (`importer.py`), names to catalog ids (`names.py`), the slim moves (`moves.py`), reading the dataset (`dataset.py`) and its comparison tables (`tables.py`) |
 | `tests/ai/` | Tests of fair play, the registered Controllers the Match tool and the Recorded Game importer |
 | `ai/imitation/` | The Imitation Model: the train/validation/test split (`split.py`), training positions read and encoded while training (`positions.py`), the model (`model.py`), the training command (`train.py`), accuracy against baselines (`evaluate.py`), keep-rate and synergy checks (`checks.py`) and the Imitation Bot (`bot.py`) |

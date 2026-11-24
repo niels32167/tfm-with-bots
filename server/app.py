@@ -6,8 +6,17 @@ Messages from the GUI:
         (2 to 5 Controllers, each "human" or a registered Controller's name; seed, bot_delay, draft and
         prelude are optional; the Draft is on unless draft is false, and Prelude is off unless prelude is
         true; the setup screen sends it on by default)
-    {"type": "pick", "sequence": 12, "index": 0}
-    {"type": "undo"}                  back to the Decision a human answered last
+    {"type": "pick", "sequence": 12, "index": 0, "ask_before_drawing": true}
+        (ask_before_drawing is optional: with it, a pick that would draw or look at cards is answered with a
+        confirm_pick message, to the GUI that asked, instead of being picked)
+    {"type": "choose_cards", "sequence": 12, "cards": ["mine", "trees"]}
+        (chooses exactly these cards and is done: at setup the Corporation, Prelude Cards and Project Cards
+        bought at once. All of them or, with an error message, none)
+    {"type": "advice", "sequence": 12, "controller": "value"}
+        (what that bot would do at the human's Decision; answered, once it has thought, with an advice message)
+    {"type": "end_turn"}              the human's Turn is over (see "turn_over"), and the others go on
+    {"type": "undo"}                  back to the Decision a human answered last, unless it was followed by
+        another Player's pick or showed cards that were hidden (in Hotseat, always)
     {"type": "save_replay"}           answered with a replay_file message
     {"type": "load_replay", "file": {...}, "bot_delay": 0.8}
     {"type": "set_bot_delay", "bot_delay": 0.3}
@@ -20,15 +29,25 @@ The state editor starts from an edited position with load_replay, as a Replay fi
 Messages to the GUI:
     {"type": "card_catalog", "cards": [...]}
         (the printed data of every card, sent first to each new connection)
-    {"type": "controllers", "controllers": [{"name": "human", "label": "Human"},
-                                            {"name": "random_bot", "label": "Random Bot"}, ...],
+    {"type": "controllers", "controllers": [{"name": "human", "label": "Human", "description": "...",
+                                             "most_players": 5}, {"name": "random_bot", ...}, ...],
      "hosted": false}
-        (the Controllers the setup screen offers, sent next: a human and the registered ones; and whether the
+        (the Controllers the setup screen offers, sent next: a human and the registered ones, with what each does
+         and in Games of how many Players at most; and whether the
          server is hosted for anyone with its link, where the dev panel is off, every Game needs a human and
          bots play without settings)
     {"type": "update", "controllers": [...], "viewer": 0 or null, "seed": 7, "bot_delay": 0.8,
-     "can_undo": true, "view": ..., "decision": ... or null, "log_start": n, "log": [...]}
-        (viewer null means the view is the full view)
+     "can_undo": true, "turn_over": false, "advisers": ["value", ...], "view": ..., "decision": ... or null,
+     "log_start": n, "log": [...]}
+        (viewer null means the view is the full view; turn_over means that the human has taken their Turn and
+         the registered Controllers wait for end_turn, so that it can still be undone; advisers are the bots to ask for advice)
+    {"type": "advice", "sequence": 12, "controller": "value", "cards": ["mine", ...], "decisions": [
+        {"kind": "draft", "picked": 2, "measures": [{"name": "Chance to win", "percent": true}, ...], "more": 1,
+         "options": [{"index": 2, "label": "Keep Mine", "measured": [0.61, ...]}, ...]}, ...]}
+        (what the bot would do, sent only to the GUI that asked: the cards it would choose, and how it rates the best
+         Options of the Decision, and at setup of those that follow; "more" Options aren't listed)
+    {"type": "confirm_pick", "sequence": 12, "index": 0, "label": "Draw 2 cards"}
+        (what the pick just asked for would draw; picked without ask_before_drawing, it is drawn)
     {"type": "game_over", "scores": [...]}
     {"type": "replay_file", "file": {"controllers": [...], "replay": {...}}}
         (sent only to the GUI that asked)
@@ -100,6 +119,7 @@ class GameHost:
         self.session: GameSession | None = None
         self.connections: set[WebSocket] = set()
         self.controller_task: asyncio.Task | None = None
+        self.advice_task: asyncio.Task | None = None
         # The card catalog never changes, so it is read from the engine once.
         self.card_catalog_message = {"type": "card_catalog", "cards": tm_engine.card_catalog()}
 
@@ -120,7 +140,15 @@ class GameHost:
                 case "new_game":
                     await self.new_game(message)
                 case "pick":
-                    await self.pick(message)
+                    await self.pick(websocket, message)
+                case "choose_cards":
+                    self.current_session().choose_cards(int(message["sequence"]), card_ids(message))
+                    await self.share_news()
+                case "advice":
+                    self.ask_for_advice(websocket, int(message["sequence"]), message["controller"])
+                case "end_turn":
+                    self.current_session().end_turn()
+                    await self.share_news()
                 case "undo":
                     await self.undo()
                 case "save_replay":
@@ -162,8 +190,16 @@ class GameHost:
         self.session = session
         await self.share_news()
 
-    async def pick(self, message: dict[str, Any]) -> None:
-        self.current_session().pick_for_human(sequence=int(message["sequence"]), index=int(message["index"]))
+    async def pick(self, websocket: WebSocket, message: dict[str, Any]) -> None:
+        session = self.current_session()
+        sequence, index = int(message["sequence"]), int(message["index"])
+        if true_or_false(message, "ask_before_drawing", default=False):
+            label = session.what_it_draws(sequence, index)
+            if label is not None:
+                asked = {"type": "confirm_pick", "sequence": sequence, "index": index, "label": label}
+                await websocket.send_json(asked)
+                return
+        session.pick_for_human(sequence, index)
         await self.share_news()
 
     async def undo(self) -> None:
@@ -171,6 +207,22 @@ class GameHost:
         # The Controllers may be mid-Turn in the Game as it was; they must not pick in the Game as it is now.
         self.stop_controllers()
         await self.share_news()
+
+    def ask_for_advice(self, websocket: WebSocket, sequence: int, name: str) -> None:
+        """Has the registered Controller `name` think about the human's Decision, and send its advice. The advice asked
+        for before is no longer waited for: if its thread has begun, it finishes unheard."""
+        find = self.current_session().adviser(sequence, name)
+        if self.advice_task is not None:
+            self.advice_task.cancel()
+        self.advice_task = asyncio.create_task(self.give_advice(websocket, find, name))
+
+    async def give_advice(self, websocket: WebSocket, find: Callable[[], dict[str, Any]], name: str) -> None:
+        try:
+            message = await asyncio.get_running_loop().run_in_executor(self.thinking, find)
+        except Exception as error:  # noqa: BLE001 - shown to the GUI, as when a Controller's pick fails.
+            message = {"type": "error", "message": f"{label_of(name)} raised {error!r}"}
+        with contextlib.suppress(WebSocketDisconnect, RuntimeError):
+            await websocket.send_json(message)
 
     def current_session(self) -> GameSession:
         if self.session is None:
@@ -183,6 +235,10 @@ class GameHost:
             # rather than wait for it. A Controller still thinking in its thread finishes, unheard.
             self.controller_task.cancel()
             self.controller_task = None
+        if self.advice_task is not None:
+            # It was about the Game as it was.
+            self.advice_task.cancel()
+            self.advice_task = None
 
     async def share_news(self) -> None:
         """Sends what changed, then lets the registered Controllers pick if the Decision is theirs."""
@@ -234,6 +290,14 @@ def true_or_false(message: dict[str, Any], field: str, *, default: bool) -> bool
     if not isinstance(value, bool):
         raise ValueError(f"{field} must be true or false, not {value!r}")
     return value
+
+
+def card_ids(message: dict[str, Any]) -> list[str]:
+    """The message's `cards`, which must be a list of card ids."""
+    cards = message["cards"]
+    if not isinstance(cards, list) or not all(isinstance(card, str) for card in cards):
+        raise ValueError(f"cards must be a list of card ids, not {cards!r}")
+    return cards
 
 
 def whole_number_or_none(message: dict[str, Any], field: str) -> int | None:

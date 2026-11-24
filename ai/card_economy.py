@@ -13,7 +13,8 @@ It looks ahead only through the handle's Sampled Positions, never a copy of the 
 from dataclasses import dataclass, field
 from typing import Any
 
-from ai.controller import Handle
+from ai.advice import PRICE, Advice
+from ai.controller import Handle, last_prelude_card
 from ai.prices import DEFAULT, Prices, Weights, neighbours
 
 # Seeds for the engine are whole numbers below 2^63.
@@ -90,6 +91,11 @@ class CardEconomyBot:
             return 0
         return self.explain(handle).picked
 
+    def advise(self, handle: Handle) -> Advice:
+        """Every Option by its Price."""
+        explained = self.explain(handle)
+        return Advice(explained.picked, (PRICE,), {option.index: [option.price] for option in explained.options})
+
     def explain(self, handle: Handle) -> Explanation:
         """Every Option of the handle's Decision, priced, best first."""
         prices = Prices.of(handle.player_view, handle.player, self.weights)
@@ -146,7 +152,9 @@ class CardEconomyBot:
         """Answers the Bot's follow-up Decisions in a Sampled Position, until what was picked is done."""
         for _ in range(MOST_FOLLOW_UPS):
             decision = game.decision
-            if decision is None or decision["player"] != handle.player or decision["kind"] not in FOLLOW_UPS:
+            if decision is None or decision["player"] != handle.player:
+                return
+            if decision["kind"] not in FOLLOW_UPS and not last_prelude_card(decision):
                 return
             game.pick(self.quick_pick(game, decision, handle, prices, depth))
 

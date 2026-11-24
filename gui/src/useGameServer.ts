@@ -2,8 +2,10 @@ import { useCallback, useEffect, useRef, useState } from "react";
 
 import { downloadReplayFile, readReplayFile } from "./replayFiles";
 import type {
+  Advice,
   Card,
   ClientMessage,
+  ConfirmPick,
   ControllerName,
   ControllerOnOffer,
   DevView,
@@ -48,12 +50,18 @@ export function useGameServer() {
   // Whether the server is hosted for anyone with its link, as it says with the Controllers.
   const [hosted, setHosted] = useState(false);
   const [game, setGame] = useState<GameUpdate | null>(null);
+  // Counts the Games shown: it changes whenever the server starts on another one, or on this one afresh.
+  const [gameNumber, setGameNumber] = useState(0);
   const [log, setLog] = useState<string[]>([]);
   // What the dev panel last asked to see.
   const [devView, setDevView] = useState<DevView | null>(null);
   const [error, setError] = useState<string | null>(null);
   // The Decision a pick was sent for, so its buttons stay disabled until the server answers.
   const [pickedSequence, setPickedSequence] = useState<number | null>(null);
+  // A pick that would draw cards, which the human has still to confirm.
+  const [confirming, setConfirming] = useState<ConfirmPick | null>(null);
+  // What the bot asked last would do.
+  const [advice, setAdvice] = useState<Advice | null>(null);
   const socket = useRef<WebSocket | null>(null);
 
   useEffect(() => {
@@ -89,6 +97,8 @@ export function useGameServer() {
           setLog([]);
           setDevView(null);
           setPickedSequence(null);
+          setConfirming(null);
+          setAdvice(null);
           setError(null);
           setConnected(true);
         }
@@ -111,6 +121,23 @@ export function useGameServer() {
           setLog((previous) => [...previous.slice(0, log_start), ...lines]);
           setError(null);
           setPickedSequence(null);
+          setConfirming(null);
+          // Another Game's Decisions may have the same numbers, so nothing about these carries over into it.
+          if (log_start === 0) setGameNumber((number) => number + 1);
+          setAdvice((previous) =>
+            log_start > 0 && previous?.sequence === state.decision?.sequence ? previous : null,
+          );
+          break;
+        }
+        case "confirm_pick": {
+          const { type: _type, ...asked } = message;
+          setConfirming(asked);
+          setPickedSequence(null);
+          break;
+        }
+        case "advice": {
+          const { type: _type, ...given } = message;
+          setAdvice(given);
           break;
         }
         case "game_over":
@@ -148,10 +175,46 @@ export function useGameServer() {
     [send],
   );
 
+  /** Picks an Option; the server asks first if it would draw cards (`confirming`). */
   const pick = useCallback(
     (sequence: number, index: number) => {
       setPickedSequence(sequence);
+      setConfirming(null);
+      send({ type: "pick", sequence, index, ask_before_drawing: true });
+    },
+    [send],
+  );
+
+  /** Picks an Option that draws cards, once confirmed. */
+  const confirmPick = useCallback(
+    ({ sequence, index }: ConfirmPick) => {
+      setPickedSequence(sequence);
       send({ type: "pick", sequence, index });
+    },
+    [send],
+  );
+
+  const cancelPick = useCallback(() => setConfirming(null), []);
+
+  /** Chooses exactly these cards, and is done. */
+  const chooseCards = useCallback(
+    (sequence: number, chosen: string[]) => {
+      setPickedSequence(sequence);
+      send({ type: "choose_cards", sequence, cards: chosen });
+    },
+    [send],
+  );
+
+  // The button goes at once, so that a double click doesn't end the Turn twice.
+  const endTurn = useCallback(() => {
+    setGame((shown) => shown && { ...shown, turn_over: false });
+    send({ type: "end_turn" });
+  }, [send]);
+
+  const askForAdvice = useCallback(
+    (sequence: number, controller: ControllerName) => {
+      setAdvice(null);
+      send({ type: "advice", sequence, controller });
     },
     [send],
   );
@@ -202,13 +265,21 @@ export function useGameServer() {
     controllers,
     hosted,
     game,
+    gameNumber,
     log,
     devView,
     error,
     clearError,
     pickedSequence,
+    confirming,
+    advice,
     newGame,
     pick,
+    confirmPick,
+    cancelPick,
+    chooseCards,
+    endTurn,
+    askForAdvice,
     undo,
     saveReplay,
     loadReplay,

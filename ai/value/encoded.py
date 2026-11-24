@@ -4,6 +4,7 @@ PyTorch, so the Value Bot, a Controller, and the processes that make training ba
 
 from typing import Any
 
+from ai.controller import last_prelude_card
 from ai.encoding import GLOBAL_FIELDS
 from ai.imitation.encoded import Position
 
@@ -29,6 +30,12 @@ FOLLOW_UPS = frozenset(
         "free_award",
     }
 )
+
+
+def is_follow_up(decision: dict[str, Any]) -> bool:
+    """Whether `decision` follows from the one before: one of FOLLOW_UPS, or only to play a last Prelude Card."""
+    return decision["kind"] in FOLLOW_UPS or last_prelude_card(decision)
+
 
 # The global fields that name the Decision being answered. A Player View doesn't say what another Player is
 # deciding, so the Value Model reads none of them, whoever's Decision it is.

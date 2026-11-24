@@ -62,6 +62,7 @@ impl Start {
                 // A Scenario starts past setup: nobody is dealt any, whichever a Player has.
                 corporations: false,
                 prelude: scenario.prelude,
+                ask_last_prelude_card: scenario.ask_last_prelude_card,
                 deal: None,
             },
             Start::Sampled => panic!("{SAMPLED}"),

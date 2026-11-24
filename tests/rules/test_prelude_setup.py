@@ -220,3 +220,55 @@ def test_a_corporations_first_action_comes_after_the_prelude_cards():
     pick(game, "Play Donation")
 
     assert labels(game) == ["First action of Inventrix: draw 3 cards", "Pass"]
+
+
+def test_a_game_that_asks_for_the_last_prelude_card_waits_on_it_as_a_decision_of_its_own():
+    game = tm_engine.Game(seed=7, prelude=True, ask_last_prelude_card=True)
+    skip_buying(game)
+    first = game.decision["player"]
+    kept = prelude_cards(game, first)["kept"]
+
+    pick(game, type="play_prelude_card", card=kept[1])
+    place_tiles_anywhere(game)
+
+    assert (game.decision["player"], game.decision["kind"]) == (first, "play_prelude_card")
+    assert [option["details"]["card"] for option in options(game)] == [kept[0]]
+    assert player_board(game, first)["played_prelude_cards"] == [kept[1]]
+
+    pick(game, type="play_prelude_card", card=kept[0])
+    place_tiles_anywhere(game)
+
+    assert player_board(game, first)["played_prelude_cards"] == kept
+    assert game.decision["player"] != first
+
+
+def test_a_replay_names_asking_for_the_last_prelude_card_only_when_it_is_on_and_plays_the_same_with_it():
+    game = tm_engine.Game(seed=11, prelude=True, ask_last_prelude_card=True)
+    play_randomly(game, seed=3)
+    loaded = tm_engine.Game.from_replay(json.loads(json.dumps(game.replay)))
+
+    assert game.replay["start"]["settings"]["ask_last_prelude_card"] is True
+    assert everything_about(loaded) == everything_about(game)
+    assert "ask_last_prelude_card" not in tm_engine.Game(seed=11, prelude=True).replay["start"]["settings"]
+
+
+def test_a_scenario_may_ask_for_the_last_prelude_card_and_a_position_waiting_on_it_is_one():
+    game = scenario(
+        player(prelude_cards=["donation", "loan"]), player(), prelude=True, ask_last_prelude_card=True
+    )
+    pick(game, "Play Donation")
+    again = tm_engine.Game.from_scenario(game.to_scenario())
+
+    assert labels(game) == ["Play Loan"]
+    assert labels(again) == ["Play Loan"]
+    assert "ask_last_prelude_card" not in scenario(player(), player(), prelude=True).to_scenario()
+
+
+def test_a_sampled_position_asks_for_the_last_prelude_card_if_the_game_does():
+    game = scenario(
+        player(prelude_cards=["donation", "loan"]), player(), prelude=True, ask_last_prelude_card=True
+    )
+    sample = game.sampler(0).sample(seed=1)
+    pick(sample, "Play Donation")
+
+    assert labels(sample) == ["Play Loan"]
